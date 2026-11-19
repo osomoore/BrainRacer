@@ -5,7 +5,7 @@ import type { Challenge, Difficulty } from '../core/types';
 import { ChallengeGenerator } from './ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from './ChallengeScheduler';
 
-function make(d: Difficulty = 'normal', opts: { interval?: number; delay?: number; seed?: number } = {}) {
+function make(d: Difficulty = 'normal', opts: { interval?: number; delay?: number; seed?: number; mode?: 'words' | 'math' | 'mixed' } = {}) {
   const rng = new Rng(opts.seed ?? 1);
   return new ChallengeScheduler({
     player: 0,
@@ -14,6 +14,7 @@ function make(d: Difficulty = 'normal', opts: { interval?: number; delay?: numbe
     generator: new ChallengeGenerator(rng.fork(1)),
     rng: rng.fork(2),
     startDelaySec: opts.delay ?? 3,
+    mode: opts.mode ?? 'mixed',
   });
 }
 const types = (ev: SchedulerEvent[]) => ev.map((e) => (e.type === 'resolved' ? `resolved:${e.result}` : 'shown'));
@@ -180,5 +181,30 @@ describe('ChallengeScheduler content', () => {
     const kinds = new Set<string>();
     for (let i = 0; i < 100; i++) for (const e of s.update(3 + i * 5)) if (e.type === 'shown') kinds.add(e.challenge.kind);
     expect(kinds).toEqual(new Set(['picToWord', 'math', 'wordToPic']));
+  });
+});
+
+describe('ChallengeScheduler mode filtering', () => {
+  const run = (mode: 'words' | 'math' | 'mixed' | undefined) => {
+    const rng = new Rng(5);
+    const s = new ChallengeScheduler({
+      player: 0, difficulty: 'normal', intervalSec: 5, generator: new ChallengeGenerator(rng.fork(1)),
+      rng: rng.fork(2), startDelaySec: 0, ...(mode ? { mode } : {}),
+    });
+    const kinds = new Set<string>();
+    for (let t = 0; t < 400; t += 1) for (const e of s.update(t)) if (e.type === 'shown') kinds.add(e.challenge.kind);
+    return { s, kinds };
+  };
+  it('words (and missing) never produce math', () => {
+    expect([...run('words').kinds].sort()).toEqual(['picToWord', 'wordToPic']);
+    expect(run(undefined).kinds.has('math')).toBe(false);
+  });
+  it('math only produces math, and ignores place triggers', () => {
+    const { s, kinds } = run('math');
+    expect([...kinds]).toEqual(['math']);
+    expect(s.notifyPlace('tree', 399.5).filter((e) => e.type === 'shown' && e.challenge.source === 'place')).toEqual([]);
+  });
+  it('mixed produces all kinds', () => {
+    expect([...run('mixed').kinds].sort()).toEqual(['math', 'picToWord', 'wordToPic']);
   });
 });

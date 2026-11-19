@@ -1,21 +1,19 @@
 import Phaser from 'phaser';
 import { ANSWER_COLORS } from '../../config/gameConfig';
-import { CHALLENGE } from '../../config/gameConfig';
 import { sceneTex, TEX } from '../../core/assetKeys';
 import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
 } from '../../core/types';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
 import { HUD } from './hudConfig';
-import { dockZone, easeInOut, easeOutBack, fitScale, lerp } from './hudMath';
+import { dockZone, easeInOut, lerp } from './hudMath';
 
-const CARD_W = 210, CARD_H = 170, CELL_GAP = 20;
+const CARD_W = 210, CARD_H = 170;
 const PROMPT_H = 230;
 const BADGE_DY = CARD_H / 2 + 38;
-const BIG_W = 3 * CARD_W + 2 * CELL_GAP + 80;
 const NAVY = HUD.colors.navy;
 
-type Phase = 'pop' | 'hold' | 'slide' | 'docked';
+type Phase = 'show' | 'shrink' | 'docked';
 
 interface Pose { x: number; y: number; s: number }
 
@@ -25,7 +23,6 @@ interface Cell {
   card: Phaser.GameObjects.Graphics;
   content: Phaser.GameObjects.Container;
   hint: Phaser.GameObjects.Graphics;
-  big: Pose;
   dock: Pose;
 }
 
@@ -40,27 +37,24 @@ function fitImage(img: Phaser.GameObjects.Image, size: number) {
   img.setScale(size / m);
 }
 
-/** One player's challenge: big pop-in, slide-up into a docked strip, result feedback. */
+/** One player's challenge: appears large at the top of the view (shake + glow), shrinks to a docked strip, result feedback. */
 export class ChallengePanel {
   finished = false;
   readonly root: Phaser.GameObjects.Container;
   private bg: Phaser.GameObjects.Graphics;
   private header?: Phaser.GameObjects.Text;
   private promptRoot: Phaser.GameObjects.Container;
-  private promptBig: Pose = { x: 0, y: 0, s: 1 };
   private promptDock: Pose = { x: 0, y: 0, s: 1 };
   private cells: Cell[] = [];
   private promptW = 250;
-  private headerBigY = 0;
-  private bigH = 0;
+  private glow: Phaser.GameObjects.Graphics;
   private dockW = 0;
   private dockH = 0;
-  private dockScale = 1;
-  private bigScale = 1;
 
-  private phase: Phase = 'pop';
+  private phase: Phase = 'show';
   private age = 0;
   private slideT = 0;       // 0 big .. 1 docked
+  private headerH = 0;      // unscaled room above the strip for the 'Look!' tag
   private resolved = false;
   private resolveAge = 0;
   private result: ChallengeResult | null = null;
@@ -76,8 +70,9 @@ export class ChallengePanel {
   ) {
     this.view = { ...view };
     this.root = scene.add.container(0, 0).setDepth(hooks.depth);
+    this.glow = scene.add.graphics();
     this.bg = scene.add.graphics();
-    this.root.add(this.bg);
+    this.root.add([this.glow, this.bg]);
 
     this.promptRoot = this.buildPrompt(challenge.prompt);
     this.root.add(this.promptRoot);
@@ -87,7 +82,7 @@ export class ChallengePanel {
       this.root.add(this.header);
     }
     this.layoutPoses();
-    this.root.setScale(0).setAlpha(0);
+    this.drawBg();
     this.apply();
   }
 
@@ -161,19 +156,12 @@ export class ChallengePanel {
       inner.add(g);
     }
     this.root.add(root);
-    return { root, inner, card, content, hint, big: { x: 0, y: 0, s: 1 }, dock: { x: 0, y: 0, s: 1 } };
+    return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
   }
 
-  /** Compute big and docked poses (local coords, panel center = 0,0). */
+  /** Compute the strip layout (local coords, strip center = 0,0). Big and docked share it; only the root scale differs. */
   private layoutPoses() {
-    const place = !!this.header;
-    const top = place ? -385 : -315, bottom = 225;
-    const oy = -(top + bottom) / 2;
-    this.bigH = bottom - top;
-    this.headerBigY = (place ? -345 : 0) + oy;
-    this.promptBig = { x: 0, y: -175 + oy, s: 1 };
-    this.cells.forEach((c, k) => { c.big = { x: (k - 1) * (CARD_W + CELL_GAP), y: 45 + oy, s: 1 }; });
-
+    this.headerH = this.header ? 78 : 0;
     const os = 0.9;
     const ps = Math.min(0.72, 300 / this.promptW);
     const pad = 16, gap = 14, cg = 8;
@@ -192,59 +180,73 @@ export class ChallengePanel {
 
   private zone(): Rect { return dockZone(this.view, 960, HUD.scoreboard.clearHalf, HUD.margin); }
 
-  /** Current scale/position of the root for slide progress t (0 big, 1 docked). */
-  private rootPose(t: number): { x: number; y: number; s: number } {
-    const v = this.view, z = this.zone();
-    this.bigScale = fitScale(BIG_W, this.bigH, v.w - 60, v.h - 360, HUD.panel.maxBigScale);
-    this.dockScale = Math.min(1, z.w / this.dockW);
-    const bx = v.x + v.w / 2, by = v.y + v.h / 2 + 62;
-    const dx = z.x + z.w / 2, dy = v.y + HUD.panel.dockTop + (this.dockH * this.dockScale) / 2;
-    const e = easeInOut(t);
-    return { x: lerp(bx, dx, e), y: lerp(by, dy, e), s: lerp(this.bigScale, this.dockScale, e) };
-  }
-
-  private apply() {
-    const t = this.slideT;
-    const e = easeInOut(t);
-    const rp = this.rootPose(t);
-    let popK = 1, offY = 0, rot = 0, alpha = 1;
-    if (this.phase === 'pop') {
-      const k = Math.min(1, this.age / CHALLENGE.popInSec);
-      popK = easeOutBack(k);
-      offY = (1 - k) * 160;
-      rot = (1 - k) * -0.14;
-      alpha = Math.min(1, k * 4);
-    }
-    this.root.setPosition(rp.x, rp.y + offY).setScale(Math.max(0.001, rp.s * popK)).setRotation(rot);
-    this.root.setAlpha(alpha * this.fadeAlpha);
-
-    const w = lerp(BIG_W, this.dockW, e), h = lerp(this.bigH, this.dockH, e);
+  private drawBg() {
+    const w = this.dockW, h = this.dockH;
     this.bg.clear();
     this.bg.fillStyle(NAVY, 0.97).fillRoundedRect(-w / 2, -h / 2, w, h, 36);
     this.bg.lineStyle(8, hexNum(this.color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 36);
+  }
 
-    const pose = (a: Pose, b: Pose) => ({ x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), s: lerp(a.s, b.s, e) });
-    const pp = pose(this.promptBig, this.promptDock);
-    this.promptRoot.setPosition(pp.x, pp.y).setScale(pp.s);
-    for (const c of this.cells) {
-      const p = pose(c.big, c.dock);
-      c.root.setPosition(p.x, p.y).setScale(p.s);
+  /** Big and docked scale: big fills the zone width but stays within the top bigMaxFrac of the view. */
+  private scales(): { big: number; dock: number } {
+    const v = this.view, z = this.zone();
+    const maxH = v.h * HUD.panel.bigMaxFrac - HUD.panel.dockTop;
+    const big = Math.max(0.3, Math.min(HUD.panel.maxBigScale, (z.w - 2 * HUD.panel.shakePx) / this.dockW, maxH / (this.dockH + this.headerH)));
+    const dock = Math.min(1, big * HUD.panel.dockFrac);
+    return { big, dock };
+  }
+
+  /** Root pose for slide progress t (0 big, 1 docked): always top-anchored, centered in the free zone. */
+  private rootPose(t: number): { x: number; y: number; s: number } {
+    const v = this.view, z = this.zone();
+    const sc = this.scales();
+    const e = easeInOut(t);
+    const s = lerp(sc.big, sc.dock, e);
+    const head = lerp(this.headerH * sc.big, 0, e);
+    return { x: z.x + z.w / 2, y: v.y + HUD.panel.dockTop + head + (this.dockH * s) / 2, s };
+  }
+
+  private apply() {
+    const e = easeInOut(this.slideT);
+    const rp = this.rootPose(this.slideT);
+    let offX = 0, rot = 0, alpha = 1;
+    const showing = this.phase === 'show';
+    if (showing) {
+      const k = Math.min(1, this.age / HUD.panel.showSec);
+      const decay = 1 - k * 0.6;
+      offX = Math.sin(this.age * 52) * HUD.panel.shakePx * decay;
+      rot = Math.sin(this.age * 41 + 1) * 0.025 * decay;
+      alpha = Math.min(1, this.age * 12);
     }
-    if (this.header) this.header.setPosition(0, this.headerBigY).setAlpha(1 - e).setVisible(e < 0.99);
+    this.root.setPosition(rp.x + offX, rp.y).setScale(rp.s).setRotation(rot);
+    this.root.setAlpha(alpha * this.fadeAlpha);
+
+    // attention glow: pulsing gold halo while shown, fading out as it shrinks
+    const w = this.dockW, h = this.dockH;
+    this.glow.clear();
+    const ga = 1 - e;
+    if (ga > 0.01 && !this.resolved) {
+      const pulse = 0.6 + 0.4 * Math.sin(this.age * 18);
+      for (let i = 4; i >= 1; i--) {
+        this.glow.fillStyle(HUD.colors.gold, 0.16 * ga * pulse).fillRoundedRect(-w / 2 - i * 10, -h / 2 - i * 10, w + i * 20, h + i * 20, 36 + i * 10);
+      }
+    }
+
+    const pp = this.promptDock;
+    this.promptRoot.setPosition(pp.x, pp.y).setScale(pp.s);
+    for (const c of this.cells) c.root.setPosition(c.dock.x, c.dock.y).setScale(c.dock.s);
+    if (this.header) this.header.setPosition(0, -h / 2 - this.headerH / 2 + 8).setAlpha(1 - e).setVisible(e < 0.99);
   }
 
   update(dt: number) {
     if (this.finished) return;
     this.age += dt;
     switch (this.phase) {
-      case 'pop':
-        if (this.age >= CHALLENGE.popInSec) { this.phase = 'hold'; this.age = 0; }
+      case 'show':
+        if (this.age >= HUD.panel.showSec) { this.phase = 'shrink'; this.age = 0; }
         break;
-      case 'hold':
-        if (!this.resolved && this.age >= HUD.panel.holdSec) { this.phase = 'slide'; this.age = 0; }
-        break;
-      case 'slide':
-        this.slideT = Math.min(1, this.age / CHALLENGE.slideUpSec);
+      case 'shrink':
+        this.slideT = Math.min(1, this.age / HUD.panel.shrinkSec);
         if (this.slideT >= 1) this.phase = 'docked';
         break;
       default: break;
@@ -252,7 +254,7 @@ export class ChallengePanel {
     if (this.resolved) {
       this.resolveAge += dt;
       if (this.result === 'wrong' && !this.hintShown && this.resolveAge >= HUD.panel.wrongHintDelaySec) this.showHint();
-      const hold = this.result === 'timeout' ? 0 : CHALLENGE.resultHoldSec;
+      const hold = this.result === 'timeout' ? 0 : HUD.panel.resultHoldSec;
       const fadeDur = this.result === 'timeout' ? HUD.panel.timeoutFadeSec : HUD.panel.fadeSec;
       if (this.resolveAge > hold) {
         this.fadeAlpha = Math.max(0, 1 - (this.resolveAge - hold) / fadeDur);

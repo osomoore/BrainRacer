@@ -24,6 +24,7 @@ export class ChallengeSystem implements GameSystem {
       generator: new ChallengeGenerator(rng.fork(i * 2 + 1)),
       rng: rng.fork(i * 2 + 2),
       startDelaySec: CHALLENGE.firstChallengeDelaySec,
+      mode: ctx.settings.challengeMode ?? 'words',
     }));
     this.near = this.schedulers.map(() => new Set<number>());
   }

@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 import { installGamepadMock, tapPad } from './gamepadMock';
 
 const BTN_A = 0;
-const DPAD_DOWN = 13;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -27,14 +26,13 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   await tapPad(page, 0, BTN_A);   // P1 joins
   await tapPad(page, 1, BTN_A);   // P2 joins
   await page.screenshot({ path: 'test-results/menus-title-2p.png' });
+  await page.waitForTimeout(800);   // join grace: P2 could join before P1's second A counts
   await tapPad(page, 0, BTN_A);   // continue
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
-  // P1 cursor: 0 diff -> 6 START
-  for (let i = 0; i < 6; i++) await tapPad(page, 0, DPAD_DOWN);
-  await tapPad(page, 0, BTN_A);
+  await tapPad(page, 0, BTN_A);   // A from the very first row starts the race
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
@@ -42,10 +40,11 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   expect(s.players[0].device).toEqual({ type: 'gamepad', index: 0 });
   expect(s.players[1].device).toEqual({ type: 'gamepad', index: 1 });
   expect(s.players[0].car).not.toEqual(s.players[1].car);
+  expect(s.challengeMode).toBe('words');
   expect(errors).toEqual([]);
 });
 
-test('keyboard only: Space joins, WASD to START', async ({ page }) => {
+test('keyboard only: Space, Space, Space reaches the race', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 0);
   await page.goto('/');
@@ -53,16 +52,32 @@ test('keyboard only: Space joins, WASD to START', async ({ page }) => {
   await page.waitForTimeout(500);
 
   await page.keyboard.press('Space');   // join (WASD layout)
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(800);
   await page.keyboard.press('Space');   // continue
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  for (let i = 0; i < 6; i++) { await page.keyboard.press('KeyS'); await page.waitForTimeout(100); }
-  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');   // start immediately
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
   expect(s.players).toHaveLength(1);
   expect(s.players[0].device).toEqual({ type: 'keyboard', layout: 'left' });
+  expect(errors).toEqual([]);
+});
+
+test('single gamepad: A, A, A reaches the race', async ({ page }) => {
+  const errors = watchErrors(page);
+  await installGamepadMock(page, 1);
+  await page.goto('/');
+  await waitScene(page, 'Title');
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, BTN_A);   // join
+  await page.waitForTimeout(800);
+  await tapPad(page, 0, BTN_A);   // Setup
+  await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
+  await tapPad(page, 0, BTN_A);   // Race
+  await waitScene(page, 'Race');
+  expect((await settingsOf(page)).players).toHaveLength(1);
   expect(errors).toEqual([]);
 });

@@ -16,13 +16,32 @@ export class BootScene extends Phaser.Scene {
     const bar = this.add.rectangle(width / 2 - 400, height / 2, 0, 24, 0x2ecc40).setOrigin(0, 0.5);
     this.add.text(width / 2, height / 2 - 60, 'BrainRacer', { fontFamily: 'Arial Black, Arial', fontSize: '64px', color: '#ffffff' }).setOrigin(0.5);
     this.load.on('progress', (p: number) => bar.setSize(800 * p, 24));
+    this.load.on('loaderror', (f: Phaser.Loader.File) => console.warn(`[boot] failed to load ${f.key} (${f.url})`));
     for (const s of SCENES) this.load.image(s.id, s.file);
+  }
+
+  /** Never leave a picture slot empty: any scene image that failed to load gets a labelled placeholder. */
+  private placeholderForMissingScenes() {
+    for (const s of SCENES) {
+      if (this.textures.exists(s.id)) continue;
+      console.warn(`[boot] scene texture missing: ${s.id} (${s.word}); using placeholder`);
+      const c = this.textures.createCanvas(s.id, 256, 256);
+      if (!c) continue;
+      const g = c.getContext();
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, 256, 256);
+      g.strokeStyle = '#1c4fa8'; g.lineWidth = 10; g.strokeRect(5, 5, 246, 246);
+      g.fillStyle = '#1c4fa8'; g.font = 'bold 120px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('?', 128, 100);
+      g.font = 'bold 40px Arial'; g.fillText(s.word.slice(0, 12), 128, 205);
+      c.refresh();
+    }
   }
 
   create() {
     services.input = createInput();
     services.audio = createAudio();
     generateTextures(this);
+    this.placeholderForMissingScenes();
     this.registry.set(REG.settings, loadSettings());
     const params = new URLSearchParams(location.search);
     const dev = params.get('dev');
