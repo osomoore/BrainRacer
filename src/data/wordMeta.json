@@ -26,13 +26,18 @@
   "bakery": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "bread",
+      "shop"
+    ]
   },
   "ball": {
     "category": "toy",
     "simple": true,
     "confusableWith": [
+      "beach",
       "circle",
+      "soccer",
       "sphere"
     ]
   },
@@ -44,7 +49,9 @@
   "barn": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "farm"
+    ]
   },
   "battery": {
     "category": "object",
@@ -55,6 +62,8 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
+      "ball",
+      "island",
       "swimming"
     ]
   },
@@ -78,7 +87,9 @@
   "bird": {
     "category": "animal",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "duck"
+    ]
   },
   "blocks": {
     "category": "toy",
@@ -121,7 +132,9 @@
   "bread": {
     "category": "food",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "bakery"
+    ]
   },
   "bridge": {
     "category": "place",
@@ -133,7 +146,9 @@
   "bus": {
     "category": "vehicle",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "train"
+    ]
   },
   "campsite": {
     "category": "place",
@@ -143,7 +158,9 @@
   "cap": {
     "category": "clothing",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "glove"
+    ]
   },
   "car": {
     "category": "vehicle",
@@ -178,7 +195,8 @@
     "category": "food",
     "simple": false,
     "confusableWith": [
-      "egg"
+      "egg",
+      "milk"
     ]
   },
   "church": {
@@ -214,7 +232,9 @@
   "clownfish": {
     "category": "animal",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "fishing"
+    ]
   },
   "coin": {
     "category": "object",
@@ -239,6 +259,7 @@
     "category": "object",
     "simple": false,
     "confusableWith": [
+      "pencil",
       "writing"
     ]
   },
@@ -293,7 +314,9 @@
   "duck": {
     "category": "animal",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "bird"
+    ]
   },
   "egg": {
     "category": "food",
@@ -305,7 +328,9 @@
   "envelope": {
     "category": "object",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "post office"
+    ]
   },
   "excavator": {
     "category": "vehicle",
@@ -317,7 +342,11 @@
   "farm": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "barn",
+      "horse",
+      "tractor"
+    ]
   },
   "fire station": {
     "category": "place",
@@ -330,6 +359,7 @@
     "category": "activity",
     "simple": false,
     "confusableWith": [
+      "clownfish",
       "lake"
     ]
   },
@@ -344,6 +374,7 @@
     "category": "nature",
     "simple": true,
     "confusableWith": [
+      "park",
       "watering flowers"
     ]
   },
@@ -351,7 +382,8 @@
     "category": "nature",
     "simple": false,
     "confusableWith": [
-      "park"
+      "park",
+      "tree"
     ]
   },
   "fork": {
@@ -393,7 +425,10 @@
   "glove": {
     "category": "clothing",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "cap",
+      "mitten"
+    ]
   },
   "guitar": {
     "category": "activity",
@@ -421,7 +456,9 @@
   "horse": {
     "category": "animal",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "farm"
+    ]
   },
   "hospital": {
     "category": "place",
@@ -439,7 +476,9 @@
   "island": {
     "category": "nature",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "beach"
+    ]
   },
   "jump rope": {
     "category": "activity",
@@ -488,7 +527,8 @@
     "simple": false,
     "confusableWith": [
       "book",
-      "reading"
+      "reading",
+      "school"
     ]
   },
   "lighthouse": {
@@ -502,13 +542,16 @@
     "category": "food",
     "simple": true,
     "confusableWith": [
+      "cheese",
       "glass"
     ]
   },
   "mitten": {
     "category": "clothing",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "glove"
+    ]
   },
   "moon": {
     "category": "nature",
@@ -521,6 +564,7 @@
     "category": "nature",
     "simple": false,
     "confusableWith": [
+      "skiing",
       "volcano"
     ]
   },
@@ -566,14 +610,17 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
+      "flower",
       "forest",
-      "playground"
+      "playground",
+      "tree"
     ]
   },
   "pencil": {
     "category": "object",
     "simple": false,
     "confusableWith": [
+      "crayon",
       "writing"
     ]
   },
@@ -607,12 +654,16 @@
   "post office": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "envelope"
+    ]
   },
   "pyramid": {
     "category": "object",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "triangle"
+    ]
   },
   "rainbow": {
     "category": "nature",
@@ -638,7 +689,8 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
-      "cooking"
+      "cooking",
+      "shop"
     ]
   },
   "ring": {
@@ -682,7 +734,9 @@
   "school": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "library"
+    ]
   },
   "scissors": {
     "category": "object",
@@ -700,19 +754,25 @@
   "shop": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "bakery",
+      "restaurant"
+    ]
   },
   "skating": {
     "category": "activity",
     "simple": false,
     "confusableWith": [
-      "running"
+      "running",
+      "skiing"
     ]
   },
   "skiing": {
     "category": "activity",
     "simple": true,
     "confusableWith": [
+      "mountain",
+      "skating",
       "sledding"
     ]
   },
@@ -735,19 +795,24 @@
   "sneakers": {
     "category": "clothing",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "sock"
+    ]
   },
   "soccer": {
     "category": "activity",
     "simple": false,
     "confusableWith": [
+      "ball",
       "stadium"
     ]
   },
   "sock": {
     "category": "clothing",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "sneakers"
+    ]
   },
   "sphere": {
     "category": "object",
@@ -820,6 +885,7 @@
     "category": "vehicle",
     "simple": false,
     "confusableWith": [
+      "farm",
       "truck"
     ]
   },
@@ -827,6 +893,7 @@
     "category": "vehicle",
     "simple": false,
     "confusableWith": [
+      "bus",
       "train station"
     ]
   },
@@ -846,6 +913,8 @@
     "category": "nature",
     "simple": true,
     "confusableWith": [
+      "forest",
+      "park",
       "treehouse"
     ]
   },
@@ -860,7 +929,9 @@
   "triangle": {
     "category": "shape",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "pyramid"
+    ]
   },
   "truck": {
     "category": "vehicle",
