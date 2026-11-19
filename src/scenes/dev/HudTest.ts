@@ -66,6 +66,7 @@ export default class HudTest extends Phaser.Scene {
       worldView: (p) => this.worldView(p),
       shake: () => {},
       shakeAt: () => {},
+      showOnlyTo: () => {},
       worldToScreen: (p, x, y) => {
         const wv = this.worldView(p), v = this.layout.playerViews[p] ?? this.layout.playerViews[0];
         return { x: v.x + (x - wv.x) * (v.w / wv.w), y: v.y + (y - wv.y) * (v.h / wv.h) };

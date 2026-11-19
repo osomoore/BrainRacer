@@ -61,6 +61,9 @@ export class CameraRig implements ICameraRig {
   private readonly facing: boolean;
   private lastMode: CameraMode | null = null;
   private destroyed = false;
+  private shown: { obj: Phaser.GameObjects.GameObject; player: PlayerId }[] = [];
+  private shownSynced = 0;
+  private lastIdx1 = 1;
 
   /** Debug/diagnostic: zoom needed to fit both cars in one view (1 player: baseZoom). */
   neededZoom: number;
@@ -124,9 +127,39 @@ export class CameraRig implements ICameraRig {
     }
   }
 
+  /** Show `obj` only in the camera currently showing `player` (no-op with a single camera). */
+  showOnlyTo(obj: Phaser.GameObjects.GameObject, player: PlayerId): void {
+    if (!this.second) return;
+    this.shown.push({ obj, player });
+    this.applyShown(obj, player);
+  }
+
+  private applyShown(obj: Phaser.GameObjects.GameObject, player: PlayerId): void {
+    if (!this.second) return;
+    const mine = this.camIndexFor(player) === 0 ? this.main : this.second;
+    const other = mine === this.main ? this.second : this.main;
+    obj.cameraFilter = (obj.cameraFilter | other.id) & ~mine.id;
+  }
+
+  /** Re-point showOnlyTo objects when the player->camera mapping changes (split/merge); drop destroyed ones. */
+  private syncShown(): void {
+    if (!this.second) return;
+    const idx1 = this.camIndexFor(1);
+    if (idx1 === this.lastIdx1 && this.shown.length === this.shownSynced) return;
+    this.lastIdx1 = idx1;
+    this.shown = this.shown.filter((s) => !!s.obj.scene);
+    for (const s of this.shown) this.applyShown(s.obj, s.player);
+    this.shownSynced = this.shown.length;
+  }
+
   // ───────────── per frame ─────────────
 
   update(dtSec: number): void {
+    this.updateCams(dtSec);
+    this.syncShown();
+  }
+
+  private updateCams(dtSec: number): void {
     if (this.destroyed) return;
     const cfg = this.cfg;
     const kLook = smoothFactor(cfg.lookSmoothing, dtSec);

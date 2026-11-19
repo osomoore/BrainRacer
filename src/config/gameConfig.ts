@@ -454,3 +454,35 @@ export const CAMERA = {
   velBlendMinSpeed: 150,     // px/s: above this (moving forward) the view leans toward the velocity direction
   velBlend: 0.5,             // 0..1 share of (velocity dir - heading) the view follows while sliding
 };
+
+// ───────────────────────── guide buddies (package U1) ─────────────────────────
+export const GUIDE = {
+  repathSec: 0.4,            // recompute the lane-graph route this often
+  offRouteDist: 220,         // px from the route polyline that forces an immediate repath
+  noRouteNodeDist: 700,      // car farther than this from any lane node: fly straight at the goal
+  lookAhead: 310,            // px along the route the buddy looks ahead (260-360)
+  holdDist: 170,             // px the buddy sits from the car toward the look-ahead point (140-200)
+  spring: 42,                // spring stiffness toward the hover spot (1/s^2)
+  damping: 11,               // damping on velocity relative to the car (1/s)
+  maxSpeed: 1500,            // px/s; above car turbo (~990) so it never falls behind
+  bobAmp: 9,                 // px gentle hover bob
+  bobHz: 1.4,
+  nearGoal: 450,             // px: within this the buddy flies to the goal and circles it
+  leaveGoal: 600,            // hysteresis: stays at the goal until the car is this far away again
+  orbitRadius: 130,          // px radius of the circle flown over the goal
+  orbitLift: 100,            // px the circle is shifted toward screen-up so the challenge panel never hides it
+  orbitSpeed: 2.3,           // rad/s
+  bodyScale: 1.5,
+  shadowScale: 0.55,
+  shadowAlpha: 0.28,
+  depthTrail: 51, depthGlow: 52, depthBody: 53,
+  trailPool: 56,             // pooled trail particles per buddy
+  trailEverySec: 0.035,
+  trailLife: 0.75,
+  dinoFlapFps: 10,
+  dinoFlapFpsHappy: 18,
+  starBlinkHz: 8,
+  starFlashEverySec: 1.1,
+  dinoColors: [0xff3d9a, 0xff8a1f, 0xffd23a] as number[],   // ribbon puff tints
+  starColors: [0xffe066, 0xffffff, 0xffc233] as number[],
+};

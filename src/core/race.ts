@@ -82,6 +82,8 @@ export interface ICameraRig {
   shake(player: PlayerId | null, intensity: number, ms: number): void;
   /** Shake cameras near a world point, falling off with distance (radius px). */
   shakeAt(x: number, y: number, radius: number, intensity: number, ms: number): void;
+  /** Render obj only in the camera(s) showing player (split screen: hidden in the other view). */
+  showOnlyTo(obj: Phaser.GameObjects.GameObject, player: PlayerId): void;
 }
 
 export interface DinoState {
