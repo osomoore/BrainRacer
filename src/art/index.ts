@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { drawCarDino, drawCarKart, drawCarShadow } from './cars';
 import { drawDinoBody, drawDinoHead, drawDinoLegs, drawDinoShadow, drawDinoTail } from './dino';
+import { drawFarm } from './farm';
 import { drawFx } from './fx';
 import { drawIndustrial } from './industrial';
 import { genIndustrialHeadlight } from './industrialHeadlight';
@@ -23,7 +24,7 @@ export function generateTextures(scene: Phaser.Scene): void {
   drawTraffic(scene); drawTruck(scene); drawPolice(scene);
   drawDinoBody(scene); drawDinoHead(scene); drawDinoTail(scene); drawDinoLegs(scene); drawDinoShadow(scene);
   drawWater(scene); drawGrass(scene); drawSidewalk(scene); drawPark(scene); drawPlaza(scene); drawDirt(scene);
-  drawRoads(scene); drawRoofs(scene); drawIndustrial(scene); genIndustrialHeadlight(scene);
+  drawRoads(scene); drawRoofs(scene); drawIndustrial(scene); genIndustrialHeadlight(scene); drawFarm(scene);
   drawSignFrame(scene); drawRamp(scene);
   drawTree(scene); drawBush(scene); drawLamp(scene); drawHydrant(scene); drawBench(scene); drawCone(scene);
   drawGoal(scene); drawFx(scene); drawUi(scene); drawBuddies(scene);
