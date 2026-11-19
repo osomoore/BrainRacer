@@ -110,7 +110,6 @@ export class Dino {
     burst(TEX.fxSmoke, 12, 220, 3.2, 1100, [0xffffff, 0xe8e8f4], 0);
     burst(TEX.fxConfetti, 36, 420, 1.6, 1500, [0xff5a5a, 0xffd34d, 0x5ad8ff, 0x7cfc5a, 0xff7ae0], 90);
     burst(TEX.fxStar, 10, 340, 1.3, 1300, [0xffe14d, 0xffffff], 0);
-    this.popText(x, y - 60, 'POOF!', '#ffffff', 150, 1300, 0.3);
   }
 
   get x() { return this.root.x; }

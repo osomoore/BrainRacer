@@ -164,9 +164,6 @@ export class JumpSystem implements GameSystem {
     services.audio.sfx('land');
     this.ctx.camera.shake(car.player, 0.006, 160);
     services.input.rumble(car.player, 0.6, 180);
-    if (_f.dur > WORLD.bigAirSec) {
-      this.ctx.bus.emit('ui:popup', { player: car.player, text: 'BIG AIR!', world: { x: car.x, y: car.y }, color: '#ffd23f' });
-    }
   }
 
   private whoosh(car: IPlayerCar): void {

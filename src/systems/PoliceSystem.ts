@@ -91,7 +91,6 @@ export class PoliceSystem implements GameSystem {
     this.ctx.bus.emit('police:bump', { player: p, x, y });
     services.audio.sfx('policeBump', { pan: this.pan(p) });
     services.input.rumble(p, 0.7, 180);
-    this.ctx.bus.emit('ui:popup', { player: p, text: 'BUMP!' });
   }
 
   private setHeat(p: PlayerId, heat: number): void {
@@ -159,7 +158,7 @@ export class PoliceSystem implements GameSystem {
     if (updateEscape(st.escape, minDist, player.turbo, dt) || cooled) this.endChase(p, !cooled);
   }
 
-  private endChase(p: PlayerId, escaped: boolean): void {
+  private endChase(p: PlayerId, _escaped: boolean): void {
     const st = this.per[p];
     st.chasing = false;
     st.escape.farSec = 0;
@@ -171,7 +170,6 @@ export class PoliceSystem implements GameSystem {
       c.mode = 'leave'; c.target = null; c.leaveSec = 0; c.brain.goal = -1; c.brain.path = [];
     }
     this.ctx.bus.emit('police:lost', { player: p });
-    this.ctx.bus.emit('ui:popup', { player: p, text: escaped ? 'Got away! \u{1F4A8}' : 'All clear!' });
   }
 
   private driveCar(car: PoliceCar, dt: number): void {

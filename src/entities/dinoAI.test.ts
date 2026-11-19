@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DINO } from '../config/gameConfig';
 import { Rng } from '../core/rng';
-import { capsuleHit, chooseWaypoint, dinoCapsule, dist, isDefeated, isTeamHit, patrolPoint, ramDamage, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
+import { capsuleHit, chooseWaypoint, dinoCapsule, dist, isDefeated, isTeamHit, patrolPoint, ramDamage, orbitStep, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
 
 const sites = Array.from({ length: 40 }, (_, i) => ({ x: (i % 8) * 600 + 100, y: Math.floor(i / 8) * 600 + 100 }));
 const opts = { goalChance: 0.6, goalRadius: 250, minDist: 300 };
@@ -83,7 +83,7 @@ describe('guard patrol', () => {
     let target = patrolPoint(goal, loop, phase);
     let maxD = 0;
     for (let i = 0; i < 60 * 240; i++) {
-      const r = steer(w, target, 1 / 60, { speed: DINO.speed * DINO.guardSpeedFrac, turnRate: DINO.turnRate, arriveRadius: DINO.arriveRadius, pauseSec: DINO.patrolPauseSec });
+      const r = steer(w, target, 1 / 60, { speed: DINO.guardSpeed, turnRate: DINO.turnRate, arriveRadius: DINO.arriveRadius, pauseSec: DINO.patrolPauseSec });
       if (r === 'arrived') { phase += DINO.patrolStepRad; target = patrolPoint(goal, loop, phase); }
       maxD = Math.max(maxD, dist(w, goal));
     }
@@ -115,5 +115,39 @@ describe('ram damage', () => {
     while (!isDefeated(hp)) { hp -= ramDamage(450, false, false, c); n++; }
     expect(n).toBeGreaterThanOrEqual(4);
     expect(n).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('orbitStep (goal guard)', () => {
+  const center = { x: 5000, y: 4000 };
+  const R = 170 + DINO.orbitPad;
+  const o = {
+    speed: DINO.guardSpeed, turnRate: DINO.turnRate, radius: R, breathe: DINO.orbitBreathe,
+    breatheW: DINO.orbitBreatheW, lookahead: DINO.orbitLookahead, returnTol: DINO.orbitReturnTol,
+  };
+  it('3 minutes with random rams stays near the orbit and never exceeds the speed', () => {
+    const rng = new Rng(7);
+    const w: DinoWalk = { x: center.x + R, y: center.y, angle: Math.PI / 2, pauseLeft: 0 };
+    const dt = 1 / 60;
+    let maxD = 0;
+    let nextRam = 2;
+    for (let i = 0; i < 180 * 60; i++) {
+      const t = i * dt;
+      if (t >= nextRam) {
+        const a = rng.range(0, Math.PI * 2);
+        w.x += Math.cos(a) * DINO.flinchStagger; w.y += Math.sin(a) * DINO.flinchStagger;
+        nextRam = t + rng.range(0.6, 4);
+      }
+      const px = w.x, py = w.y;
+      orbitStep(w, center, t, dt, o);
+      expect(Math.hypot(w.x - px, w.y - py) / dt).toBeLessThanOrEqual(DINO.guardSpeed + 1e-6);
+      maxD = Math.max(maxD, dist(w, center));
+    }
+    expect(maxD).toBeLessThanOrEqual(R + 100);
+  });
+  it('walks back to the orbit from a big displacement', () => {
+    const w: DinoWalk = { x: center.x + R + 250, y: center.y, angle: 0, pauseLeft: 0 };
+    for (let i = 0; i < 60 * 30; i++) orbitStep(w, center, i / 60, 1 / 60, o);
+    expect(Math.abs(dist(w, center) - R)).toBeLessThanOrEqual(DINO.orbitBreathe + 15);
   });
 });
