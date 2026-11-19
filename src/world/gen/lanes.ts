@@ -6,8 +6,8 @@ const LANE = TILE_SIZE / 4;   // lane center offset from road center (32 px)
 const HALF = TILE_SIZE / 2;
 
 /** Lane offset for travel direction d: right-hand traffic, +y down => offset = rot90cw(d) * LANE. */
-const offX = (d: number) => -DIRS[d].dy * LANE;
-const offY = (d: number) => DIRS[d].dx * LANE;
+export const offX = (d: number) => -DIRS[d].dy * LANE;
+export const offY = (d: number) => DIRS[d].dx * LANE;
 
 /**
  * Pass 7: directed lane graph.

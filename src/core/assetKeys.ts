@@ -16,8 +16,8 @@ export const TEX = {
 
   // dino (top-down T-rex, facing +x)
   dinoBody: 'dino_body',        // ~300 x 140 torso + neck
-  dinoHead: 'dino_head',        // ~120 x 80
-  dinoTail: 'dino_tail',        // ~180 x 60, pivot at left edge
+  dinoHead: 'dino_head',        // ~140 x 96
+  dinoTail: 'dino_tail',        // ~180 x 60, pivot at RIGHT edge (attaches to body rear, trails toward -x); see DINO_RIG
   dinoLeg: ['dino_leg_0', 'dino_leg_1', 'dino_leg_2', 'dino_leg_3'] as const, // walk cycle, ~70 x 40
   dinoShadow: 'dino_shadow',    // 460 x 220 soft ellipse
 

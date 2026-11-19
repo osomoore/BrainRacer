@@ -22,10 +22,10 @@ export function cityGen(seed: number): WorldData {
   const g: Grid = { w, h, tiles: new Uint8Array(w * h), mask: new Uint8Array(w * h) };
   for (let y = b; y < h - b; y++) for (let x = b; x < w - b; x++) g.tiles[y * w + x] = Tile.Grass;
 
-  generateRoads(rng.fork(1), g);
-  const blocks = generateBlocks(rng.fork(2), g, seed);
+  const featureTiles = generateRoads(rng.fork(1), g);
+  const blocks = generateBlocks(rng.fork(2), g, seed, featureTiles);
   const places = generatePlaces(rng.fork(3), g, blocks, CITY_PLACE_WORDS);
-  const playerSpawns = generateSpawns(g);
+  const playerSpawns = generateSpawns(rng.fork(4), g);
   const ramps = generateRamps(rng.fork(5), g, playerSpawns);
   const props = generateProps(rng.fork(6), g, ramps, playerSpawns);
   const laneGraph = generateLaneGraph(g);

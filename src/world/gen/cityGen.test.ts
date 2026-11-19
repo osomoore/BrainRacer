@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { TILE_SIZE, WORLD } from '../../config/gameConfig';
+import { Rng } from '../../core/rng';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, Tile, type WorldData } from '../../core/types';
 import { CITY_PLACE_WORDS } from '../../data/places';
 import { largestScc, toAscii } from './analysis';
+import { computeRoadMask, type Grid } from './grid';
 import { cityGen } from './index';
+import { generateSpawns } from './spawns';
 
 const SEEDS = [1, 2, 3, 7, 42, 99, 1234, 99999];
 const worlds = new Map<number, WorldData>(SEEDS.map((s) => [s, cityGen(s)]));
@@ -83,6 +86,24 @@ describe('cityGen', () => {
     }
   }));
 
+  it('carves one-tile-wide sidewalk alleys between buildings', () => {
+    let alleyTiles = 0;
+    for (const w of worlds.values()) {
+      const W = w.widthTiles;
+      const neighbors = [-W - 1, -W, -W + 1, -1, 1, W - 1, W, W + 1];
+      w.tiles.forEach((tile, i) => {
+        if (tile !== Tile.Sidewalk || neighbors.some((d) => w.tiles[i + d] === Tile.Road)) return;
+        alleyTiles++;
+        const spans = (d: number, type: Tile) => w.tiles[i - d] === type && w.tiles[i + d] === type;
+        expect(
+          (spans(1, Tile.Sidewalk) && spans(W, Tile.Building)) ||
+          (spans(W, Tile.Sidewalk) && spans(1, Tile.Building)),
+        ).toBe(true);
+      });
+    }
+    expect(alleyTiles).toBeGreaterThan(0);
+  });
+
   it('puts ramps on straight runs, spaced apart', each((w) => {
     expect(w.ramps.length).toBe(WORLD.rampCount);
     const W = w.widthTiles;
@@ -136,18 +157,33 @@ describe('cityGen', () => {
     for (const k of ['tree', 'lamp', 'cone'] as const) expect(kinds.has(k)).toBe(true);
   }));
 
-  it('spawns two cars on a road near the center, facing along it', each((w) => {
-    expect(w.playerSpawns.length).toBeGreaterThanOrEqual(2);
+  it('spawns two cars near the center in tandem in the same right-hand lane', each((w) => {
+    expect(w.playerSpawns).toHaveLength(2);
     const [a, b] = w.playerSpawns;
     expect(a.angle).toBe(b.angle);
+    const dx = Math.round(Math.cos(a.angle)), dy = Math.round(Math.sin(a.angle));
+    expect((a.x - b.x) * dx + (a.y - b.y) * dy).toBe(WORLD.spawnSpacingPx);
+    expect(-(a.x - b.x) * dy + (a.y - b.y) * dx).toBeCloseTo(0);
     for (const s of w.playerSpawns) {
       expect(tileAt(w, s.x, s.y)).toBe(Tile.Road);
-      const m = w.roadMask[Math.floor(s.y / TILE_SIZE) * w.widthTiles + Math.floor(s.x / TILE_SIZE)];
-      const horiz = Math.abs(Math.cos(s.angle)) > 0.99;
-      expect(m).toBe(horiz ? ROAD_E | ROAD_W : ROAD_N | ROAD_S);
+      const tx = Math.floor(s.x / TILE_SIZE), ty = Math.floor(s.y / TILE_SIZE);
+      const m = w.roadMask[ty * w.widthTiles + tx];
+      expect(m).toBe(dx !== 0 ? ROAD_E | ROAD_W : ROAD_N | ROAD_S);
+      const offsetX = s.x - (tx + 0.5) * TILE_SIZE, offsetY = s.y - (ty + 0.5) * TILE_SIZE;
+      expect(-offsetX * dy + offsetY * dx).toBe(TILE_SIZE / 4);
       expect(Math.hypot(s.x - (w.widthTiles * TILE_SIZE) / 2, s.y - (w.heightTiles * TILE_SIZE) / 2)).toBeLessThan(10 * TILE_SIZE);
     }
   }));
+
+  it('uses the seed to choose between nearby roads on the same map', () => {
+    const g: Grid = { w: 15, h: 15, tiles: new Uint8Array(225), mask: new Uint8Array(225) };
+    for (const y of [5, 9]) {
+      for (let x = 3; x <= 11; x++) g.tiles[y * g.w + x] = Tile.Road;
+    }
+    computeRoadMask(g);
+    const roadRows = new Set(SEEDS.map((seed) => Math.floor(generateSpawns(new Rng(seed), g)[0].y / TILE_SIZE)));
+    expect(roadRows).toEqual(new Set([5, 9]));
+  });
 
   it('renders ascii with one char per tile', () => {
     const rows = toAscii(worlds.get(1)!).split('\n');

@@ -25,7 +25,7 @@ export interface BlockInfo {
 const NB8: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
 /** Pass 2: flood-fill land between roads into blocks, add sidewalks, parks, plazas and building lots. */
-export function generateBlocks(rng: Rng, g: Grid, seed: number): BlockInfo {
+export function generateBlocks(rng: Rng, g: Grid, seed: number, featureTiles: number[]): BlockInfo {
   const lo = WORLD.waterBorderTiles + 1;
   const blockOf = new Int32Array(g.w * g.h).fill(-1);
   const blocks: Block[] = [];
@@ -66,25 +66,43 @@ export function generateBlocks(rng: Rng, g: Grid, seed: number): BlockInfo {
 
   // Choose parks / plazas under a land budget so buildings stay dominant.
   const totalInterior = blocks.reduce((s, b) => s + b.interior.length, 0);
+  const merged = new Set(featureTiles.map((t) => blockOf[t]));
+  const featureOrder = rng.shuffle(blocks.slice()).sort((a, b) => Number(merged.has(b.id)) - Number(merged.has(a.id)));
   let nonBuilding = 0;
-  for (const b of rng.shuffle(blocks.slice())) {
-    if (!isChunky(g, b) || biomeAt(b.tiles[0] % g.w, (b.tiles[0] / g.w) | 0, seed) !== 'city') continue;
+  for (const b of featureOrder) {
     if (nonBuilding + b.interior.length > (1 - WORLD.minBuildingFrac) * totalInterior) continue;
-    const r = rng.next();
-    if (r < WORLD.parkChance) b.kind = 'park';
-    else if (r < WORLD.parkChance + WORLD.plazaChance) b.kind = 'plaza';
-    else continue;
+    const isMerged = merged.has(b.id);
+    if (isMerged) {
+      b.kind = rng.chance(0.6) ? 'park' : 'plaza';
+    } else {
+      if (!isChunky(g, b) || biomeAt(b.tiles[0] % g.w, (b.tiles[0] / g.w) | 0, seed) !== 'city') continue;
+      const r = rng.next();
+      if (r < WORLD.parkChance) b.kind = 'park';
+      else if (r < WORLD.parkChance + WORLD.plazaChance) b.kind = 'plaza';
+      else continue;
+    }
     nonBuilding += b.interior.length;
     const tile = b.kind === 'park' ? Tile.Park : Tile.Plaza;
     for (const t of b.interior) g.tiles[t] = tile;
-    if (b.kind === 'park' && rng.chance(WORLD.pondChance)) makePond(rng, g, b);
+    if (b.kind === 'park' && (isMerged || rng.chance(WORLD.pondChance))) makePond(rng, g, b);
   }
 
-  // Pack building lots into the remaining interiors.
+  // Alleys also consume building land. Keep the building fraction after excluding their tiles.
+  const openSpaceBudget = (1 - WORLD.minBuildingFrac) * totalInterior;
+  let alleyBudget = Math.floor((openSpaceBudget - nonBuilding) / (1 - WORLD.minBuildingFrac));
   const lots: BuildingLot[] = [];
   const lotBlock: number[] = [];
   for (const b of blocks) {
     if (b.kind !== 'building') continue;
+    if (b.interior.length >= 9 && alleyBudget >= 2 && rng.chance(WORLD.alleyChance)) {
+      const alleys = findAlleys(g, b, alleyBudget);
+      if (alleys.length) {
+        const alley = rng.pick(alleys);
+        for (const t of alley) g.tiles[t] = Tile.Sidewalk;
+        alleyBudget -= alley.length;
+        b.interior = b.interior.filter((t) => g.tiles[t] !== Tile.Sidewalk);
+      }
+    }
     for (const t of b.interior) {
       if (g.tiles[t] === Tile.Building) continue;
       const tx = t % g.w, ty = (t / g.w) | 0;
@@ -106,6 +124,24 @@ export function generateBlocks(rng: Rng, g: Grid, seed: number): BlockInfo {
     }
   }
   return { blocks, blockOf, lots, lotBlock };
+}
+
+/** Find one-tile-wide passages between two outer sidewalks with building space on both sides. */
+function findAlleys(g: Grid, b: Block, maxLength: number): number[][] {
+  const alleys: number[][] = [];
+  for (const [along, across] of [[1, g.w], [g.w, 1]]) {
+    for (const start of b.interior) {
+      if (g.tiles[start - along] !== Tile.Sidewalk) continue;
+      const line: number[] = [];
+      let t = start;
+      while (g.tiles[t] === Tile.Grass && g.tiles[t - across] === Tile.Grass && g.tiles[t + across] === Tile.Grass) {
+        line.push(t);
+        t += along;
+      }
+      if (line.length >= 2 && line.length <= maxLength && g.tiles[t] === Tile.Sidewalk) alleys.push(line);
+    }
+  }
+  return alleys;
 }
 
 /** A single water tile in a park, only where all 8 neighbours are park (never touches roads). */

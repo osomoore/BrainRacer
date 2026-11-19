@@ -124,6 +124,8 @@ export const WORLD = {
   blockMin: 3,
   blockMax: 6,
   removeRoadChance: 0.12,
+  additionalRoadRemovalChance: 0.04,
+  mergedFeatureChance: 0.06,
   rampCount: 10,
   rampMinSpeedFrac: 0.4,
   airSecPerSpeed: 1.1 / 620, // airtime = speed * this (≈1.1 s at dino top speed)
@@ -134,6 +136,9 @@ export const WORLD = {
   minBuildingFrac: 0.6,
   pondChance: 0.3,
   lotMaxSide: 3,
+  alleyChance: 0.35,
+  spawnSpacingPx: 100,
+  spawnRoadSearchTiles: 4,
   rampSpacingTiles: 6,
   rampW: 128,
   rampH: 96,

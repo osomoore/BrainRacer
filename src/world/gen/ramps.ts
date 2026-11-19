@@ -18,11 +18,10 @@ export function generateRamps(rng: Rng, g: Grid, spawns: Spawn[]): Ramp[] {
       if (ok) cands.push({ x, y, axis });
     }
   }
-  const sp = spawns[0];
   const picked: typeof cands = [];
   for (const c of rng.shuffle(cands)) {
     if (picked.length >= WORLD.rampCount) break;
-    if (Math.hypot(c.x + 0.5 - sp.x / TILE_SIZE, c.y + 0.5 - sp.y / TILE_SIZE) < 3) continue;
+    if (spawns.some((sp) => Math.hypot(c.x + 0.5 - sp.x / TILE_SIZE, c.y + 0.5 - sp.y / TILE_SIZE) < 3)) continue;
     if (picked.some((p) => Math.hypot(p.x - c.x, p.y - c.y) < WORLD.rampSpacingTiles)) continue;
     picked.push(c);
   }
