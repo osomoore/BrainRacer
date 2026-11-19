@@ -16,7 +16,7 @@ export interface RepeatState { x: NavRepeat; y: NavRepeat }
 export const newRepeatState = (): RepeatState => ({ x: { dir: 0, nextAt: 0 }, y: { dir: 0, nextAt: 0 } });
 
 export const emptyInput = (): PlayerInput => ({
-  steer: 0, throttle: 0, brake: 0, answer: null, answerDirection: null, confirm: false, back: false, transfer: false,
+  steer: 0, throttle: 0, brake: 0, answer: null, answerDirection: null, confirm: false, back: false, transfer: false, resetCar: false,
   pause: false, navX: 0, navY: 0,
 });
 
@@ -74,6 +74,7 @@ export function mapGamepad(
     confirm: edge(m.a),
     back: edge(m.b),
     transfer: edge(m.b),
+    resetCar: edge(m.y),
     pause: edge(m.start),
     navX: navEdge(navDirX, repeat.x, now),
     navY: navEdge(navDirY, repeat.y, now),
@@ -92,6 +93,7 @@ export function mergeInputs(list: readonly PlayerInput[]): PlayerInput {
     out.confirm ||= i.confirm;
     out.back ||= i.back;
     out.transfer ||= i.transfer;
+    out.resetCar ||= i.resetCar;
     out.pause ||= i.pause;
     if (out.navX === 0) out.navX = i.navX;
     if (out.navY === 0) out.navY = i.navY;

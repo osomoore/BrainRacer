@@ -18,9 +18,11 @@ export const VEHICLE_CONDITION = {
   maxImpact: 700,
   minDamage: 13,
   maxDamage: 39,
-  smokeDamage: 26,
-  fireDamage: 59,
-  wreckDamage: 100,
+  // Cars take 2x the hits to wreck (was 26 / 59 / 100); smoke and fire stages scale with it.
+  smokeDamage: 52,
+  fireDamage: 118,
+  wreckDamage: 200,
+  resetDoubleTapSec: 0.6, // press Y twice within this to restore your own car
   damageCooldownSec: 0.23,
   transferTapSec: 0.5,
   transferReach: 135,

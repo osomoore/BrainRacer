@@ -7,23 +7,23 @@ export type KeyLayout = 'left' | 'right';
 export interface KeyTable {
   up: string; down: string; left: string; right: string;
   answers: [string, string, string, string];
-  confirm: string; back: string; transfer: string; pause: string;
+  confirm: string; back: string; transfer: string; reset: string; pause: string;
 }
 
 export const KEY_TABLES: Record<KeyLayout, KeyTable> = {
   left: {
     up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
-    answers: ['Digit1', 'Digit2', 'Digit3', 'Digit4'], confirm: 'Space', back: 'Backspace', transfer: 'KeyB', pause: 'Escape',
+    answers: ['Digit1', 'Digit2', 'Digit3', 'Digit4'], confirm: 'Space', back: 'Backspace', transfer: 'KeyB', reset: 'KeyR', pause: 'Escape',
   },
   right: {
     up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
-    answers: ['Comma', 'Period', 'Slash', 'KeyM'], confirm: 'Enter', back: 'Backspace', transfer: 'KeyN', pause: 'Escape',
+    answers: ['Comma', 'Period', 'Slash', 'KeyM'], confirm: 'Enter', back: 'Backspace', transfer: 'KeyN', reset: 'KeyY', pause: 'Escape',
   },
 };
 
 /** Codes that should have preventDefault called (page scroll etc.). */
 export const HANDLED_CODES: ReadonlySet<string> = new Set([
-  ...Object.values(KEY_TABLES).flatMap((t) => [t.up, t.down, t.left, t.right, ...t.answers, t.confirm, t.back, t.transfer, t.pause]),
+  ...Object.values(KEY_TABLES).flatMap((t) => [t.up, t.down, t.left, t.right, ...t.answers, t.confirm, t.back, t.transfer, t.reset, t.pause]),
   'F2',
 ]);
 
@@ -46,6 +46,7 @@ export function mapKeyboard(
     confirm: edge(t.confirm),
     back: edge(t.back),
     transfer: edge(t.transfer),
+    resetCar: edge(t.reset),
     pause: edge(t.pause),
     navX: navEdge(x, repeat.x, now),
     navY: navEdge(y, repeat.y, now),

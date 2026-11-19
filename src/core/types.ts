@@ -91,6 +91,7 @@ export interface PlayerInput {
   answer: AnswerSlot | null;  // edge
   answerDirection: AnswerSlot | null; // keyboard or D-pad button edge during a question break
   transfer: boolean;      // edge: B on pad, B or N on keyboard
+  resetCar: boolean;      // edge: Y on pad, R (P1) or Y (P2) on keyboard; double-tap restores your own car
   confirm: boolean;       // edge: A / Enter / Space
   back: boolean;          // edge: B-in-menus / Backspace
   pause: boolean;         // edge: Start / Esc

@@ -23,6 +23,7 @@ interface Condition {
   question: boolean;
   recoverAt: number;
   emitAt: number;
+  lastResetTap: number;
 }
 
 interface BoardingTarget {
@@ -61,7 +62,7 @@ export class VehicleConditionSystem implements GameSystem {
       return {
         starter: { spec: car.spec, texture: car.chassis.texture.key, angle: car.angle },
         damage: 0, lastHit: -Infinity, aim: null, hop: null, marker, rider,
-        question: false, recoverAt: Infinity, emitAt: 0,
+        question: false, recoverAt: Infinity, emitAt: 0, lastResetTap: -Infinity,
       };
     });
     this.offs.push(
@@ -79,7 +80,10 @@ export class VehicleConditionSystem implements GameSystem {
         state.question = true;
         this.clearAim(state);
       }),
-      ctx.bus.on('challenge:resolved', ({ challenge }) => { this.states[challenge.player].question = false; }),
+      ctx.bus.on('challenge:resolved', ({ challenge, result }) => {
+        this.states[challenge.player].question = false;
+        if (result === 'correct') this.repair(ctx.players[challenge.player], this.states[challenge.player]);
+      }),
       ctx.bus.on('game:pause', () => { for (const state of this.states) this.clearAim(state); }),
     );
   }
@@ -95,7 +99,9 @@ export class VehicleConditionSystem implements GameSystem {
     for (const car of ctx.players) {
       const state = this.states[car.player];
       if (state.hop) { this.updateHop(car, state); continue; }
-      if (!state.question && services.input.get(car.player).transfer) this.tap(car, state);
+      const input = services.input.get(car.player);
+      if (!state.question && input.resetCar) this.resetTap(car, state);
+      if (!state.question && input.transfer) this.tap(car, state);
       if (state.hop) continue;
       if (state.aim) this.updateAim(car, state);
       if (ctx.elapsedSec >= state.recoverAt) this.recover(car, state);
@@ -120,6 +126,26 @@ export class VehicleConditionSystem implements GameSystem {
     body.setVelocity(car.body, { x: car.body.velocity.x * 0.2, y: car.body.velocity.y * 0.2 });
     state.recoverAt = now + T.recoverySec;
     this.breakdown(car);
+  }
+
+  /** Y twice quickly: put the player back in their own starting car on a clear road (crashed / stuck / want it back). */
+  private resetTap(car: IPlayerCar, state: Condition): void {
+    const now = this.ctx.elapsedSec;
+    if (now - state.lastResetTap > T.resetDoubleTapSec) { state.lastResetTap = now; return; }
+    state.lastResetTap = -Infinity;
+    if (car.airborne) return;
+    const position = this.recoveryPosition(car, state);
+    if (!position) return;
+    this.change(car, state, { ...state.starter, position });
+  }
+
+  /** A correct answer fixes the car in place: damage cleared, a wrecked car drives again. */
+  private repair(car: IPlayerCar, state: Condition): void {
+    state.damage = 0;
+    state.recoverAt = Infinity;
+    if (!car.disabled) return;
+    car.setDisabled(false);
+    services.audio.sfx('pop');
   }
 
   private tap(car: IPlayerCar, state: Condition): void {

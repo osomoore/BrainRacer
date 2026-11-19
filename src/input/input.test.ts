@@ -79,6 +79,11 @@ describe('edges', () => {
     expect(run(pressed, pad())).toMatchObject({ answer: 0, transfer: true });
     expect(run(pressed, pressed).transfer).toBe(false);
   });
+  it('Y is an edge-triggered reset-car press (and still an answer)', () => {
+    expect(run(pad({ down: [3] }), pad())).toMatchObject({ resetCar: true, answer: 1 });
+    expect(run(pad({ down: [3] }), pad({ down: [3] })).resetCar).toBe(false);
+    expect(run(pad({ down: [1] }), pad()).resetCar).toBe(false);
+  });
   it('uses the stick for steering and menu navigation while keeping it out of answers', () => {
     expect(run(pad({ axes: [-1, 0] }))).toMatchObject({
       steer: -1, navX: -1, answer: null, answerDirection: null,
@@ -180,6 +185,11 @@ describe('keyboard', () => {
     expect(kb('left', ['KeyB']).transfer).toBe(true);
     expect(kb('right', ['KeyN']).transfer).toBe(true);
     expect(kb('left', ['KeyN', 'Backspace']).transfer).toBe(false);
+  });
+  it('keyboard reset keys: R for left layout, Y for right', () => {
+    expect(kb('left', ['KeyR']).resetCar).toBe(true);
+    expect(kb('right', ['KeyY']).resetCar).toBe(true);
+    expect(kb('left', ['KeyY']).resetCar).toBe(false);
   });
   it('confirm keys are per layout; back/pause shared', () => {
     expect(kb('left', ['Space']).confirm).toBe(true);
