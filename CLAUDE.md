@@ -22,8 +22,14 @@ TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest
 9. Body ownership: every Matter body sets `body.plugin.owner` (`BodyOwner` in `src/core/race.ts`).
 10. Screen is 1920×1080 logical, shown on monitors and projectors: UI text ≥ 40 px for gameplay info, high contrast.
 11. Audience is kids aged 5–9. No violence or scary gore; crashes bounce, nothing gets destroyed except comic "squash".
-12. Before finishing: `npm run typecheck && npm test` must pass. Do not commit (the orchestrator commits). Do not run `git push`.
+12. Before finishing: `npm run typecheck && npm test` must pass. If you are in a git worktree, make ONE commit of your work on your worktree branch (`git add -A && git commit`); never commit on `main`/`dev` directly, never push, never switch branches.
 13. Image labels come ONLY from `images/scenes/manifest.csv` (via `src/data/scenes.json`). Ignore `images/scenes/*.txt`.
 
 ## Final report format (sub-agents)
 Files changed · tests added · how to see it (`?dev=...`) · known gaps · proposed contract changes (if any) · what a human should check by hand.
+
+## Worktree setup (sub-agents)
+1. If `node_modules` is missing in your worktree, link the main one (PowerShell): `cmd /c mklink /J node_modules C:\Users\osomo\Projects\BrainRacer\node_modules`. Do not `npm install` new packages without listing it as a proposed change.
+2. `npm run assets` (copies scene PNGs to `public/scenes/`).
+3. Visual check: start `npm run dev` in the background (or `npx vite --port <free port>`), then
+   `npx playwright screenshot --viewport-size=1920,1080 --wait-for-timeout=4000 "http://localhost:5173/?dev=<Scene>" shot.png` and view the PNG. Iterate until it looks good. Don't commit screenshots.
