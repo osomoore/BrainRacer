@@ -242,6 +242,22 @@ export const DINO = {
   hitSpin: 8,                // rad/s
   stepIntervalSec: 0.55,
   shakeRadius: 900,
+  // O: added keys
+  turnRate: 1.1,             // rad/s heading change limit
+  arriveRadius: 90,          // waypoint reached within this
+  pauseSec: 1,               // look-around pause at each waypoint
+  minWaypointDist: 300,
+  goalWaypointRadius: 250,
+  capsuleRadius: 62,         // half-width of the stomp/hit capsule
+  capsuleFront: 0.32,        // capsule extends this fraction of length ahead of body centre
+  capsuleBack: 0.2,          // ... and this far behind
+  hitLaunchSpeed: 760,       // px/s launch speed (hitImpulse=40 is too small to read as px/s)
+  hitCooldownSec: 1,
+  roarCooldownSec: 4,
+  spawnMinDist: 1500,        // from both players
+  spawnEdgeTiles: 7,         // spawn on a road within this many tiles of the map edge
+  stepAudioRange: 1600,
+  devSpawnDelaySec: 2,       // ?dino=now
 };
 
 // ───────────────────────── camera (package H) ─────────────────────────
