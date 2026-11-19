@@ -10,8 +10,8 @@ export const GAME_HEIGHT = 1080;
 export const TILE_SIZE = 128;
 
 export const PLAYER_COLORS = ['#2ecc40', '#ff3b30'] as const;      // P1 green (dino), P2 red (kart)
-export const ANSWER_COLORS = ['#1e6fff', '#ffcc00', '#ff3b30'] as const; // X blue, Y yellow, B red
-export const ANSWER_LABELS = ['X', 'Y', 'B'] as const;
+export const ANSWER_COLORS = ['#1e6fff', '#ffcc00', '#ff3b30', '#2ecc40'] as const; // X blue, Y yellow, B red, A green
+export const ANSWER_LABELS = ['X', 'Y', 'B', 'A'] as const;
 
 /** Render depth layers (higher draws on top). */
 export const DEPTH = {

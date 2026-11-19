@@ -19,7 +19,7 @@ export interface GenerateOpts {
 export interface GeneratedChallenge {
   kind: ChallengeKind;
   prompt: ChallengePrompt;
-  options: [ChallengeOption, ChallengeOption, ChallengeOption];
+  options: ChallengeOption[];
   correct: AnswerSlot;
   placeWord?: string;
   /** The word being asked about (undefined for math). */

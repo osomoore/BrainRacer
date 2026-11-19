@@ -16,7 +16,12 @@ export type PlayerId = 0 | 1;
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
-export type AnswerSlot = 0 | 1 | 2;
+/**
+ * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).
+ * Drive-style challenges use slots 0-2 (A is the gas pedal); pause-style breaks use all 4
+ * laid out as the controller's face-button diamond.
+ */
+export type AnswerSlot = 0 | 1 | 2 | 3;
 
 // ───────────────────────── images / words ─────────────────────────
 export interface SceneEntry {
@@ -60,7 +65,8 @@ export interface Challenge {
   player: PlayerId;
   kind: ChallengeKind;
   prompt: ChallengePrompt;
-  options: [ChallengeOption, ChallengeOption, ChallengeOption];
+  /** 3 options (drive style: X/Y/B) or 4 (pause style: X/Y/B/A diamond); index = AnswerSlot. */
+  options: ChallengeOption[];
   correct: AnswerSlot;
   /** Seconds the challenge stays up (= period for this player's difficulty). */
   durationSec: number;

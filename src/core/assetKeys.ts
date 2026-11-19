@@ -59,7 +59,7 @@ export const TEX = {
   skid: 'fx_skid',              // 8 x 8 dark mark
 
   // ui
-  buttonBadge: ['btn_x', 'btn_y', 'btn_b'] as const, // 72 x 72 round badges with letters, colored per ANSWER_COLORS
+  buttonBadge: ['btn_x', 'btn_y', 'btn_b', 'btn_a'] as const, // 72 x 72 round badges with letters, colored per ANSWER_COLORS (index = AnswerSlot)
   panel: 'ui_panel',            // 9-slice-able rounded panel 96x96 (white, tint as needed)
 } as const;
 
