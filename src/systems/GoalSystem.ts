@@ -173,8 +173,8 @@ export class GoalSystem implements GameSystem {
     const target = t < this.flareUntil ? 1 : 0;
     this.flare += (target - this.flare) * Math.min(1, dt * 6);
     const pulse = 1 + Math.sin(t * 3) * 0.06;
-    goal.ringRadius = goal.radius * intro * pulse * (1 + this.flare * 0.15);
-    v.ring.setScale(goal.ringRadius * 2 / 360).setRotation(t * 0.5);
+    const ringRadius = goal.radius * intro * pulse * (1 + this.flare * 0.15);
+    v.ring.setScale(ringRadius * 2 / 360).setRotation(t * 0.5);
     const k = (GOALS.magnetFlareScale - 1) * this.flare;
     v.beacon.setScale((4 + 4 * k) * intro * (1 + Math.sin(t * 4) * 0.08), (16 + 16 * k) * intro)
       .setAlpha(Math.min(1, 0.55 + Math.sin(t * 2.5) * 0.12 + this.flare * 0.35 + bright * 0.45));

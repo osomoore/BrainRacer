@@ -461,10 +461,6 @@ export const CAMERA = {
 
 // ───────────────────────── guide buddies (package U1) ─────────────────────────
 export const GUIDE = {
-  repathSec: 0.4,            // recompute the lane-graph route this often
-  offRouteDist: 220,         // px from the route polyline that forces an immediate repath
-  noRouteNodeDist: 700,      // car farther than this from any lane node: fly straight at the goal
-  lookAhead: 760,            // px along the route the buddy looks ahead (must exceed the max hover distance)
   holdDist: 170,             // px fallback hover distance when the view rect is unknown; also the minimum
   edgeFrac: 0.8,             // hover at this fraction of the car->view-edge distance (screen space) along the lead direction
   edgeMargin: 80,            // screen px kept free between the buddy and the (inset) view edge

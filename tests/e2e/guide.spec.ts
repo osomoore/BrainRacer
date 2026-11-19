@@ -4,9 +4,15 @@ import type Phaser from 'phaser';
 import { GUIDE } from '../../src/config/gameConfig';
 import { TEX } from '../../src/core/assetKeys';
 import type { RaceContext } from '../../src/core/race';
-import { goalRingInView } from '../../src/entities/guideMath';
+import type { Rect, Vec2 } from '../../src/core/types';
 
 type RaceWindow = Window & { __race?: RaceContext };
+
+function goalRingInView(center: Vec2, radius: number, view: Rect): boolean {
+  const dx = Math.max(view.x - center.x, 0, center.x - (view.x + view.w));
+  const dy = Math.max(view.y - center.y, 0, center.y - (view.y + view.h));
+  return Math.hypot(dx, dy) <= radius;
+}
 
 async function parkKartByTheFountain(page: Page, x: number, angle: number) {
   await page.goto('/?race=2&seed=3&questions=off');
@@ -26,11 +32,12 @@ async function parkKartByTheFountain(page: Page, x: number, angle: number) {
 
 test('the kart guide leads up and right toward a clipped destination ring', async ({ page }) => {
   await parkKartByTheFountain(page, 1408, -Math.PI / 4);
-  const { car, star, goal, view, nominalRadius, ringRadius } = await page.evaluate((starKey) => {
+  const { car, star, goal, view, nominalRadius, ringRadius } = await page.evaluate(({ starKey, ringKey }) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];
-    const guide = (race.scene.children.list as Phaser.GameObjects.Image[])
-      .find((obj) => obj.texture?.key === starKey && obj.visible)!;
+    const images = race.scene.children.list as Phaser.GameObjects.Image[];
+    const guide = images.find((obj) => obj.texture?.key === starKey && obj.visible)!;
+    const ring = images.find((obj) => obj.texture?.key === ringKey)!;
     const goal = race.goal!;
     const project = ({ x, y }: { x: number; y: number }) => race.camera.worldToScreen(1, x, y);
     const screen = project(goal);
@@ -40,9 +47,9 @@ test('the kart guide leads up and right toward a clipped destination ring', asyn
     };
     return {
       car: project(car), star: project(guide), goal: screen, view: race.camera.layout().playerViews[1],
-      nominalRadius: screenRadius(goal.radius), ringRadius: screenRadius(goal.ringRadius!),
+      nominalRadius: screenRadius(goal.radius), ringRadius: screenRadius(ring.displayWidth / 2),
     };
-  }, TEX.buddyStar);
+  }, { starKey: TEX.buddyStar, ringKey: TEX.goalRing });
 
   const distanceFromView = Math.hypot(goal.x - view.x - view.w, goal.y - view.y);
   expect(goal.x).toBeGreaterThan(view.x + view.w);
@@ -54,13 +61,14 @@ test('the kart guide leads up and right toward a clipped destination ring', asyn
   expect(star.y).toBeLessThan(car.y);
 });
 
-test('turning toward a clipped goal keeps the kart guide moving smoothly', async ({ page }, testInfo) => {
+test('turning toward a clipped goal keeps the kart guide aligned and moving smoothly', async ({ page }, testInfo) => {
   await parkKartByTheFountain(page, 1280, -Math.PI / 2);
-  const frames = await page.evaluate((starKey) => {
+  const frames = await page.evaluate(({ starKey, ringKey }) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];
-    const guide = (race.scene.children.list as Phaser.GameObjects.Image[])
-      .find((obj) => obj.texture?.key === starKey && obj.visible)!;
+    const images = race.scene.children.list as Phaser.GameObjects.Image[];
+    const guide = images.find((obj) => obj.texture?.key === starKey && obj.visible)!;
+    const ring = images.find((obj) => obj.texture?.key === ringKey)!;
     const goal = race.goal!;
     const view = race.camera.layout().playerViews[1];
     const project = ({ x, y }: { x: number; y: number }) => race.camera.worldToScreen(1, x, y);
@@ -68,12 +76,13 @@ test('turning toward a clipped goal keeps the kart guide moving smoothly', async
       const star = project(guide);
       const kart = project(car);
       const center = project(goal);
-      const rim = project({ x: goal.x + goal.ringRadius!, y: goal.y });
+      const rim = project({ x: goal.x + ring.displayWidth / 2, y: goal.y });
       return {
         elapsed: race.elapsedSec,
         car: { x: car.x, y: car.y },
         guide: { x: guide.x, y: guide.y },
         offset: { x: star.x - kart.x, y: star.y - kart.y },
+        goalOffset: { x: center.x - kart.x, y: center.y - kart.y },
         ring: { center, radius: Math.hypot(rim.x - center.x, rim.y - center.y), view },
       };
     };
@@ -97,7 +106,7 @@ test('turning toward a clipped goal keeps the kart guide moving smoothly', async
       };
       race.scene.events.on('postupdate', capture);
     });
-  }, TEX.buddyStar);
+  }, { starKey: TEX.buddyStar, ringKey: TEX.goalRing });
 
   const steps = frames.slice(1).map((frame, i) => ({
     from: frames[i],
@@ -111,15 +120,20 @@ test('turning toward a clipped goal keeps the kart guide moving smoothly', async
 
   const { ring } = frames[0];
   expect(goalRingInView(ring.center, ring.radius, ring.view)).toBe(false);
-  expect(frames[0].offset.x).toBeLessThan(-100);
-  expect(frames.some(({ ring, offset }) => goalRingInView(ring.center, ring.radius, ring.view) && offset.x > 100)).toBe(true);
+  expect(frames.some(({ ring }) => goalRingInView(ring.center, ring.radius, ring.view))).toBe(true);
   const carTravel = Math.max(...frames.map(({ car }) => Math.hypot(car.x - frames[0].car.x, car.y - frames[0].car.y)));
   expect(carTravel).toBeLessThan(1);
+  const maxAngleError = Math.max(...frames.map(({ offset, goalOffset }) => {
+    const cross = offset.x * goalOffset.y - offset.y * goalOffset.x;
+    const dot = offset.x * goalOffset.x + offset.y * goalOffset.y;
+    return Math.atan2(Math.abs(cross), dot);
+  }));
+  // Allow the star to bob around the ray to the goal.
+  expect(maxAngleError).toBeLessThan(5 * Math.PI / 180);
 
   // Flight caps the step at 1/30 s. Allow the full range of the sprite's hover bob on top.
   const maxStep = GUIDE.maxSpeed / 30 + 3 * GUIDE.bobAmp;
   const { from, to, distance } = largest;
-  test.fail(true, 'The visible-goal handoff can snap the guide across the view in one frame.');
   expect(distance, `Guide moved ${distance.toFixed(1)} world px in one frame. Screen offset: (${from.offset.x.toFixed(0)}, ${from.offset.y.toFixed(0)}) to (${to.offset.x.toFixed(0)}, ${to.offset.y.toFixed(0)}).`)
     .toBeLessThanOrEqual(maxStep);
 });

@@ -1,58 +1,9 @@
-/** Guide-buddy maths (Phaser-free): route look-ahead, hover spot, spring flight, goal orbit. */
-import type { LaneGraph, Rect, Vec2 } from '../core/types';
+/** Guide-buddy maths (Phaser-free): hover spot, spring flight, goal orbit. */
+import type { Rect, Vec2 } from '../core/types';
 
-export interface GuideTuning {
-  lookAhead: number; holdDist: number; spring: number; damping: number; maxSpeed: number;
-  nearGoal: number; leaveGoal: number; offRouteDist: number;
-}
-
-const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
-
-/** Drop leading path nodes that lie behind the car so the look-ahead never points backwards along the lane. */
-export function trimPath(graph: LaneGraph, path: number[], pos: Vec2, maxScan = 10): number[] {
-  let best = 0, bd = Infinity;
-  for (let i = 0; i < Math.min(path.length, maxScan); i++) {
-    const d = dist(graph.nodes[path[i]], pos);
-    if (d < bd) { bd = d; best = i; }
-  }
-  // the car is already past the nearest node (along the segment to the next one): skip it
-  if (best + 1 < path.length) {
-    const a = graph.nodes[path[best]], b = graph.nodes[path[best + 1]];
-    const abx = b.x - a.x, aby = b.y - a.y;
-    if ((pos.x - a.x) * abx + (pos.y - a.y) * aby > 0) best++;
-  }
-  return path.slice(best);
-}
-
-/** Point `ahead` px along the polyline pos -> path nodes. Returns the final node if the path is shorter. */
-export function pointAlongPath(graph: LaneGraph, path: number[], pos: Vec2, ahead: number): Vec2 {
-  let prev: Vec2 = pos, left = ahead;
-  for (const id of path) {
-    const n = graph.nodes[id];
-    const seg = dist(prev, n);
-    if (seg >= left && seg > 1e-6) {
-      const t = left / seg;
-      return { x: prev.x + (n.x - prev.x) * t, y: prev.y + (n.y - prev.y) * t };
-    }
-    left -= seg;
-    prev = n;
-  }
-  return { x: prev.x, y: prev.y };
-}
-
-/** Shortest distance from pos to the polyline of the first `maxNodes` path nodes (Infinity if empty). */
-export function distToPath(graph: LaneGraph, path: number[], pos: Vec2, maxNodes = 14): number {
-  let best = Infinity;
-  const n = Math.min(path.length, maxNodes);
-  if (n === 1) return dist(graph.nodes[path[0]], pos);
-  for (let i = 0; i + 1 < n; i++) {
-    const a = graph.nodes[path[i]], b = graph.nodes[path[i + 1]];
-    const dx = b.x - a.x, dy = b.y - a.y;
-    const l2 = dx * dx + dy * dy;
-    const t = l2 > 0 ? Math.max(0, Math.min(1, ((pos.x - a.x) * dx + (pos.y - a.y) * dy) / l2)) : 0;
-    best = Math.min(best, Math.hypot(pos.x - (a.x + dx * t), pos.y - (a.y + dy * t)));
-  }
-  return best;
+interface GuideTuning {
+  spring: number; damping: number; maxSpeed: number;
+  nearGoal: number; leaveGoal: number;
 }
 
 /** Spot `hold` px from the car toward `target` (falls back to `fallbackDir` radians if target ~ car). */
@@ -73,15 +24,8 @@ export function orbitPoint(center: Vec2, angle: number, radius: number): Vec2 {
   return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
 }
 
-/** The goal ring can be in view with its center past an edge. */
-export function goalRingInView(center: Vec2, radius: number, view: Rect): boolean {
-  const x = Math.max(view.x, Math.min(view.x + view.w, center.x));
-  const y = Math.max(view.y, Math.min(view.y + view.h, center.y));
-  return Math.hypot(center.x - x, center.y - y) <= radius;
-}
-
 /** Distance from `origin` (inside `rect`) along unit `dir` to the rect edge (Infinity if dir ~ 0). */
-export function viewEdgeDist(origin: Vec2, dir: Vec2, rect: { x: number; y: number; w: number; h: number }): number {
+export function viewEdgeDist(origin: Vec2, dir: Vec2, rect: Rect): number {
   let best = Infinity;
   if (dir.x > 1e-6) best = Math.min(best, (rect.x + rect.w - origin.x) / dir.x);
   else if (dir.x < -1e-6) best = Math.min(best, (rect.x - origin.x) / dir.x);

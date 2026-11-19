@@ -1,46 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LaneGraph } from '../core/types';
-import { distToPath, edgeHoldDist, goalRingInView, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, pointAlongPath, stepFly, trimPath, viewEdgeDist, type FlyState } from './guideMath';
+import { edgeHoldDist, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, stepFly, viewEdgeDist, type FlyState } from './guideMath';
 import { GUIDE } from '../config/gameConfig';
-
-// L-shaped route: east along y=0 to x=400, then south to y=400
-const graph: LaneGraph = {
-  nodes: [
-    { id: 0, x: 0, y: 0, next: [1] }, { id: 1, x: 200, y: 0, next: [2] },
-    { id: 2, x: 400, y: 0, next: [3] }, { id: 3, x: 400, y: 200, next: [4] }, { id: 4, x: 400, y: 400, next: [] },
-  ],
-};
-const path = [0, 1, 2, 3, 4];
-
-describe('pointAlongPath', () => {
-  it('walks along the first segment', () => {
-    expect(pointAlongPath(graph, path, { x: 0, y: 0 }, 100)).toEqual({ x: 100, y: 0 });
-  });
-  it('turns the corner (look-ahead leads into the turn)', () => {
-    const p = pointAlongPath(graph, [2, 3, 4], { x: 300, y: 0 }, 250);
-    expect(p.x).toBeCloseTo(400); expect(p.y).toBeCloseTo(150);
-  });
-  it('returns the path end when shorter than the look-ahead', () => {
-    expect(pointAlongPath(graph, [4], { x: 400, y: 300 }, 999)).toEqual({ x: 400, y: 400 });
-  });
-});
-
-describe('trimPath', () => {
-  it('drops nodes the car already passed', () => {
-    expect(trimPath(graph, path, { x: 250, y: 3 })).toEqual([2, 3, 4]);
-  });
-  it('keeps the nearest node when the car is before it', () => {
-    expect(trimPath(graph, path, { x: 150, y: 0 })).toEqual([1, 2, 3, 4]);
-  });
-});
-
-describe('distToPath', () => {
-  it('measures to the polyline', () => {
-    expect(distToPath(graph, path, { x: 100, y: 50 })).toBeCloseTo(50);
-    expect(distToPath(graph, path, { x: 450, y: 100 })).toBeCloseTo(50);
-  });
-  it('is Infinity for an empty path', () => { expect(distToPath(graph, [], { x: 0, y: 0 })).toBe(Infinity); });
-});
 
 describe('hoverSpot', () => {
   it('is holdDist from the car toward the target', () => {
@@ -113,13 +73,6 @@ describe('viewEdgeDist / edgeHoldDist', () => {
   it('keeps the margin from the edge', () => {
     expect(edgeHoldDist(300, 0.9, 120, 1, 50, 700)).toBeCloseTo(180);
   });
-});
-
-it('counts a clipped goal ring only when it reaches the view', () => {
-  const view = { x: 960, y: 0, w: 960, h: 1080 };
-  const center = { x: 2040, y: -50 };
-  expect(goalRingInView(center, 130, view)).toBe(true);
-  expect(goalRingInView(center, 129, view)).toBe(false);
 });
 
 it('limits guide travel only on rays that cross the scoreboard', () => {

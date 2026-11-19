@@ -20,7 +20,7 @@ export interface CarMotion { x: number; y: number; vx: number; vy: number; angle
  * buildings, visible only in its own player's view. Flight uses guideMath.stepFly; the trail is a fixed pool.
  */
 export class GuideBuddy {
-  readonly fly: FlyState = { x: 0, y: 0, vx: 0, vy: 0 };
+  private readonly fly: FlyState = { x: 0, y: 0, vx: 0, vy: 0 };
   private readonly isDino: boolean;
   private readonly body: Phaser.GameObjects.Image;
   private readonly glow: Phaser.GameObjects.Image;
@@ -53,15 +53,13 @@ export class GuideBuddy {
 
   setHappy(on: boolean) { this.happy = on; }
 
-  /** Place instantly (first frame, or teleports). */
-  snapTo(p: Vec2) {
-    this.fly.x = p.x; this.fly.y = p.y; this.fly.vx = 0; this.fly.vy = 0;
-    this.heading = 0;
-    this.placed = true;
-  }
-
   update(dt: number, target: Vec2, car: CarMotion) {
-    if (!this.placed) { this.snapTo(target); this.heading = car.angle; }
+    if (!this.placed) {
+      this.fly.x = target.x;
+      this.fly.y = target.y;
+      this.heading = car.angle;
+      this.placed = true;
+    }
     this.t += dt;
     const t = this.t;
     stepFly(this.fly, target, { x: car.vx, y: car.vy }, dt, GUIDE);
