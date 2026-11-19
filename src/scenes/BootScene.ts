@@ -3,6 +3,7 @@ import { generateTextures } from '../art';
 import { services } from '../core/services';
 import { createInput } from '../input';
 import { createAudio } from '../audio';
+import { currentLaunchOptions } from '../config/launchOptions';
 import { loadSettings } from '../core/settings';
 import type { CarKind, InputDevice, PlayerId, Settings } from '../core/types';
 import { SCENES } from '../data/scenes';
@@ -41,6 +42,8 @@ export class BootScene extends Phaser.Scene {
     services.input = createInput();
     services.audio = createAudio();
     generateTextures(this);
+    const launch = currentLaunchOptions();
+    services.audio.setVolumes(launch.musicVolume, launch.sfxVolume);
     this.placeholderForMissingScenes();
     this.registry.set(REG.settings, loadSettings());
     const params = new URLSearchParams(location.search);

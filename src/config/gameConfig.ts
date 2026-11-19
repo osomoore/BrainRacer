@@ -69,7 +69,7 @@ export const CAT = {
 
 export const DEFAULT_SETTINGS: Settings = {
   map: 'city',
-  nightDriving: false,
+  nightDriving: false,            // DEPRECATED, unused (night is decided by the map); remove with the Settings field
   players: [
     { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' },
   ],
@@ -487,29 +487,6 @@ export const DINO = {
   barWidth: 300,
   barHeight: 38,
   barOffset: 290,
-};
-
-// dino laser eyes (package dino-laser)
-export const DINO_LASER = {
-  firstDelaySec: 6,            // after landing, before the first shot may start
-  cooldownSec: [9, 15] as [number, number],
-  devCooldownSec: 3,           // ?laser=now: first shot 1 s after landing, then every 3 s
-  rangeMax: 1100,              // only fires when a player is this close
-  chargeSec: 1.1,              // telegraph: eyes glow and a faint aim line shows the start of the sweep
-  fireSec: 2.2,                // beams sweep this long
-  arc: 1.5,                    // rad swept (~86 deg); tip speed = arc/fireSec*length ~ 610 px/s
-  length: 900,                 // beam reach from the eyes
-  hitHalfWidth: 20,            // beam half width for hits (plus target radius)
-  drawWidth: 46,               // drawn beam thickness
-  eyeFwd: 226,                 // eye offset ahead of the dino centre in rig px (x dino scale)
-  eyeSide: 54,                 // eye offset to each side in rig px
-  aimRandom: 0.25,             // rad: random aim error of the sweep centre
-  playerSlowMult: 0.45,        // speed cap on a zapped player...
-  playerSlowSec: 1.2,          // ...for this long
-  playerPush: 360,             // px/s sideways bounce (out of the beam)
-  playerSpin: 3,               // rad/s spin-out
-  playerCooldownSec: 2.5,      // per player: can't be zapped again right away (no damage is ever dealt)
-  turnRate: 1.6,               // rad/s the dino turns to face its target while charging
 };
 
 export const DINO_SMASH = {

@@ -1,5 +1,6 @@
 /** Settings persistence (localStorage, failure-tolerant). */
 import { DEFAULT_SETTINGS } from '../config/gameConfig';
+import { currentLaunchOptions } from '../config/launchOptions';
 import type { Settings } from './types';
 
 const KEY = 'brainracer.settings.v1';
@@ -10,11 +11,10 @@ export function loadSettings(): Settings {
     if (raw) {
       const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) };
       settings.map = settings.map === 'industrial' ? 'industrial' : 'city';
-      settings.nightDriving = settings.nightDriving === true;
-      return settings;
+      return { ...settings, ...currentLaunchOptions() };
     }
   } catch { /* ignore */ }
-  return structuredClone(DEFAULT_SETTINGS);
+  return { ...structuredClone(DEFAULT_SETTINGS), ...currentLaunchOptions() };
 }
 
 export function saveSettings(s: Settings): void {

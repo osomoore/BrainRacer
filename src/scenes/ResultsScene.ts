@@ -31,7 +31,7 @@ export class ResultsScene extends Phaser.Scene {
     const results: RoundResults = this.registry.get(REG.results) ?? { teamPoints: 0, players: [], goalsCompleted: 0, seed: 0 };
     this.settings = this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
     const roundSec = this.settings.roundLengthSec;
-    const stars = starRating(results.teamPoints, Number(new URLSearchParams(location.search).get('round')) || roundSec, GOALS.starThresholds);
+    const stars = starRating(results.teamPoints, roundSec, GOALS.starThresholds);
 
     this.drawBackground();
     this.confettiRain();

@@ -14,7 +14,7 @@ export class NightLightingSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     const industrial = ctx.settings.map === 'industrial';
-    if (!industrial && !ctx.settings.nightDriving) return;
+    if (!industrial) return;
     for (const car of ctx.players) {
       const image = ctx.scene.add.image(0, 0, TEX.industrial.headlight)
         .setName(`${industrial ? 'industrial' : 'city'}-headlight-${car.player}`)

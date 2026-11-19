@@ -1,11 +1,8 @@
-import { DINO, DINO_LASER, DINO_SMASH } from '../config/gameConfig';
+import { DINO, DINO_SMASH } from '../config/gameConfig';
 import { Dino } from '../entities/Dino';
 import {
   capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, orbitStep, ramDamage, steer, wrapAngle, type Capsule, type DinoWalk,
 } from '../entities/dinoAI';
-import {
-  beamHitsCircle, beamSideNormal, cancelLaser, chargeFrac, laserReady, newLaser, startLaser, stepLaser, sweepAngle, type LaserState, type LaserTiming,
-} from '../entities/dinoLaser';
 import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { PlayerId, Vec2 } from '../core/types';
@@ -39,16 +36,10 @@ export class DinoSystem implements GameSystem {
   private hitCooldown: number[] = [0, 0];
   private tossCooldown: number[] = [0, 0];
   private clock = 0;
-  private laser: LaserState = newLaser(DINO_LASER.firstDelaySec);
-  private laserDev = false;
-  private laserHitCd: number[] = [0, 0];
-  private readonly laserTm: LaserTiming = { chargeSec: DINO_LASER.chargeSec, fireSec: DINO_LASER.fireSec, arc: DINO_LASER.arc };
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
-    const q = new URLSearchParams(location.search);
-    this.devNow = q.get('dino') === 'now';
-    this.laserDev = q.get('laser') === 'now';
+    this.devNow = new URLSearchParams(location.search).get('dino') === 'now';
     this.offs.push(
       ctx.bus.on('goal:arrived', ({ goal, player, waitSec }) => {
         if (ctx.players.length < 2 || waitSec <= 0) return;
@@ -78,7 +69,6 @@ export class DinoSystem implements GameSystem {
     for (let i = 0; i < 2; i++) {
       this.hitCooldown[i] -= dt;
       this.tossCooldown[i] -= dt;
-      this.laserHitCd[i] -= dt;
     }
     let walking = false;
     const px = this.walk.x, py = this.walk.y;
@@ -124,9 +114,7 @@ export class DinoSystem implements GameSystem {
       if (this.stepTimer <= 0) { this.stepTimer = DINO.stepIntervalSec; this.step(ctx, d); }
     }
 
-    this.laserTick(dt, ctx, d);
-
-    if (this.mode === 'guard' && this.laser.phase === 'idle') {
+    if (this.mode === 'guard') {
       this.roarTimer -= dt;
       if (this.roarTimer <= 0) { this.faceT = DINO.faceSec; this.roar(ctx, d); }
     }
@@ -162,8 +150,6 @@ export class DinoSystem implements GameSystem {
     this.hitCooldown.fill(0);
     this.tossCooldown.fill(0);
     this.faceT = 0;
-    this.laser = newLaser(this.laserDev ? 1.5 : DINO_LASER.firstDelaySec);
-    this.laserHitCd.fill(0);
     const st = ctx.dino;
     st.active = true; st.x = pos.x; st.y = pos.y; st.angle = angle;
     this.roarTimer = ctx.rng.range(DINO.guardRoarSec[0], DINO.guardRoarSec[1]);
@@ -188,14 +174,6 @@ export class DinoSystem implements GameSystem {
 
   /** Slow stomping loop around the goal. Returns true if it moved. */
   private guard(dt: number, ctx: RaceContext): boolean {
-    if (this.laser.phase === 'charge') {
-      // turn to face the sweep centre; stand still while firing
-      const m = DINO_LASER.turnRate * dt;
-      const diff = wrapAngle(this.laser.baseAngle - this.walk.angle);
-      this.walk.angle = wrapAngle(this.walk.angle + Math.max(-m, Math.min(m, diff)));
-      return false;
-    }
-    if (this.laser.phase === 'fire') return false;
     if (this.faceT > 0) {
       this.faceT -= dt;
       const car = ctx.players[this.waiting];
@@ -211,86 +189,6 @@ export class DinoSystem implements GameSystem {
       breatheW: DINO.orbitBreatheW, lookahead: DINO.orbitLookahead, returnTol: DINO.orbitReturnTol,
     });
     return true;
-  }
-
-  /** Laser eyes: telegraph (glow + faint aim line), then twin beams sweep and zap traffic / bounce players. */
-  private laserTick(dt: number, ctx: RaceContext, d: Dino): void {
-    const L = this.laser;
-    if (this.mode !== 'guard') {
-      if (L.phase !== 'idle') { cancelLaser(L, DINO_LASER.cooldownSec[0]); d.setLaser(0, false, 0); }
-      return;
-    }
-    if (this.modeT < DINO.graceSec) return;
-    const ev = stepLaser(L, dt, this.laserTm);
-    if (ev === 'ended') {
-      L.cooldown = this.laserDev ? DINO_LASER.devCooldownSec : ctx.rng.range(DINO_LASER.cooldownSec[0], DINO_LASER.cooldownSec[1]);
-      d.setLaser(0, false, 0);
-      return;
-    }
-    if (L.phase === 'idle') {
-      const target = this.nearestPlayer(ctx);
-      const canFire = this.faceT <= 0 && !d.roaring && !!target && dist(target, this.walk) <= DINO_LASER.rangeMax;
-      if (target && laserReady(L, canFire)) {
-        const base = Math.atan2(target.y - this.walk.y, target.x - this.walk.x) + ctx.rng.range(-DINO_LASER.aimRandom, DINO_LASER.aimRandom);
-        startLaser(L, base, ctx.rng.next() < 0.5 ? 1 : -1);
-        services.audio.sfx('turbo', { pan: this.panFor(ctx), volume: 0.6, rate: 1.4 });
-      }
-      return;
-    }
-    if (L.phase === 'charge') {
-      d.setLaser(Math.max(0.01, chargeFrac(L, this.laserTm)), false, L.baseAngle - (L.dir * DINO_LASER.arc) / 2);
-      return;
-    }
-    if (ev === 'fire') {
-      services.audio.sfx('shockwave', { pan: this.panFor(ctx), volume: 0.7, rate: 1.6 });
-      services.audio.sfx('pop', { pan: this.panFor(ctx), volume: 0.6, rate: 0.7 });
-    }
-    const ang = sweepAngle(L, this.laserTm);
-    d.setLaser(0, true, ang);
-    this.laserHits(ctx, d, ang);
-  }
-
-  private laserHits(ctx: RaceContext, d: Dino, ang: number): void {
-    for (const eye of d.eyes()) {
-      for (const car of ctx.players) {
-        if (car.airborne || car.disabled || car.ghost || car.boardingPosition || this.laserHitCd[car.player] > 0) continue;
-        if (!beamHitsCircle(eye, ang, DINO_LASER.length, DINO_LASER.hitHalfWidth, car, CAR_RADIUS)) continue;
-        // harmless bounce: no damage, no points lost; brief slowdown + a sideways spin-out
-        this.laserHitCd[car.player] = DINO_LASER.playerCooldownSec;
-        const n = beamSideNormal(ang, eye, car);
-        car.applyImpulse(n.x * DINO_LASER.playerPush, n.y * DINO_LASER.playerPush, DINO_LASER.playerSpin * (car.player === 0 ? 1 : -1));
-        car.slow(DINO_LASER.playerSlowMult, DINO_LASER.playerSlowSec);
-        d.zap(car.x, car.y);
-        services.audio.sfx('pop', { pan: this.panFor(ctx), volume: 0.9 });
-        services.input.rumble(car.player, 0.5, 220);
-        ctx.camera.shake(car.player, 0.006, 200);
-      }
-      for (const npc of ctx.npcs) {
-        if (npc.destroyed || !this.beamTouchesNpc(eye, ang, npc)) continue;
-        const { x, y } = npc;
-        d.toss(npc, beamSideNormal(ang, eye, npc));
-        ctx.npcs.delete(npc);
-        npc.destroy();
-        d.zap(x, y);
-        this.smashSound(ctx, x, y);
-      }
-    }
-  }
-
-  private beamTouchesNpc(eye: Vec2, ang: number, npc: INpcVehicle): boolean {
-    const r = npc.spec.width / 2;
-    const half = Math.max(0, npc.spec.length / 2 - r);
-    const dx = Math.cos(npc.angle) * half, dy = Math.sin(npc.angle) * half;
-    const hw = DINO_LASER.hitHalfWidth, len = DINO_LASER.length;
-    return beamHitsCircle(eye, ang, len, hw, npc, r)
-      || beamHitsCircle(eye, ang, len, hw, { x: npc.x + dx, y: npc.y + dy }, r)
-      || beamHitsCircle(eye, ang, len, hw, { x: npc.x - dx, y: npc.y - dy }, r);
-  }
-
-  private nearestPlayer(ctx: RaceContext): IPlayerCar | null {
-    let best: IPlayerCar | null = null, bd = Infinity;
-    for (const p of ctx.players) { const k = dist(p, this.walk); if (k < bd) { bd = k; best = p; } }
-    return best;
   }
 
   private startLeaving(): void {

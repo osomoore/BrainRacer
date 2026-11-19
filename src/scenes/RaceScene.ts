@@ -2,6 +2,7 @@ import { questionsOffAllowed, resolveChallengeMode } from '../config/questionsPo
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
+import { currentLaunchOptions } from '../config/launchOptions';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { Rng, randomSeed } from '../core/rng';
@@ -21,7 +22,7 @@ const COUNTDOWN_SEC = 3;
  * Integration point (orchestrator-owned). Builds the world, cars, camera rig and all systems
  * (auto-registered from src/systems/*System.ts), runs the countdown, pause and round end.
  *
- * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?debug=1  ?questions=off|words|math|mixed  ?night=1|0
+ * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?every=SEC  ?music=0..1  ?sfx=0..1  ?debug=1  ?questions=off|words|math|mixed
  */
 export class RaceScene extends Phaser.Scene {
   private ctx!: RaceContext;
@@ -46,10 +47,10 @@ export class RaceScene extends Phaser.Scene {
     // Questions are mandatory unless the app was started with the questions-off option (see questionsPolicy.ts).
     settings.challengeMode = resolveChallengeMode(
       settings.challengeMode, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed());
-    const night = params.get('night');
-    if (night === '1' || night === '0') settings.nightDriving = night === '1';
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
-    const roundLengthSec = Number(params.get('round')) || settings.roundLengthSec;
+    // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
+    Object.assign(settings, currentLaunchOptions());
+    const roundLengthSec = settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
 
     const engine = this.matter.world.engine as unknown as { positionIterations: number; velocityIterations: number };
@@ -60,7 +61,7 @@ export class RaceScene extends Phaser.Scene {
     const industrial = settings.map === 'industrial';
     this.raceMusic = industrial ? 'industrial' : 'race';
     const world = industrial ? generateIndustrial(seed) : cityGen(seed);
-    this.built = buildWorld(this, world, settings.nightDriving);
+    this.built = buildWorld(this, world, industrial);
     this.skids = new SkidMarks(this);
 
     this.players = settings.players.map((p, i) => {

@@ -7,6 +7,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 ## How to play / test
 - Full game: `play.bat`, or `npm run dev` → http://localhost:5173/ (press A / Space three times to start).
 - Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines), or `&questions=off` (disable questions for this race).
+- **Launch options** (not in the Setup menu; URL params, also work with `npm run dev`, e.g. `http://localhost:5173/?round=240&every=12&music=0.5&sfx=0.7`): `round` = round length in seconds (default 300, accepted 10..3600), `every` = seconds of driving between question breaks (default 10, accepted 1..120), `music` / `sfx` = volume 0..1 (defaults 0.6 / 0.8; clamped). Invalid values fall back to the defaults; saved settings never override them. `play.bat --round 240 --every 12 --music 0.5 --sfx 0.7` (alongside `--questions-off`) turns the flags into these params. Logic + tests: `src/config/launchOptions.ts`.
 - **Questions are mandatory in normal play** (no "Off" in the setup menu; `?questions=off` is ignored). The ability to turn them off exists only when started with `VITE_ALLOW_QUESTIONS_OFF=1`: `npm run dev` does this automatically (`.env.development`) and also defaults questions to off (`VITE_QUESTIONS=off`); `npm run dev:questions` has the ability but questions stay on; `play.bat --questions-off` enables it for a built game; Playwright's webServer sets it. For a manual `npm run build && npm run preview` set `VITE_ALLOW_QUESTIONS_OFF=1` first. Logic: `src/config/questionsPolicy.ts`.
 - Industrial quick launch: `/?race=2&map=industrial&seed=3&questions=off`. Use `race=1` for solo or `map=city` to select City explicitly.
 - Test hooks: `&dino=now` (dino appears next to players in 2 s), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
@@ -15,7 +16,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 
 ## How the game plays now
 - **Menus:** A joins (up to 2 players: pad or keyboard WASD / arrows); A again → Setup; A on any Setup row starts.
-  Setup: per-player difficulty + car; Question style (**Stop & Answer** default / While Driving); Questions (**Words** default / Math / Mix / Off); Questions every N s (default 10); round length; volumes.
+  Setup: per-player difficulty + car; Question style (**Stop & Answer** default / While Driving); Questions (**Words** default / Math / Mix / Off); Map (City is always day, Industrial always night). Round length, question interval and volumes are launch options (see above).
 - **Camera:** facing-up. Each player's view rotates so their car points up (car at 52% height). 2 players = always split screen.
 - **Question breaks (default "Stop & Answer"):** shared team timer. Every ~10 s of driving the world freezes for everyone. Each player gets a big question with **4 answers in the controller diamond** (Y top, X left, B right, A bottom). Answer with face buttons, D-pad buttons, WASD/arrows, 1–4 (P1) or `, . / M` (P2). Wrong → sad sound + new question. Right → ✓ (2P waits for teammate). All right → "GO!" → turbo + boost jump for everyone.
 - **"While Driving" style:** the old mode. 3 answers (X/Y/B) in a panel centered below the car, a timer bar, and a slowdown after a miss.
@@ -47,7 +48,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 
 ## Playtest follow-ups
 
-- Set **City lighting** to **Night** in Setup or add `&night=1` to a quick race. Night headlights work in solo and split screen.
+- Night is decided by the map: Industrial is always night, City always day (the old City-lighting option and `?night=` are gone).
 - A strong collision adds vehicle damage. Repeated hits lead to smoke, flames, and a comic burst when the engine stops. Tap pad **B** to highlight a nearby vehicle. Tap again within half a second to hop over as the camera follows. Your old vehicle stays behind. Keyboard controls are **B** for P1 and **N** for P2. A stopped car is replaced on a clear nearby road after eight seconds if the player stays in it. Cars take twice the hits they used to before breaking down (`VEHICLE_CONDITION.wreckDamage` 200). **Press Y (pad) twice quickly (R for P1 / Y for P2 on keyboard) to reset to your own starting car** on a clear nearby road, clearing damage; ignored during questions. **A correct answer repairs your car** (damage cleared, a stopped car drives again).
 - When you take over a sedan, it drives about as fast as a starter car. Police cruisers are faster. Trucks have a lower top speed and extra weight to push traffic aside.
 - The dino can stomp and toss nearby traffic. It can also knock a slow player car into the air and damage it.
