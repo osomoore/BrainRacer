@@ -38,12 +38,13 @@ export function largestScc(graph: LaneGraph): number {
   return best;
 }
 
-/** One character per tile; rows joined by newlines. */
+/** One character per tile; rows joined by newlines. Dirt ',' (farm lanes and yards), Corn '|', Mud '%'. */
 export function toAscii(world: WorldData): string {
   const ch: string[] = new Array(world.tiles.length);
   const map: Record<number, string> = {
     [Tile.Water]: '~', [Tile.Grass]: '.', [Tile.Road]: '#', [Tile.Sidewalk]: ':',
-    [Tile.Building]: 'B', [Tile.Park]: 'T', [Tile.Plaza]: 'o', [Tile.Dirt]: '.',
+    [Tile.Building]: 'B', [Tile.Park]: 'T', [Tile.Plaza]: 'o', [Tile.Dirt]: ',',
+    [Tile.Corn]: '|', [Tile.Mud]: '%',
   };
   for (let i = 0; i < ch.length; i++) ch[i] = map[world.tiles[i]] ?? '?';
   for (const b of world.buildings) {
