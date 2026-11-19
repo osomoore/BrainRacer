@@ -588,4 +588,15 @@ export const FREIGHT = {
   soundRadius: 1250,
   soundVolume: 0.72,
   releaseSpeed: 380,
+  // --- smash (turbo or a hard hit breaks the train apart) ---
+  smashImpactSpeed: 760,   // px/s along contact normal without turbo (train itself moves at `speed`)
+  smashCooldownSec: 0.4,   // per-player, avoids double triggers
+  reformSec: 9,            // smashed cars rejoin their slot after this (once no vehicle is in the way)
+  debrisSec: 2.4,          // tumbling wagon lifetime before it poofs away
+  debrisLaunch: 520,       // px/s base launch speed of a wagon
+  debrisSpin: 7,           // rad/s max spin
+  debrisPoofs: 6,
+  cratesPerCar: 3,
+  crateKey: 'industrial_cargo_crate',
+  smashScore: 2,           // popup only: "+N" (no score event exists for this yet)
 };
