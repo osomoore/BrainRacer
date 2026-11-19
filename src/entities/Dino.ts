@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
+import { LASER_TEX, ensureLaserTextures } from '../art/dino';
 import { DINO_RIG, type RigPart } from '../art/dinoRig';
-import { DEPTH, DINO, DINO_SMASH } from '../config/gameConfig';
+import { DEPTH, DINO, DINO_LASER, DINO_SMASH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { INpcVehicle } from '../core/race';
 import type { Vec2 } from '../core/types';
+import { eyePositions } from './dinoLaser';
 
 /** Chunkier, friendlier proportions applied on top of the rig (rig is just a starting layout). */
 const LOOK = {
@@ -52,6 +54,7 @@ export class Dino {
   private stars: Phaser.GameObjects.Image[] = [];
   private bar: Phaser.GameObjects.Container;
   private barFill: Phaser.GameObjects.Rectangle;
+  private laserFx: { glow: Phaser.GameObjects.Image[]; beam: Phaser.GameObjects.Image[]; tip: Phaser.GameObjects.Image[] } | null = null;
 
   constructor(private scene: Phaser.Scene, x: number, y: number, angle: number) {
     this.scale = DINO.length / DINO_RIG.length;
@@ -80,6 +83,7 @@ export class Dino {
     const back = scene.add.rectangle(0, 0, bw + 12, bh + 12, 0xffffff).setStrokeStyle(6, 0x222222);
     const hole = scene.add.rectangle(0, 0, bw, bh, 0x333333);
     this.barFill = scene.add.rectangle(-bw / 2, 0, bw, bh, 0x59d84a).setOrigin(0, 0.5);
+    ensureLaserTextures(scene);
     this.bar = scene.add.container(x, y - DINO.barOffset, [back, hole, this.barFill]).setDepth(DEPTH.worldUi).setVisible(false);
   }
 
@@ -131,6 +135,57 @@ export class Dino {
   get x() { return this.root.x; }
   get y() { return this.root.y; }
   get angle() { return this.root.rotation; }
+
+
+  /** World positions of the two eyes. */
+  eyes(): [Vec2, Vec2] {
+    const k = this.scale * this.mult;
+    return eyePositions(this.root.x, this.root.y, this.angle, DINO_LASER.eyeFwd * k, DINO_LASER.eyeSide * k);
+  }
+
+  private makeLaserFx() {
+    const mk = (key: string, n: number, blend = true) => Array.from({ length: n }, () => {
+      const im = this.scene.add.image(0, 0, key).setDepth(DEPTH.fx).setVisible(false);
+      if (blend) im.setBlendMode(Phaser.BlendModes.ADD);
+      return im;
+    });
+    this.laserFx = { glow: mk(LASER_TEX.glow, 2), beam: mk(LASER_TEX.beam, 2), tip: mk(LASER_TEX.glow, 2) };
+    for (const b of this.laserFx.beam) b.setOrigin(0, 0.5);
+    return this.laserFx;
+  }
+
+  /**
+   * Laser visuals. charge 0..1 = eyes glow + faint aim line toward `aim`; firing = bright beams along `aim`.
+   * Pass charge 0 and firing false to hide everything.
+   */
+  setLaser(charge: number, firing: boolean, aim: number): void {
+    if (!this.laserFx && charge <= 0 && !firing) return;
+    const fx = this.laserFx ?? this.makeLaserFx();
+    const on = charge > 0 || firing;
+    const eyes = this.eyes();
+    const pulse = 1 + Math.sin(this.t * 40) * 0.12;
+    for (let i = 0; i < 2; i++) {
+      const e = eyes[i];
+      const gs = firing ? 1.5 * pulse : 0.45 + charge * 1.0 + Math.sin(this.t * 24) * 0.06 * charge;
+      fx.glow[i].setVisible(on).setPosition(e.x, e.y).setScale(gs).setAlpha(firing ? 1 : 0.35 + 0.65 * charge);
+      const beam = fx.beam[i];
+      if (!on) { beam.setVisible(false); fx.tip[i].setVisible(false); continue; }
+      const len = DINO_LASER.length;
+      const w = firing ? DINO_LASER.drawWidth * pulse : 5 + charge * 5;
+      beam.setVisible(true).setPosition(e.x, e.y).setRotation(aim).setDisplaySize(len, w).setAlpha(firing ? 1 : 0.25 + 0.3 * charge);
+      fx.tip[i].setVisible(firing).setPosition(e.x + Math.cos(aim) * len, e.y + Math.sin(aim) * len).setScale(0.9 * pulse).setAlpha(0.9);
+    }
+  }
+
+  /** Little pink star burst where a beam zapped something. */
+  zap(x: number, y: number): void {
+    const star = this.scene.add.image(x, y, TEX.fxStar).setDepth(DEPTH.fx).setTint(0xff7ab8).setScale(0.5);
+    this.extras.add(star);
+    this.scene.tweens.add({
+      targets: star, scale: 1.6, alpha: 0, rotation: 1.5, duration: 380, ease: 'Cubic.easeOut',
+      onComplete: () => { this.extras.delete(star); star.destroy(); },
+    });
+  }
 
   /** World position of the mouth. */
   mouth(): { x: number; y: number } {
@@ -304,6 +359,8 @@ export class Dino {
 
   destroy(): void {
     this.setDizzy(false);
+    if (this.laserFx) for (const l of [...this.laserFx.glow, ...this.laserFx.beam, ...this.laserFx.tip]) l.destroy();
+    this.laserFx = null;
     this.bar.destroy();
     for (const e of this.extras) { this.scene.tweens.killTweensOf(e); e.destroy(); }
     this.extras.clear();
