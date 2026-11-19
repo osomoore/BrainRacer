@@ -1,0 +1,1114 @@
+﻿{
+    "apple":  {
+                  "category":  "food",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "pencil":  {
+                   "category":  "object",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "book":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+                                        "open book",
+                                        "reading"
+                                    ]
+             },
+    "key":  {
+                "category":  "object",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "coin":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "beach ball":  {
+                       "category":  "toy",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "mug":  {
+                "category":  "object",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "spoon":  {
+                  "category":  "object",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "fork":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "bowl":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "cap":  {
+                "category":  "clothing",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "sock":  {
+                 "category":  "clothing",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "mitten":  {
+                   "category":  "clothing",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "glove":  {
+                  "category":  "clothing",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "glasses":  {
+                    "category":  "object",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "watch":  {
+                  "category":  "object",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "ring":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "scissors":  {
+                     "category":  "object",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "paintbrush":  {
+                       "category":  "object",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "crayon":  {
+                   "category":  "object",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "lamp":  {
+                 "category":  "object",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "flashlight":  {
+                       "category":  "object",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "battery":  {
+                    "category":  "object",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "envelope":  {
+                     "category":  "object",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "box":  {
+                "category":  "object",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "red circle":  {
+                       "category":  "shape",
+                       "simple":  false,
+                       "confusableWith":  [
+                                              "black circle",
+                                              "gray circle"
+                                          ]
+                   },
+    "blue square":  {
+                        "category":  "shape",
+                        "simple":  false,
+                        "confusableWith":  [
+                                               "outline square"
+                                           ]
+                    },
+    "green triangle":  {
+                           "category":  "shape",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "yellow star":  {
+                        "category":  "shape",
+                        "simple":  false,
+                        "confusableWith":  [
+                                               "star",
+                                               "outline star"
+                                           ]
+                    },
+    "purple diamond":  {
+                           "category":  "shape",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "orange oval":  {
+                        "category":  "shape",
+                        "simple":  false,
+                        "confusableWith":  [
+
+                                           ]
+                    },
+    "pink heart":  {
+                       "category":  "shape",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "blue hexagon":  {
+                         "category":  "shape",
+                         "simple":  false,
+                         "confusableWith":  [
+
+                                            ]
+                     },
+    "brown rectangle":  {
+                            "category":  "shape",
+                            "simple":  false,
+                            "confusableWith":  [
+
+                                               ]
+                        },
+    "black circle":  {
+                         "category":  "shape",
+                         "simple":  false,
+                         "confusableWith":  [
+                                                "red circle",
+                                                "gray circle"
+                                            ]
+                     },
+    "outline square":  {
+                           "category":  "shape",
+                           "simple":  false,
+                           "confusableWith":  [
+                                                  "blue square"
+                                              ]
+                       },
+    "gray circle":  {
+                        "category":  "shape",
+                        "simple":  false,
+                        "confusableWith":  [
+                                               "red circle",
+                                               "black circle"
+                                           ]
+                    },
+    "arrow":  {
+                  "category":  "object",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "crescent moon":  {
+                          "category":  "shape",
+                          "simple":  false,
+                          "confusableWith":  [
+                                                 "moon"
+                                             ]
+                      },
+    "outline star":  {
+                         "category":  "shape",
+                         "simple":  false,
+                         "confusableWith":  [
+                                                "star",
+                                                "yellow star"
+                                            ]
+                     },
+    "pentagon":  {
+                     "category":  "shape",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "octagon":  {
+                    "category":  "shape",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "trapezoid":  {
+                      "category":  "shape",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "plus sign":  {
+                      "category":  "object",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "x shape":  {
+                    "category":  "shape",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "cylinder":  {
+                     "category":  "object",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "cube":  {
+                 "category":  "object",
+                 "simple":  false,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "cone":  {
+                 "category":  "object",
+                 "simple":  false,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "sphere":  {
+                   "category":  "object",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "pyramid":  {
+                    "category":  "object",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "dog":  {
+                "category":  "animal",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "cat":  {
+                "category":  "animal",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "horse":  {
+                  "category":  "animal",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "jumping boy":  {
+                        "category":  "person",
+                        "simple":  false,
+                        "confusableWith":  [
+                                               "boy",
+                                               "sleeping boy"
+                                           ]
+                    },
+    "tree":  {
+                 "category":  "nature",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "sun":  {
+                "category":  "nature",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "moon":  {
+                 "category":  "nature",
+                 "simple":  true,
+                 "confusableWith":  [
+                                        "crescent moon"
+                                    ]
+             },
+    "house":  {
+                  "category":  "place",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "car":  {
+                "category":  "vehicle",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "banana":  {
+                   "category":  "food",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "girl":  {
+                 "category":  "person",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "boy":  {
+                "category":  "person",
+                "simple":  true,
+                "confusableWith":  [
+                                       "jumping boy",
+                                       "sleeping boy"
+                                   ]
+            },
+    "glass of water":  {
+                           "category":  "object",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "milk":  {
+                 "category":  "food",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "bread":  {
+                  "category":  "food",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "cheese":  {
+                   "category":  "food",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "fried egg":  {
+                      "category":  "food",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "bird":  {
+                 "category":  "animal",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "clownfish":  {
+                      "category":  "animal",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "flower":  {
+                   "category":  "nature",
+                   "simple":  true,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "rainbow":  {
+                    "category":  "nature",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "bed":  {
+                "category":  "object",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "open book":  {
+                      "category":  "object",
+                      "simple":  false,
+                      "confusableWith":  [
+                                             "book",
+                                             "reading"
+                                         ]
+                  },
+    "sleeping boy":  {
+                         "category":  "person",
+                         "simple":  false,
+                         "confusableWith":  [
+                                                "sleeping",
+                                                "boy",
+                                                "jumping boy"
+                                            ]
+                     },
+    "duck":  {
+                 "category":  "animal",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "bicycle":  {
+                    "category":  "vehicle",
+                    "simple":  false,
+                    "confusableWith":  [
+                                           "riding a bicycle"
+                                       ]
+                },
+    "sailboat":  {
+                     "category":  "vehicle",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "cloud":  {
+                  "category":  "nature",
+                  "simple":  false,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "rain cloud":  {
+                       "category":  "nature",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "mountain":  {
+                     "category":  "nature",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "bus":  {
+                "category":  "vehicle",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "pickup truck":  {
+                         "category":  "vehicle",
+                         "simple":  false,
+                         "confusableWith":  [
+
+                                            ]
+                     },
+    "train":  {
+                  "category":  "vehicle",
+                  "simple":  false,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "airplane":  {
+                     "category":  "vehicle",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "ship":  {
+                 "category":  "vehicle",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "tractor":  {
+                    "category":  "vehicle",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "excavator":  {
+                      "category":  "vehicle",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "barn":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "castle":  {
+                   "category":  "place",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "lighthouse":  {
+                       "category":  "place",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "windmill":  {
+                     "category":  "place",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "bridge":  {
+                   "category":  "place",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "dam":  {
+                "category":  "place",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "water tower":  {
+                        "category":  "place",
+                        "simple":  false,
+                        "confusableWith":  [
+
+                                           ]
+                    },
+    "well":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "wind turbine":  {
+                         "category":  "place",
+                         "simple":  false,
+                         "confusableWith":  [
+
+                                            ]
+                     },
+    "volcano":  {
+                    "category":  "nature",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "stadium":  {
+                    "category":  "place",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "chair":  {
+                  "category":  "object",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "table":  {
+                  "category":  "object",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "running":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "jump rope":  {
+                      "category":  "activity",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "playing soccer":  {
+                           "category":  "activity",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "throwing a frisbee":  {
+                               "category":  "activity",
+                               "simple":  false,
+                               "confusableWith":  [
+
+                                                  ]
+                           },
+    "riding a bicycle":  {
+                             "category":  "activity",
+                             "simple":  false,
+                             "confusableWith":  [
+                                                    "bicycle"
+                                                ]
+                         },
+    "swimming":  {
+                     "category":  "activity",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "reading":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+                                           "book",
+                                           "open book"
+                                       ]
+                },
+    "writing":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "painting":  {
+                     "category":  "activity",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "playing guitar":  {
+                           "category":  "activity",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "cooking":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "watering flowers":  {
+                             "category":  "activity",
+                             "simple":  false,
+                             "confusableWith":  [
+
+                                                ]
+                         },
+    "digging":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "treehouse":  {
+                      "category":  "toy",
+                      "simple":  false,
+                      "confusableWith":  [
+
+                                         ]
+                  },
+    "building blocks":  {
+                            "category":  "toy",
+                            "simple":  false,
+                            "confusableWith":  [
+
+                                               ]
+                        },
+    "flying a kite":  {
+                          "category":  "activity",
+                          "simple":  false,
+                          "confusableWith":  [
+
+                                             ]
+                      },
+    "looking through binoculars":  {
+                                       "category":  "activity",
+                                       "simple":  false,
+                                       "confusableWith":  [
+
+                                                          ]
+                                   },
+    "fishing":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "roller skating":  {
+                           "category":  "activity",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "ice skating":  {
+                        "category":  "activity",
+                        "simple":  false,
+                        "confusableWith":  [
+
+                                           ]
+                    },
+    "sledding":  {
+                     "category":  "activity",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "skiing":  {
+                   "category":  "activity",
+                   "simple":  true,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "dancing":  {
+                    "category":  "activity",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "swinging":  {
+                     "category":  "activity",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "sleeping":  {
+                     "category":  "activity",
+                     "simple":  false,
+                     "confusableWith":  [
+                                            "sleeping boy"
+                                        ]
+                 },
+    "park":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+                                        "playground"
+                                    ]
+             },
+    "school":  {
+                   "category":  "place",
+                   "simple":  true,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "farm":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "beach":  {
+                  "category":  "place",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "library":  {
+                    "category":  "place",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "shop":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "hospital":  {
+                     "category":  "place",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "fire station":  {
+                         "category":  "place",
+                         "simple":  false,
+                         "confusableWith":  [
+
+                                            ]
+                     },
+    "police station":  {
+                           "category":  "place",
+                           "simple":  false,
+                           "confusableWith":  [
+
+                                              ]
+                       },
+    "church":  {
+                   "category":  "place",
+                   "simple":  true,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "playground":  {
+                       "category":  "place",
+                       "simple":  false,
+                       "confusableWith":  [
+                                              "park"
+                                          ]
+                   },
+    "zoo":  {
+                "category":  "place",
+                "simple":  true,
+                "confusableWith":  [
+
+                                   ]
+            },
+    "airport":  {
+                    "category":  "place",
+                    "simple":  false,
+                    "confusableWith":  [
+
+                                       ]
+                },
+    "train station":  {
+                          "category":  "place",
+                          "simple":  false,
+                          "confusableWith":  [
+
+                                             ]
+                      },
+    "restaurant":  {
+                       "category":  "place",
+                       "simple":  false,
+                       "confusableWith":  [
+
+                                          ]
+                   },
+    "bakery":  {
+                   "category":  "place",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "post office":  {
+                        "category":  "place",
+                        "simple":  false,
+                        "confusableWith":  [
+
+                                           ]
+                    },
+    "museum":  {
+                   "category":  "place",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "forest":  {
+                   "category":  "nature",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "lake":  {
+                 "category":  "nature",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "city":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "star":  {
+                 "category":  "shape",
+                 "simple":  true,
+                 "confusableWith":  [
+                                        "yellow star",
+                                        "outline star"
+                                    ]
+             },
+    "sneakers":  {
+                     "category":  "clothing",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "river":  {
+                  "category":  "nature",
+                  "simple":  true,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "desert":  {
+                   "category":  "nature",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "cave":  {
+                 "category":  "nature",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "island":  {
+                   "category":  "nature",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "tower":  {
+                  "category":  "place",
+                  "simple":  false,
+                  "confusableWith":  [
+
+                                     ]
+              },
+    "campsite":  {
+                     "category":  "place",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 },
+    "road":  {
+                 "category":  "place",
+                 "simple":  true,
+                 "confusableWith":  [
+
+                                    ]
+             },
+    "harbor":  {
+                   "category":  "place",
+                   "simple":  false,
+                   "confusableWith":  [
+
+                                      ]
+               },
+    "fountain":  {
+                     "category":  "place",
+                     "simple":  false,
+                     "confusableWith":  [
+
+                                        ]
+                 }
+}

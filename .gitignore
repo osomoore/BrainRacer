@@ -4,3 +4,7 @@ Thumbs.db
 .env
 dist/
 build/
+public/scenes/
+test-results/
+playwright-report/
+.worktrees/

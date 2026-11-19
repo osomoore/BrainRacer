@@ -1,0 +1,217 @@
+/**
+ * Shared CONTRACTS for BrainRacer. Phaser-free. Owned by the orchestrator:
+ * sub-agents must NOT edit this file — propose a diff in your final report instead.
+ *
+ * Conventions:
+ *  - World units are pixels. Tile coordinates are integers (tx, ty); pixel = tile * TILE_SIZE.
+ *  - Angles are radians; angle 0 faces +x (east); positive is clockwise (Phaser screen coords, +y down).
+ *  - All sprites/textures are drawn FACING +x at angle 0.
+ */
+
+// ───────────────────────── basics ─────────────────────────
+export interface Vec2 { x: number; y: number }
+export interface Rect { x: number; y: number; w: number; h: number }
+
+export type PlayerId = 0 | 1;
+export type Difficulty = 'easy' | 'normal' | 'hard';
+export type CarKind = 'dino' | 'kart';
+/** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
+export type AnswerSlot = 0 | 1 | 2;
+
+// ───────────────────────── images / words ─────────────────────────
+export interface SceneEntry {
+  id: string;            // "scene_001"
+  word: string;          // lower-case label from manifest.csv
+  file: string;          // "scenes/scene_001.png" (relative to public/)
+  source: string;        // source grid filename
+  row: number;
+  col: number;
+  /** 'A' = Community Places grid, 'B' = Places Icon grid, null = not a place-grid image. */
+  placeSet: 'A' | 'B' | null;
+}
+
+export type WordCategory =
+  | 'food' | 'object' | 'clothing' | 'shape' | 'animal' | 'place'
+  | 'vehicle' | 'nature' | 'activity' | 'person' | 'toy';
+
+export interface WordMeta {
+  category: WordCategory;
+  /** Easy-reader word (single, short, common). */
+  simple: boolean;
+  /** Words that must never appear together as options (symmetric). */
+  confusableWith: string[];
+}
+export type WordMetaTable = Record<string, WordMeta>;
+
+// ───────────────────────── challenges ─────────────────────────
+export type ChallengeKind = 'picToWord' | 'math' | 'wordToPic';
+
+export type ChallengePrompt =
+  | { kind: 'image'; sceneId: string }
+  | { kind: 'text'; text: string };          // a word, or a math expression like "7 + 5"
+
+export type ChallengeOption =
+  | { kind: 'text'; text: string }
+  | { kind: 'image'; sceneId: string };
+
+export interface Challenge {
+  id: number;
+  player: PlayerId;
+  kind: ChallengeKind;
+  prompt: ChallengePrompt;
+  options: [ChallengeOption, ChallengeOption, ChallengeOption];
+  correct: AnswerSlot;
+  /** Seconds the challenge stays up (= period for this player's difficulty). */
+  durationSec: number;
+  /** 'place' when triggered by driving near a place building. */
+  source: 'random' | 'place';
+  placeWord?: string;
+}
+
+export type ChallengeResult = 'correct' | 'wrong' | 'timeout';
+
+// ───────────────────────── input ─────────────────────────
+export type InputDevice =
+  | { type: 'gamepad'; index: number }
+  | { type: 'keyboard'; layout: 'left' | 'right' };   // left = WASD+123, right = arrows+,./
+
+/** Per-player input sampled once per frame. Edge fields are true only on the frame pressed. */
+export interface PlayerInput {
+  steer: number;          // -1 (left) .. 1 (right)
+  throttle: number;       // 0..1
+  brake: number;          // 0..1 (also reverse when slow)
+  answer: AnswerSlot | null;  // edge
+  confirm: boolean;       // edge: A / Enter / Space
+  back: boolean;          // edge: B-in-menus / Backspace
+  pause: boolean;         // edge: Start / Esc
+  navX: -1 | 0 | 1;       // edge: menu navigation
+  navY: -1 | 0 | 1;       // edge
+}
+
+// ───────────────────────── settings / results ─────────────────────────
+export interface PlayerSettings {
+  device: InputDevice;
+  difficulty: Difficulty;
+  car: CarKind;
+}
+
+export interface Settings {
+  players: PlayerSettings[];      // length 1 or 2; index = PlayerId
+  challengeIntervalSec: number;   // base period, default 5
+  roundLengthSec: number;         // default 300
+  goalPointsPerCar: number;       // default 3
+  seed: number;                   // 0 = random each race
+  musicVolume: number;            // 0..1
+  sfxVolume: number;              // 0..1
+}
+
+export interface PlayerStats {
+  correct: number;
+  wrong: number;
+  timeouts: number;
+  goals: number;          // goals this player reached
+  points: number;         // correct + goal points
+}
+
+export interface RoundResults {
+  teamPoints: number;
+  players: PlayerStats[];
+  goalsCompleted: number;
+  seed: number;
+}
+
+// ───────────────────────── world ─────────────────────────
+export enum Tile {
+  Water = 0,
+  Grass = 1,
+  Road = 2,
+  Sidewalk = 3,
+  Building = 4,   // footprint under a building (solid)
+  Park = 5,
+  Plaza = 6,
+  Dirt = 7,
+}
+
+/** Road connectivity bitmask per tile (for picking road texture variants). */
+export const ROAD_N = 1, ROAD_E = 2, ROAD_S = 4, ROAD_W = 8;
+
+export interface BuildingLot {
+  id: number;
+  /** Tile-space rectangle. */
+  tx: number; ty: number; tw: number; th: number;
+  style: number;          // 0..5 roof style
+  placeWord?: string;     // set if this is a place building
+}
+
+export interface PlaceSite {
+  word: string;           // one of PLACE_WORDS
+  buildingId: number;
+  /** Pixel position of the rooftop sign (center of building). */
+  sign: Vec2;
+  /** Pixel position on the nearest road in front of the building (goal center candidate). */
+  front: Vec2;
+}
+
+export interface Ramp {
+  x: number; y: number;   // pixel center
+  angle: number;          // direction of travel up the ramp
+  w: number; h: number;   // pixel size (w along travel)
+}
+
+export type PropKind = 'tree' | 'lamp' | 'hydrant' | 'bench' | 'cone' | 'parkedCar' | 'bush';
+export interface Prop { kind: PropKind; x: number; y: number; angle: number }
+
+/**
+ * Directed lane graph for AI driving (right-hand traffic). Each node is a point in a lane's
+ * center line; `next` lists node ids reachable from it. Junction nodes have >1 next.
+ */
+export interface LaneNode { id: number; x: number; y: number; next: number[] }
+export interface LaneGraph { nodes: LaneNode[] }
+
+export interface WorldData {
+  seed: number;
+  widthTiles: number;
+  heightTiles: number;
+  tileSize: number;
+  tiles: Uint8Array;        // Tile values, row-major: tiles[ty * widthTiles + tx]
+  roadMask: Uint8Array;     // ROAD_* bitmask per tile (0 for non-road)
+  buildings: BuildingLot[];
+  places: PlaceSite[];
+  ramps: Ramp[];
+  props: Prop[];
+  laneGraph: LaneGraph;
+  playerSpawns: { x: number; y: number; angle: number }[];  // >= 2
+}
+
+// ───────────────────────── vehicles ─────────────────────────
+export interface VehicleSpec {
+  length: number;         // px (along facing)
+  width: number;          // px
+  mass: number;
+  maxSpeed: number;       // px/s forward
+  reverseSpeed: number;   // px/s
+  accel: number;          // px/s^2
+  brake: number;          // px/s^2
+  turnRate: number;       // rad/s at optimal speed
+  grip: number;           // 0..1 fraction of lateral velocity removed per 1/60 s
+  drag: number;           // fraction of speed lost per second when coasting
+}
+
+export type RewardKind = 'turbo' | 'rainbow' | 'shockwave' | 'ghost' | 'magnet';
+
+export type SfxName =
+  | 'correct' | 'wrong' | 'timeout' | 'turbo' | 'crash' | 'crashBig' | 'skid'
+  | 'siren' | 'policeBump' | 'jump' | 'land' | 'goal' | 'goalArrive'
+  | 'countdown' | 'go' | 'roar' | 'stomp' | 'squash' | 'shockwave' | 'pop'
+  | 'menuMove' | 'menuSelect' | 'join';
+
+export type MusicTrack = 'title' | 'race' | 'dino' | 'results';
+
+// ───────────────────────── camera layout (published to HUD) ─────────────────────────
+export type CameraMode = 'single' | 'merged' | 'split';
+export interface CameraLayout {
+  mode: CameraMode;
+  /** Screen-space viewport rect (in 1920x1080 game coords) "belonging" to each player.
+   *  In 'merged' mode these are the left/right halves of the full screen. */
+  playerViews: Rect[];
+}

@@ -1,0 +1,1 @@
+Each scene is a PNG with a matching UTF-8 plain-text label file. Example: scene_001.png pairs with scene_001.txt. The manifest maps each ID to its source grid and row/column (counted from the top left). IDs increase in source filename order, then left-to-right and top-to-bottom within each 5x5 grid.

@@ -1,0 +1,29 @@
+# BrainRacer — agent conventions
+
+Top-down 2-player co-op racer with picture/word/math challenges. Full spec: `docs/PLAN.md` (§2 = game design, §4 = work packages). Progress: `docs/STATUS.md`.
+
+## Stack
+TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest · Playwright. Node 24, Windows.
+
+## Commands
+- `npm run dev` — dev server (http://localhost:5173). Dev scenes: `?dev=<FileName>` for any `src/scenes/dev/<FileName>.ts`.
+- `npm run typecheck` · `npm test` (unit) · `npm run e2e` (Playwright, builds first) · `npm run assets` (regenerate `src/data/scenes.json` + copy PNGs to `public/scenes/`; run once after cloning).
+- Use `npm test`, not `npx vitest` directly: the wrapper fixes a Windows drive-letter-case bug.
+
+## Rules
+1. **Contracts are orchestrator-owned. Do not edit** `src/core/types.ts`, `src/core/events.ts`, `src/core/race.ts`, `src/core/services.ts`, `src/core/assetKeys.ts`. If you need a change, stop and put the proposed diff in your final report. `src/config/gameConfig.ts`: you may ADD keys in your package's section only.
+2. **Only edit the paths your package owns** (listed in your task). New dev/test scenes go in `src/scenes/dev/<YourName>.ts` (default export = Scene class, scene key = file name).
+3. **Systems communicate only via `bus`** (`src/core/events.ts`) and the shared `RaceContext` (`src/core/race.ts`). Never import another system's module.
+4. **No `Math.random` in gameplay/generation**: use `Rng` from `src/core/rng.ts` (seeded). UI-only cosmetic jitter may use Math.random.
+5. **Tunables go in `gameConfig.ts`**, not magic numbers.
+6. **Pure logic stays Phaser-free** (`src/challenge/`, `src/world/gen/`, rules in systems) and gets Vitest tests next to the source (`*.test.ts`).
+7. Textures come from `TEX` keys (`src/core/assetKeys.ts`). Everything faces +x at angle 0; +y is down.
+8. Input only via `services.input`, audio only via `services.audio` (`src/core/services.ts`).
+9. Body ownership: every Matter body sets `body.plugin.owner` (`BodyOwner` in `src/core/race.ts`).
+10. Screen is 1920×1080 logical, shown on monitors and projectors: UI text ≥ 40 px for gameplay info, high contrast.
+11. Audience is kids aged 5–9. No violence or scary gore; crashes bounce, nothing gets destroyed except comic "squash".
+12. Before finishing: `npm run typecheck && npm test` must pass. Do not commit (the orchestrator commits). Do not run `git push`.
+13. Image labels come ONLY from `images/scenes/manifest.csv` (via `src/data/scenes.json`). Ignore `images/scenes/*.txt`.
+
+## Final report format (sub-agents)
+Files changed · tests added · how to see it (`?dev=...`) · known gaps · proposed contract changes (if any) · what a human should check by hand.
