@@ -17,16 +17,18 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 - **Merge loop:** `git merge --no-ff pkg/X` → `npx tsc --noEmit` → `npm test` → `npm run e2e` → screenshot check via Playwright on Edge (`chromium.launch({ channel: 'msedge' })`) → update STATUS.
 - Vite "Outdated Optimize Dep" after big merges → restart the dev server with `--force`.
 
-## Backlog: user requests queued at the end of session 1 (not started)
-1. **Easy mode words too hard (e.g. "hospital", "stadium").** Cause: place-triggered challenges deliberately ignore the difficulty word filter for the target word (`ChallengeGenerator` place path), so place words appear on Easy. Fix ideas: on Easy, skip place triggers or only use place words flagged `simple`; review `simple` flags for place words in `src/data/wordMeta.json`.
-2. **Delay the post-answer reward after a question break.** Turbo + boost jump currently start before the question UI has fully cleared. After the break ends, wait ~0.5–1.0 s (after the panel fade-out completes) before granting turbo/jump so players can see it take effect. Where: `RewardSystem` (queued rewards granted on resume) + `CHALLENGE` config (e.g. `rewardDelayAfterBreakSec: 0.7`); maybe a short "ready…" glow on the car before launch.
-3. **Holding a button into a question break must not count as an answer.** Any answer input (face buttons, D-pad/stick, keys) already held when a question appears must be released and pressed again. Only held directions are handled today; A (also the gas pedal, so usually held) can slip through. Implement a per-player "armed" state in `ChallengeSystem`: at break start and on each new question after a wrong answer, mark every currently-down answer input as "must release". Add unit + e2e coverage (hold A/W through break start).
-4. **(Orchestrator-observed) Split-screen break panels overlap the bottom of the center scoreboard/timer.** Shrink or shift the break panel, or hide the timer during breaks.
-5. **"Drive to the <place>" banner obscures the screen while shown.** It is large, and it isn't needed when the player is already following the guide buddy (dino/star). Fix ideas: shrink it and move it to the top edge, shorten its display time, or skip/minimize it when a guide buddy is active. Check the HUD/goal banner code (see `docs/STATUS.md`) for where it is drawn. (User-reported, session 2.)
-6. **Guide buddy sits too close to the vehicle.** It should hover well out toward the screen edge (at least 2/3 of the way from the car, probably further, ~0.8), clearly visible but not crowding the driver, in the direction of the goal. Look for the guide-buddy distance/offset tunable in `gameConfig.ts` (GOALS/guide section) and set it relative to the screen/camera extent rather than a fixed small pixel offset; check it in both split-screen views. (User-reported, session 2.)
+## Backlog
+Session 2 finished items 1–6 (Easy place words, reward delay, held-button arming, break panels vs scoreboard, goal banner → card pulse, guide buddy distance). See STATUS. Open follow-ups from that work:
+- Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
+- `CHALLENGE.rewardPanelClearSec` (1.05) mirrors HUD `panel.resultHoldSec + fadeSec` by hand; keep them in sync if the HUD fade changes.
+- Held pad X/Y/B into a break is covered only by `answerGuardSec` (face buttons arrive as one-frame edges). Holding W/RT also blocks pad A's slot until released (no pad/keyboard distinction).
+- Guide buddy: `GUIDE.topInset`/`seamInset` keep it off the scoreboard, so straight up it sits ~0.5 of the true screen distance. Check the hand-off to the goal orbit (hover ~500 px vs `nearGoal` 450).
+- Sub-agents writing files from PowerShell can produce Windows-1252 bytes (a "…" broke `vite build` in session 2). Tests and typecheck don't catch it; `npm run e2e` does (it builds).
 
 ## Playtest checklist (needs the user, real pads, projector)
-- Xbox pads: steering, RT/LT, the diamond answers, held-button behavior, Start = pause, hot-plug, rumble.
+- Xbox pads: steering, RT/LT, the diamond answers, held-button behavior (hold A / D-pad / stick into a break and after a wrong answer: nothing should answer), Start = pause, hot-plug, rumble.
+- Reward timing: turbo + jump should land ~0.7 s after the question panel fades (car glows in between).
+- Destination card pulse on a new goal: noticeable enough? (`HUD.goalPulse` in hudConfig.ts). "Waiting…" pill readable?
 - Car feel: pivot turning, wall unstick, turbo and punch-through strength, boost-jump height and distance.
 - Camera rotation smoothness (`CAMERA.rotTau`, `maxAngVel`), car screen height (`carScreenY`).
 - Question breaks: interval (10 s) feel, wrong-answer retry delay (`CHALLENGE.wrongRetrySec` 0.5 s), dim strength.
