@@ -1,11 +1,9 @@
 import Phaser from 'phaser';
 import { CHALLENGE, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
-import { sceneTex } from '../core/assetKeys';
 import type { GameEvents } from '../core/events';
 import type { RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { CameraLayout, PlayerId, Rect, Vec2 } from '../core/types';
-import { sceneById } from '../data/scenes';
 import { bigText, FONT_HEAD, hexNum } from '../ui/menu/style';
 import { PauseOverlay } from '../ui/menu/PauseOverlay';
 import { Banners } from '../ui/hud/Banners';
@@ -128,7 +126,6 @@ export class HudScene extends Phaser.Scene {
     this.on('reward:granted', (e) => { if (e.reward === 'magnet') this.magnet[e.player] = e.durationSec; });
     this.on('reward:ended', (e) => { if (e.reward === 'magnet') this.magnet[e.player] = 0; });
 
-    this.on('goal:spawned', ({ goal }) => this.goalBanner(goal.placeWord, goal.sceneId));
     this.on('goal:arrived', ({ player, waitSec }) => {
       if (waitSec > 0 && player < this.nPlayers && this.nPlayers > 1) this.waitBanner(player);
     });
@@ -234,25 +231,12 @@ export class HudScene extends Phaser.Scene {
     else this.banners.center(GAME_WIDTH / 2, CENTER_Y, text, color ?? '#ffd43b', dur ?? 1.6);
   }
 
-  /** Per-player (split) or single shared banner telling where to drive. */
-  private goalBanner(word?: string, sceneId?: string) {
-    const targets = this.shared() ? [0] : [...Array(this.nPlayers).keys()];
-    for (const p of targets) {
-      const r = this.shared() ? this.mapRect(0) : this.curViews[p];
-      const icon = sceneId && this.textures.exists(sceneTex(sceneId)) ? this.add.image(0, 0, sceneTex(sceneId)) : null;
-      const name = (word ?? sceneById(sceneId ?? '')?.word ?? 'the goal').toUpperCase();
-      this.banners.lines(`goal${p}`, r.x + r.w / 2, r.y + 380, icon, [
-        { text: 'Drive to the', size: 48, color: '#ffffff' },
-        { text: `${name}!`, size: 84, color: '#ffd43b' },
-      ], HUD.goalBannerSec);
-    }
-  }
-
+  /** Small "Waiting…" hint docked just under the destination card at the top of the player's view. */
   private waitBanner(p: number) {
     const r = this.curViews[p];
-    this.banners.lines(`wait${p}`, r.x + r.w / 2, r.y + 380, null, [
-      { text: 'Wait for your teammate!', size: 56, color: PLAYER_COLORS[p] === '#2ecc40' ? '#7dff8a' : '#ff8a80' },
-    ], 3);
+    this.banners.lines(`wait${p}`, r.x + r.w / 2, r.y + HUD.hint.y + 30, null, [
+      { text: 'Waiting…', size: HUD.hint.textSize, color: PLAYER_COLORS[p] === '#2ecc40' ? '#7dff8a' : '#ff8a80' },
+    ], HUD.hint.waitSec);
   }
 
   private popup(p: number, text: string, world?: Vec2, color?: string) {

@@ -22,7 +22,12 @@ export const HUD = {
     tagH: 62,              // room for the 'Look!' tag, drawn over the gap above the panel
   },
   goal: { edgeMargin: 70, onScreenMargin: 90, magnetScale: 1.5, magnetColor: 0xffd43b, arrowScale: 1.3 },
-  goalBannerSec: 3,
+  /** Question-break panel in split screen: sits below the center scoreboard instead of over it. */
+  breakSplit: { maxViewW: 1200, gapBelowScoreboard: 14, bottomMargin: 20 },
+  /** Destination card pulse on a new goal. */
+  goalPulse: { sec: 2.2, beats: 3, amp: 0.3 },
+  /** Small hint banner (wait): docked under the destination card at the top of each view. */
+  hint: { goalSec: 2, waitSec: 2.5, y: 112, textSize: 46, nameSize: 52, iconSize: 60 },
   popupSec: 1.4,
   colors: { navy: 0x14213d, card: 0xffffff, green: 0x2ecc40, gray: 0xaab2bd, red: 0xff3b30, gold: 0xffd43b },
 } as const;
@@ -39,4 +44,14 @@ export function challengeRegion(view: Rect): Rect {
   const top = car.y + HUD.panel.carGap;
   const bottom = view.y + view.h - HUD.timerBar.bottomMargin - HUD.timerBar.h - HUD.timerBar.gap;
   return { x: car.x - w / 2, y: top, w, h: Math.max(100, bottom - top) };
+}
+
+/** Region for the centered question-break panel: {y: top, h: height available}; null = use the default centered layout. */
+export function breakSplitRegion(view: Rect): { top: number; h: number } {
+  const sb = HUD.scoreboard;
+  // Split views (narrow) sit under the tall 2-player scoreboard; a full-width view under the shorter 1-player one.
+  const sbH = view.w > HUD.breakSplit.maxViewW ? sb.h - 56 : sb.h;
+  const top = sb.top + sbH + HUD.breakSplit.gapBelowScoreboard;
+  const bottom = view.y + view.h - HUD.breakSplit.bottomMargin;
+  return { top, h: bottom - top };
 }

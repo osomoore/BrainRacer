@@ -22,6 +22,8 @@ export class GoalIndicator {
   private introGoalId = -1;
   private introT = 99;
   private clock = 0;
+  /** Seconds since the destination card last changed (drives its attention pulse). */
+  private cardT = 99;
   private avoid?: Rect;
 
   constructor(private scene: Phaser.Scene, private color: string, depth: number) {
@@ -66,7 +68,8 @@ export class GoalIndicator {
     this.avoid = avoid;
     if (!goal) { this.root.setVisible(false); return; }
     this.clock += dt;
-    if (goal.id !== this.goalId) { this.goalId = goal.id; this.buildTag(this.tag, goal); this.buildTag(this.card, goal); }
+    if (goal.id !== this.goalId) { this.goalId = goal.id; this.buildTag(this.tag, goal); this.buildTag(this.card, goal); this.cardT = 0; }
+    this.cardT += dt;
     this.root.setVisible(true);
 
     if (this.introGoalId !== goal.id && this.goalVisible(w2s, goal, mapRect)) { this.introGoalId = goal.id; this.introT = 0; }
@@ -78,7 +81,10 @@ export class GoalIndicator {
 
     // Small destination card (icon + word) at the top of the view: reading practice, no arrow.
     this.placeTag(this.card, mapRect, mapRect.x + mapRect.w / 2, mapRect.y + 16 + TAG_H * CARD_SCALE / 2, CARD_SCALE, mapRect.y + mapRect.h);
-    this.card.setScale(CARD_SCALE);
+    // New goal: the card pops and pulses for a moment instead of a big banner covering the view.
+    const pk = this.cardT / HUD.goalPulse.sec;
+    const pulse = pk < 1 ? 1 + HUD.goalPulse.amp * Math.abs(Math.sin(pk * Math.PI * HUD.goalPulse.beats)) * (1 - pk * 0.4) : 1;
+    this.card.setScale(CARD_SCALE * pulse);
 
     // Upright label bouncing above the goal while the goal is on screen.
     this.tag.setVisible(this.onScreen);
