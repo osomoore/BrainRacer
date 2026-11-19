@@ -171,10 +171,17 @@ export const DINO = {
 // ───────────────────────── camera (package H) ─────────────────────────
 export const CAMERA = {
   baseZoom: 1.0,
-  minMergedZoom: 0.62,      // below this needed zoom → split
+  minMergedZoom: 0.7,       // below this needed zoom → split (H: tuned from 0.62 so split/merged scale match)
   mergePadding: 260,         // px around both cars in merged view
   splitHysteresis: 0.08,     // zoom must recover above minMergedZoom + this to re-merge
   transitionSec: 0.4,
   lookAheadSec: 0.35,        // camera leads in direction of travel
   turboZoomOut: 0.08,
+  // H: added keys
+  splitZoom: 0.8,            // zoom of each half-view in split mode (between minMergedZoom and the re-merge zoom → no scale jump)
+  lookAheadMax: 380,         // px cap on look-ahead offset
+  lookSmoothing: 3,          // 1/s exponential smoothing rate of the look-ahead offset
+  zoomSmoothing: 2.5,        // 1/s smoothing rate of the speed/turbo zoom-out
+  speedZoomOut: 0.06,        // extra zoom-out at speedZoomRef (scaled linearly below it)
+  speedZoomRef: 900,         // px/s at which speedZoomOut is fully applied
 };
