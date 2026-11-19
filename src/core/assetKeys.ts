@@ -48,6 +48,50 @@ export const TEX = {
     headlight: 'industrial_headlight',
   },
 
+  /**
+   * Farm art (src/art/farm*.ts). Top-down, no baked shadows (renderer adds directional ones), faces +x at angle 0.
+   * Sizes in px for the 128-px tile grid. Tileset indices: see FARM_TILE in src/art/farmTiles.ts.
+   */
+  farm: {
+    // buildings (roof ridge runs along x)
+    barn: 'farm_barn',                 // 384 x 256 red roof, white X trim, hayloft hood at +x end
+    silo: 'farm_silo',                 // 128 x 128 round dome
+    farmhouse: 'farm_farmhouse',       // 256 x 192 roof with chimney + dormer
+    shed: 'farm_shed',                 // 128 x 128 tin roof
+    windmill: 'farm_windmill',         // 128 x 128 body (octagon cap), blade is a separate sprite on its centre
+    windmillBlade: 'farm_windmill_blade', // 256 x 256 four sails, pivot = centre
+    turbine: 'farm_turbine',           // 64 x 64 tower top + nacelle, blade sprite on its centre
+    turbineBlade: 'farm_turbine_blade', // 224 x 224 three blades, pivot = centre
+    // decor
+    hayRound: 'farm_hay_round',        // 56 x 56
+    haySquare: 'farm_hay_square',      // 64 x 40
+    orchardTree: 'farm_orchard_tree',  // 112 x 112 canopy with red apples
+    pumpkin: 'farm_pumpkin',           // 32 x 32
+    fence: 'farm_fence',               // 128 x 24, tileable along x
+    gatePost: 'farm_gate_post',        // 24 x 24
+    bridge: 'farm_bridge',             // 192 x 128 wooden deck, travel along x, rails on the long edges
+    mazeSign: 'farm_maze_sign',        // 96 x 64
+    cornFlat: 'farm_corn_flat',        // 96 x 96 transparent stamp of flattened stalks (run-over trail)
+    // animals, facing +x: 3 walk frames each + one tumble pose (star eyes, legs out)
+    cow: ['farm_cow_0', 'farm_cow_1', 'farm_cow_2'] as const,             // 88 x 52
+    sheep: ['farm_sheep_0', 'farm_sheep_1', 'farm_sheep_2'] as const,     // 64 x 48
+    pig: ['farm_pig_0', 'farm_pig_1', 'farm_pig_2'] as const,             // 64 x 42
+    horse: ['farm_horse_0', 'farm_horse_1', 'farm_horse_2'] as const,     // 104 x 44
+    chicken: ['farm_chicken_0', 'farm_chicken_1', 'farm_chicken_2'] as const, // 32 x 28
+    duck: ['farm_duck_0', 'farm_duck_1', 'farm_duck_2'] as const,         // 32 x 26
+    cowTumble: 'farm_cow_tumble',           // same sizes as the walk frames
+    sheepTumble: 'farm_sheep_tumble',
+    pigTumble: 'farm_pig_tumble',
+    horseTumble: 'farm_horse_tumble',
+    chickenTumble: 'farm_chicken_tumble',
+    duckTumble: 'farm_duck_tumble',
+    // vehicles, facing +x
+    pickup: ['farm_pickup_0', 'farm_pickup_1'] as const, // 84 x 44 (red, blue)
+    tractor: 'farm_tractor',           // 80 x 56 big rear wheels; hitch at rear (x=0)
+    hayWagon: 'farm_hay_wagon',        // 120 x 50 trailer; hitch at front (+x)
+    combine: 'farm_combine',           // 150 x 84 wide header at +x
+  },
+
   // props
   tree: 'prop_tree',            // 80 x 80 canopy
   bush: 'prop_bush',            // 40 x 40

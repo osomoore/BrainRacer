@@ -21,6 +21,8 @@ describe('art keys', () => {
     for (let m = 0; m < 16; m++) expect(keys).toContain(`road_${m}`);
     expect(keys).toContain(TEX.carDino);
     expect(keys).toContain(TEX.roof[5]);
+    expect(keys).toContain(TEX.farm.horse[1]);
+    expect(keys).toContain(TEX.farm.pigTumble);
     expect(keys).not.toContain(TEX.roadPrefix);
   });
 
@@ -43,6 +45,10 @@ describe('art keys', () => {
     expect(made.get('road_15')).toEqual({ w: 128, h: 128 });
     expect(made.get(TEX.goalRing)).toEqual({ w: 360, h: 360 });
     expect(made.get(TEX.signFrame)).toEqual({ w: 150, h: 150 });
+    expect(made.get(TEX.farm.barn)).toEqual({ w: 384, h: 256 });
+    expect(made.get(TEX.farm.cow[2])).toEqual({ w: 88, h: 52 });
+    expect(made.get(TEX.farm.duckTumble)).toEqual({ w: 32, h: 26 });
+    expect(made.get(TEX.farm.combine)).toEqual({ w: 150, h: 84 });
   });
 
   it('roadPlan maps masks to shapes', () => {

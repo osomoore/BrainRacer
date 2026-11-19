@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { allTextureKeys } from '../../art/keys';
 import { DINO_RIG, type RigPart } from '../../art/dinoRig';
+import { FARM_TILE, FARM_TILE_COUNT, farmTileSource } from '../../art/farm';
 import { TEX } from '../../core/assetKeys';
 import { TILE_SIZE } from '../../config/gameConfig';
 
@@ -17,7 +18,7 @@ export default class ArtGallery extends Phaser.Scene {
     cam.setBackgroundColor('#171b27');
     const grid = this.add.graphics();
     grid.lineStyle(1, 0x262c3d, 1);
-    const H = 3000;
+    const H = 6000;
     for (let x = 0; x <= W; x += 40) grid.lineBetween(x, 0, x, H);
     for (let y = 0; y <= H; y += 40) grid.lineBetween(0, y, W, y);
 
@@ -95,7 +96,7 @@ export default class ArtGallery extends Phaser.Scene {
     label(1300, 960, 'dino assembled from DINO_RIG (legs + tail animated)', 14);
 
     // ---- catalog
-    const cat0 = 1080;
+    const cat0 = this.farmSection(1080, label);
     label(30, cat0 + 8, 'ALL TEXTURES (key, size)', 24, '#ffffff');
     const cell = 150, cols = 12;
     allTextureKeys().forEach((key, i) => {
@@ -120,6 +121,95 @@ export default class ArtGallery extends Phaser.Scene {
       if (cur?.down.isDown) cam.scrollY = Math.min(maxY - 1080, cam.scrollY + 14);
       if (cur?.up.isDown) cam.scrollY = Math.max(0, cam.scrollY - 14);
     });
+  }
+
+  /** Farm section: tileset sheet, a small driving-zoom scene, then every sprite. Returns the y where it ends. */
+  private farmSection(y0: number, label: (x: number, y: number, s: string, size?: number, color?: string) => Phaser.GameObjects.Text): number {
+    const F = TEX.farm, T = TILE_SIZE;
+    label(30, y0, 'FARM  (no baked shadows; golden-hour palette)', 26, '#ffd36a');
+    // tileset sheet via farmTileSource
+    const src = farmTileSource(T), cols = 11, rows = Math.ceil(FARM_TILE_COUNT / cols);
+    const sheet = this.textures.createCanvas('gallery_farm_tiles', cols * T, rows * T)!;
+    const sctx = sheet.getContext();
+    for (let i = 0; i < FARM_TILE_COUNT; i++) sctx.drawImage(src(i), (i % cols) * T, Math.floor(i / cols) * T);
+    sheet.refresh();
+    label(30, y0 + 40, 'farmTileSource: 0 water, 1-3 grass, 4 lane, 5 yard, 6-8 corn, 9 mown, 10 flat, 11 mud, 12-27 road masks, 28-43 water banks', 16);
+    this.add.image(30, y0 + 66, 'gallery_farm_tiles').setOrigin(0, 0);
+    let y = y0 + 66 + rows * T + 20;
+
+    // driving-zoom scene on real tiles (1 tile = 128 px)
+    label(30, y, 'driving-zoom scene', 16); y += 24;
+    const grid = [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 18, 10, 10, 10, 10, 10, 14, 1, 6, 6, 6],
+      [1, 17, 1, 1, 5, 5, 4, 17, 1, 6, 9, 6],
+      [1, 17, 1, 1, 5, 5, 4, 17, 1, 6, 9, 10],
+      [1, 17, 1, 1, 1, 1, 4, 17, 1, 7, 10, 7],
+      [1, 13, 10, 10, 10, 10, 10, 15, 28 + 0, 8, 8, 8],
+      [1, 1, 1, 11, 11, 1, 1, 1, 28 + 14, 28 + 4, 28 + 4, 28 + 4],
+    ];
+    // road masks: 12 + mask. fix up a few cells to real road indexes
+    const R = (m: number) => 12 + m;
+    grid[1] = [1, R(6), R(10), R(10), R(10), R(10), R(10), R(12), 1, 6, 6, 6];
+    for (const r of [2, 3, 4]) { grid[r][1] = R(5); grid[r][7] = R(5); }
+    grid[5] = [1, R(3), R(10), R(10), R(10), R(10), R(10), R(9), 0, 8, 8, 8];
+    grid[5][8] = FARM_TILE.waterBankBase + 8; grid[6][8] = FARM_TILE.waterBankBase + 9;
+    for (let c = 9; c < 12; c++) grid[6][c] = FARM_TILE.waterBankBase + 1;
+    grid[6][3] = FARM_TILE.mud; grid[6][4] = FARM_TILE.mud;
+    grid[4][10] = FARM_TILE.cornFlat; grid[4][11] = FARM_TILE.cornFlat;
+    const scene = this.textures.createCanvas('gallery_farm_scene', 12 * T, grid.length * T)!;
+    const gctx = scene.getContext();
+    grid.forEach((row, r) => row.forEach((idx, c) => gctx.drawImage(src(idx), c * T, r * T)));
+    scene.refresh();
+    this.add.image(30, y, 'gallery_farm_scene').setOrigin(0, 0);
+    const sx = 30, sy = y;
+    this.add.image(sx + 3 * T, sy + 2.4 * T, F.barn).setScale(0.75);
+    this.add.image(sx + 5.2 * T, sy + 2.2 * T, F.silo).setScale(0.6);
+    this.add.image(sx + 8.2 * T, sy + 1.6 * T, F.farmhouse).setScale(0.6);
+    const mill = this.add.image(sx + 9.8 * T, sy + 3.3 * T, F.windmill);
+    const blade = this.add.image(mill.x, mill.y, F.windmillBlade).setScale(0.7);
+    this.tweens.add({ targets: blade, angle: 360, duration: 6000, repeat: -1 });
+    this.add.image(sx + 0.7 * T, sy + 0.5 * T, F.shed).setScale(0.5);
+    this.add.image(sx + 2.2 * T, sy + 4.6 * T, F.orchardTree).setScale(0.7);
+    this.add.image(sx + 1.3 * T, sy + 3.9 * T, F.orchardTree).setScale(0.7);
+    this.add.image(sx + 6.6 * T, sy + 4.5 * T, F.hayRound);
+    this.add.image(sx + 5.6 * T, sy + 3.9 * T, F.haySquare);
+    this.add.image(sx + 4.2 * T, sy + 3.9 * T, F.pumpkin);
+    this.add.image(sx + 8 * T, sy + 5.5 * T, F.bridge).setAngle(90).setScale(0.7);
+    this.add.image(sx + 8.9 * T, sy + 2.9 * T, F.mazeSign).setScale(0.8);
+    for (let i = 0; i < 4; i++) this.add.image(sx + 4.1 * T + i * 128, sy + 5.15 * T - 4, F.fence);
+    this.add.image(sx + 5.8 * T, sy + 5.15 * T - 4, F.gatePost);
+    this.add.image(sx + 2.5 * T, sy + 1.5 * T, F.pickup[0]);
+    this.add.image(sx + 5.2 * T, sy + 1.5 * T, F.pickup[1]).setAngle(180);
+    this.add.image(sx + 6.5 * T, sy + 2.5 * T, F.tractor).setAngle(90);
+    this.add.image(sx + 2.0 * T, sy + 5.5 * T, TEX.carKart);
+    this.add.image(sx + 2.8 * T, sy + 5.5 * T, TEX.carDino);
+    this.add.image(sx + 11 * T - 20, sy + 6.3 * T - 10, F.duck[0]).setScale(1.2);
+    this.add.image(sx + 9.5 * T, sy + 6.2 * T, F.duck[1]).setAngle(40);
+    this.add.image(sx + 7.4 * T, sy + 4.0 * T, F.turbine);
+    this.add.image(sx + 7.4 * T, sy + 4.0 * T, F.turbineBlade).setScale(0.45);
+    y += grid.length * T + 30;
+
+    // all sprites at 1x and 2x in labelled rows
+    const row = (title: string, keys: readonly string[], scale: number, gap = 24): void => {
+      label(30, y, title, 14);
+      let x = 30, h = 0;
+      for (const k of keys) {
+        const im = this.add.image(0, 0, k).setScale(scale).setOrigin(0, 0);
+        const bg = this.add.rectangle(x - 4, y + 22, im.displayWidth + 8, im.displayHeight + 8, 0x3a6f35).setOrigin(0, 0).setDepth(-1);
+        im.setPosition(x, y + 26);
+        x += im.displayWidth + gap; h = Math.max(h, im.displayHeight);
+        void bg;
+      }
+      y += h + 52;
+    };
+    row('buildings: barn silo farmhouse shed windmill+blade turbine+blade', [F.barn, F.silo, F.farmhouse, F.shed, F.windmill], 1);
+    row('blades / turbine', [F.windmillBlade, F.turbine, F.turbineBlade], 1);
+    row('decor: hay round/square, orchard tree, pumpkin, fence, gate post, bridge, maze sign, corn flat stamp', [F.hayRound, F.haySquare, F.orchardTree, F.pumpkin, F.fence, F.gatePost, F.bridge, F.mazeSign, F.cornFlat], 1);
+    row('animals walk frames (2x): cow sheep pig horse', [...F.cow, ...F.sheep, ...F.pig, ...F.horse], 1.5);
+    row('chicken duck walk (3x) + tumble poses (cow sheep pig horse chicken duck, 1.5x)', [...F.chicken, ...F.duck, F.cowTumble, F.sheepTumble, F.pigTumble, F.horseTumble, F.chickenTumble, F.duckTumble], 2);
+    row('vehicles: pickup x2, tractor, hay wagon, combine (2x)', [...F.pickup, F.tractor, F.hayWagon, F.combine], 2);
+    return y + 40;
   }
 
   private buildDino(x: number, y: number, scale: number): void {
