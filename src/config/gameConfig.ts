@@ -295,6 +295,8 @@ export const WORLD = {
   pondChance: 0.3,
   lotMaxSide: 3,
   alleyChance: 0.35,
+  /** Longest straight run of building tiles (either axis) before an alley is cut through it. */
+  maxBuildingRun: 6,
   spawnSpacingPx: 100,
   spawnRoadSearchTiles: 4,
   rampSpacingTiles: 6,
