@@ -87,8 +87,18 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface DifficultyProfile {
   periodMultiplier: number;           // period = challengeIntervalSec * this
   typeWeights: Record<ChallengeKind, number>;
-  math: { minA: number; maxA: number; minB: number; maxB: number; maxSum: number; requireCarry: boolean };
-  words: { simpleOnly: boolean; allowMultiWord: boolean; sameCategoryDistractors: boolean };
+  math: {
+    minA: number; maxA: number; minB: number; maxB: number; maxSum: number; requireCarry: boolean;
+    /** Optional: chance a question uses a teen sum (>= 11) when both small and teen pairs exist. */
+    teenChance?: number;
+    /** Optional: when true the the 'forgot to add one' (answer - 1) is tried first. */
+    offByOneFirst?: boolean;
+  };
+  words: {
+    simpleOnly: boolean; allowMultiWord: boolean; sameCategoryDistractors: boolean;
+    /** Optional: when !simpleOnly, chance the target is drawn from the simple words (rest from all single words); text distractors prefer simple words too. */
+    simpleTargetChance?: number;
+  };
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
@@ -98,12 +108,12 @@ export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
     math: { minA: 1, maxA: 9, minB: 1, maxB: 9, maxSum: 10, requireCarry: false },
     words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
   },
-  // Placeholder until the difficulty packet tunes it: easy words, sums up to 19.
+  // Easy+: sums 2..19 (about half are teen sums); mostly simple single words, some harder ones.
   easyPlus: {
     periodMultiplier: 1.25,
     typeWeights: { picToWord: 32, math: 32, wordToPic: 36 },
-    math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false },
-    words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
+    math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false, teenChance: 0.5, offByOneFirst: true },
+    words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: false, simpleTargetChance: 0.65 },
   },
   normal: {
     periodMultiplier: 1.0,

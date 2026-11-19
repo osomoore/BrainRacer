@@ -265,3 +265,28 @@ describe('ChallengeGenerator rules', () => {
     expect(wordsConflict('cat', 'dog')).toBe(false);
   });
 });
+
+describe('ChallengeGenerator easyPlus', () => {
+  it('word pool sits between easy and normal, single words only', () => {
+    const g = new ChallengeGenerator(new Rng(1));
+    const e = g.targetPool('easy').length, p = g.targetPool('easyPlus').length, n = g.targetPool('normal').length;
+    expect(p).toBeGreaterThan(e);
+    expect(p).toBeLessThanOrEqual(n);
+    expect(g.targetPool('easyPlus').every((w) => !w.includes(' '))).toBe(true);
+  });
+
+  it('mostly simple targets, some harder; distractors valid; deterministic', () => {
+    const g = new ChallengeGenerator(new Rng(3));
+    let simple = 0;
+    const N = 600;
+    for (let i = 0; i < N; i++) {
+      const c = g.generate(i % 2 ? 'picToWord' : 'wordToPic', 'easyPlus');
+      if (WORD_META[c.targetWord!].simple) simple++;
+      expect(c.options).toHaveLength(3);
+    }
+    expect(simple / N).toBeGreaterThan(0.6);
+    expect(simple / N).toBeLessThan(0.95);
+    const a = new ChallengeGenerator(new Rng(9)).generate('picToWord', 'easyPlus');
+    expect(new ChallengeGenerator(new Rng(9)).generate('picToWord', 'easyPlus')).toEqual(a);
+  });
+});

@@ -105,7 +105,12 @@ export class ChallengeGenerator {
   }
 
   private pickTarget(difficulty: Difficulty, recent: ReadonlySet<string> | undefined): string {
-    const pool = this.targetPool(difficulty);
+    let pool = this.targetPool(difficulty);
+    const share = DIFFICULTY[difficulty].words.simpleTargetChance;
+    if (share !== undefined && this.rng.chance(share)) {
+      const simple = pool.filter((w) => WORD_META[w].simple);
+      if (simple.length > 0) pool = simple;
+    }
     const fresh = recent ? pool.filter((w) => !recent.has(w)) : pool;
     return this.rng.pick(fresh.length > 0 ? fresh : pool);
   }
@@ -136,11 +141,12 @@ export class ChallengeGenerator {
     base: string[], target: string, targetCat: WordCategory, difficulty: Difficulty, textOptions: boolean,
   ): string {
     const profile = DIFFICULTY[difficulty].words;
+    const preferSimple = profile.simpleOnly || profile.simpleTargetChance !== undefined;
     const wantSimilar = profile.sameCategoryDistractors && difficulty === 'hard';
     const tiers: Tier[] = [
-      { similar: wantSimilar, category: true, simple: textOptions && profile.simpleOnly },
-      { similar: false, category: true, simple: textOptions && profile.simpleOnly },
-      { similar: false, category: false, simple: textOptions && profile.simpleOnly },
+      { similar: wantSimilar, category: true, simple: textOptions && preferSimple },
+      { similar: false, category: true, simple: textOptions && preferSimple },
+      { similar: false, category: false, simple: textOptions && preferSimple },
       { similar: false, category: false, simple: false },
     ];
     // Easy prefers a *different* category; normal/hard prefer the *same* one.

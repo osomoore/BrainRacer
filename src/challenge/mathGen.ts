@@ -38,11 +38,24 @@ function digitSwap(n: number): number | null {
   return swapped === n ? null : swapped;
 }
 
+function pickPair(rng: Rng, d: Difficulty): Pair {
+  const all = validPairs(d);
+  const chance = DIFFICULTY[d].math.teenChance;
+  if (chance === undefined) return rng.pick(all);
+  const teen = all.filter(([a, b]) => a + b >= 11);
+  const small = all.filter(([a, b]) => a + b < 11);
+  if (teen.length === 0 || small.length === 0) return rng.pick(all);
+  return rng.pick(rng.chance(chance) ? teen : small);
+}
+
 function distractorPool(d: Difficulty, answer: number, rng: Rng): number[] {
   const near = (offs: number[]) => offs.map((o) => answer + o);
   switch (d) {
-    case 'easy':
-    case 'easyPlus': return rng.shuffle(near([-3, -2, -1, 1, 2, 3]));
+    case 'easyPlus': {
+      const pool = rng.shuffle(near([-3, -2, 1, 2, 3]));
+      return DIFFICULTY.easyPlus.math.offByOneFirst && rng.chance(0.5) ? [answer - 1, ...pool] : [...pool, answer - 1];
+    }
+    case 'easy': return rng.shuffle(near([-3, -2, -1, 1, 2, 3]));
     case 'normal': {
       const close = rng.shuffle(near([-2, -1, 1, 2]));
       const tens = rng.shuffle(near([-10, 10]));
@@ -60,7 +73,7 @@ function distractorPool(d: Difficulty, answer: number, rng: Rng): number[] {
 
 export function generateMath(rng: Rng, d: Difficulty, optionCount = 3): MathBody {
   const need = optionCount - 1;
-  const [a, b] = rng.pick(validPairs(d));
+  const [a, b] = pickPair(rng, d);
   const answer = a + b;
   const chosen: number[] = [];
   const ok = (n: number) => n >= 1 && n !== answer && !chosen.includes(n);
