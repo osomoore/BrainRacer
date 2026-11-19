@@ -66,7 +66,7 @@ export class NightLightingSystem implements GameSystem {
         .setAlpha(INDUSTRIAL_LIGHTING.goalGlowAlpha);
     }
     for (const { car, image } of this.halos) {
-      image.setPosition(car.chassis.x, car.chassis.y).setVisible(!car.disabled);
+      image.setPosition(car.chassis.x, car.chassis.y).setVisible(!car.disabled && !car.riding);
     }
     for (const { car, image } of this.beams) {
       const chassis = car.chassis;
@@ -76,7 +76,7 @@ export class NightLightingSystem implements GameSystem {
       image.setPosition(this.nose.x, this.nose.y)
         .setRotation(Math.atan2(transform.b, transform.a))
         .setScale(car.airborne ? INDUSTRIAL_LIGHTING.airborneLengthScale : 1, lateralScale)
-        .setAlpha(car.disabled ? 0 : (car.airborne ? INDUSTRIAL_LIGHTING.airborneAlpha : INDUSTRIAL_LIGHTING.alpha) * car.view.alpha);
+        .setAlpha(car.disabled || car.riding ? 0 : (car.airborne ? INDUSTRIAL_LIGHTING.airborneAlpha : INDUSTRIAL_LIGHTING.alpha) * car.view.alpha);
     }
   }
 
