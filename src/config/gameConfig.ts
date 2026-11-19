@@ -711,3 +711,24 @@ export const FARM_GEN = {
   treeChance: 0.55,          // per free woods tile
   animals: { cow: 4, sheep: 6, horse: 3, pig: 4, chicken: 6, duck: 5 },
 };
+
+/** Farm map traffic: pickups on the roads, slow tractors with hay wagons and combines on dirt lanes. */
+export const FARM_TRAFFIC = {
+  pickups: 25,
+  tractors: 4,
+  combines: 2,
+  /** Chance a pickup spawn is allowed on a dirt lane node (paved roads always allowed). */
+  pickupDirtChance: 0.15,
+  spawnGap: 170,
+  slowSpawnGap: 230,
+  /** A combine needs corn within this many tiles of its lane node (falls back to any dirt lane when none). */
+  cornNearTiles: 2,
+  /** Straight run (px) of drivable ground required behind a tractor/combine spawn for its trailer. */
+  trailerRunPx: 150,
+  wagonGapPx: 4,
+};
+/** Slow tractor: desired speed is 70-100% of maxSpeed (about 35-45% of normal traffic speed). */
+export const TRACTOR_SPEC: VehicleSpec = { length: 80, width: 56, mass: 28, maxSpeed: 110, reverseSpeed: 60, accel: 120, brake: 500, turnRate: 1.5, grip: 0.97, drag: 0.8 };
+export const HAY_WAGON_SPEC: VehicleSpec = { length: 120, width: 50, mass: 14, maxSpeed: 110, reverseSpeed: 60, accel: 120, brake: 500, turnRate: 1.5, grip: 0.97, drag: 0.8 };
+export const COMBINE_SPEC: VehicleSpec = { length: 150, width: 84, mass: 40, maxSpeed: 70, reverseSpeed: 40, accel: 80, brake: 450, turnRate: 1.1, grip: 0.97, drag: 0.8 };
+export const PICKUP_SPEC: VehicleSpec = { length: 84, width: 44, mass: 7, maxSpeed: 245, reverseSpeed: 100, accel: 250, brake: 700, turnRate: 2.2, grip: 0.95, drag: 0.8 };

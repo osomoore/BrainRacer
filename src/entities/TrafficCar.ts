@@ -1,14 +1,30 @@
 import Phaser from 'phaser';
-import { FREIGHT_TRUCK_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
+import { COMBINE_SPEC, FREIGHT_TRUCK_SPEC, PICKUP_SPEC, TRACTOR_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
-import type { LaneGraph } from '../core/types';
+import type { LaneGraph, VehicleSpec } from '../core/types';
 import { STEP_HZ } from './Vehicle';
 import { followLane, nearestNode, newFollowResult, trackSpeed, type FollowResult, type FollowState } from './laneFollow';
+import { HayWagon } from './HayWagon';
 import { NpcVehicle } from './NpcVehicle';
 
 export type TrafficState = 'drive' | 'knocked' | 'reverse';
+export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine';
+
+/** Spawn role used by TrafficSystem to cap special vehicles; null for ordinary traffic. */
+export type TrafficRole = 'freight' | 'tractor' | 'combine' | null;
+
+function kindLook(kind: TrafficKind, rng: Rng): { npc: 'traffic' | 'truck'; tex: string; spec: VehicleSpec } {
+  switch (kind) {
+    case 'freight': return { npc: 'truck', tex: TEX.freightTruck, spec: FREIGHT_TRUCK_SPEC };
+    case 'truck': return { npc: 'truck', tex: TEX.truck, spec: TRUCK_SPEC };
+    case 'pickup': return { npc: 'traffic', tex: TEX.farm.pickup[rng.int(0, TEX.farm.pickup.length - 1)], spec: PICKUP_SPEC };
+    case 'tractor': return { npc: 'truck', tex: TEX.farm.tractor, spec: TRACTOR_SPEC };
+    case 'combine': return { npc: 'truck', tex: TEX.farm.combine, spec: COMBINE_SPEC };
+    default: return { npc: 'traffic', tex: TEX.traffic[rng.int(0, TEX.traffic.length - 1)], spec: TRAFFIC_SPEC };
+  }
+}
 
 const BRAKE_TINT = 0xff9a9a;
 
@@ -18,6 +34,9 @@ export class TrafficCar extends NpcVehicle {
   wantsDespawn = false;
   readonly follow: FollowState;
   readonly oversized: boolean;
+  readonly role: TrafficRole;
+  /** Hay wagon pulled by a tractor (a separate solid NPC part); null once it is gone. */
+  trailer: HayWagon | null = null;
   private readonly cruise: number;
   private readonly res: FollowResult = newFollowResult();
   private stateT = 0;
@@ -31,18 +50,25 @@ export class TrafficCar extends NpcVehicle {
   private launched = false;
 
   constructor(
-    scene: Phaser.Scene, rng: Rng, kind: 'car' | 'truck' | 'freight',
+    scene: Phaser.Scene, rng: Rng, kind: TrafficKind,
     x: number, y: number, angle: number, target: number,
   ) {
-    super(
-      scene, kind === 'car' ? 'traffic' : 'truck',
-      kind === 'freight' ? TEX.freightTruck : kind === 'truck' ? TEX.truck : TEX.traffic[rng.int(0, TEX.traffic.length - 1)],
-      kind === 'freight' ? FREIGHT_TRUCK_SPEC : kind === 'truck' ? TRUCK_SPEC : TRAFFIC_SPEC, x, y, angle,
-    );
-    this.oversized = kind === 'freight';
+    const look = kindLook(kind, rng);
+    super(scene, look.npc, look.tex, look.spec, x, y, angle);
+    this.role = kind === 'freight' || kind === 'tractor' || kind === 'combine' ? kind : null;
+    this.oversized = this.role !== null;
     this.follow = { target, next: -1 };
     this.cruise = this.spec.maxSpeed * rng.range(TRAFFIC.speedMinFrac, TRAFFIC.speedMaxFrac);
     this.stuckX = x; this.stuckY = y;
+    if (kind === 'tractor') this.trailer = new HayWagon(scene, this);
+  }
+
+  /** Extra length (px) trailing behind the body, for visibility margins. */
+  get trailerLength(): number { return this.trailer && !this.trailer.destroyed ? this.trailer.spec.length : 0; }
+
+  destroy(): void {
+    this.trailer?.destroy();
+    super.destroy();
   }
 
   update(dt: number, ctx: RaceContext, rng: Rng): void {
@@ -69,6 +95,9 @@ export class TrafficCar extends NpcVehicle {
       default: this.updateDrive(dt, ctx, graph, rng, fwd);
     }
     this.syncView();
+    if (this.trailer) {
+      if (this.trailer.destroyed) this.trailer = null; else this.trailer.follow(this);
+    }
     this.lastVx = this.body.velocity.x; this.lastVy = this.body.velocity.y;
     this.haveLast = true;
   }
