@@ -13,7 +13,8 @@ export interface Vec2 { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
 
 export type PlayerId = 0 | 1;
-export type Difficulty = 'easy' | 'normal' | 'hard';
+/** easyPlus sits between easy and normal (sums into the teens). */
+export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
 export type RaceMap = 'city' | 'industrial';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */

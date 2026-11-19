@@ -20,7 +20,14 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 ## Queued playtest changes
 
-- Remove on-screen destination text. Players follow their guide buddies.
+- Remove on-screen destination text. Players follow their guide buddies. This also covers the destination name plate/info at the top of the screen.
+- Stop-and-wait question mode: the round timer must keep counting down while the game is paused for players to answer questions. Do not pause the round clock during question breaks.
+- Move round length and question timing out of the menu and make them command-line (URL) options. Defaults: 5-minute rounds, 10 seconds per question.
+- Move volume settings out of the menu and make them command-line (URL) options too.
+- Remove the day/night choice from the menu. Industrial always runs at night; City always runs in daytime.
+- Make Industrial night much darker. It is too bright now.
+- Add a 4th difficulty level between Easy and Medium: math includes sums in the teens, and words and images are picked to match that level.
+- Make the siren louder when a player is driving the police car.
 
 ## Backlog
 

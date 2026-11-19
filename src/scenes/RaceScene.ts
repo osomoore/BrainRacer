@@ -134,10 +134,13 @@ export class RaceScene extends Phaser.Scene {
     }
     if (this.ctx.paused) { this.rig.update(0); return; }
 
-    // Question break (pause style): the world is frozen; only the challenge system (and HUD) run.
+    // Question break (pause style): the world is frozen; only the challenge system, the round clock (and HUD) run.
+    // The round clock keeps counting down during breaks.
     if (this.ctx.questionBreak && this.started && !this.ended) {
       this.setBreak(true);
-      for (const s of this.systems) if (s.name === 'challenge') s.update(dt, this.ctx);
+      this.ctx.elapsedSec += dt;
+      for (const s of this.systems) if (s.name === 'challenge' || s.name === 'roundTimer') s.update(dt, this.ctx);
+      if (this.ended) this.ctx.questionBreak = false;
       if (!this.ctx.questionBreak) this.setBreak(false);
       this.rig.update(0);
       return;

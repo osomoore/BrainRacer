@@ -98,6 +98,13 @@ export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
     math: { minA: 1, maxA: 9, minB: 1, maxB: 9, maxSum: 10, requireCarry: false },
     words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
   },
+  // Placeholder until the difficulty packet tunes it: easy words, sums up to 19.
+  easyPlus: {
+    periodMultiplier: 1.25,
+    typeWeights: { picToWord: 32, math: 32, wordToPic: 36 },
+    math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false },
+    words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
+  },
   normal: {
     periodMultiplier: 1.0,
     typeWeights: { picToWord: 34, math: 33, wordToPic: 33 },

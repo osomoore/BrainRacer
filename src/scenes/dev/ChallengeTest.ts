@@ -6,7 +6,7 @@ import { Rng, randomSeed } from '../../core/rng';
 import type { ChallengeKind, ChallengeOption, Difficulty } from '../../core/types';
 
 const KINDS: ChallengeKind[] = ['picToWord', 'wordToPic', 'math'];
-const LEVELS: Difficulty[] = ['easy', 'normal', 'hard'];
+const LEVELS: Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const FONT = 'Arial Black, Arial';
 const IMG = 320;
 

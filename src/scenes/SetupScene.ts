@@ -9,10 +9,10 @@ import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
 import { REG, SCENE } from './keys';
 
-const DIFFS: Difficulty[] = ['easy', 'normal', 'hard'];
-const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', normal: 'Normal ★★', hard: 'Hard ★★★' };
-const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', normal: '14 + 5', hard: '38 + 47' };
-const DIFF_BLURB: Record<Difficulty, string> = { easy: 'Nice and relaxed', normal: 'Just right', hard: 'Super speedy' };
+const DIFFS: Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
+const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
+const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
+const DIFF_BLURB: Record<Difficulty, string> = { easy: 'Nice and relaxed', easyPlus: 'A little bigger', normal: 'Just right', hard: 'Super speedy' };
 const CARS: CarKind[] = ['dino', 'kart'];
 const ROUND_CHOICES = [180, 300, 420];
 const TIMER_MIN = 5, TIMER_MAX = 20;

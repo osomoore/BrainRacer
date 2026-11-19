@@ -25,9 +25,14 @@ export class ChallengeSystem implements GameSystem {
   private near: Set<number>[] = [];
   private guard: number[] = [];
   private pause = false;
+  /** Round over: no more questions (a break in progress is dropped). */
+  private ended = false;
+  private offRoundEnd: (() => void) | null = null;
 
   init(ctx: RaceContext): void {
     ctx.questionBreak = false;
+    this.ended = false;
+    this.offRoundEnd = ctx.bus.on('round:end', () => { this.ended = true; ctx.questionBreak = false; });
     // Test hook: lets e2e read the current question's correct slot.
     (globalThis as { __challenge?: unknown }).__challenge = {
       current: (p: number): Challenge | null => this.breaks?.current(p as PlayerId) ?? this.schedulers[p]?.current ?? null,
@@ -71,6 +76,7 @@ export class ChallengeSystem implements GameSystem {
   }
 
   update(dt: number, ctx: RaceContext): void {
+    if (this.ended) { ctx.questionBreak = false; return; }
     const now = ctx.elapsedSec;
     if (this.pause && this.breaks) { this.updateBreaks(dt, ctx, now, this.breaks); return; }
     this.schedulers.forEach((sched, i) => {
@@ -84,6 +90,8 @@ export class ChallengeSystem implements GameSystem {
   }
 
   destroy(): void {
+    this.offRoundEnd?.();
+    this.offRoundEnd = null;
     this.schedulers = [];
     this.breaks = null;
     this.near = [];

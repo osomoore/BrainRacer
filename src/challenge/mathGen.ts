@@ -41,7 +41,8 @@ function digitSwap(n: number): number | null {
 function distractorPool(d: Difficulty, answer: number, rng: Rng): number[] {
   const near = (offs: number[]) => offs.map((o) => answer + o);
   switch (d) {
-    case 'easy': return rng.shuffle(near([-3, -2, -1, 1, 2, 3]));
+    case 'easy':
+    case 'easyPlus': return rng.shuffle(near([-3, -2, -1, 1, 2, 3]));
     case 'normal': {
       const close = rng.shuffle(near([-2, -1, 1, 2]));
       const tens = rng.shuffle(near([-10, 10]));
