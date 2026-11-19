@@ -36,6 +36,8 @@ function validateMath(c: GeneratedChallenge, d: Difficulty, n = 3): void {
   expect(new Set(nums).size).toBe(n);
 }
 
+const gen0 = new ChallengeGenerator(new Rng(0));
+
 function validate(c: GeneratedChallenge, d: Difficulty, placeWord?: string, n = 3): void {
   expect(c.options).toHaveLength(n);
   expect([0, 1, 2, 3].slice(0, n)).toContain(c.correct);
@@ -56,7 +58,8 @@ function validate(c: GeneratedChallenge, d: Difficulty, placeWord?: string, n = 
     expect(c.options.every((o) => o.kind === 'image')).toBe(true);
   }
   const profile = DIFFICULTY[d].words;
-  if (placeWord) {
+  const placeOk = !!placeWord && gen0.placeAllowed(placeWord, d);
+  if (placeWord && placeOk) {
     expect(c.placeWord).toBe(placeWord);
     expect(target).toBe(placeWord);
     const shown = c.kind === 'picToWord'
@@ -214,14 +217,45 @@ describe('ChallengeGenerator rules', () => {
   });
 
   it('a place word with kind math still makes a place challenge', () => {
-    const c = new ChallengeGenerator(new Rng(2)).generate('math', 'easy', { placeWord: 'bakery' });
+    const c = new ChallengeGenerator(new Rng(2)).generate('math', 'normal', { placeWord: 'bakery' });
     expect(c.kind).not.toBe('math');
     expect(c.placeWord).toBe('bakery');
   });
 
-  it('place challenges ignore simpleOnly/multi-word for the target', () => {
-    const c = new ChallengeGenerator(new Rng(2)).generate('picToWord', 'easy', { placeWord: 'fire station' });
+  it('place challenges on hard may use non-simple / multi-word targets', () => {
+    const c = new ChallengeGenerator(new Rng(2)).generate('picToWord', 'hard', { placeWord: 'fire station' });
     expect(c.targetWord).toBe('fire station');
+  });
+
+  it('easy place challenges never use a non-simple target (many seeds)', () => {
+    const hard = CITY_PLACE_WORDS.filter((w) => !WORD_META[w].simple);
+    const easy = CITY_PLACE_WORDS.filter((w) => WORD_META[w].simple);
+    expect(hard.length).toBeGreaterThan(0);
+    expect(easy.length).toBeGreaterThan(0);
+    for (let seed = 1; seed <= 300; seed++) {
+      for (const n of [3, 4] as const) {
+        for (const w of CITY_PLACE_WORDS) {
+          const c = new ChallengeGenerator(new Rng(seed)).generate('picToWord', 'easy', { placeWord: w, optionCount: n });
+          if (c.kind === 'math') continue;
+          expect(WORD_META[c.targetWord!].simple).toBe(true);
+          if (WORD_META[w].simple) expect(c.placeWord).toBe(w);
+          else expect(c.placeWord).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it('easy with a non-simple place word still yields a normal challenge', () => {
+    for (const w of ['hospital', 'stadium', 'library', 'museum']) {
+      const c = new ChallengeGenerator(new Rng(5)).generate('wordToPic', 'easy', { placeWord: w });
+      expect(c.placeWord).toBeUndefined();
+      expect(c.targetWord).not.toBe(w);
+    }
+  });
+
+  it('normal treats non-simple single-word places as valid place targets', () => {
+    const c = new ChallengeGenerator(new Rng(5)).generate('picToWord', 'normal', { placeWord: 'hospital' });
+    expect(c.placeWord).toBe('hospital');
   });
 
   it('conflict rules', () => {
