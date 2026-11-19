@@ -1,4 +1,5 @@
 import { POLICE } from '../config/gameConfig';
+import { TEX } from '../core/assetKeys';
 import type { CrashWith } from '../core/events';
 import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -10,13 +11,21 @@ import {
   type EscapeState, type ThinkEnv,
 } from '../entities/policeAI';
 
+/** True for the police light-bar chassis textures (AI cruisers, and a player who took one over). */
+export function isPoliceTexture(key: string | undefined): boolean {
+  return key !== undefined && (TEX.police as readonly string[]).includes(key);
+}
+
 interface PlayerPolice {
   heat: number;
   lastEmitHeat: number;
   chasing: boolean;
   escape: EscapeState;
   bumpUntil: number;
+  /** AI chase siren (quiet). */
   stopSiren: (() => void) | null;
+  /** The player's own siren while they drive a police cruiser (louder). */
+  playerSiren: (() => void) | null;
   lastCount: number;
   respawnUntil: number;
 }
@@ -33,6 +42,10 @@ export class PoliceSystem implements GameSystem {
   /** Seconds each car has been off every player's view (negative = spawn grace). */
   private offSec = new Map<PoliceCar, number>();
   private offCrash: (() => void) | null = null;
+  private offPause: (() => void) | null = null;
+  private offBreak: (() => void) | null = null;
+  private offEnd: (() => void) | null = null;
+  private roundOver = false;
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
@@ -40,16 +53,24 @@ export class PoliceSystem implements GameSystem {
     this.index = new NodeIndex(ctx.world.laneGraph);
     this.env = { world: ctx.world, index: this.index, pickGoal: () => this.randomNode() };
     this.per = ctx.players.map(() => ({
-      heat: 0, lastEmitHeat: 0, chasing: false, escape: { farSec: 0 }, bumpUntil: -1, stopSiren: null, lastCount: 0, respawnUntil: 0,
+      heat: 0, lastEmitHeat: 0, chasing: false, escape: { farSec: 0 }, bumpUntil: -1,
+      stopSiren: null, playerSiren: null, lastCount: 0, respawnUntil: 0,
     }));
     const h = new URLSearchParams(location.search).get('heat'); // dev hook: ?heat=100
     if (h !== null && this.per[0]) this.per[0].heat = Math.max(0, Math.min(POLICE.heatMax, Number(h) || 0));
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.onCrash(e));
+    // Sirens are only driven from update(), which stops during pause and question breaks: silence them here.
+    this.offPause = ctx.bus.on('game:pause', () => this.silenceSirens());
+    this.offBreak = ctx.bus.on('challenge:shown', () => { if (this.ctx.questionBreak) this.silenceSirens(); });
+    this.offEnd = ctx.bus.on('round:end', () => { this.roundOver = true; this.silenceSirens(); });
   }
 
   destroy(): void {
     this.offCrash?.();
-    for (const p of this.per) { p.stopSiren?.(); p.stopSiren = null; }
+    this.offPause?.();
+    this.offBreak?.();
+    this.offEnd?.();
+    this.silenceSirens();
     for (const c of this.cars) c.destroy();
     this.cars = [];
     this.offSec.clear();
@@ -127,6 +148,7 @@ export class PoliceSystem implements GameSystem {
     }
 
     for (const car of this.cars) { this.driveCar(car, dt); this.checkOffscreen(car, dt); }
+    this.updatePlayerSirens();
     this.updateSirens();
   }
 
@@ -309,11 +331,38 @@ export class PoliceSystem implements GameSystem {
   }
 
   // ───────────────────────── siren ─────────────────────────
+  private silenceSirens(): void {
+    for (const st of this.per) {
+      st.stopSiren?.(); st.stopSiren = null;
+      st.playerSiren?.(); st.playerSiren = null;
+    }
+  }
+
+  /** True while the player is driving a police cruiser (their chassis carries a police texture). */
+  private inCruiser(p: PlayerId): boolean {
+    return isPoliceTexture(this.ctx.players[p]?.chassis?.texture?.key);
+  }
+
+  /** The player's own siren: loops while they drive a cruiser in a live race. */
+  private updatePlayerSirens(): void {
+    for (let pi = 0; pi < this.per.length; pi++) {
+      const p = pi as PlayerId;
+      const st = this.per[p];
+      const want = !this.roundOver && !this.ctx.paused && !this.ctx.questionBreak && this.inCruiser(p);
+      if (want && !st.playerSiren) st.playerSiren = services.audio.loop('siren', { pan: this.pan(p), volume: POLICE.playerSirenVolume });
+      else if (!want && st.playerSiren) { st.playerSiren(); st.playerSiren = null; }
+    }
+  }
+
+  /**
+   * AI chase siren. Suppressed while the player drives a cruiser: their own siren already plays,
+   * and two layered sirens (one quiet, one loud, both looping) would just muddy the sound.
+   */
   private updateSirens(): void {
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
       const st = this.per[p], pl = this.ctx.players[p];
-      const near = !!pl && st.chasing && this.chasersOf(p).some((c) => Math.hypot(c.x - pl.x, c.y - pl.y) < POLICE.sirenNearDist && !this.offscreen(c.x, c.y, 0));
+      const near = !!pl && !this.roundOver && st.chasing && !this.inCruiser(p) && this.chasersOf(p).some((c) => Math.hypot(c.x - pl.x, c.y - pl.y) < POLICE.sirenNearDist && !this.offscreen(c.x, c.y, 0));
       if (near && !st.stopSiren) st.stopSiren = services.audio.loop('siren', { pan: this.pan(p), volume: POLICE.sirenVolume });
       else if (!near && st.stopSiren) { st.stopSiren(); st.stopSiren = null; }
     }
