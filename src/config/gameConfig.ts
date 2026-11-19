@@ -711,3 +711,39 @@ export const FARM_GEN = {
   treeChance: 0.55,          // per free woods tile
   animals: { cow: 4, sheep: 6, horse: 3, pig: 4, chicken: 6, duck: 5 },
 };
+
+// ───────────────────────── farm corn + mud driving (package farm-corn) ─────────────────────────
+export const FARM_CORN = {
+  /** Top-speed multiplier (applied through car.slow) on each surface. */
+  cornSpeedMult: 0.6,
+  mudSpeedMult: 0.5,
+  /** Extra drag (1/s, exponential) on top of the cap while plowing through corn / mud. */
+  cornDrag: 0.6,
+  mudDrag: 1.0,
+  /** Mud wobble: sideways shove (px/s per s, sine) scaled by speed fraction. */
+  mudWobble: 260,
+  mudWobbleHz: 2.5,
+  /** Min speed (px/s) before a car counts as plowing (stamps, rustle, puffs). */
+  minPlowSpeed: 60,
+  /** Stamp pool size (oldest recycled first), spacing along the path (px), look. */
+  stampPool: 140,
+  stampSpacing: 34,
+  stampScale: 1.0,
+  stampAlpha: 0.95,
+  stampJitterPx: 8,
+  stampJitterRad: 0.3,
+  /** Stamps spring back when this far (px) outside every player view, or after this many seconds. */
+  viewMargin: 120,
+  stampLifeSec: 30,
+  cullEverySec: 0.2,
+  /** Leaf/husk puffs per second while plowing, max live puffs, mud splash count on entering. */
+  puffsPerSec: 14,
+  puffMax: 40,
+  splashCount: 10,
+  /** Sound rate limit (sec), volume, and pan for the 2-player split. */
+  rustleEverySec: 0.35,
+  rustleVolume: 0.6,
+  pan: 0.5,
+  leafTints: [0x7fb83a, 0xc9a93c, 0x5e8f2a] as number[],
+  mudTint: 0x6b4423,
+};
