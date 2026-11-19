@@ -711,3 +711,44 @@ export const FARM_GEN = {
   treeChance: 0.55,          // per free woods tile
   animals: { cow: 4, sheep: 6, horse: 3, pig: 4, chicken: 6, duck: 5 },
 };
+
+/** Farm animals (AnimalSystem). Speeds px/s, times sec, sizes px. They are obstacles that fly cartoon-style; never hurt. */
+export const ANIMALS = {
+  /** Only animals within this distance of a player are simulated; others stay frozen. */
+  activeRadius: 1500,
+  /** Cars slower than this (px/s) only nudge/startle an animal; faster launches it. */
+  hitMinSpeed: 90,
+  /** Vehicle speed and distance at which an approaching car makes an animal scurry aside. */
+  scareSpeed: 200,
+  scareRadius: 300,
+  fleeSec: 0.9,
+  /** Dino roar scatters animals within this radius for this long. */
+  roarRadius: 1100,
+  roarFleeSec: 2.6,
+  /** Keep walkers this far inside a fenced zone edge (plus half their sprite). */
+  zoneMargin: 14,
+  /** Free (unfenced) zones may wander this far outside their rect. */
+  looseSlack: 40,
+  /** Launch: distance = clamp(carSpeed * distPerSpeed, min, max); airtime and peak scale. */
+  launch: { distPerSpeed: 0.7, minDist: 200, maxDist: 560, airSec: 1.05, peakScale: 1.9, spinTurns: 2.5, landBounceSec: 0.3, dazeSec: 0.9 },
+  /** Hit direction blend: how much of the car heading (vs. straight away from the car) is used. */
+  launchHeadingBlend: 0.7,
+  /** Ambient sound every few seconds from a nearby animal. */
+  ambientSecMin: 5,
+  ambientSecMax: 12,
+  ambientRange: 900,
+  /** Free-zone ducks sometimes march across up to this far outside the zone, in a line spaced this much. */
+  duckCrossChance: 0.18,
+  duckCrossReach: 220,
+  duckSpacing: 34,
+  /** Per-kind sprite size (matches TEX.farm art), body radius and behaviour. */
+  kinds: {
+    cow:     { w: 88,  h: 52, radius: 24, walk: 34, run: 130, grazeSec: [2.5, 7],  walkSec: [1.5, 4],    stepPx: 22 },
+    sheep:   { w: 64,  h: 48, radius: 19, walk: 38, run: 150, grazeSec: [2, 6],    walkSec: [1.2, 3.5],  stepPx: 18 },
+    pig:     { w: 64,  h: 42, radius: 18, walk: 42, run: 150, grazeSec: [1.5, 5],  walkSec: [1.2, 3.5],  stepPx: 18 },
+    horse:   { w: 104, h: 44, radius: 22, walk: 55, run: 210, grazeSec: [2, 6],    walkSec: [2, 5],      stepPx: 28 },
+    chicken: { w: 32,  h: 28, radius: 10, walk: 30, run: 190, grazeSec: [0.5, 1.6], walkSec: [0.25, 0.6], stepPx: 9 },
+    duck:    { w: 32,  h: 26, radius: 10, walk: 40, run: 150, grazeSec: [1.5, 4],  walkSec: [1.5, 3.5],  stepPx: 10 },
+  },
+  sfx: { cow: 'moo', sheep: 'baa', pig: 'oink', horse: 'neigh', chicken: 'cluck', duck: 'quack' },
+} as const;
