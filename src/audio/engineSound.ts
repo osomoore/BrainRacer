@@ -69,11 +69,11 @@ export class EngineSound implements IEngineSound {
     this.saw.frequency.rampTo(hz, ramp);
     this.sq.frequency.rampTo(hz * 0.5, ramp);
     this.bright.frequency.rampTo(hz * (boost ? 2.02 : 2), ramp);
-    this.filter.frequency.rampTo(280 + s * 900 + (boost ? 700 : 0), ramp);
-    this.brightGain.gain.rampTo(boost ? 0.55 : 0, 0.1);
+    this.filter.frequency.rampTo(280 + s * 900 + (boost ? 1100 : 0), ramp);
+    this.brightGain.gain.rampTo(boost ? 1.4 : 0, 0.1);
     this.wobble.amplitude.rampTo(1 - s * 0.85, 0.2);
     this.wobble.frequency.rampTo(6 + s * 8, 0.2);
-    this.out.gain.rampTo(0.06 + s * 0.05, 0.1);
+    this.out.gain.rampTo(0.06 + s * 0.05 + (boost ? 0.04 : 0), 0.1);
   }
 
   get state(): { speed: number; boost: boolean } {

@@ -135,9 +135,17 @@ const RECIPES: Record<SfxName, Recipe> = {
     return 0.1;
   },
   turbo: (v, t) => {
-    v.noise({ type: 'pink', t, dur: 0.8, vol: 0.5, filter: 'bandpass', f0: 300, f1: 3500, q: 1.5, attack: 0.15 });
-    v.osc({ type: 'sawtooth', f0: 110, f1: 700, t, dur: 0.7, vol: 0.1, attack: 0.1 });
-    return 0.9;
+    // punchy launch thump + rising rocket whoosh (noise + saw sweep) + sparkly arcade tail
+    v.osc({ type: 'sine', f0: 180, f1: 50, t, dur: 0.25, vol: 0.9, attack: 0.004 });
+    v.noise({ type: 'white', t, dur: 0.12, vol: 0.5, filter: 'highpass', f0: 2000, attack: 0.003 });
+    v.noise({ type: 'pink', t, dur: 0.95, vol: 1.0, filter: 'bandpass', f0: 250, f1: 4200, q: 1.8, attack: 0.08 });
+    v.osc({ type: 'sawtooth', f0: 90, f1: 900, t, dur: 0.85, vol: 0.28, attack: 0.05 });
+    v.osc({ type: 'square', f0: 180, f1: 1800, t: t + 0.05, dur: 0.7, vol: 0.08, attack: 0.1 });
+    [88, 92, 95, 100, 104, 107].forEach((n, i) => {
+      v.osc({ type: 'triangle', f0: NOTE(n), t: t + 0.35 + i * 0.09, dur: 0.3, vol: 0.32 });
+      v.osc({ type: 'sine', f0: NOTE(n + 12), t: t + 0.35 + i * 0.09, dur: 0.22, vol: 0.1 });
+    });
+    return 1.2;
   },
   crash: (v, t) => {
     v.osc({ type: 'sine', f0: 140, f1: 45, t, dur: 0.28, vol: 0.8 });
@@ -157,9 +165,9 @@ const RECIPES: Record<SfxName, Recipe> = {
   },
   siren: (v, t) => {
     for (let i = 0; i < 4; i++) {
-      v.osc({ type: 'triangle', f0: i % 2 === 0 ? 700 : 930, t: t + i * 0.2, dur: 0.2, vol: 0.22, attack: 0.01 });
+      v.osc({ type: 'sine', f0: i % 2 === 0 ? 660 : 784, t: t + i * 0.35, dur: 0.35, vol: 0.1, attack: 0.08 });
     }
-    return 0.85;
+    return 1.45;
   },
   policeBump: (v, t) => {
     v.osc({ type: 'sine', f0: 170, f1: 520, t, dur: 0.1, vol: 0.5 });
@@ -207,7 +215,7 @@ const RECIPES: Record<SfxName, Recipe> = {
     return 0.75;
   },
   roar: (v, t) => {
-    const dur = 1.8;
+    const dur = 2.2 / Math.pow(v.rate, 1.4); // higher rate = shorter yelp
     const pre = v.add(new Tone.Gain(1.6));
     // low growl: two slightly detuned saws dropping in pitch + brown noise
     for (const mul of [1, 1.012]) {
@@ -220,6 +228,19 @@ const RECIPES: Record<SfxName, Recipe> = {
       o.start(t);
       o.stop(t + dur + 0.05);
     }
+    // sub-bass body (sits under the distortion so it stays clean and round)
+    const sub = v.add(new Tone.Oscillator({ type: 'sine', frequency: v.f(62) }));
+    const sg = v.add(new Tone.Gain(FLOOR));
+    sub.frequency.setValueAtTime(v.f(70), t);
+    sub.frequency.exponentialRampToValueAtTime(v.f(34), t + dur);
+    sg.gain.setValueAtTime(FLOOR, t);
+    sg.gain.linearRampToValueAtTime(0.9, t + 0.15);
+    sg.gain.linearRampToValueAtTime(0.6, t + dur * 0.55);
+    sg.gain.exponentialRampToValueAtTime(FLOOR, t + dur);
+    sub.connect(sg);
+    sg.connect(v.input);
+    sub.start(t);
+    sub.stop(t + dur + 0.05);
     const nz = v.add(new Tone.Noise('brown'));
     const ng = v.add(new Tone.Gain(0.7));
     nz.connect(ng);
@@ -240,8 +261,8 @@ const RECIPES: Record<SfxName, Recipe> = {
     lfo.stop(t + dur + 0.05);
     const env = v.add(new Tone.Gain(FLOOR));
     env.gain.setValueAtTime(FLOOR, t);
-    env.gain.linearRampToValueAtTime(0.5, t + 0.12);
-    env.gain.linearRampToValueAtTime(0.38, t + 1.0);
+    env.gain.linearRampToValueAtTime(0.6, t + 0.12);
+    env.gain.linearRampToValueAtTime(0.46, t + dur * 0.55);
     env.gain.exponentialRampToValueAtTime(FLOOR, t + dur);
     pre.connect(shaper);
     shaper.connect(lp);
@@ -295,7 +316,7 @@ const RECIPES: Record<SfxName, Recipe> = {
 };
 
 /** Loudness trims per sound so the mix feels even. */
-const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.9, turbo: 0.8, stomp: 0.9 };
+const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.5, turbo: 1.25, stomp: 0.9 };
 /** Max simultaneous instances per sound, and minimum retrigger gap (seconds). */
 const MAX_VOICES: Partial<Record<SfxName, number>> = { menuMove: 2, timeout: 2, pop: 3, skid: 2, roar: 2, goal: 1 };
 const DEFAULT_MAX_VOICES = 4;
@@ -366,17 +387,28 @@ export class SfxEngine {
     const out = v.add(new Tone.Gain(0));
     out.connect(v.input);
     const t = Tone.now() + 0.02;
+    let timer = 0;
     if (name === 'siren') {
-      const o = v.add(new Tone.Oscillator({ type: 'sawtooth', frequency: 800 }));
-      const lp = v.add(new Tone.Filter({ type: 'lowpass', frequency: 1800, Q: 0.7 }));
-      const lfo = v.add(new Tone.LFO({ frequency: 2.2, min: 690, max: 920, type: 'square' }));
-      lfo.connect(o.frequency);
+      // gentle two-tone: sine, rounded by a lowpass, ~0.7 s per tone, slow fade in
+      const o = v.add(new Tone.Oscillator({ type: 'sine', frequency: 660 }));
+      const lp = v.add(new Tone.Filter({ type: 'lowpass', frequency: 900, Q: 0.4 }));
       o.connect(lp);
       lp.connect(out);
-      lfo.start(t);
       o.start(t);
+      const TONE = 0.7;
+      let next = t;
+      let idx = 0;
+      const schedule = (horizon: number): void => {
+        while (next < Tone.now() + horizon) {
+          o.frequency.setTargetAtTime(idx % 2 === 0 ? 660 : 784, next, 0.05);
+          next += TONE;
+          idx++;
+        }
+      };
+      schedule(20);
+      timer = window.setInterval(() => schedule(20), 8000);
       out.gain.setValueAtTime(0, t);
-      out.gain.linearRampToValueAtTime(0.13, t + 0.08);
+      out.gain.linearRampToValueAtTime(0.25, t + 1.2);
     } else {
       const nz = v.add(new Tone.Noise('white'));
       const bp = v.add(new Tone.Filter({ type: 'bandpass', frequency: 2300, Q: 3 }));
@@ -390,14 +422,16 @@ export class SfxEngine {
       out.gain.linearRampToValueAtTime(0.2, t + 0.05);
     }
     let done = false;
+    const fade = name === 'siren' ? 0.8 : 0.12;
     return () => {
       if (done) return;
       done = true;
+      window.clearInterval(timer);
       const now = Tone.now();
       out.gain.cancelScheduledValues(now);
       out.gain.setValueAtTime(out.gain.value, now);
-      out.gain.linearRampToValueAtTime(0, now + 0.12);
-      window.setTimeout(() => v.dispose(), 350);
+      out.gain.linearRampToValueAtTime(0, now + fade);
+      window.setTimeout(() => v.dispose(), (fade + 0.25) * 1000);
     };
   }
 }

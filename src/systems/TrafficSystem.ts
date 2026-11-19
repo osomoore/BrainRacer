@@ -15,11 +15,13 @@ export class TrafficSystem implements GameSystem {
   private scratch: number[] = [];
   private occupied: { x: number; y: number }[] = [];
   private playerPts: { x: number; y: number }[] = [];
+  private offCrash: (() => void) | null = null;
   private query: SpawnQuery = { players: [], views: [], occupied: [], minR: 0, maxR: 0, margin: 0, gap: 0 };
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x7aff1c);
+    this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
     // Initial fill: a nearer ring is allowed, still off-screen.
     for (let i = 0; i < TRAFFIC.maxVehicles * 3 && this.cars.length < TRAFFIC.maxVehicles; i++) {
       if (!this.trySpawn(TRAFFIC.initialSpawnMin)) continue;
@@ -46,7 +48,28 @@ export class TrafficSystem implements GameSystem {
     }
   }
 
+  /** Player rams traffic: throw the traffic car off to the side with extra push and spin. */
+  private shove(e: { player: number | null; with: string; impact: number; x: number; y: number }): void {
+    if (e.player === null || e.with !== 'traffic') return;
+    const pl = this.ctx.players[e.player];
+    if (!pl) return;
+    let best: TrafficCar | null = null, bd = 160 * 160;
+    for (const c of this.cars) {
+      if (c.destroyed) continue;
+      const d = (c.x - e.x) ** 2 + (c.y - e.y) ** 2;
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (!best) return;
+    let dx = best.x - pl.x, dy = best.y - pl.y;
+    const d = Math.hypot(dx, dy) || 1;
+    dx /= d; dy /= d;
+    const k = best.npcKind === 'truck' ? TRAFFIC.shoveTruckMult : 1;
+    const mag = Math.min(TRAFFIC.shoveMax, e.impact * TRAFFIC.shovePerImpact) * k;
+    best.applyImpulse(dx * mag, dy * mag, (this.rng.chance(0.5) ? 1 : -1) * TRAFFIC.shoveSpin * Math.min(1, e.impact / 400));
+  }
+
   destroy(): void {
+    this.offCrash?.();
     for (const c of this.cars) { this.ctx.npcs.delete(c); c.destroy(); }
     this.cars.length = 0;
   }
