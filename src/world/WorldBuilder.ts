@@ -12,6 +12,10 @@ import { signSceneFor } from '../data/places';
 import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
 import {
+  FARM_TILESET_COUNT, FARM_TILESET_KEY, addFarmBuilding, addFarmWorld, farmTileIndices, farmWorldTileSource,
+  type FarmBlade, type FarmWorldHandle,
+} from './farmWorld';
+import {
   INDUSTRIAL_BUILDING_TINT, INDUSTRIAL_SLAB_VARIANTS, INDUSTRIAL_TILESET_KEY, addIndustrialWorld, industrialTileSource,
 } from './industrialWorld';
 
@@ -48,15 +52,15 @@ const TILE_KEYS: string[] = [
 ];
 const ROAD_BASE = 6;
 
-function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean): string {
-  const key = industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
+function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm = false): string {
+  const key = farm ? FARM_TILESET_KEY : industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
   if (scene.textures.exists(key)) return key;
-  const tileCount = TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
+  const tileCount = farm ? FARM_TILESET_COUNT : TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
   const rows = Math.ceil(tileCount / COLS);
   const tex = scene.textures.createCanvas(key, COLS * CELL, rows * CELL);
   if (!tex) throw new Error('tileset canvas failed');
   const ctx = tex.getContext();
-  const drawTile = industrial ? industrialTileSource(TS) : undefined;
+  const drawTile = farm ? farmWorldTileSource(TS) : industrial ? industrialTileSource(TS) : undefined;
   for (let i = 0; i < tileCount; i++) {
     const src = drawTile ? drawTile(i) : scene.textures.get(TILE_KEYS[i]).getSourceImage() as CanvasImageSource;
     const cx = (i % COLS) * CELL, cy = Math.floor(i / COLS) * CELL;
@@ -92,8 +96,8 @@ function tileIndex(world: WorldData, i: number): number {
       return 4;
     }
     case Tile.Dirt: return 5;
-    case Tile.Mud: return 5;   // placeholder until the farm renderer draws its own tileset
-    case Tile.Corn: return 3;  // placeholder (park)
+    case Tile.Mud: return 5;   // farm worlds use farmTileIndices instead
+    case Tile.Corn: return 3;
     case Tile.Road: return ROAD_BASE + (world.roadMask[i] & 15);
     default: return 1;
   }
@@ -128,11 +132,15 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
   };
 
   // ── ground
-  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night);
+  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night, world.farm !== undefined);
+  const farmTiles = world.farm ? farmTileIndices(world) : undefined;
   const data: number[][] = [];
   for (let y = 0; y < world.heightTiles; y++) {
     const row: number[] = [];
-    for (let x = 0; x < world.widthTiles; x++) row.push(tileIndex(world, y * world.widthTiles + x));
+    for (let x = 0; x < world.widthTiles; x++) {
+      const i = y * world.widthTiles + x;
+      row.push(farmTiles ? farmTiles[i] : tileIndex(world, i));
+    }
     data.push(row);
   }
   const map = scene.make.tilemap({ data, tileWidth: ts, tileHeight: ts });
@@ -149,8 +157,16 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
   }
 
   // ── buildings: baked beveled-block body + baked soft shadow (one image each, no live Graphics)
+  const farmBlades: FarmBlade[] = [];
   for (const b of world.buildings) {
     const fx = b.tx * ts, fy = b.ty * ts, fw = b.tw * ts, fh = b.th * ts;
+    if (world.farm) {
+      // Farm lots: barn/silo/windmill/... looks and long low-sun shadows (farmWorld.ts); same body + sign.
+      addFarmBuilding(scene, world, b, objs, farmBlades);
+      addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
+      if (b.placeWord) addSign(scene, fx + fw / 2, fy + fh / 2, fw - 24, fh - 24, b.placeWord, objs);
+      continue;
+    }
     const sk = ensureShadowTexture(scene, fw, fh);
     const m = BUILDING_3D.shadowMargin;
     objs.push(scene.add.image(fx - m, fy - m, sk).setOrigin(0, 0).setDepth(DEPTH.decal - 1));
@@ -179,6 +195,12 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
       (x, y, w, h, angle) => addStaticRect(x, y, w, h, bnd, angle),
       (x, y, radius) => rememberStaticBody(M.add.circle(x, y, radius, staticOpts(bnd)) as unknown as MatterJS.BodyType, bnd));
   }
+  let farmHandle: FarmWorldHandle | undefined;
+  if (world.farm) {
+    farmHandle = addFarmWorld(scene, world, objs, farmBlades,
+      (x, y, w, h, owner, angle = 0) => addStaticRect(x, y, w, h, owner, angle),
+      (x, y, radius, owner) => rememberStaticBody(M.add.circle(x, y, radius, staticOpts(owner)) as unknown as MatterJS.BodyType, owner));
+  }
   addStaticRect(W / 2, -T / 2, W + 2 * T, T, bnd);
   addStaticRect(W / 2, H + T / 2, W + 2 * T, T, bnd);
   addStaticRect(-T / 2, H / 2, T, H, bnd);
@@ -196,6 +218,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
     bounds: { x: 0, y: 0, w: W, h: H },
     dynamicProps, bodies,
     destroy() {
+      farmHandle?.destroy();
       if (M.world) for (const b of bodies) M.world.remove(b);
       for (const o of [...dynamicProps, ...objs]) o.destroy();
       layer.destroy();

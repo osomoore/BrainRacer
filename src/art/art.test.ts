@@ -49,6 +49,9 @@ describe('art keys', () => {
     expect(made.get(TEX.farm.cow[2])).toEqual({ w: 88, h: 52 });
     expect(made.get(TEX.farm.duckTumble)).toEqual({ w: 32, h: 26 });
     expect(made.get(TEX.farm.combine)).toEqual({ w: 150, h: 84 });
+    expect(made.get(TEX.farm.campsite)).toEqual({ w: 256, h: 256 });
+    expect(made.get(TEX.farm.leanTo)).toEqual({ w: 384, h: 128 });
+    expect(made.get(TEX.farm.well)).toEqual({ w: 128, h: 128 });
   });
 
   it('roadPlan maps masks to shapes', () => {

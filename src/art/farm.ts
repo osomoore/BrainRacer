@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { drawFarmAnimals } from './farmAnimals';
+import { drawFarmExtras } from './farmExtras';
 import { drawFarmProps } from './farmProps';
 import { drawFarmVehicles } from './farmVehicles';
 
@@ -10,4 +11,5 @@ export function drawFarm(scene: Phaser.Scene): void {
   drawFarmProps(scene);
   drawFarmAnimals(scene);
   drawFarmVehicles(scene);
+  drawFarmExtras(scene);
 }

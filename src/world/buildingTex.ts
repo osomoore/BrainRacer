@@ -2,6 +2,7 @@
  * Baked building looks (canvas 2D, once per unique size/style): a beveled frustum with four sloped
  * side faces shaded by a FIXED world light (top-left), an inset roof with parapet rim, and a soft
  * drop shadow. Static images, so they cost nothing per frame and rotate with each camera.
+ * `ensureCastShadow` is the generalized baker (any direction/length, rect or ellipse footprint) used by the Farm.
  */
 import Phaser from 'phaser';
 import { TEX } from '../core/assetKeys';
@@ -44,6 +45,102 @@ export function ensureShadowTexture(scene: Phaser.Scene, w: number, h: number): 
   c.fillRect(m - 2000, m, w, h);
   tex.refresh();
   return key;
+}
+
+/** A long directional drop shadow (low sun). Footprint is centred on the caster's origin. */
+export interface CastShadow {
+  /** Footprint size (px) along the caster's local x / y. */
+  w: number; h: number;
+  shape?: 'rect' | 'ellipse';
+  /** Caster's own rotation (rad); the shadow direction stays in world space. */
+  rotation?: number;
+  /** World-space direction the shadow falls (rad, 0 = +x) and its length (px) from base to tip. */
+  angle: number; length: number;
+  /** Offset (px, along `angle`) where the swept shadow starts: >0 for a lifted part like a tree canopy. */
+  start?: number;
+  alpha?: number;
+  blur?: number;
+  color?: string;
+  /** 0..1: how much lighter the tip is than the base. */
+  fade?: number;
+}
+
+export interface CastShadowTex {
+  key: string;
+  /** Texture-pixel position of the caster's centre (use as origin) and the texture size. */
+  ox: number; oy: number; tw: number; th: number;
+}
+
+export const CAST_SHADOW_DEFAULTS = { alpha: 0.34, blur: 10, color: '#1a2150', fade: 0.45 };
+
+const castShadowCache = new Map<string, CastShadowTex>();
+
+/**
+ * Generalized shadow baker: sweeps the footprint along (angle, length) — the projection of a box
+ * standing on it — then softens it and fades it toward the tip. Baked once per unique shape;
+ * place the image at the caster's centre with `setOrigin(ox / width, oy / height)`, unrotated.
+ */
+export function ensureCastShadow(scene: Phaser.Scene, o: CastShadow): CastShadowTex {
+  const D = CAST_SHADOW_DEFAULTS;
+  const shape = o.shape ?? 'rect', rot = o.rotation ?? 0;
+  const alpha = o.alpha ?? D.alpha, blur = o.blur ?? D.blur, color = o.color ?? D.color, fade = o.fade ?? D.fade;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const key = `cshadow_${shape}_${Math.round(o.w)}x${Math.round(o.h)}_r${r2(rot)}_a${r2(o.angle)}_l${Math.round(o.length)}_s${Math.round(o.start ?? 0)}_${r2(alpha)}_${Math.round(blur)}_${color}_${r2(fade)}`;
+  const hit = castShadowCache.get(key);
+  if (hit && scene.textures.exists(key)) return hit;
+  // footprint outline (local), rotated into world space
+  const pts: [number, number][] = [];
+  if (shape === 'rect') pts.push([-o.w / 2, -o.h / 2], [o.w / 2, -o.h / 2], [o.w / 2, o.h / 2], [-o.w / 2, o.h / 2]);
+  else for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; pts.push([Math.cos(a) * o.w / 2, Math.sin(a) * o.h / 2]); }
+  const c0 = Math.cos(rot), s0 = Math.sin(rot);
+  const base = pts.map(([x, y]) => [x * c0 - y * s0, x * s0 + y * c0] as [number, number]);
+  const ux = Math.cos(o.angle), uy = Math.sin(o.angle), st = o.start ?? 0;
+  const sx = ux * st, sy = uy * st, dx = ux * (st + o.length), dy = uy * (st + o.length);
+  const hull = convexHull([
+    ...base.map(([x, y]) => [x + sx, y + sy] as [number, number]),
+    ...base.map(([x, y]) => [x + dx, y + dy] as [number, number]),
+  ]);
+  const pad = Math.ceil(blur * 2 + 4);
+  const minX = Math.min(...hull.map((p) => p[0])) - pad, minY = Math.min(...hull.map((p) => p[1])) - pad;
+  const maxX = Math.max(...hull.map((p) => p[0])) + pad, maxY = Math.max(...hull.map((p) => p[1])) + pad;
+  const tw = Math.ceil(maxX - minX), th = Math.ceil(maxY - minY);
+  const res: CastShadowTex = { key, ox: -minX, oy: -minY, tw, th };
+  if (!scene.textures.exists(key)) {
+    const tex = scene.textures.createCanvas(key, tw, th);
+    if (!tex) return res;
+    const c = tex.getContext();
+    c.save();
+    c.shadowColor = color;
+    c.shadowBlur = blur;
+    c.shadowOffsetX = 4000; // draw the caster far off-canvas, keep only its blurred shadow
+    c.fillStyle = color;
+    c.beginPath();
+    hull.forEach(([x, y], i) => (i ? c.lineTo(x - minX - 4000, y - minY) : c.moveTo(x - minX - 4000, y - minY)));
+    c.closePath();
+    c.fill();
+    c.restore();
+    // fade toward the tip, overall alpha
+    c.globalCompositeOperation = 'destination-in';
+    const g = c.createLinearGradient(-minX + sx, -minY + sy, -minX + dx, -minY + dy);
+    g.addColorStop(0, `rgba(0,0,0,${alpha})`);
+    g.addColorStop(1, `rgba(0,0,0,${alpha * (1 - fade)})`);
+    c.fillStyle = g;
+    c.fillRect(0, 0, tw, th);
+    c.globalCompositeOperation = 'source-over';
+    tex.refresh();
+  }
+  castShadowCache.set(key, res);
+  return res;
+}
+
+function convexHull(points: [number, number][]): [number, number][] {
+  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: [number, number][] = [], upper: [number, number][] = [];
+  for (const q of p) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
 }
 
 export function ensureBodyTexture(scene: Phaser.Scene, w: number, h: number, style: number): string {
