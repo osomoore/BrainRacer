@@ -19,7 +19,7 @@ export class NightLightingSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     const industrial = ctx.settings.map === 'industrial';
-    if (!industrial && !ctx.settings.nightDriving) return;
+    if (!industrial) return;
     const L = INDUSTRIAL_LIGHTING;
     const glow = ensureNightGlow(ctx.scene);
     if (industrial) {
