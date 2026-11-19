@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Rect } from '../../core/types';
 import { hexNum } from '../menu/style';
-import { HUD } from './hudConfig';
+import { challengeRegion, HUD } from './hudConfig';
 
 /** Bottom-of-view bar that drains over the challenge duration; flashes in the last second. */
 export class TimerBar {
@@ -24,9 +24,10 @@ export class TimerBar {
     if (!this.active) return;
     this.left = Math.max(0, this.left - dt);
     this.clock += dt;
-    const { h, sideMargin, bottomMargin, flashSec } = HUD.timerBar;
+    const { h, bottomMargin, flashSec } = HUD.timerBar;
     const v = this.view;
-    const x = v.x + sideMargin, w = v.w - 2 * sideMargin, y = v.y + v.h - bottomMargin - h;
+    const r = challengeRegion(v);
+    const x = r.x, w = r.w, y = v.y + v.h - bottomMargin - h;
     const frac = this.duration > 0 ? this.left / this.duration : 0;
     const flashing = this.left <= flashSec;
     const lit = !flashing || Math.floor(this.clock * 8) % 2 === 0;
