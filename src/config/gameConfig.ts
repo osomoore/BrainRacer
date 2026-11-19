@@ -223,6 +223,24 @@ export const TRAFFIC = {
   spawnRadiusMax: 2000,
   despawnRadius: 2600,
   followDistance: 110,
+  minGap: 26,                // px bumper-to-bumper at which a follower stops completely
+  speedMinFrac: 0.7,         // desired speed range as a fraction of spec.maxSpeed
+  speedMaxFrac: 1.0,
+  lookAheadMin: 38,          // pure-pursuit look-ahead (px)
+  lookAheadMax: 80,
+  advanceRadius: 34,         // reaching a node this close advances to the next one
+  turnSlowFrac: 0.45,         // speed multiplier on sharpest turns
+  knockSpeed: 150,           // px/s velocity jump counted as a significant hit
+  knockSec: 1.5,
+  knockDamping: 1.6,         // 1/s velocity decay while knocked
+  stuckSec: 3,
+  stuckMoveDist: 24,
+  reverseSec: 0.9,
+  spawnMargin: 160,          // px beyond camera view that spawns must stay outside
+  spawnGap: 140,             // min distance to other vehicles at spawn
+  spawnIntervalSec: 0.12,    // at most one spawn per interval after the initial fill
+  initialSpawnMin: 700,      // initial fill may use a smaller ring (still off-screen)
+  nodeCell: 256,             // spatial grid cell size for lane-node queries
 };
 
 export const POLICE = {
