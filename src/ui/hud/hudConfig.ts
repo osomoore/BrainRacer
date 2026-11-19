@@ -21,13 +21,10 @@ export const HUD = {
     maxW: 920,             // widest the panel/timer get (single mode is centered, not stretched)
     tagH: 62,              // room for the 'Look!' tag, drawn over the gap above the panel
   },
-  goal: { edgeMargin: 70, onScreenMargin: 90, magnetScale: 1.5, magnetColor: 0xffd43b, arrowScale: 1.3 },
   /** Question-break panel in split screen: sits below the center scoreboard instead of over it. */
   breakSplit: { maxViewW: 1200, gapBelowScoreboard: 14, bottomMargin: 20 },
-  /** Destination card pulse on a new goal. */
-  goalPulse: { sec: 2.2, beats: 3, amp: 0.3 },
-  /** Small hint banner (wait): docked under the destination card at the top of each view. */
-  hint: { goalSec: 2, waitSec: 2.5, y: 112, textSize: 46, nameSize: 52, iconSize: 60 },
+  /** Small "Waiting…" pill (teammate wait) near the top of each view. */
+  hint: { waitSec: 2.5, y: 112, textSize: 46 },
   popupSec: 1.4,
   colors: { navy: 0x14213d, card: 0xffffff, green: 0x2ecc40, gray: 0xaab2bd, red: 0xff3b30, gold: 0xffd43b },
 } as const;

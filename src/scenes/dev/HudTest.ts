@@ -1,7 +1,7 @@
 /**
  * Dev scene (?dev=HudTest): exercises HudScene with a fake RaceContext (no gameplay).
  * Keys: L layout (single / merged / split)   1 2 3 = P1 answers X Y B   8 9 0 = P2 answers
- *       G new goal   N goal near P1   M magnet   D dino banner   P pause   S score bump   T round tick to 0:25
+ *       G new goal   N goal near P1   D dino banner   P pause   S score bump   T round tick to 0:25
  *       A goal:arrived (wait)   H halfway   B countdown banner   U popup   C goal complete   F freeze auto-challenges
  */
 import Phaser from 'phaser';
@@ -129,12 +129,6 @@ export default class HudTest extends Phaser.Scene {
         b.emit('goal:spawned', { goal: g });
         break;
       }
-      case 'KeyM':
-        for (let p = 0 as PlayerId; p < this.nPlayers; p++) {
-          b.emit('reward:granted', { player: p, reward: 'magnet', durationSec: 5 });
-          this.time.delayedCall(5000, () => b.emit('reward:ended', { player: p, reward: 'magnet' }));
-        }
-        break;
       case 'KeyN': { // goal right next to P1 (on-screen marker)
         const g = this.makeGoal(this.cars[0].x + 180, this.cars[0].y - 260, 'zoo');
         this.ctx.goal = g;
