@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { LASER_TEX, ensureLaserTextures } from '../art/dino';
 import { DINO_RIG, type RigPart } from '../art/dinoRig';
-import { DEPTH, DINO, DINO_LASER, DINO_SMASH } from '../config/gameConfig';
+import { DEPTH, DINO, DINO_LASER, DINO_RIDE, DINO_SMASH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { INpcVehicle } from '../core/race';
 import type { Vec2 } from '../core/types';
@@ -52,6 +52,7 @@ export class Dino {
   private stompT = 0;
   private readonly tosses: VehicleToss[] = [];
   private stars: Phaser.GameObjects.Image[] = [];
+  private rider: Phaser.GameObjects.Image[] = [];
   private bar: Phaser.GameObjects.Container;
   private barFill: Phaser.GameObjects.Rectangle;
   private laserFx: { glow: Phaser.GameObjects.Image[]; beam: Phaser.GameObjects.Image[]; tip: Phaser.GameObjects.Image[] } | null = null;
@@ -108,11 +109,27 @@ export class Dino {
     } else if (!on) { for (const s of this.stars) s.destroy(); this.stars = []; }
   }
 
+  /** The rider's own car sitting on the dino's back (null = nobody). Lives inside the root, so it turns with the dino. */
+  setRider(texture: string | null, color = 0xffffff, carSize?: { length: number; width: number }): void {
+    for (const im of this.rider) im.destroy();
+    this.rider = [];
+    if (!texture) return;
+    const k = DINO_RIDE.riderScale / this.scale;
+    const len = (carSize?.length ?? 72) * k, wid = (carSize?.width ?? 40) * k;
+    const shadow = this.scene.add.image(-6 / this.scale, 10 / this.scale, TEX.carShadow).setDisplaySize(len * 1.1, wid * 1.25).setAlpha(0.45);
+    const ring = this.scene.add.image(-10, 0, TEX.fxRing).setTint(color).setAlpha(0.9);
+    ring.setScale((len * 0.9) / Math.max(1, ring.width));
+    const car = this.scene.add.image(-10, 0, texture).setDisplaySize(len, wid);
+    this.rider = [shadow, ring, car];
+    this.root.add(this.rider);
+  }
+
   /** Cartoon "poof": smoke, confetti and stars. Hides the dino itself. */
   poof(): void {
     this.root.setVisible(false);
     this.bar.setVisible(false);
     this.setDizzy(false);
+    this.setRider(null);
     const x = this.root.x, y = this.root.y;
     const burst = (key: string, n: number, dist: number, scale: number, ms: number, tints: number[], fall: number) => {
       for (let i = 0; i < n; i++) {

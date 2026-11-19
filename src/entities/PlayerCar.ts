@@ -60,6 +60,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private _ghost = false;
   private _airborne = false;
   private _disabled = false;
+  private _riding = false;
   private boarding: Vec2 | null = null;
   private baseMass = 0;
   private controlEnabled = true;
@@ -143,6 +144,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   get disabled() { return this._disabled; }
   get boardingPosition() { return this.boarding; }
   setBoarding(position: Vec2 | null): void { this.boarding = position; }
+  get riding() { return this._riding; }
   get turbo() { return this._turbo; }
   get ghost() { return this._ghost; }
 
@@ -176,6 +178,13 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   }
 
   setControlEnabled(on: boolean): void { this.controlEnabled = on; }
+
+  /** Riding the tame dino: the car is hidden and collides with nothing (the dino walks over everything). */
+  setRiding(on: boolean): void {
+    this._riding = on;
+    this.refreshFilter();
+    this.view.setVisible(!on);
+  }
 
   setDisabled(disabled: boolean): void {
     this._disabled = disabled;
@@ -213,7 +222,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   }
 
   private refreshFilter(): void {
-    this.body.collisionFilter.mask = this._airborne ? 0 : this._ghost ? MASK_GHOST : PLAYER_MASK_ALL;
+    this.body.collisionFilter.mask = this._airborne || this._riding ? 0 : this._ghost ? MASK_GHOST : PLAYER_MASK_ALL;
   }
 
   update(input: PlayerInput, dt: number): void {
@@ -227,7 +236,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.syncView();
     this.updateVisual(dt);
     this.updateSkids(on ? input.brake : 0);
-    services.audio.engine(this.player).set(this._disabled ? 0 : Math.min(this.speedFrac, 1.5), this._turbo && !this._disabled);
+    services.audio.engine(this.player).set(this._disabled || this._riding ? 0 : Math.min(this.speedFrac, 1.5), this._turbo && !this._disabled);
   }
 
   /** Airborne scale + shadow offset (eased). */

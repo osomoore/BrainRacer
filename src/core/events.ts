@@ -58,6 +58,12 @@ export interface GameEvents {
   'dino:damaged': { hp: number; maxHp: number; by: PlayerId; x: number; y: number };
   'dino:defeated': { by: PlayerId[]; x: number; y: number };
   'dino:left': Record<string, never>;
+  /** dino-ride: beaten dino is dizzy/tame and can be boarded for DINO_RIDE.tameSec. */
+  'dino:tamed': { x: number; y: number };
+  /** dino-ride: `player` finished hopping onto the tame dino (emitted by the boarding system). */
+  'dino:ridden': { player: PlayerId };
+  /** dino-ride: the ride time ran out; the boarding system hops `player` back into a car. */
+  'dino:rideEnded': { player: PlayerId; x: number; y: number };
 
   // round
   'round:start': { lengthSec: number };

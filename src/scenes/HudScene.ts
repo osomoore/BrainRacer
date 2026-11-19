@@ -13,9 +13,13 @@ import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
+import { TEX } from '../core/assetKeys';
+import { rideSecondsShown } from '../entities/dinoRide';
 
 const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 20, fly: 30 };
 const CENTER_Y = 430;
+/** Dino ride countdown card (bottom centre of the rider's view): dino head, seconds, shrinking bar. */
+const RIDE = { w: 520, h: 132, barW: 250, barH: 38, fromBottom: 100 };
 
 type Kind = 'dino' | 'half' | 'goal';
 const KIND_RE: [Kind, RegExp][] = [['dino', /dino alert/i], ['half', /half/i], ['goal', /^goal/i]];
@@ -42,6 +46,7 @@ export class HudScene extends Phaser.Scene {
   private pauseStyle = true;
   private waiting = [false, false];
   private waitCards: Phaser.GameObjects.Container[] = [];
+  private rideCards: { box: Phaser.GameObjects.Container; num: Phaser.GameObjects.Text; fill: Phaser.GameObjects.Rectangle; shown: number }[] = [];
   private dim!: Phaser.GameObjects.Graphics;
   private dimA = 0;
 
@@ -57,6 +62,7 @@ export class HudScene extends Phaser.Scene {
     this.dividerAlpha = 0;
     this.waiting = [false, false];
     this.waitCards = [];
+    this.rideCards = [];
     this.dimA = 0;
     if (!ctx) {
       bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, 'HudScene: no RaceContext in registry', 48, '#ff6b6b');
@@ -74,6 +80,7 @@ export class HudScene extends Phaser.Scene {
     for (let p = 0; p < this.nPlayers; p++) {
       this.bars.push(new TimerBar(this, PLAYER_COLORS[p], D.bars));
       this.waitCards.push(this.buildWaitCard(PLAYER_COLORS[p]));
+      this.rideCards.push(this.buildRideCard(PLAYER_COLORS[p]));
     }
     this.banners = new Banners(this, D.banner);
     this.overlay = new PauseOverlay(this, {
@@ -160,6 +167,44 @@ export class HudScene extends Phaser.Scene {
     g.lineStyle(34, 0xffffff, 1).beginPath().moveTo(-62, 4).lineTo(-18, 52).lineTo(66, -50).strokePath();
     const t = bigText(this, 0, 222, 'Waiting…', 48, '#ffffff', { font: FONT_HEAD, stroke: 8 });
     return this.add.container(0, 0, [g, t]).setDepth(D.panel).setVisible(false);
+  }
+
+  private buildRideCard(color: string) {
+    const { w, h, barW, barH } = RIDE;
+    const g = this.add.graphics();
+    g.fillStyle(HUD.colors.navy, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 34)
+      .lineStyle(8, hexNum(color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 34);
+    const parts: Phaser.GameObjects.GameObject[] = [g];
+    if (this.textures.exists(TEX.dinoHead)) parts.push(this.add.image(-w / 2 + 72, 0, TEX.dinoHead).setScale(0.85));
+    const num = bigText(this, -w / 2 + 182, 2, '20', 76, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
+    const bx = w / 2 - barW - 30;
+    const back = this.add.rectangle(bx + barW / 2, 0, barW, barH, 0x2b3557).setStrokeStyle(5, 0xffffff);
+    const fill = this.add.rectangle(bx, 0, barW, barH, 0x7cfc5a).setOrigin(0, 0.5);
+    parts.push(num, back, fill);
+    const box = this.add.container(0, 0, parts).setDepth(D.panel).setVisible(false).setName('dino-ride-countdown');
+    return { box, num, fill, shown: -1 };
+  }
+
+  /** Ride countdown for the player riding the dino (numbers and a bar only). */
+  private updateRideCards() {
+    const st = this.ctx.dino;
+    for (let p = 0; p < this.rideCards.length; p++) {
+      const card = this.rideCards[p];
+      const left = st.rider === p ? st.rideLeftSec ?? 0 : 0;
+      const on = st.active && left > 0 && !this.panels[p];
+      card.box.setVisible(on);
+      if (!on) { card.shown = -1; continue; }
+      const v = this.curViews[p];
+      const secs = rideSecondsShown(left);
+      if (secs !== card.shown) { card.shown = secs; card.num.setText(String(secs)); }
+      const frac = Math.max(0, Math.min(1, left / Math.max(0.001, st.rideTotalSec ?? left)));
+      const low = secs <= 5;
+      card.fill.width = Math.max(1, RIDE.barW * frac);
+      card.fill.setFillStyle(low ? 0xffa53b : 0x7cfc5a);
+      card.num.setColor(low ? '#ffa53b' : '#ffd43b');
+      const pulse = low ? 1 + 0.05 * Math.sin(this.clock * 10) : 1;
+      card.box.setPosition(v.x + v.w / 2, v.y + v.h - RIDE.fromBottom).setScale(Math.min(1, v.w / (RIDE.w + 40)) * pulse);
+    }
   }
 
   private updateBreakVisuals(realDt: number) {
@@ -300,6 +345,7 @@ export class HudScene extends Phaser.Scene {
     this.drawDivider(realDt);
 
     this.updateBreakVisuals(realDt);
+    this.updateRideCards();
     this.scoreboard.update(dt);
     for (let p = 0; p < this.nPlayers; p++) {
       const panel = this.panels[p];

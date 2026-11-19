@@ -1,0 +1,95 @@
+import { expect, test, type Page } from '@playwright/test';
+import { DINO, DINO_RIDE } from '../../src/config/gameConfig';
+import type { RaceContext } from '../../src/core/race';
+
+type RideWindow = Window & { __race: RaceContext; __dinoDefeat?: () => void };
+const WAIT = { timeout: 20_000 };
+
+async function startAndTame(page: Page, query: string): Promise<void> {
+  await page.goto(`/?race=1&seed=3&questions=off&dino=now${query}`);
+  await page.waitForFunction((ready) => {
+    const race = (window as RideWindow).__race;
+    return race?.dino.active && race.elapsedSec > ready;
+  }, DINO.devSpawnDelaySec + DINO.dropSec + 0.2, WAIT);
+  await page.evaluate(() => (window as RideWindow).__dinoDefeat!());
+  await page.waitForFunction(() => (window as RideWindow).__race.dino.tamed === true, undefined, WAIT);
+}
+
+test('beaten dino can be boarded, ridden over everything, and returns the player to a car', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await startAndTame(page, '&dinoride=3');
+
+  // park P1 beside the tame dino and double-tap B (keyboard P1)
+  await page.evaluate(() => {
+    const { scene, players, dino } = (window as RideWindow).__race;
+    scene.matter.body.setPosition(players[0].body, { x: dino.x - Math.sin(dino.angle) * 200, y: dino.y + Math.cos(dino.angle) * 200 });
+    scene.matter.body.setVelocity(players[0].body, { x: 0, y: 0 });
+  });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('KeyB', { delay: 60 });
+  await page.waitForTimeout(80);
+  await page.keyboard.press('KeyB', { delay: 60 });
+  await page.waitForFunction(() => (window as RideWindow).__race.dino.rider === 0, undefined, WAIT);
+
+  const riding = await page.evaluate(() => {
+    const { players, dino } = (window as RideWindow).__race;
+    const car = players[0];
+    return {
+      riding: car.riding, visible: car.view.visible, mask: car.body.collisionFilter.mask,
+      maxSpeed: car.spec.maxSpeed, tamed: dino.tamed, left: dino.rideLeftSec, x: car.x, y: car.y,
+      onDino: Math.hypot(car.x - dino.x, car.y - dino.y),
+    };
+  });
+  expect(riding.riding).toBe(true);
+  expect(riding.visible).toBe(false);
+  expect(riding.mask).toBe(0); // walks over buildings, props and fences
+  expect(riding.maxSpeed).toBe(DINO_RIDE.spec.maxSpeed);
+  expect(riding.tamed).toBe(false); // nobody else can board now
+  expect(riding.left).toBeGreaterThan(2);
+  expect(riding.onDino).toBeLessThan(5);
+
+  // the HUD countdown shows for the rider
+  await page.waitForFunction(() => {
+    const hud = (window as RideWindow).__race.scene.scene.get('Hud');
+    const card = hud?.children.getByName('dino-ride-countdown') as { visible?: boolean } | null;
+    return !!card?.visible;
+  }, undefined, WAIT);
+
+  // drive: the dino follows the player's (invisible) car
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(900);
+  await page.keyboard.up('KeyW');
+  const moved = await page.evaluate((start) => {
+    const { dino } = (window as RideWindow).__race;
+    return Math.hypot(dino.x - start.x, dino.y - start.y);
+  }, riding);
+  expect(moved).toBeGreaterThan(60);
+
+  // ride runs out → back in a car (visible, colliding again), the dino poofs
+  await page.waitForFunction(() => {
+    const { players } = (window as RideWindow).__race;
+    return !players[0].riding && !players[0].boardingPosition;
+  }, undefined, WAIT);
+  const after = await page.evaluate(() => {
+    const car = (window as RideWindow).__race.players[0];
+    return { visible: car.view.visible, mask: car.body.collisionFilter.mask, maxSpeed: car.spec.maxSpeed };
+  });
+  expect(after.visible).toBe(true);
+  expect(after.mask).not.toBe(0);
+  expect(after.maxSpeed).not.toBe(DINO_RIDE.spec.maxSpeed);
+  await page.waitForFunction(() => !(window as RideWindow).__race.dino.active, undefined, WAIT);
+  expect(errors).toEqual([]);
+});
+
+test('a tame dino nobody boards poofs after the window', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await startAndTame(page, '');
+  await page.waitForFunction(() => !(window as RideWindow).__race.dino.active, undefined, { timeout: (DINO_RIDE.tameSec + 10) * 1000 });
+  const st = await page.evaluate(() => ({ ...(window as RideWindow).__race.dino, riding: (window as RideWindow).__race.players[0].riding }));
+  expect(st.tamed).toBe(false);
+  expect(st.rider ?? null).toBeNull();
+  expect(st.riding).toBe(false);
+  expect(errors).toEqual([]);
+});
