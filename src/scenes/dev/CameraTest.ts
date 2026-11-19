@@ -14,6 +14,7 @@ class Marker implements CameraTarget {
   x: number; y: number;
   velocity: Vec2 = { x: 0, y: 0 };
   turbo = false;
+  angle = 0;
   readonly view: Phaser.GameObjects.Container;
   constructor(scene: Phaser.Scene, x: number, y: number, color: number) {
     this.x = x; this.y = y;
@@ -31,7 +32,8 @@ class Marker implements CameraTarget {
     this.x = Phaser.Math.Clamp(this.x + this.velocity.x * dt, 40, WORLD.w - 40);
     this.y = Phaser.Math.Clamp(this.y + this.velocity.y * dt, 40, WORLD.h - 40);
     this.view.setPosition(this.x, this.y);
-    if (steer || fwd) this.view.setRotation(Math.atan2(this.velocity.y, this.velocity.x));
+    if (steer || fwd) this.angle = Phaser.Math.Angle.RotateTo(this.angle, Math.atan2(this.velocity.y, this.velocity.x), 4 * dt);
+    this.view.setRotation(this.angle);
   }
 }
 
@@ -131,7 +133,7 @@ export default class CameraTest extends Phaser.Scene {
       `mode ${r.mode.padEnd(6)}  split ${r.splitAmount.toFixed(2)}  needed ${r.neededZoom.toFixed(3)}  ` +
         `cam0 z ${r.camZoom(0).toFixed(3)}  cam1 z ${r.camVisible(1) ? r.camZoom(1).toFixed(3) : '  -  '}`,
       `P1 ${fmtP(this.markers[0])}  P2 ${this.twoPlayers ? fmtP(this.markers[1]) : '-'}  ` +
-        `view0 ${Math.round(wv0.x)},${Math.round(wv0.y)} ${Math.round(wv0.w)}x${Math.round(wv0.h)}  turbo ${this.markers[0].turbo ? 'on' : 'off'}`,
+        `rot0 ${r.viewRotation(0).toFixed(2)} view0 ${Math.round(wv0.x)},${Math.round(wv0.y)} ${Math.round(wv0.w)}x${Math.round(wv0.h)}  turbo ${this.markers[0].turbo ? 'on' : 'off'}`,
       'WASD / arrows move · M 1-2 players · T turbo · K shake P1 · L shakeAt P2',
     ]);
   }

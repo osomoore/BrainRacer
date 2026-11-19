@@ -4,7 +4,7 @@ import { sceneTex, TEX } from '../../core/assetKeys';
 import type { Rect, Vec2 } from '../../core/types';
 import { bigText, FONT_HEAD, hexNum } from '../menu/style';
 import { HUD } from './hudConfig';
-import { distanceMeters, edgeArrow, isOnScreen, viewZoom, worldToScreen } from './hudMath';
+import { distanceMeters, edgeArrow, isOnScreen } from './hudMath';
 
 const TAG_H = 78;
 
@@ -61,11 +61,12 @@ export class GoalIndicator {
   hide() { this.root.setVisible(false); }
 
   /**
-   * @param mapRect screen rect the worldView is shown in (player's view, or whole screen when merged)
+   * @param w2s world→screen mapping of the view (ctx.camera.worldToScreen, includes rotation/zoom)
+   * @param mapRect screen rect that view occupies (player's view, or whole screen when merged)
    * @param cars world positions of the car(s) this indicator speaks for (distance = nearest)
    */
   update(
-    dt: number, goal: GoalState | null, worldView: Rect, mapRect: Rect, cars: Vec2[], magnet: boolean, avoid?: Rect,
+    dt: number, goal: GoalState | null, w2s: (x: number, y: number) => Vec2, mapRect: Rect, cars: Vec2[], magnet: boolean, avoid?: Rect,
   ) {
     this.avoid = avoid;
     if (!goal) { this.root.setVisible(false); return; }
@@ -73,8 +74,9 @@ export class GoalIndicator {
     if (goal.id !== this.goalId) { this.goalId = goal.id; this.buildTag(goal); }
     this.root.setVisible(true);
 
-    const gs = worldToScreen(goal.x, goal.y, worldView, mapRect);
-    const zoom = viewZoom(worldView, mapRect);
+    const gs = w2s(goal.x, goal.y);
+    const zx = w2s(goal.x + 1, goal.y);
+    const zoom = Math.hypot(zx.x - gs.x, zx.y - gs.y);
     this.onScreen = isOnScreen(gs, mapRect, this.onScreen ? HUD.goal.onScreenMargin - 30 : HUD.goal.onScreenMargin + 20);
     const k = magnet ? HUD.goal.magnetScale : 1;
     const pulse = 1 + 0.08 * Math.sin(this.clock * 8);
@@ -92,7 +94,7 @@ export class GoalIndicator {
       this.dist.setVisible(false);
     } else {
       const car = this.nearest(cars, goal);
-      const cs = worldToScreen(car.x, car.y, worldView, mapRect);
+      const cs = w2s(car.x, car.y);
       const e = edgeArrow(mapRect, HUD.goal.edgeMargin, cs, gs);
       ring.setPosition(e.x, e.y).setRotation(e.angle).setScale(scale);
       const dir = { x: Math.cos(e.angle), y: Math.sin(e.angle) };

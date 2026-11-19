@@ -4,7 +4,9 @@
  */
 import type { CameraMode, Rect, Vec2 } from '../core/types';
 
-export interface CameraTuning {
+export interface CameraTuning extends FacingTuning {
+  facingUp: boolean;
+  facingSplitZoom: number;
   baseZoom: number;
   minMergedZoom: number;
   splitZoom: number;
@@ -154,4 +156,78 @@ export class SplitController {
     if (this.players < 2) return 'single';
     return this.split && this.amount >= 1 ? 'split' : 'merged';
   }
+}
+
+// ───────────── facing-up (car-relative, rotating) view ─────────────
+
+export interface FacingTuning {
+  /** Fraction of view height (from the top) where the car sits. */
+  carScreenY: number;
+  /** Time constant (s) of the view-angle follow. */
+  rotTau: number;
+  /** Cap on the view's angular speed (rad/s). */
+  maxAngVel: number;
+  /** Below this speed the view follows heading only (no velocity blend). */
+  velBlendMinSpeed: number;
+  /** 0..1 share of the (velocity dir - heading) difference the view follows while moving forward. */
+  velBlend: number;
+}
+
+const TAU = Math.PI * 2;
+
+/** Wrap an angle to (-PI, PI]. */
+export function wrapAngle(a: number): number {
+  const w = ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  return w <= -Math.PI ? Math.PI : w;
+}
+
+/** Signed shortest rotation from `from` to `to`. */
+export const shortestAngle = (from: number, to: number): number => wrapAngle(to - from);
+
+/** Phaser camera rotation (radians) that makes a car with `heading` point UP the screen. */
+export const cameraRotationFor = (heading: number): number => -Math.PI / 2 - heading;
+
+/**
+ * Heading the view should follow: the car heading, blended toward the velocity direction while
+ * moving FORWARD fast (so a brief slide/spin does not whip the view). Reversing → pure heading.
+ */
+export function viewTargetHeading(heading: number, vel: Vec2, cfg: Pick<FacingTuning, 'velBlendMinSpeed' | 'velBlend'>): number {
+  const speed = Math.hypot(vel.x, vel.y);
+  if (speed < cfg.velBlendMinSpeed) return heading;
+  const fwd = vel.x * Math.cos(heading) + vel.y * Math.sin(heading);
+  if (fwd <= 0) return heading;
+  return heading + shortestAngle(heading, Math.atan2(vel.y, vel.x)) * cfg.velBlend;
+}
+
+/** Shortest-angle exponential follow (time constant `tau`) with an angular-speed cap. */
+export function followAngle(cur: number, target: number, dtSec: number, tau: number, maxRate: number): number {
+  const diff = shortestAngle(cur, target);
+  let step = diff * smoothFactor(1 / Math.max(tau, 1e-4), dtSec);
+  const cap = maxRate * dtSec;
+  step = clamp(step, -cap, cap);
+  return wrapAngle(cur + step);
+}
+
+/** Camera center (world) so the car lands `carScreenY` of the way down the view, car pointing up. */
+export function facingCenter(car: Vec2, viewHeading: number, viewH: number, zoom: number, carScreenY: number): Vec2 {
+  const d = (carScreenY - 0.5) * viewH / zoom;
+  return { x: car.x + Math.cos(viewHeading) * d, y: car.y + Math.sin(viewHeading) * d };
+}
+
+/** Exact world→screen for a camera centered on `center` with `zoom`, `rotation` (Phaser sign) and `viewport`. */
+export function worldToScreenRot(p: Vec2, center: Vec2, zoom: number, rotation: number, viewport: Rect): Vec2 {
+  const dx = p.x - center.x, dy = p.y - center.y;
+  const c = Math.cos(rotation), s = Math.sin(rotation);
+  return {
+    x: viewport.x + viewport.w / 2 + (dx * c - dy * s) * zoom,
+    y: viewport.y + viewport.h / 2 + (dx * s + dy * c) * zoom,
+  };
+}
+
+/** Axis-aligned world bounding box of a (possibly rotated) camera view. */
+export function rotatedWorldAabb(center: Vec2, viewW: number, viewH: number, zoom: number, rotation: number): Rect {
+  const hw = viewW / 2 / zoom, hh = viewH / 2 / zoom;
+  const c = Math.abs(Math.cos(rotation)), s = Math.abs(Math.sin(rotation));
+  const ex = c * hw + s * hh, ey = s * hw + c * hh;
+  return { x: center.x - ex, y: center.y - ey, w: ex * 2, h: ey * 2 };
 }

@@ -4,7 +4,7 @@
  * water/boundary/building/tree bodies are static; small props and parked cars are dynamic.
  */
 import Phaser from 'phaser';
-import { CAT, DEPTH } from '../config/gameConfig';
+import { CAMERA, CAT, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { roadTex, sceneTex, TEX } from '../core/assetKeys';
 import type { BodyOwner } from '../core/race';
 import { Tile, type BuildingLot, type Prop, type Rect, type WorldData } from '../core/types';
@@ -125,6 +125,12 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
   const layer = map.createLayer(0, tileset, 0, 0);
   if (!layer) throw new Error('layer failed');
   layer.setDepth(DEPTH.ground);
+  if (CAMERA.facingUp) {
+    // Rotating cameras: Phaser culls tiles by the UNROTATED worldView, so pad by the rotated diagonal.
+    const z = CAMERA.baseZoom - CAMERA.speedZoomOut - CAMERA.turboZoomOut - 0.1;
+    const hw = GAME_WIDTH / 2 / z, hh = GAME_HEIGHT / 2 / z, r = Math.hypot(hw, hh);
+    layer.setCullPadding(Math.ceil((r - hw) / ts) + 1, Math.ceil((r - hh) / ts) + 1);
+  }
 
   // ── building shadows, walls (graphics) and roofs
   const shadowG = scene.add.graphics().setDepth(DEPTH.decal - 1);

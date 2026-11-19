@@ -171,3 +171,69 @@ describe('helpers', () => {
     expect(playerViewsFor(2, W, H)[1]).toEqual({ x: W / 2, y: 0, w: W / 2, h: H });
   });
 });
+
+import {
+  cameraRotationFor, facingCenter, followAngle, rotatedWorldAabb, shortestAngle, viewTargetHeading, worldToScreenRot, wrapAngle,
+} from './cameraMath';
+
+describe('facing-up math', () => {
+  const vp = { x: 0, y: 0, w: W, h: H };
+  const z = 1.2;
+  for (const heading of [0, 0.7, Math.PI / 2, 2.5, -1.2, Math.PI]) {
+    it(`car maps to carScreenY, point ahead is straight above it (heading ${heading})`, () => {
+      const car = { x: 1000, y: 700 };
+      const c = facingCenter(car, heading, H, z, CAMERA.carScreenY);
+      const rot = cameraRotationFor(heading);
+      const s = worldToScreenRot(car, c, z, rot, vp);
+      expect(s.x).toBeCloseTo(W / 2, 6);
+      expect(s.y).toBeCloseTo(H * CAMERA.carScreenY, 6);
+      const ahead = { x: car.x + Math.cos(heading) * 300, y: car.y + Math.sin(heading) * 300 };
+      const a = worldToScreenRot(ahead, c, z, rot, vp);
+      expect(a.x).toBeCloseTo(s.x, 6);
+      expect(a.y).toBeCloseTo(s.y - 300 * z, 6);
+    });
+  }
+
+  it('respects viewport offset (right half)', () => {
+    const half = { x: W / 2, y: 0, w: W / 2, h: H };
+    const s = worldToScreenRot({ x: 5, y: 5 }, { x: 5, y: 5 }, 1, 1.3, half);
+    expect(s).toEqual({ x: W * 0.75, y: H / 2 });
+  });
+
+  it('AABB of rotated view covers all four corners and equals the plain rect at 0', () => {
+    const c = { x: 500, y: 400 };
+    const r0 = rotatedWorldAabb(c, 960, 1080, 1, 0);
+    expect(r0).toEqual({ x: 20, y: -140, w: 960, h: 1080 });
+    const rot = 0.6;
+    const bb = rotatedWorldAabb(c, 960, 1080, 1.2, rot);
+    for (const [sx, sy] of [[0, 0], [960, 0], [0, 1080], [960, 1080]]) {
+      // invert worldToScreenRot for the corner
+      const dx = (sx - 480) / 1.2, dy = (sy - 540) / 1.2;
+      const wx = c.x + dx * Math.cos(-rot) - dy * Math.sin(-rot), wy = c.y + dx * Math.sin(-rot) + dy * Math.cos(-rot);
+      expect(wx).toBeGreaterThanOrEqual(bb.x - 1e-6);
+      expect(wx).toBeLessThanOrEqual(bb.x + bb.w + 1e-6);
+      expect(wy).toBeGreaterThanOrEqual(bb.y - 1e-6);
+      expect(wy).toBeLessThanOrEqual(bb.y + bb.h + 1e-6);
+    }
+  });
+
+  it('wrap/shortest angle', () => {
+    expect(wrapAngle(3 * Math.PI)).toBeCloseTo(Math.PI);
+    expect(shortestAngle(3, -3)).toBeCloseTo(2 * Math.PI - 6);
+  });
+
+  it('followAngle takes the short way, converges, and is rate-capped', () => {
+    expect(followAngle(3, -3, 0.016, 0.3, 100)).toBeGreaterThan(3); // wraps through PI
+    let a = 0;
+    for (let i = 0; i < 300; i++) a = followAngle(a, 1, 1 / 60, 0.3, 3);
+    expect(a).toBeCloseTo(1, 2);
+    expect(Math.abs(followAngle(0, 3, 0.1, 0.01, 3))).toBeLessThanOrEqual(0.3 + 1e-9);
+  });
+
+  it('view heading: blends toward velocity when sliding forward, ignores velocity when reversing', () => {
+    const cfg = { velBlendMinSpeed: 150, velBlend: 0.5 };
+    expect(viewTargetHeading(0, { x: 400, y: 400 }, cfg)).toBeCloseTo(Math.PI / 8);
+    expect(viewTargetHeading(0, { x: -400, y: 0 }, cfg)).toBe(0);
+    expect(viewTargetHeading(0, { x: 10, y: 10 }, cfg)).toBe(0);
+  });
+});
