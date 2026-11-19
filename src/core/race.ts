@@ -111,6 +111,8 @@ export interface RaceContext {
   elapsedSec: number;
   roundLengthSec: number;
   paused: boolean;
+  /** True while a pause-style question break is up (world frozen, only questions/HUD run). */
+  questionBreak: boolean;
 }
 
 /** Every gameplay system implements this; RaceScene calls init once, update every frame (not while paused). */

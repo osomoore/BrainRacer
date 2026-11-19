@@ -99,10 +99,14 @@ export interface PlayerSettings {
 /** Which challenge kinds appear: words = picToWord + wordToPic (default), math = addition only, mixed = all. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';
 
+/** pause = world freezes for questions until answered right (default); drive = answer while driving. */
+export type QuestionStyle = 'pause' | 'drive';
+
 export interface Settings {
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
   challengeMode: ChallengeMode;   // default 'words'
-  challengeIntervalSec: number;   // base period, default 5
+  questionStyle: QuestionStyle;   // default 'pause'
+  challengeIntervalSec: number;   // pause style: seconds of driving between question breaks (default 10); drive style: base period
   roundLengthSec: number;         // default 300
   goalPointsPerCar: number;       // default 3
   seed: number;                   // 0 = random each race

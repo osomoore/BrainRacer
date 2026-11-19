@@ -65,7 +65,7 @@ export default class DriveTest extends Phaser.Scene {
       scene: this, bus, world: {} as WorldData, settings: DEFAULT_SETTINGS, rng: new Rng(1),
       players: this.cars, npcs: new Set(), goal: null,
       dino: { active: false, x: 0, y: 0, angle: 0, radius: 0 }, camera: camStub,
-      elapsedSec: 0, roundLengthSec: 300, paused: false,
+      elapsedSec: 0, roundLengthSec: 300, paused: false, questionBreak: false,
     };
     this.collisions.init(this.ctx);
     bus.on('vehicle:crash', (e) => {

@@ -76,6 +76,7 @@ export class RaceScene extends Phaser.Scene {
       elapsedSec: 0,
       roundLengthSec,
       paused: false,
+      questionBreak: false,
     };
     this.registry.set(REG.race, this.ctx);
 

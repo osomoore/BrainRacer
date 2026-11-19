@@ -78,7 +78,7 @@ export default class HudTest extends Phaser.Scene {
     } as unknown as Settings;
     this.ctx = {
       scene: this, bus: this.bus, settings, players: this.cars.slice(0, this.nPlayers),
-      goal, camera, elapsedSec: 0, roundLengthSec: 300, paused: false,
+      goal, camera, elapsedSec: 0, roundLengthSec: 300, paused: false, questionBreak: false,
     } as unknown as RaceContext;
     this.registry.set(REG.race, this.ctx);
     this.launchHud();
