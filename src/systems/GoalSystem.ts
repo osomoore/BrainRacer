@@ -7,7 +7,7 @@ import type { GameSystem, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { PlayerId } from '../core/types';
 import { signSceneFor } from '../data/places';
-import { pickGoal } from './goalPick';
+import { pickGoal, segmentHitsCircle } from './goalPick';
 
 const SPARKLES = 8;
 const CONFETTI_TINTS = [0xff4d4d, 0xffd43b, 0x4dabf7, 0x69db7c, 0xff922b, 0xe599f7];
@@ -32,6 +32,7 @@ export class GoalSystem implements GameSystem {
   private recent: string[] = [];
   private prev: { x: number; y: number } | null = null;
   private t = 0;
+  private lastPos = new Map<PlayerId, { x: number; y: number }>();
   private flareUntil = -1;
   private flare = 0;
   /** Time the goal was first on any player's screen (-1 = not yet): drives the big-to-normal shrink-in. */
@@ -63,8 +64,11 @@ export class GoalSystem implements GameSystem {
     if (this.ended) return;
 
     for (const car of ctx.players) {
-      if (this.arrived.has(car.player) || car.airborne) continue;
-      if (Math.hypot(car.x - goal.x, car.y - goal.y) > goal.radius) continue;
+      const last = this.lastPos.get(car.player) ?? { x: car.x, y: car.y };
+      this.lastPos.set(car.player, { x: car.x, y: car.y });
+      if (this.arrived.has(car.player)) continue;
+      // airborne counts too; the segment test catches a fast jump that skips over the circle between frames
+      if (!segmentHitsCircle(last.x, last.y, car.x, car.y, goal.x, goal.y, goal.radius)) continue;
       this.arrived.add(car.player);
       const waiting = ctx.players.some((p) => !this.arrived.has(p.player));
       const waitSec = waiting ? GOALS.teammateWaitSec : 0;

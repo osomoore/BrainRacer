@@ -1,7 +1,7 @@
 import { DINO } from '../config/gameConfig';
 import { Dino } from '../entities/Dino';
 import {
-  capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, patrolPoint, ramDamage, steer, wrapAngle, type DinoWalk,
+  capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, orbitStep, ramDamage, steer, wrapAngle, type DinoWalk,
 } from '../entities/dinoAI';
 import type { GameSystem, INpcVehicle, RaceContext } from '../core/race';
 import { services } from '../core/services';
@@ -81,7 +81,7 @@ export class DinoSystem implements GameSystem {
         break;
       case 'leaving': {
         if (this.modeT < DINO.leaveSec) break;
-        const res = steer(this.walk, this.target, dt, { speed: DINO.speed * 0.8, turnRate: DINO.turnRate, arriveRadius: 1, pauseSec: 0 });
+        const res = steer(this.walk, this.target, dt, { speed: DINO.guardSpeed, turnRate: DINO.turnRate, arriveRadius: 1, pauseSec: 0 });
         walking = res === 'walking';
         if (this.modeT > DINO.leaveTimeoutSec || this.offscreen(ctx)) { this.removeNow(); return; }
         break;
@@ -130,11 +130,11 @@ export class DinoSystem implements GameSystem {
   /** Spawn: drops in on the guard loop, on the side away from the waiting player. */
   private spawn(ctx: RaceContext, goal: { x: number; y: number; radius: number }, waiting: PlayerId): void {
     this.center = { x: goal.x, y: goal.y };
-    this.guardR = goal.radius * DINO.guardRadiusMul + DINO.guardRadiusPad;
+    this.guardR = goal.radius + DINO.orbitPad;
     this.waiting = waiting;
     const car = ctx.players[waiting];
     this.phase = car && dist(car, goal) >= 20 ? Math.atan2(goal.y - car.y, goal.x - car.x) : ctx.rng.range(0, Math.PI * 2);
-    const pos = patrolPoint(this.center, this.guardR * DINO.patrolLoopFrac, this.phase);
+    const pos = { x: this.center.x + Math.cos(this.phase) * this.guardR, y: this.center.y + Math.sin(this.phase) * this.guardR };
     const angle = this.phase + Math.PI / 2;
     this.walk = { x: pos.x, y: pos.y, angle, pauseLeft: 0 };
     this.dino = new Dino(ctx.scene, pos.x, pos.y, angle);
@@ -144,7 +144,6 @@ export class DinoSystem implements GameSystem {
     this.hitBy.clear();
     this.lastHit = [-1e9, -1e9];
     this.faceT = 0;
-    this.nextPatrol();
     const st = ctx.dino;
     st.active = true; st.x = pos.x; st.y = pos.y; st.angle = angle;
     this.roarTimer = ctx.rng.range(DINO.guardRoarSec[0], DINO.guardRoarSec[1]);
@@ -163,11 +162,6 @@ export class DinoSystem implements GameSystem {
     this.roar(ctx, d);
   }
 
-  private nextPatrol(): void {
-    this.phase += DINO.patrolStepRad;
-    this.target = patrolPoint(this.center, this.guardR * DINO.patrolLoopFrac, this.phase);
-  }
-
   /** Slow stomping loop around the goal. Returns true if it moved. */
   private guard(dt: number, ctx: RaceContext): boolean {
     if (this.faceT > 0) {
@@ -180,12 +174,11 @@ export class DinoSystem implements GameSystem {
       }
       return false;
     }
-    if (dist(this.walk, this.center) > this.guardR) this.target = { ...this.center };
-    const res = steer(this.walk, this.target, dt, {
-      speed: DINO.speed * DINO.guardSpeedFrac, turnRate: DINO.turnRate, arriveRadius: DINO.arriveRadius, pauseSec: DINO.patrolPauseSec,
+    orbitStep(this.walk, this.center, this.clock, dt, {
+      speed: DINO.guardSpeed, turnRate: DINO.turnRate, radius: this.guardR, breathe: DINO.orbitBreathe,
+      breatheW: DINO.orbitBreatheW, lookahead: DINO.orbitLookahead, returnTol: DINO.orbitReturnTol,
     });
-    if (res === 'arrived') this.nextPatrol();
-    return res === 'walking';
+    return true;
   }
 
   private startLeaving(): void {
@@ -195,7 +188,6 @@ export class DinoSystem implements GameSystem {
     d.setHealth(1);
     const away = dist(this.walk, this.center) > 30 ? Math.atan2(this.walk.y - this.center.y, this.walk.x - this.center.x) : this.walk.angle;
     this.target = { x: this.walk.x + Math.cos(away) * 6000, y: this.walk.y + Math.sin(away) * 6000 };
-    d.roar('BYE-BYE!', '#2fbf4a');
     services.audio.sfx('roar', { pan: this.panFor(this.ctx), volume: 0.8, rate: 1.3 });
   }
 
@@ -237,7 +229,7 @@ export class DinoSystem implements GameSystem {
     if (ctx.npcs.size > 0) {
       for (const npc of [...ctx.npcs]) {
         if (npc.destroyed || !capsuleHit(cap, npc.x, npc.y, NPC_RADIUS)) continue;
-        this.squash(ctx, d, npc);
+        this.squash(ctx, npc);
       }
     }
   }
@@ -268,12 +260,6 @@ export class DinoSystem implements GameSystem {
     ctx.camera.shake(id, 0.008, 250);
     ctx.bus.emit('dino:hit', { player: id, x: car.x, y: car.y });
     ctx.bus.emit('dino:damaged', { hp: this.hp, maxHp: DINO.maxHp, by: id, x: this.walk.x, y: this.walk.y });
-    const color = team ? '#ff7ae0' : '#ffd34d';
-    ctx.bus.emit('ui:popup', { player: id, text: team ? 'TEAM HIT!' : 'BONK!', world: { x: car.x, y: car.y - 40 }, color });
-    if (team) {
-      const o = ctx.players[other];
-      ctx.bus.emit('ui:popup', { player: other, text: 'TEAM HIT!', world: { x: o.x, y: o.y - 40 }, color });
-    }
     if (isDefeated(this.hp)) {
       this.mode = 'dizzy'; this.modeT = 0;
       d.setDizzy(true);
@@ -330,12 +316,11 @@ export class DinoSystem implements GameSystem {
     d.dust(f.x, f.y);
   }
 
-  private squash(ctx: RaceContext, d: Dino, npc: INpcVehicle): void {
+  private squash(ctx: RaceContext, npc: INpcVehicle): void {
     const x = npc.x, y = npc.y;
     ctx.npcs.delete(npc);
     npc.squash();
     ctx.bus.emit('dino:squash', { x, y });
     services.audio.sfx('squash', { pan: this.panFor(ctx), volume: 0.9 });
-    d.popText(x, y - 30, 'SPLAT!', '#ffb02e', 70, 1000);
   }
 }

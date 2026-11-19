@@ -119,3 +119,35 @@ export function isTeamHit(otherLastHit: number, now: number, window: number): bo
 }
 
 export function isDefeated(hp: number): boolean { return hp <= 0; }
+
+export interface OrbitOpts {
+  speed: number; turnRate: number;
+  /** Mean orbit radius, breathing amplitude (px) and frequency (rad/s). */
+  radius: number; breathe: number; breatheW: number;
+  /** Look-ahead along the circle (rad) when on the orbit. */
+  lookahead: number;
+  /** Radial error (px) beyond which it heads straight back to the circle. */
+  returnTol: number;
+}
+
+/**
+ * Steady slow circle around `center`: steers (turn-limited) toward a point a little ahead on a gently
+ * breathing circle; when displaced it blends to heading straight at the nearest orbit point.
+ * Speed is constant (never above `speed`). `t` is the clock in seconds.
+ */
+export function orbitStep(w: DinoWalk, center: Vec2, t: number, dt: number, o: OrbitOpts): void {
+  const dx = w.x - center.x, dy = w.y - center.y;
+  const d = Math.hypot(dx, dy);
+  const a = d < 1e-3 ? w.angle : Math.atan2(dy, dx);
+  const r = o.radius + Math.sin(t * o.breatheW) * o.breathe;
+  const err = Math.abs(d - r);
+  const look = o.lookahead * Math.max(0, 1 - err / o.returnTol);
+  const ta = a + look;
+  const tx = center.x + Math.cos(ta) * r, ty = center.y + Math.sin(ta) * r;
+  const diff = wrapAngle(Math.atan2(ty - w.y, tx - w.x) - w.angle);
+  const maxTurn = o.turnRate * dt;
+  w.angle = wrapAngle(w.angle + Math.max(-maxTurn, Math.min(maxTurn, diff)));
+  const ease = Math.abs(diff) > 1.0 ? 0.5 : 1;
+  w.x += Math.cos(w.angle) * o.speed * ease * dt;
+  w.y += Math.sin(w.angle) * o.speed * ease * dt;
+}

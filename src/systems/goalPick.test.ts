@@ -29,3 +29,18 @@ describe('pickGoal', () => {
   });
   it('empty list', () => expect(pickGoal([], O, false, opts, r0)).toBeNull());
 });
+
+import { segmentHitsCircle } from './goalPick';
+describe('segmentHitsCircle', () => {
+  it('detects a path that crosses the circle between frames', () => {
+    expect(segmentHitsCircle(-500, 0, 500, 0, 0, 0, 170)).toBe(true);
+    expect(segmentHitsCircle(-500, 0, 500, 0, 0, 100, 170)).toBe(true);
+  });
+  it('misses paths that stay outside or stop short', () => {
+    expect(segmentHitsCircle(-500, 300, 500, 300, 0, 0, 170)).toBe(false);
+    expect(segmentHitsCircle(-500, 0, -300, 0, 0, 0, 170)).toBe(false);
+  });
+  it('handles a zero-length segment', () => {
+    expect(segmentHitsCircle(10, 10, 10, 10, 0, 0, 170)).toBe(true);
+  });
+});

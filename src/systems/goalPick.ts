@@ -40,3 +40,11 @@ export function pickGoal(
   }
   return choose(idx);
 }
+
+/** True if the segment a->b touches the circle (centre c, radius r): catches fast movers that skip the zone between frames. */
+export function segmentHitsCircle(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, r: number): boolean {
+  const sx = bx - ax, sy = by - ay;
+  const l2 = sx * sx + sy * sy;
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((cx - ax) * sx + (cy - ay) * sy) / l2));
+  return Math.hypot(ax + sx * t - cx, ay + sy * t - cy) <= r;
+}

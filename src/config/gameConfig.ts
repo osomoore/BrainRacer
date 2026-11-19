@@ -222,7 +222,7 @@ export const WORLD = {
   airMinSec: 0.5,
   airMaxSec: 1.6,
   rampDirCos: 0.5,           // min |cos(heading - ramp angle)| to launch
-  bigAirSec: 1.0,            // airtime above this shows "BIG AIR!"
+  bigAirSec: 1.0,           
   spinSpeedFrac: 0.85,       // speed frac above which the car does a 360 spin
   boostLandSearchPx: 700,    // how far ahead a boost jump looks for drivable ground when it lands on a building
   boostJumpMinSpeed: 420,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
@@ -380,7 +380,12 @@ export const DINO = {
   stepAudioRange: 1600,
   devSpawnDelaySec: 2,       // ?dino=now
   // S3: goal guard + ramming
-  guardSpeedFrac: 0.45,      // of `speed`
+  guardSpeed: 75,            // px/s: slow lumbering stomp (guard, return and leave)
+  orbitPad: 120,             // orbit radius = goal radius + this
+  orbitBreathe: 40,          // max radius breathing (px)
+  orbitBreatheW: 0.35,       // rad/s
+  orbitLookahead: 0.4,       // rad ahead on the circle
+  orbitReturnTol: 150,       // radial error (px) at which it heads straight back
   guardRadiusMul: 1.2,       // x goal radius ...
   guardRadiusPad: 150,       // ... + this = max distance from goal centre
   patrolLoopFrac: 0.55,      // patrol loop radius as a fraction of the guard radius
@@ -392,7 +397,7 @@ export const DINO = {
   dropScale: 2.2,
   graceSec: 1.2,             // no damage right after landing
   leaveSec: 1.2,             // happy roar before stomping off
-  leaveTimeoutSec: 14,
+  leaveTimeoutSec: 45,
   maxHp: 100,
   ramMinSpeed: 200,          // px/s closing speed to hurt
   ramSpeedMax: 700,
@@ -406,7 +411,7 @@ export const DINO = {
   ramBounceMax: 760,
   ramSpin: 2,
   shoveSpeed: 320,           // px/s^2 gentle push of slow cars
-  flinchStagger: 14,
+  flinchStagger: 6,
   dizzySec: 1.6,
   shrinkSec: 0.7,
   poofSec: 1.6,
