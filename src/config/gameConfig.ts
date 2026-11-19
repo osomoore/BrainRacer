@@ -351,11 +351,24 @@ export const TRAFFIC = {
 };
 
 export const INDUSTRIAL_TRAFFIC = {
-  regularVehicles: 27,
-  freightTrucks: 6,
+  regularVehicles: 40,
+  freightTrucks: 8,
   yardPaddingTiles: 2,
   spawnGap: 170,
   freightSpawnGap: 190,
+};
+
+/** Seeded yard clutter on the Industrial map (tile units unless noted). */
+export const INDUSTRIAL_PROPS = {
+  fillChance: 0.9,           // chance a shuffled free tile starts a prop
+  lampSpacing: 4,            // lamp posts every n tiles along road edges
+  roofLightChance: 0.55,     // per building tile
+  railClearTiles: 2,         // keep-out distance from the rail centerline
+  crossingClearTiles: 3.5,
+  goalClearTiles: 1.6,       // beyond GOALS.radius of each place front
+  rampClearTiles: 4,
+  decorationPadTiles: 0.75,
+  poolPx: { lampPost: 380, conveyor: 300, smokeStack: 200 } as Record<string, number>,
 };
 
 export const FREIGHT_TRUCK_SPEC: VehicleSpec = {
@@ -604,7 +617,7 @@ export const INDUSTRIAL_LIGHTING = {
   beamStrength: 1.6, // multiplies baked beam gradient alpha
   // Darkness overlay: lower alpha = brighter night. Sits above ground/props/shadows, below vehicles/buildings.
   nightColor: 0x050b24,
-  nightAlpha: 0.7,
+  nightAlpha: 0.57,
   nightDepth: 15,
   // Buildings/bridges/factories sit above the overlay, so they get a dark tint instead.
   buildingTint: 0x39485f,

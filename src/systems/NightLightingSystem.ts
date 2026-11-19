@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
-import { INDUSTRIAL_LIGHTING } from '../config/gameConfig';
+import { INDUSTRIAL_LIGHTING, INDUSTRIAL_PROPS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { ensureNightGlow } from '../art/industrialHeadlight';
 import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
+
+/** Decorations that cast a warm ground pool. */
+const POOLED_KINDS = new Set(['bridge', 'factoryBay', 'gantry', 'waterTower', 'lampPost', 'conveyor', 'smokeStack']);
 
 export class NightLightingSystem implements GameSystem {
   readonly name = 'nightLighting';
@@ -30,10 +33,11 @@ export class NightLightingSystem implements GameSystem {
         .setBlendMode(Phaser.BlendModes.ADD).setTint(L.goalGlowColor).setVisible(false);
       this.extras.push(this.goalGlow);
       for (const d of ctx.world.industrial?.decorations ?? []) {
-        if (d.kind === 'loadingYard') continue;
+        if (!POOLED_KINDS.has(d.kind)) continue;
+        const size = INDUSTRIAL_PROPS.poolPx[d.kind];
         const pool = ctx.scene.add.image(d.x, d.y, glow).setDepth(L.nightDepth + 1)
-          .setBlendMode(Phaser.BlendModes.ADD).setTint(L.poolColor).setAlpha(L.poolAlpha)
-          .setRotation(d.angle).setDisplaySize(d.w * L.poolScale, d.h * L.poolScale);
+          .setBlendMode(Phaser.BlendModes.ADD).setTint(L.poolColor).setAlpha(size ? L.poolAlpha * 0.8 : L.poolAlpha)
+          .setRotation(d.angle).setDisplaySize(size ?? d.w * L.poolScale, size ?? d.h * L.poolScale);
         this.extras.push(pool);
       }
       this.ctx = ctx;

@@ -79,7 +79,7 @@ describe('generateIndustrial', () => {
     expect(world.laneGraph.nodes.every((node) => isRoadAt(world, node))).toBe(true);
 
     const bridges = decorations.filter(({ kind }) => kind === 'bridge');
-    expect(bridges).toHaveLength(3);
+    expect(bridges).toHaveLength(5);
     for (const bridge of bridges) {
       expect(reachable.has(tileId(bridge))).toBe(true);
       for (let x = bridge.x - bridge.w / 2 + ts / 2; x < bridge.x + bridge.w / 2; x += ts) {
@@ -143,6 +143,75 @@ describe('generateIndustrial', () => {
     const [ramp] = world.ramps;
     for (let x = ramp.x - 3 * ts; x < ramp.x + 5 * ts; x += ts / 2) {
       expect(isRoadAt(world, { x, y: ramp.y })).toBe(true);
+    }
+  });
+});
+
+describe('generateIndustrial props and bridges', () => {
+  const corners = (d: { x: number; y: number; w: number; h: number; angle: number }) => {
+    const c = Math.cos(d.angle), s = Math.sin(d.angle);
+    const pts: Vec2[] = [];
+    for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
+      pts.push({ x: d.x + (u * d.w / 2) * c - (v * d.h / 2) * s, y: d.y + (u * d.w / 2) * s + (v * d.h / 2) * c });
+    }
+    return pts;
+  };
+  const landmarkKinds = new Set(['bridge', 'factoryBay', 'gantry', 'loadingYard', 'waterTower']);
+
+  it('has five or six bridges, each with road on both sides, for many seeds', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const world = generateIndustrial(seed);
+      const ts = world.tileSize;
+      const bridges = world.industrial!.decorations.filter((d) => d.kind === 'bridge');
+      expect(bridges.length).toBeGreaterThanOrEqual(5);
+      expect(bridges.length).toBeLessThanOrEqual(6);
+      for (const b of bridges) {
+        expect(isRoadAt(world, { x: b.x - b.w / 2 - ts / 2, y: b.y - ts / 2 })).toBe(true);
+        expect(isRoadAt(world, { x: b.x + b.w / 2 + ts / 2, y: b.y + ts / 2 })).toBe(true);
+      }
+      expect(largestScc(world.laneGraph)).toBe(world.laneGraph.nodes.length);
+    }
+  });
+
+  it('is deterministic and places plenty of clutter', () => {
+    expect(generateIndustrial(9).industrial).toEqual(generateIndustrial(9).industrial);
+    for (const seed of [3, 7, 11]) {
+      const props = generateIndustrial(seed).industrial!.decorations.filter((d) => !landmarkKinds.has(d.kind));
+      expect(props.length).toBeGreaterThan(80);
+      expect(new Set(props.map((d) => d.kind)).size).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it('never overlaps roads, buildings, rail, goal fronts, spawn or other clutter', () => {
+    for (let seed = 1; seed <= 25; seed++) {
+      const world = generateIndustrial(seed);
+      const ts = world.tileSize;
+      const { decorations, rail } = world.industrial!;
+      const props = decorations.filter((d) => !landmarkKinds.has(d.kind) && d.kind !== 'roofLights');
+      for (const d of props) {
+        for (const p of corners(d)) {
+          expect(world.tiles[Math.floor(p.y / ts) * world.widthTiles + Math.floor(p.x / ts)]).toBe(Tile.Plaza);
+          for (let i = 0; i < rail.points.length; i++) {
+            const a = rail.points[i], b = rail.points[(i + 1) % rail.points.length];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+            expect(Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)).toBeGreaterThan(ts);
+          }
+          for (const { front } of world.places) expect(Math.hypot(p.x - front.x, p.y - front.y)).toBeGreaterThan(GOALS.radius);
+          for (const sp of world.playerSpawns) expect(Math.hypot(p.x - sp.x, p.y - sp.y)).toBeGreaterThan(2 * ts);
+          for (const { center } of rail.crossings) expect(Math.hypot(p.x - center.x, p.y - center.y)).toBeGreaterThan(2 * ts);
+        }
+      }
+      for (const r of decorations.filter((d) => d.kind === 'roofLights')) {
+        expect(world.tiles[Math.floor(r.y / ts) * world.widthTiles + Math.floor(r.x / ts)]).toBe(Tile.Building);
+      }
+      // Footprint cells never share a tile, so props cannot stack or wall in a lane.
+      const seen = new Set<number>();
+      for (const d of props) {
+        const key = Math.floor(d.y / ts) * world.widthTiles + Math.floor(d.x / ts);
+        expect(seen.has(key)).toBe(false);
+        seen.add(key);
+      }
     }
   });
 });
