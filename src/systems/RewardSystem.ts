@@ -52,7 +52,7 @@ export class RewardSystem implements GameSystem {
     this.offs.push(ctx.bus.on('jump:land', (e) => this.dustRing(e.x, e.y)));
 
     if (new URLSearchParams(location.search).get('rewards') === '1') {
-      const map: Record<string, Flavor> = { F1: 'rainbow', F2: 'shockwave', F3: 'ghost', F4: 'magnet' };
+      const map: Record<string, Flavor> = { Digit6: 'rainbow', Digit7: 'shockwave', Digit8: 'ghost', Digit9: 'magnet' };
       this.keyHandler = (e) => {
         const f = map[e.code];
         if (!f) return;
