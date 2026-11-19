@@ -191,7 +191,10 @@ export interface Prop { kind: PropKind; x: number; y: number; angle: number }
 export interface LaneNode { id: number; x: number; y: number; next: number[] }
 export interface LaneGraph { nodes: LaneNode[] }
 
-export type IndustrialDecorationKind = 'bridge' | 'factoryBay' | 'gantry' | 'loadingYard' | 'waterTower';
+export type IndustrialDecorationKind =
+  | 'bridge' | 'factoryBay' | 'gantry' | 'loadingYard' | 'waterTower'
+  | 'containerStack' | 'pallets' | 'barrels' | 'fuelTank' | 'conveyor' | 'smokeStack'
+  | 'lampPost' | 'parkedTruck' | 'forklift' | 'pipes' | 'fence' | 'roofLights';
 /** Pixel center and footprint. Width is along the decoration's local +x axis. */
 export interface IndustrialDecoration extends Vec2 {
   kind: IndustrialDecorationKind;

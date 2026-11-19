@@ -189,6 +189,174 @@ function drawWaterTower(scene: Phaser.Scene): void {
   done();
 }
 
+function drawContainerStack(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.containerStack, 256, 96);
+  rr(ctx, 3, 12, 250, 84, 4);
+  fillStroke(ctx, '#111b3180', null);
+  const colors = [['#b4684a', '#d99069'], ['#3f7d92', '#6fb0bd'], ['#a58a3e', '#d4bd68'], ['#7a5a8c', '#a58bb8']];
+  for (let i = 0; i < 4; i++) {
+    const x = 4 + (i % 2) * 125, y = 4 + Math.floor(i / 2) * 44;
+    const [c, rib] = colors[(i + (i > 1 ? 1 : 0)) % 4];
+    rr(ctx, x, y, 122, 40, 3);
+    fillStroke(ctx, c, SHADOW, 3);
+    for (let r = x + 6; r < x + 116; r += 6) rect(ctx, r, y + 4, 2, 32, rib);
+    rect(ctx, x + 3, y + 3, 116, 3, '#ffffff22');
+  }
+  done();
+}
+
+function drawPallets(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.pallets, 104, 104);
+  rect(ctx, 6, 10, 94, 94, '#111b3166');
+  for (const [x, y] of [[4, 4], [54, 4], [4, 54], [54, 54]]) {
+    rr(ctx, x, y, 46, 46, 3);
+    fillStroke(ctx, '#b88c58', '#5a3f2a', 2);
+    rect(ctx, x + 3, y + 3, 40, 3, '#e0b983');
+    beam(ctx, x + 4, y + 4, x + 42, y + 42, 2, '#7a5a3a');
+  }
+  rect(ctx, 46, 4, 6, 96, '#44637c');
+  done();
+}
+
+function drawBarrels(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.barrels, 96, 96);
+  const drums: [number, number, string][] = [[26, 26, '#c4562f'], [68, 28, '#3d79a0'], [46, 68, '#c9a032']];
+  for (const [x, y] of drums) disk(ctx, x + 3, y + 5, 21, '#111b3180');
+  for (const [x, y, c] of drums) {
+    disk(ctx, x, y, 21, c, SHADOW);
+    disk(ctx, x, y, 14, '#00000026', null);
+    disk(ctx, x - 4, y - 4, 4, '#ffffff66');
+  }
+  done();
+}
+
+function drawFuelTank(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.fuelTank, 256, 256);
+  disk(ctx, 134, 138, 112, '#111b3173');
+  disk(ctx, 128, 128, 112, '#56707e', SHADOW);
+  disk(ctx, 128, 128, 100, '#8aa3ad', EDGE);
+  disk(ctx, 112, 110, 70, '#b5c7cb');
+  for (let a = 0; a < 6; a++) beam(ctx, 128, 128, 128 + 98 * Math.cos(a * Math.PI / 3), 128 + 98 * Math.sin(a * Math.PI / 3), 2, '#3b536380');
+  disk(ctx, 128, 128, 22, '#3f5565', SHADOW);
+  hazard(ctx, 106, 118, 44, 20);
+  done();
+}
+
+function drawConveyor(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.conveyor, 384, 72);
+  rect(ctx, 0, 14, 384, 58, '#111b3166');
+  rr(ctx, 2, 6, 380, 52, 5);
+  fillStroke(ctx, '#34485c', SHADOW, 3);
+  rect(ctx, 8, 14, 368, 36, '#1d2a3a');
+  for (let x = 12; x < 372; x += 14) rect(ctx, x, 14, 3, 36, '#5a7387');
+  for (const [x, c] of [[40, '#b4784a'], [140, '#6fa0b0'], [250, '#c9a24a']] as const) {
+    rr(ctx, x, 20, 40, 24, 3);
+    fillStroke(ctx, c, SHADOW, 2);
+    rect(ctx, x + 18, 20, 4, 24, '#ffffff33');
+  }
+  for (const x of [6, 372]) hazard(ctx, x, 6, 6, 52);
+  for (const x of [60, 200, 320]) { glow(ctx, x, 8, 22, '#ffbb5270'); disk(ctx, x, 8, 3, '#fff0b0'); }
+  done();
+}
+
+function drawSmokeStack(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.smokeStack, 160, 160);
+  glow(ctx, 80, 80, 78, '#33415a99');
+  disk(ctx, 86, 88, 36, '#111b3199');
+  disk(ctx, 80, 80, 36, '#7a574b', SHADOW);
+  disk(ctx, 80, 80, 28, '#9d7062', '#4a3030');
+  disk(ctx, 80, 80, 20, '#1a1822', SHADOW);
+  for (let a = 0; a < 8; a++) rect(ctx, 80 + 32 * Math.cos(a * Math.PI / 4) - 2, 80 + 32 * Math.sin(a * Math.PI / 4) - 2, 4, 4, GOLD);
+  glow(ctx, 80, 80, 22, '#ff6a2a66');
+  done();
+}
+
+function drawLampPost(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.lampPost, 64, 64);
+  glow(ctx, 32, 32, 30, '#ffb55a90');
+  disk(ctx, 34, 36, 8, '#111b3190');
+  disk(ctx, 32, 32, 7, '#44637c', SHADOW);
+  disk(ctx, 32, 32, 4, '#fff3b0', '#8a6232');
+  done();
+}
+
+function drawParkedTruck(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.parkedTruck, 192, 72);
+  rr(ctx, 6, 12, 184, 60, 6);
+  fillStroke(ctx, '#111b3170', null);
+  rr(ctx, 4, 6, 120, 58, 4);
+  fillStroke(ctx, '#7f93a0', SHADOW, 3);
+  rect(ctx, 10, 10, 108, 4, '#c4d2d8');
+  for (let x = 16; x < 116; x += 12) rect(ctx, x, 17, 2, 42, '#5f7482');
+  rr(ctx, 130, 10, 54, 50, 8);
+  fillStroke(ctx, '#c1573d', SHADOW, 3);
+  rr(ctx, 156, 16, 22, 38, 3);
+  fillStroke(ctx, '#7fb2c8', SHADOW, 2);
+  for (const y of [18, 52]) { glow(ctx, 186, y, 12, '#ffb05570'); disk(ctx, 184, y, 3, '#ffe8a0'); }
+  done();
+}
+
+function drawForklift(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.forklift, 80, 56);
+  rr(ctx, 14, 12, 56, 42, 5);
+  fillStroke(ctx, '#111b3170', null);
+  rr(ctx, 14, 10, 40, 36, 6);
+  fillStroke(ctx, '#e0a43c', SHADOW, 3);
+  rr(ctx, 26, 16, 18, 24, 3);
+  fillStroke(ctx, '#4d6a80', SHADOW, 2);
+  for (const y of [14, 36]) rect(ctx, 54, y, 24, 5, '#9fb2bd');
+  glow(ctx, 36, 6, 14, '#ffbb5280');
+  disk(ctx, 36, 6, 3, '#fff1ad');
+  done();
+}
+
+function drawPipes(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.pipes, 384, 56);
+  rect(ctx, 0, 14, 384, 42, '#111b3150');
+  for (const [y, c, hi] of [[6, '#a9703f', '#e0a56f'], [26, '#587d93', '#8fb7c8']] as const) {
+    rect(ctx, 0, y, 384, 18, SHADOW);
+    rect(ctx, 0, y + 2, 384, 14, c);
+    rect(ctx, 0, y + 3, 384, 3, hi);
+    for (let x = 30; x < 384; x += 64) { rect(ctx, x, y - 1, 8, 20, '#34485c'); rect(ctx, x, y - 1, 2, 20, EDGE); }
+  }
+  for (const x of [96, 288]) { rect(ctx, x, 2, 10, 50, '#34485c'); disk(ctx, x + 5, 27, 7, GOLD, SHADOW); }
+  done();
+}
+
+function drawFence(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.fence, 384, 40);
+  rect(ctx, 0, 14, 384, 22, '#111b3140');
+  for (let x = 0; x < 384; x += 8) {
+    beam(ctx, x, 6, x + 8, 26, 1, '#9fb7c466');
+    beam(ctx, x + 8, 6, x, 26, 1, '#9fb7c466');
+  }
+  rect(ctx, 0, 5, 384, 3, '#b9ccd4');
+  rect(ctx, 0, 24, 384, 3, '#8aa3b0');
+  for (let x = 2; x < 384; x += 64) { rect(ctx, x, 2, 6, 28, '#4c6579'); rect(ctx, x, 2, 6, 3, '#d6e2e6'); }
+  done();
+}
+
+function drawRoofLights(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.industrial.roofLights, 128, 128);
+  glow(ctx, 64, 64, 64, '#ffb55a26');
+  // Two glowing skylights, a vent unit, and a small sign strip.
+  for (const [x, y] of [[20, 26], [20, 72]]) {
+    rr(ctx, x, y, 44, 30, 3);
+    fillStroke(ctx, '#ffd88a', '#6b4a2e', 2);
+    for (let r = x + 7; r < x + 42; r += 8) rect(ctx, r, y + 3, 2, 24, '#b97a3a');
+    glow(ctx, x + 22, y + 15, 40, '#ffbb5a55');
+  }
+  rr(ctx, 78, 28, 32, 32, 4);
+  fillStroke(ctx, '#7f93a0', SHADOW, 3);
+  disk(ctx, 94, 44, 11, '#34485c', SHADOW);
+  for (let a = 0; a < 3; a++) beam(ctx, 94, 44, 94 + 10 * Math.cos(a * 2.1), 44 + 10 * Math.sin(a * 2.1), 2, '#9fb2bd');
+  rect(ctx, 76, 92, 38, 8, '#ff6a4a');
+  glow(ctx, 95, 96, 32, '#ff7a5a77');
+  rect(ctx, 80, 94, 30, 3, '#ffd6c8');
+  done();
+}
+
+
 function drawRail(scene: Phaser.Scene): void {
   const { ctx, done } = makeCanvas(scene, TEX.industrial.rail, 128, 64);
   rect(ctx, 0, 5, 128, 54, '#29374aac');
@@ -284,6 +452,9 @@ export function drawIndustrial(scene: Phaser.Scene): void {
   drawGantry(scene);
   drawLoadingYard(scene);
   drawWaterTower(scene);
+  drawContainerStack(scene); drawPallets(scene); drawBarrels(scene); drawFuelTank(scene);
+  drawConveyor(scene); drawSmokeStack(scene); drawLampPost(scene); drawParkedTruck(scene);
+  drawForklift(scene); drawPipes(scene); drawFence(scene); drawRoofLights(scene);
   drawRail(scene);
   drawCrossing(scene, TEX.industrial.crossing[0], false);
   drawCrossing(scene, TEX.industrial.crossing[1], true);

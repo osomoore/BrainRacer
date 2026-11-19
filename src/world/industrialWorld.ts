@@ -11,6 +11,10 @@ export const INDUSTRIAL_BUILDING_TINT = INDUSTRIAL_LIGHTING.buildingTint;
 export const INDUSTRIAL_SLAB_VARIANTS = 3;
 
 const RAIL_WIDTH = 64;
+/** Props drawn on the ground layer (under the night overlay). */
+const CLUTTER_KINDS: ReadonlySet<IndustrialDecoration['kind']> = new Set([
+  'containerStack', 'pallets', 'barrels', 'fuelTank', 'conveyor', 'smokeStack', 'parkedTruck', 'forklift', 'pipes', 'fence',
+]);
 
 type AddRect = (x: number, y: number, w: number, h: number, angle: number) => void;
 type AddCircle = (x: number, y: number, radius: number) => void;
@@ -118,9 +122,15 @@ function addDecoration(
   addRect: AddRect, addCircle: AddCircle,
 ): void {
   const { kind, x, y, w, h, angle } = decoration;
-  const depth = kind === 'loadingYard' ? DEPTH.decal - 2 : DEPTH.building;
+  const clutter = CLUTTER_KINDS.has(kind);
+  const lit = kind === 'lampPost' || kind === 'roofLights';
+  const depth = kind === 'loadingYard' ? DEPTH.decal - 2
+    : kind === 'roofLights' ? DEPTH.building + 0.5
+    : kind === 'lampPost' ? INDUSTRIAL_LIGHTING.nightDepth + 1
+    : clutter ? DEPTH.prop : DEPTH.building;
   const img = scene.add.image(x, y, TEX.industrial[kind]).setDisplaySize(w, h).setRotation(angle).setDepth(depth);
-  if (kind !== 'loadingYard') img.setTint(INDUSTRIAL_LIGHTING.decorationTint);
+  // Yard clutter sits under the night overlay (darkened naturally); lamps and roof lights glow above it.
+  if (kind !== 'loadingYard' && !clutter && !lit) img.setTint(INDUSTRIAL_LIGHTING.decorationTint);
   objects.push(img);
 
   const localRect = (offsetY: number, width: number, height: number) => {
@@ -141,6 +151,16 @@ function addDecoration(
       break;
     case 'waterTower':
       addCircle(x, y, Math.min(w, h) * 76 / 192);
+      break;
+    case 'fuelTank': case 'smokeStack':
+      addCircle(x, y, Math.min(w, h) * 0.4);
+      break;
+    case 'lampPost':
+      addCircle(x, y, 9);
+      break;
+    case 'containerStack': case 'pallets': case 'barrels': case 'conveyor':
+    case 'parkedTruck': case 'forklift': case 'pipes': case 'fence':
+      addRect(x, y, w * 0.92, h * 0.85, angle);
       break;
   }
 }

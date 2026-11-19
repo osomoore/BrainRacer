@@ -169,7 +169,7 @@ for (const count of [1, 2] as const) {
     expect(mode).toBe(count === 1 ? 'single' : 'split');
     const bridges = decorations.filter(({ kind }) => kind === 'bridge').sort((a, b) => a.y - b.y);
     const bays = decorations.filter(({ kind }) => kind === 'factoryBay').sort((a, b) => a.y - b.y);
-    expect(bridges).toHaveLength(3);
+    expect(bridges).toHaveLength(5);
     expect(bays).toHaveLength(2);
 
     await checkHeadlights(page, count);
