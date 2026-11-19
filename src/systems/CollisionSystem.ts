@@ -34,7 +34,7 @@ export class CollisionSystem implements GameSystem {
   }
 
   destroy(): void {
-    this.ctx?.scene.matter.world.off(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
+    this.ctx?.scene.matter?.world?.off(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
     this.lastEmit.clear();
   }
 

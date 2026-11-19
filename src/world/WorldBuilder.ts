@@ -183,7 +183,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     bounds: { x: 0, y: 0, w: W, h: H },
     dynamicProps, bodies,
     destroy() {
-      for (const b of bodies) M.world.remove(b);
+      if (M.world) for (const b of bodies) M.world.remove(b);
       for (const o of [...dynamicProps, ...objs]) o.destroy();
       layer.destroy();
       map.destroy();

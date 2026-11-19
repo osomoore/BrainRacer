@@ -162,15 +162,18 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private teardown() {
-    for (const off of this.offs) off();
+    // Phaser's Matter plugin may already have shut down (world === null); every step is guarded
+    // so one failure can never block the scene transition.
+    const safe = (fn: () => void) => { try { fn(); } catch (e) { console.warn('[race teardown]', e); } };
+    for (const off of this.offs) safe(off);
     this.offs = [];
-    for (const s of this.systems) { try { s.destroy(); } catch (e) { console.error(e); } }
+    for (const s of this.systems) safe(() => s.destroy());
     this.systems = [];
-    for (const car of this.players) car.destroy();
+    for (const car of this.players) safe(() => car.destroy());
     this.players = [];
-    this.rig.destroy();
-    this.skids.destroy();
-    this.built.destroy();
+    safe(() => this.rig.destroy());
+    safe(() => this.skids.destroy());
+    safe(() => this.built.destroy());
     bus.clear();
   }
 }

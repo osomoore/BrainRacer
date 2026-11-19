@@ -109,7 +109,7 @@ export class Vehicle implements IVehicle {
   }
 
   destroyVehicle(): void {
-    this.scene.matter.world.remove(this.body);
+    this.scene.matter?.world?.remove(this.body); // world is null if Matter already shut down
     this.view.destroy();
   }
 }
