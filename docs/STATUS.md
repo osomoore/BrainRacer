@@ -1,62 +1,39 @@
-# BrainRacer — Status
+# BrainRacer — Status (as of 2026-11-19, end of session 1)
 
-**v1 (city) is feature-complete and ready for a hands-on playtest with real controllers.**
-Branch: `dev` (local only, not pushed). 197 unit tests + 5 browser e2e tests pass.
+**Playable v1 (city biome), after 3 rounds of playtest feedback.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
+Tests: 255 unit (`npm test`) + 6 browser e2e (`npm run e2e`), all passing. ~140 fps headless Edge (RTX 3060), 2 players.
+
+Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
 ## How to play / test
-- Full game: double-click `play.bat`, or `npm run dev` → http://localhost:5173/
-- Skip menus: `/?race=1` or `/?race=2` (add `&seed=N`, `&round=60` for a 1-minute round)
-- Dev/test hooks (add to a race URL): `&dino=now` (dino in 2 s), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet), `&debug=1` (physics outlines)
-- Dev scenes: `?dev=ArtGallery`, `DriveTest`, `CameraTest`, `WorldTest`, `HudTest`, `InputTest`, `AudioTest`, `ChallengeTest`, `ResultsTest`
-- F2 anywhere: raw controller input overlay
+- Full game: `play.bat`, or `npm run dev` → http://localhost:5173/ (press A / Space three times to start).
+- Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines).
+- Test hooks: `&dino=now` (dino appears next to players in 2 s), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
+- Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.
+- F2 anywhere: raw controller input overlay. `window.__race` = live RaceContext; `window.__challenge` = challenge state hook (used by e2e).
 
-| Wave | Package | State |
-|---|---|---|
-| 0 | Foundation (scaffold, contracts, pipeline, e2e) | ✅ |
-| 1 | A Input · B Challenges · C City gen · D Audio · E Art | ✅ |
-| 2 | F Vehicle physics · G World builder · H Camera · I HUD · P Menus | ✅ |
-| 3 | J Traffic · K Police · L Goals/score/results · M Rewards/FX · N Jumps · O Dinosaur | ✅ |
-| 4 | Integration (RaceScene, system registry, perf, teardown, tuning) | ✅ automated part · ⏳ hands-on tuning with user |
-| 5 | Countryside / industrial biomes, minimap, remapping, more challenge types | not started |
+## How the game plays now
+- **Menus:** A joins (up to 2 players: pad or keyboard WASD / arrows); A again → Setup; A on any Setup row starts.
+  Setup: per-player difficulty + car; Question style (**Stop & Answer** default / While Driving); Questions (**Words** default / Math / Mix); Questions every N s (default 10); round length; volumes.
+- **Camera:** facing-up. Each player's view rotates so their car points up (car at 52% height). 2 players = always split screen.
+- **Question breaks (default "Stop & Answer"):** shared team timer. Every ~10 s of driving the world freezes for everyone. Each player gets a big question with **4 answers in the controller diamond** (Y top, X left, B right, A bottom); answer with face buttons, D-pad/stick, WASD/arrows, 1–4 (P1) or `, . / M` (P2). Wrong → sad sound + new question; right → ✓ (2P: wait for teammate). All right → "GO!" → turbo + boost jump for everyone.
+- **"While Driving" style:** the old mode. 3 answers (X/Y/B) in a panel centered below the car, a timer bar, and a slowdown after a miss.
+- **Right answer reward:** turbo (1.6× speed, flames), a **boost jump** over traffic/buildings (lands on drivable ground), **punch-through** (traffic/props thrown aside, speed kept), plus a random bonus (rainbow/shockwave/ghost/magnet).
+- **Guide buddies:** a pink flying dino (dino-car) or a twinkling star (kart) flies ahead of each car along the real street route and circles the goal when near or waiting. Each player sees only their own buddy. A destination card (icon + word) sits at the top of each view; an upright label appears over the goal.
+- **Goals:** shared place destinations (bakery, school, …). Both players must arrive (20 s teammate wait). Jumping through counts. +3 points per arriving car.
+- **Dinosaur:** when one player reaches the goal early (2P), the dino drops in and slowly circles the goal until the teammate arrives. Ram it (health bar; turbo ×1.5; both players within 1.5 s = TEAM double); defeat = poof + 2 points each. 1P: appears at half time at the current goal.
+- **World:** seeded 48×48 city, beveled 3D buildings, picture signs on place buildings, ramps, ~25 light traffic cars/trucks, police with a gentle siren (bump only, despawn off-screen).
+- **Words:** `manifest.csv` labels → `src/data/wordAliases.json` (single simple words) → `src/data/wordMeta.json` (category, `simple`, `confusableWith`). Multi-word labels are Hard only. After edits: `npm run assets`.
+- **Audio:** all synthesized (Tone.js). Music = JSON note tracks in `src/audio/music/tracks/` (optional `.mid` overrides in `src/audio/music/midi/`).
 
-## Playtest round 1 changes (2026-11-19)
-- Challenge panel: appears large at the TOP with shake + glow, then docks smaller at the top (no center pop-in). `src/ui/hud/hudConfig.ts` (`dockFrac`, `showSec`, `bigMaxFrac`).
-- Camera: facing-up rotating view (car always points up); 2 players always split. `CAMERA.facingUp` (false = old north-up split/merge), `rotTau`, `maxAngVel`, `carScreenY`.
-- Driving: pivot-turn when slow/stopped + automatic wall unstick. `VEHICLE_MODEL.pivotRate`, `VEHICLE_MODEL.unstick.*`.
-- Challenges default to **Words** (picture->word, word->picture); Setup row "Questions: Words / Math / Mix".
-- Menus: A, A, A starts a race (A from any Setup row = start).
-- Images: no missing files found in dev/build; added load-error placeholder cards and `predev` now refreshes `public/scenes`.
+## Key tunables (all in `src/config/gameConfig.ts` unless noted)
+`CAMERA` (facingUp, carScreenY, rotTau, maxAngVel, zooms) · `VEHICLE_MODEL` (pivotRate, unstick, recoil) · `CAR_SPECS` · `CHALLENGE` (wrongRetrySec, answerGuardSec, break timing) · `DIFFICULTY` · `REWARDS` (turbo, jump, miss slowdown) · `TRAFFIC` · `POLICE` · `GOALS` · `DINO` (guardSpeed, hp, damage) · `GUIDE` (buddy lead distance, orbit) · HUD layout in `src/ui/hud/hudConfig.ts`.
 
-## Playtest round 2 changes (2026-11-19)
-- Challenge panel centered BELOW the car (question on top row, 3 answers on their own row); car at `CAMERA.carScreenY` 0.52. Goal arrow/tag moved to the top band.
-- Buildings: baked beveled 3D blocks (read correctly at any rotation); building text labels removed (picture signs kept). Goal name drawn upright in the HUD; goals pop in large and shrink when first on screen.
-- Correct answer = turbo + **boost jump** over traffic/buildings (lands on drivable ground) + **punch-through** (traffic/props thrown aside, speed kept).
-- Wrong/timeout answer = short slowdown (0.7x / 0.8x) with exhaust sputter.
-- Traffic: 25 cars, lighter, easy to shove. Police: gentle siren, despawn after 1.5 s off-screen.
-- Dino: appears when one player reaches the goal early, guards it slowly until the teammate arrives; rammable (health bar, turbo x1.5, both-players TEAM HIT x2), "POOF" defeat = +2 per player. 1-player: half-time at the current goal. Louder roar.
-- Music: new, more exciting tracks (Codex); music returns to race theme after the dino leaves/is defeated.
-
-## Decisions / notes
-- Phaser 3.90 (not 4) for sub-agent familiarity.
-- Words: `manifest.csv` labels → `src/data/wordAliases.json` → single simple words. Multi-word labels are Hard-only. Look-alike pairs live in `src/data/wordMeta.json` (`confusableWith`). After editing either: `npm run assets`.
-- Performance: never draw rounded rects/paths in a live `Graphics` (re-triangulated each frame per camera). Bake to textures. Currently ~140 fps (headless Edge, RTX 3060) with 35+ NPCs.
-- Camera zoom raised 20% for kids/projector (`CAMERA.baseZoom 1.2`, split at 0.84, split views 0.88).
-- Playwright uses Edge (`channel: 'msedge'`) for the real GPU.
-- Vite "Outdated Optimize Dep" after big merges → restart dev server with `--force`.
-
-## Playtest checklist (needs a human)
-- [ ] Xbox pads: steering feel, RT/LT analog, X/Y/B answers, Start=pause, hot-plug, rumble
-- [ ] Car feel: dino vs kart difference, wall recoil (`VEHICLE_MODEL.recoil*`), turbo speed
-- [ ] Camera: split/merge timing, zoom level on the projector
-- [ ] Challenge pace per difficulty; text readability from the back of the room
-- [ ] Police: bump strength, can a swarmed player escape
-- [ ] Dino: friendly vs scary, roar volume, how often it blocks goals
-- [ ] Sound balance (music vs SFX vs engines)
-- [ ] Traffic density (35) and truck weight
-- [ ] Results star thresholds (`GOALS.starThresholds`)
-
-## Known gaps
-- No junction right-of-way for traffic (bumps are absorbed by knock/recover).
-- Police bump picks the nearest cruiser to the crash point (crash event has no npc reference).
-- Dino still looks a bit crocodile-like from above.
-- Big challenge pop-in briefly overlaps a goal banner if both appear together.
+## Known gaps (also tracked in NEXT.md)
+- Easy mode can show hard place words (hospital, stadium) via place-triggered questions.
+- The reward jump starts before the question UI has fully cleared.
+- An answer button held into a break (A = gas) can count as an answer.
+- Split-screen break panels overlap the bottom of the center scoreboard (timer).
+- Unused config keys: `WORLD.bigAirSec`, `GOALS.arrowBandFrac`, `GOALS.arrowBandMaxH`. HudTest still emits a "Nice jump!" popup (ignored).
+- Police bump picks the nearest cruiser to the crash point; no traffic right-of-way at junctions.
+- Nothing has been checked by ear (audio) or with real Xbox pads yet; see the playtest checklist in NEXT.md.

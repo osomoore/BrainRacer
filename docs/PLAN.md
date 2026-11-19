@@ -1,5 +1,7 @@
 # BrainRacer — Implementation Plan
 
+> **Note (end of session 1):** this is the original plan. For the current game behavior see `docs/STATUS.md`; for the backlog and dev workflow see `docs/NEXT.md`.
+
 Top-down open-world co-op racer (classic overhead-GTA feel) for 1–2 players, with picture, word and math challenges every few seconds. This document is the source of truth for the orchestrator and for implementation sub-agents.
 
 ---
