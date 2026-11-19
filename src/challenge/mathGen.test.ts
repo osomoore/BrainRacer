@@ -55,3 +55,26 @@ describe('generateMath', () => {
     expect(generateMath(new Rng(9), d)).toEqual(generateMath(new Rng(9), d));
   });
 });
+
+describe('generateMath easyPlus', () => {
+  it('answers 2..19 with about half teens, valid distinct distractors, deterministic', () => {
+    const rng = new Rng(7);
+    let teens = 0;
+    const N = 2000;
+    for (let i = 0; i < N; i++) {
+      const m = generateMath(rng, 'easyPlus', 4);
+      expect(m.answer).toBeGreaterThanOrEqual(2);
+      expect(m.answer).toBeLessThanOrEqual(19);
+      if (m.answer >= 11) teens++;
+      expect(new Set([m.answer, ...m.distractors]).size).toBe(4);
+      for (const d of m.distractors) {
+        expect(d).toBeGreaterThan(0);
+        expect(Math.abs(d - m.answer)).toBeLessThanOrEqual(3);
+      }
+    }
+    expect(teens / N).toBeGreaterThan(0.35);
+    expect(teens / N).toBeLessThan(0.65);
+    const a = generateMath(new Rng(5), 'easyPlus');
+    expect(generateMath(new Rng(5), 'easyPlus')).toEqual(a);
+  });
+});
