@@ -88,6 +88,12 @@ export const CHALLENGE = {
   popInSec: 0.35,
   slideUpSec: 0.35,
   firstChallengeDelaySec: 3,   // after GO
+  // package B additions
+  placeWordToPicChance: 0.5,       // place challenge: word->pictures (else picture->words)
+  hardForgotCarryChance: 0.7,      // hard math: chance the "forgot to carry" distractor is included
+  normalTensDistractorChance: 0.5, // normal math: chance the 2nd distractor is +-10
+  similarLengthDelta: 2,           // hard words: "similar length" = within this many letters
+  teamPan: 0.5,                    // sfx pan magnitude when 2 players
 };
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
