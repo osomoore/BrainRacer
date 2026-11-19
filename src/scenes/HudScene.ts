@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { CHALLENGE, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { sceneTex } from '../core/assetKeys';
 import type { GameEvents } from '../core/events';
 import type { RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { CameraLayout, PlayerId, Rect, Vec2 } from '../core/types';
 import { sceneById } from '../data/scenes';
-import { bigText, FONT_HEAD } from '../ui/menu/style';
+import { bigText, FONT_HEAD, hexNum } from '../ui/menu/style';
 import { PauseOverlay } from '../ui/menu/PauseOverlay';
 import { Banners } from '../ui/hud/Banners';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
@@ -43,8 +43,12 @@ export class HudScene extends Phaser.Scene {
   private overlay!: PauseOverlay;
   private skipFrames = 0;
   private lastKind: Partial<Record<Kind, number>> = {};
-  private lastPolice = [-99, -99];
   private clock = 0;
+  private pauseStyle = true;
+  private waiting = [false, false];
+  private waitCards: Phaser.GameObjects.Container[] = [];
+  private dim!: Phaser.GameObjects.Graphics;
+  private dimA = 0;
 
   constructor() { super(SCENE.hud); }
 
@@ -58,6 +62,9 @@ export class HudScene extends Phaser.Scene {
     this.lastKind = {};
     this.clock = 0;
     this.dividerAlpha = 0;
+    this.waiting = [false, false];
+    this.waitCards = [];
+    this.dimA = 0;
     if (!ctx) {
       bigText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, 'HudScene: no RaceContext in registry', 48, '#ff6b6b');
       return;
@@ -66,12 +73,15 @@ export class HudScene extends Phaser.Scene {
     this.nPlayers = Math.max(1, Math.min(2, ctx.settings?.players?.length ?? ctx.players.length ?? 1));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
 
+    this.pauseStyle = (ctx.settings?.questionStyle ?? 'pause') === 'pause';
     this.divider = this.add.graphics().setDepth(D.divider);
+    this.dim = this.add.graphics().setDepth(0.5);
     this.scoreboard = new Scoreboard(this, this.nPlayers, D.scoreboard);
     this.scoreboard.setRemaining(ctx.roundLengthSec);
     for (let p = 0; p < this.nPlayers; p++) {
       this.bars.push(new TimerBar(this, PLAYER_COLORS[p], D.bars));
       this.goals.push(new GoalIndicator(this, PLAYER_COLORS[p], D.goal));
+      this.waitCards.push(this.buildWaitCard(PLAYER_COLORS[p]));
     }
     this.banners = new Banners(this, D.banner);
     this.overlay = new PauseOverlay(this, {
@@ -100,12 +110,15 @@ export class HudScene extends Phaser.Scene {
       this.panels[p]?.destroy();
       this.panels[p] = new ChallengePanel(this, PLAYER_COLORS[p], challenge, this.curViews[p], {
         depth: D.panel,
+        centered: this.pauseStyle,
         onCorrect: (x, y) => this.flyPlusOne(x, y),
       });
-      this.bars[p].start(challenge.durationSec);
+      this.waiting[p] = false;
+      if (!this.pauseStyle) this.bars[p].start(challenge.durationSec);
     });
     this.on('challenge:resolved', ({ challenge, result, chosen }) => {
       const p = challenge.player;
+      if (this.pauseStyle && result === 'correct' && this.nPlayers > 1) this.waiting[p] = true;
       const panel = this.panels[p];
       if (!panel || panel.challenge.id !== challenge.id) return;
       panel.resolve(result, chosen);
@@ -130,11 +143,9 @@ export class HudScene extends Phaser.Scene {
       if (kind) this.kindBanner(kind, e.text, e.color, e.durationSec);
       else this.banners.center(GAME_WIDTH / 2, CENTER_Y, e.text, e.color ?? '#ffd43b', e.durationSec ?? 1.2);
     });
-    this.on('ui:popup', (e) => this.popup(e.player, e.text, e.world, e.color));
-    this.on('police:chase', (e) => {
-      if (this.clock - this.lastPolice[e.player] < 8) return;
-      this.lastPolice[e.player] = this.clock;
-      this.popup(e.player, '\u{1F6A8} Police!', undefined, '#8ecbff');
+    // Only score-like popups (+1, -2 ...) and the dino ROAR show; other words are ignored on purpose.
+    this.on('ui:popup', (e) => {
+      if (/^[+-]\d/.test(e.text) || /^roar/i.test(e.text)) this.popup(e.player, e.text, e.world, e.color);
     });
 
     this.on('game:pause', () => {
@@ -151,6 +162,37 @@ export class HudScene extends Phaser.Scene {
     this.panels.forEach((p) => p?.destroy());
     this.panels = [null, null];
     this.banners?.destroy();
+  }
+
+  /** Friendly "waiting for teammate" indicator: big check mark plus a small Waiting label. */
+  private buildWaitCard(color: string): Phaser.GameObjects.Container {
+    const g = this.add.graphics();
+    g.fillStyle(0x14213d, 0.9).fillCircle(0, 0, 170).lineStyle(14, hexNum(color), 1).strokeCircle(0, 0, 170);
+    g.fillStyle(HUD.colors.green, 1).fillCircle(0, 0, 134).lineStyle(8, 0xffffff, 1).strokeCircle(0, 0, 134);
+    g.lineStyle(34, 0xffffff, 1).beginPath().moveTo(-62, 4).lineTo(-18, 52).lineTo(66, -50).strokePath();
+    const t = bigText(this, 0, 222, 'Waiting…', 48, '#ffffff', { font: FONT_HEAD, stroke: 8 });
+    return this.add.container(0, 0, [g, t]).setDepth(D.panel).setVisible(false);
+  }
+
+  private updateBreakVisuals(realDt: number) {
+    const breaking = this.ctx.questionBreak && this.pauseStyle;
+    this.dimA += ((breaking ? CHALLENGE.breakDimAlpha : 0) - this.dimA) * smoothFactor(realDt, 12);
+    const g = this.dim.clear();
+    if (this.dimA > 0.01) {
+      g.fillStyle(0x0b1226, this.dimA);
+      if (this.shared()) { const r = this.mapRect(0); g.fillRect(r.x, r.y, r.w, r.h); }
+      else for (let p = 0; p < this.nPlayers; p++) { const v = this.curViews[p]; g.fillRect(v.x, v.y, v.w, v.h); }
+    }
+    for (let p = 0; p < this.waitCards.length; p++) {
+      const card = this.waitCards[p];
+      const show = breaking && this.waiting[p] && !this.panels[p];
+      card.setVisible(show);
+      if (!show) continue;
+      const v = this.curViews[p];
+      const pulse = 1 + 0.05 * Math.sin(this.clock * 6);
+      card.setPosition(v.x + v.w / 2, v.y + v.h / 2).setScale(pulse);
+    }
+    if (!breaking) this.waiting = [false, false];
   }
 
   // ───────────────────────── layout ─────────────────────────
@@ -282,6 +324,7 @@ export class HudScene extends Phaser.Scene {
     }
     this.drawDivider(realDt);
 
+    this.updateBreakVisuals(realDt);
     this.scoreboard.update(dt);
     for (let p = 0; p < this.nPlayers; p++) {
       const panel = this.panels[p];

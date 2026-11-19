@@ -32,6 +32,7 @@ export class RaceScene extends Phaser.Scene {
   private lastCount = 0;
   private started = false;
   private ended = false;
+  private inBreak = false;
   private offs: (() => void)[] = [];
 
   constructor() { super(SCENE.race); }
@@ -100,6 +101,7 @@ export class RaceScene extends Phaser.Scene {
     this.lastCount = COUNTDOWN_SEC + 1;
     this.started = false;
     this.ended = false;
+    this.inBreak = false;
     services.audio.music(null, 0.5);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
@@ -118,13 +120,36 @@ export class RaceScene extends Phaser.Scene {
     }
     if (this.ctx.paused) { this.rig.update(0); return; }
 
+    // Question break (pause style): the world is frozen; only the challenge system (and HUD) run.
+    if (this.ctx.questionBreak && this.started && !this.ended) {
+      this.setBreak(true);
+      for (const s of this.systems) if (s.name === 'challenge') s.update(dt, this.ctx);
+      if (!this.ctx.questionBreak) this.setBreak(false);
+      this.rig.update(0);
+      return;
+    }
+
     if (!this.started) this.runCountdown(dt);
     else if (!this.ended) this.ctx.elapsedSec += dt;
 
     for (const car of this.players) car.update(services.input.get(car.player), dt);
     this.skids.update(dt);
     if (this.started) for (const s of this.systems) s.update(dt, this.ctx);
+    // A system (challenge) may have just started a break: freeze right away.
+    if (this.ctx.questionBreak) this.setBreak(true);
     this.rig.update(dt);
+  }
+
+  /** Freeze / unfreeze physics and quiet the engines for a question break. */
+  private setBreak(on: boolean) {
+    if (this.inBreak === on) return;
+    this.inBreak = on;
+    if (on) {
+      this.matter.world.pause();
+      for (const car of this.players) services.audio.engine(car.player).set(0, false);
+    } else if (!this.ctx.paused) {
+      this.matter.world.resume();
+    }
   }
 
   private runCountdown(dt: number) {
@@ -148,7 +173,7 @@ export class RaceScene extends Phaser.Scene {
   private setPaused(on: boolean) {
     if (this.ctx.paused === on) return;
     this.ctx.paused = on;
-    if (on) this.matter.world.pause(); else this.matter.world.resume();
+    if (on) this.matter.world.pause(); else if (!this.inBreak) this.matter.world.resume();
   }
 
   private endRound(results: RoundResults) {

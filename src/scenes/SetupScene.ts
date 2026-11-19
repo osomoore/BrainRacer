@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
-import type { CarKind, ChallengeMode, Difficulty, PlayerId, PlayerSettings, Settings } from '../core/types';
+import type { CarKind, ChallengeMode, Difficulty, PlayerId, PlayerSettings, QuestionStyle, Settings } from '../core/types';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
@@ -14,12 +14,14 @@ const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', normal: '14 + 
 const DIFF_BLURB: Record<Difficulty, string> = { easy: 'Nice and relaxed', normal: 'Just right', hard: 'Super speedy' };
 const CARS: CarKind[] = ['dino', 'kart'];
 const ROUND_CHOICES = [180, 300, 420];
-const TIMER_MIN = 3, TIMER_MAX = 10;
+const TIMER_MIN = 5, TIMER_MAX = 20;
 
 // P1 cursor rows
-const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_ROUND = 3, ROW_TIMER = 4, ROW_MUSIC = 5, ROW_SFX = 6, ROW_START = 7;
+const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7, ROW_START = 8;
 const MODES: ChallengeMode[] = ['words', 'math', 'mixed'];
 const MODE_LABEL: Record<ChallengeMode, string> = { words: 'Words', math: 'Math', mixed: 'Mix' };
+const STYLES: QuestionStyle[] = ['pause', 'drive'];
+const STYLE_LABEL: Record<QuestionStyle, string> = { pause: 'Stop & Answer', drive: 'While Driving' };
 const P1_LAST = ROW_START;
 const P2_LAST = ROW_CAR;
 
@@ -59,7 +61,8 @@ export class SetupScene extends Phaser.Scene {
       players,
       roundLengthSec: ROUND_CHOICES.includes(base.roundLengthSec) ? base.roundLengthSec : 300,
       challengeMode: MODES.includes(base.challengeMode) ? base.challengeMode : 'words',
-      challengeIntervalSec: Phaser.Math.Clamp(Math.round(base.challengeIntervalSec), TIMER_MIN, TIMER_MAX),
+      questionStyle: STYLES.includes(base.questionStyle) ? base.questionStyle : 'pause',
+      challengeIntervalSec: Phaser.Math.Clamp(Math.round(base.challengeIntervalSec) || 10, TIMER_MIN, TIMER_MAX),
     };
     services.input.reset();
     players.forEach((p, i) => services.input.assign(i as PlayerId, p.device));
@@ -105,19 +108,20 @@ export class SetupScene extends Phaser.Scene {
   private buildGlobals() {
     const cx = GAME_WIDTH / 2;
     const g = this.add.graphics();
-    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 672, 1120, 308, 36);
-    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 672, 1120, 308, 36);
-    const opts = { width: 1040, height: 52, fontSize: 40, valueX: 230, arrowSpan: 200 };
-    ['Questions', 'Round length', 'Question timer', 'Music volume', 'Sound volume'].forEach((l, i) => {
-      this.globals.push(new OptionRow(this, cx, 712 + i * 58, l, opts));
+    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 672, 1120, 322, 36);
+    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 672, 1120, 322, 36);
+    const opts = { width: 1040, height: 48, fontSize: 38, valueX: 230, arrowSpan: 200 };
+    ['Questions', 'Question style', 'Round length', 'Questions every', 'Music volume', 'Sound volume'].forEach((l, i) => {
+      this.globals.push(new OptionRow(this, cx, 703 + i * 52, l, opts));
     });
-    this.startBtn = new MenuButton(this, cx, 1030, 900, 80, 'A  =  START RACE!', hexNum(PLAYER_COLORS[0]), 64);
+    this.startBtn = new MenuButton(this, cx, 1038, 900, 74, 'A  =  START RACE!', hexNum(PLAYER_COLORS[0]), 64);
   }
 
   // ───────────────────────── view ─────────────────────────
   private hintText(d: Difficulty): string {
-    const secs = Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1));
     const extra = this.cfg.challengeMode === 'words' ? '' : `\nSums like ${DIFF_EXAMPLE[d]}`;
+    if (this.cfg.questionStyle === 'pause') return `${DIFF_BLURB[d]}${extra}`;
+    const secs = Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1));
     return `${DIFF_BLURB[d]}: ${secs} s per question${extra}`;
   }
 
@@ -133,10 +137,11 @@ export class SetupScene extends Phaser.Scene {
       col.carObj = carPreview(this, p.car, cx, col.car.y + 115, 3.2);
     });
     this.globals[0].setValue(MODE_LABEL[c.challengeMode]);
-    this.globals[1].setValue(`${c.roundLengthSec / 60} min`);
-    this.globals[2].setValue(`${c.challengeIntervalSec} s`);
-    this.globals[3].setValue(`${Math.round(c.musicVolume * 100)}%`);
-    this.globals[4].setValue(`${Math.round(c.sfxVolume * 100)}%`);
+    this.globals[1].setValue(STYLE_LABEL[c.questionStyle]);
+    this.globals[2].setValue(`${c.roundLengthSec / 60} min`);
+    this.globals[3].setValue(`${c.challengeIntervalSec} s`);
+    this.globals[4].setValue(`${Math.round(c.musicVolume * 100)}%`);
+    this.globals[5].setValue(`${Math.round(c.sfxVolume * 100)}%`);
     this.refreshCursors();
   }
 
@@ -197,13 +202,14 @@ export class SetupScene extends Phaser.Scene {
     if (row === ROW_DIFF) { ps.difficulty = cycle(DIFFS, ps.difficulty); target = this.cols[p].diff; }
     else if (row === ROW_CAR) { ps.car = cycle(CARS, ps.car); target = this.cols[p].car; }
     else if (p === 0 && row === ROW_QUEST) { c.challengeMode = cycle(MODES, c.challengeMode); target = this.globals[0]; }
+    else if (p === 0 && row === ROW_STYLE) { c.questionStyle = cycle(STYLES, c.questionStyle); target = this.globals[1]; }
     else if (p === 0 && row === ROW_ROUND) {
       const i = Phaser.Math.Clamp(ROUND_CHOICES.indexOf(c.roundLengthSec) + dir, 0, ROUND_CHOICES.length - 1);
-      c.roundLengthSec = ROUND_CHOICES[i]; target = this.globals[1];
+      c.roundLengthSec = ROUND_CHOICES[i]; target = this.globals[2];
     } else if (p === 0 && row === ROW_TIMER) {
-      c.challengeIntervalSec = Phaser.Math.Clamp(c.challengeIntervalSec + dir, TIMER_MIN, TIMER_MAX); target = this.globals[2];
-    } else if (p === 0 && row === ROW_MUSIC) { c.musicVolume = volStep(c.musicVolume); target = this.globals[3]; }
-    else if (p === 0 && row === ROW_SFX) { c.sfxVolume = volStep(c.sfxVolume); target = this.globals[4]; }
+      c.challengeIntervalSec = Phaser.Math.Clamp(c.challengeIntervalSec + dir, TIMER_MIN, TIMER_MAX); target = this.globals[3];
+    } else if (p === 0 && row === ROW_MUSIC) { c.musicVolume = volStep(c.musicVolume); target = this.globals[4]; }
+    else if (p === 0 && row === ROW_SFX) { c.sfxVolume = volStep(c.sfxVolume); target = this.globals[5]; }
     if (!target) return;
     services.audio.setVolumes(c.musicVolume, c.sfxVolume);
     services.audio.sfx('menuMove');

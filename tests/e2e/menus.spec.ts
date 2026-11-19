@@ -41,6 +41,7 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   expect(s.players[1].device).toEqual({ type: 'gamepad', index: 1 });
   expect(s.players[0].car).not.toEqual(s.players[1].car);
   expect(s.challengeMode).toBe('words');
+  expect(s.questionStyle).toBe('pause');
   expect(errors).toEqual([]);
 });
 

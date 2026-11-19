@@ -14,6 +14,8 @@ export interface GenerateOpts {
   placeWord?: string;
   /** Words to avoid as the target (falls back to ignoring this if nothing else is left). */
   recentWords?: ReadonlySet<string>;
+  /** Answer count: 3 (drive style, default) or 4 (pause style diamond). */
+  optionCount?: 3 | 4;
 }
 
 export interface GeneratedChallenge {
@@ -42,36 +44,37 @@ export class ChallengeGenerator {
   }
 
   generate(kind: ChallengeKind, difficulty: Difficulty, opts: GenerateOpts = {}): GeneratedChallenge {
+    const count = opts.optionCount ?? 3;
     const place = opts.placeWord && scenesForWord(opts.placeWord).length > 0 ? opts.placeWord : undefined;
     if (place) {
       const k: ChallengeKind = this.rng.chance(CHALLENGE.placeWordToPicChance) ? 'wordToPic' : 'picToWord';
-      return this.generateWord(k, difficulty, place, opts.recentWords);
+      return this.generateWord(k, difficulty, place, opts.recentWords, count);
     }
-    if (kind === 'math') return this.generateMathChallenge(difficulty);
-    return this.generateWord(kind, difficulty, undefined, opts.recentWords);
+    if (kind === 'math') return this.generateMathChallenge(difficulty, count);
+    return this.generateWord(kind, difficulty, undefined, opts.recentWords, count);
   }
 
-  private generateMathChallenge(difficulty: Difficulty): GeneratedChallenge {
-    const m = generateMath(this.rng, difficulty);
-    const correct = this.rng.int(0, 2) as AnswerSlot;
+  private generateMathChallenge(difficulty: Difficulty, count: number): GeneratedChallenge {
+    const m = generateMath(this.rng, difficulty, count);
+    const correct = this.rng.int(0, count - 1) as AnswerSlot;
     const rest = [...m.distractors];
-    const options = [0, 1, 2].map((i): ChallengeOption =>
+    const options = Array.from({ length: count }, (_, i): ChallengeOption =>
       ({ kind: 'text', text: String(i === correct ? m.answer : rest.shift()) }));
     return {
       kind: 'math',
       prompt: { kind: 'text', text: m.text },
-      options: options as GeneratedChallenge['options'],
+      options,
       correct,
     };
   }
 
   private generateWord(
     kind: 'picToWord' | 'wordToPic', difficulty: Difficulty, placeWord: string | undefined,
-    recent: ReadonlySet<string> | undefined,
+    recent: ReadonlySet<string> | undefined, count: number,
   ): GeneratedChallenge {
     const target = placeWord ?? this.pickTarget(difficulty, recent);
     const textOptions = kind === 'picToWord';
-    const distractors = this.pickDistractors(target, difficulty, textOptions);
+    const distractors = this.pickDistractors(target, difficulty, textOptions, count - 1);
 
     const sceneFor = (word: string, forTarget: boolean): string => {
       const ids = forTarget && placeWord ? challengeScenesFor(word) : scenesForWord(word).map((s) => s.id);
@@ -80,16 +83,16 @@ export class ChallengeGenerator {
     const toOption = (word: string, forTarget: boolean): ChallengeOption =>
       textOptions ? { kind: 'text', text: word } : { kind: 'image', sceneId: sceneFor(word, forTarget) };
 
-    const correct = this.rng.int(0, 2) as AnswerSlot;
+    const correct = this.rng.int(0, count - 1) as AnswerSlot;
     const rest = [...distractors];
-    const options = [0, 1, 2].map((i) =>
+    const options = Array.from({ length: count }, (_, i) =>
       i === correct ? toOption(target, true) : toOption(rest.shift()!, false));
 
     const prompt: ChallengePrompt = textOptions
       ? { kind: 'image', sceneId: sceneFor(target, true) }
       : { kind: 'text', text: target };
     return {
-      kind, prompt, options: options as GeneratedChallenge['options'], correct,
+      kind, prompt, options, correct,
       targetWord: target, ...(placeWord ? { placeWord } : {}),
     };
   }
@@ -101,20 +104,20 @@ export class ChallengeGenerator {
   }
 
   /**
-   * Two distractor words, mutually non-conflicting and non-conflicting with the target.
+   * N distractor words, mutually non-conflicting and non-conflicting with the target.
    * Relaxation order when a pool runs dry: similarity, then category, then simpleOnly.
    * Conflicts/uniqueness are never relaxed.
    */
-  private pickDistractors(target: string, difficulty: Difficulty, textOptions: boolean): [string, string] {
+  private pickDistractors(target: string, difficulty: Difficulty, textOptions: boolean, n: number): string[] {
     const words = DIFFICULTY[difficulty].words;
     const targetCat = WORD_META[target].category;
     const chosen: string[] = [];
-    for (let n = 0; n < 2; n++) {
+    for (let k = 0; k < n; k++) {
       const taken = [target, ...chosen];
       const base = ALL_WORDS.filter((w) => taken.every((t) => !wordsConflict(w, t)) && this.textAllowed(w, words, textOptions));
       chosen.push(this.pickFromTiers(base, target, targetCat, difficulty, textOptions));
     }
-    return [chosen[0], chosen[1]];
+    return chosen;
   }
 
   /** Text options must obey simpleOnly / no-multi-word; image options are not read, so they don't. */

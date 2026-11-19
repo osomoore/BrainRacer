@@ -14,7 +14,7 @@ const LEVELS: Difficulty[] = ['easy', 'normal', 'hard'];
 const wordOf = (o: ChallengeOption): string =>
   o.kind === 'text' ? o.text : sceneById(o.sceneId)!.word;
 
-function validateMath(c: GeneratedChallenge, d: Difficulty): void {
+function validateMath(c: GeneratedChallenge, d: Difficulty, n = 3): void {
   const m = /^(\d+) \+ (\d+)$/.exec((c.prompt as { text: string }).text);
   expect(m).not.toBeNull();
   const a = Number(m![1]);
@@ -33,17 +33,17 @@ function validateMath(c: GeneratedChallenge, d: Difficulty): void {
   }
   expect(nums[c.correct]).toBe(a + b);
   expect(nums.filter((n) => n === a + b)).toHaveLength(1);
-  expect(new Set(nums).size).toBe(3);
+  expect(new Set(nums).size).toBe(n);
 }
 
-function validate(c: GeneratedChallenge, d: Difficulty, placeWord?: string): void {
-  expect(c.options).toHaveLength(3);
-  expect([0, 1, 2]).toContain(c.correct);
-  if (c.kind === 'math') return validateMath(c, d);
+function validate(c: GeneratedChallenge, d: Difficulty, placeWord?: string, n = 3): void {
+  expect(c.options).toHaveLength(n);
+  expect([0, 1, 2, 3].slice(0, n)).toContain(c.correct);
+  if (c.kind === 'math') return validateMath(c, d, n);
 
   const words = c.options.map(wordOf);
-  expect(new Set(words).size).toBe(3);
-  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) expect(wordsConflict(words[i], words[j])).toBe(false);
+  expect(new Set(words).size).toBe(n);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) expect(wordsConflict(words[i], words[j])).toBe(false);
   const target = c.targetWord!;
   expect(words[c.correct]).toBe(target);
   expect(words.filter((w) => w === target)).toHaveLength(1);
@@ -87,6 +87,21 @@ describe('ChallengeGenerator randomized validation', () => {
       const placeWord = i % 5 === 0 ? pick.pick(CITY_PLACE_WORDS) : undefined;
       validate(gen.generate(kind, d, placeWord ? { placeWord } : {}), d, placeWord);
     }
+  }, 60_000);
+
+  it('10000 four-option challenges are valid (unique, no confusables)', () => {
+    const gen = new ChallengeGenerator(new Rng(4242));
+    const pick = new Rng(77);
+    const seen = new Set<number>();
+    for (let i = 0; i < 10000; i++) {
+      const kind = KINDS[i % 3];
+      const d = LEVELS[Math.floor(i / 3) % 3];
+      const placeWord = i % 5 === 0 ? pick.pick(CITY_PLACE_WORDS) : undefined;
+      const c = gen.generate(kind, d, { optionCount: 4, ...(placeWord ? { placeWord } : {}) });
+      seen.add(c.correct);
+      validate(c, d, placeWord, 4);
+    }
+    expect(seen.size).toBe(4);
   }, 60_000);
 
   it('every word can be the target at every difficulty', () => {

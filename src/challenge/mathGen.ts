@@ -6,7 +6,7 @@ import type { Difficulty } from '../core/types';
 export interface MathBody {
   text: string;            // "7 + 5"
   answer: number;
-  distractors: [number, number];
+  distractors: number[];
 }
 
 type Pair = readonly [number, number];
@@ -57,17 +57,18 @@ function distractorPool(d: Difficulty, answer: number, rng: Rng): number[] {
   }
 }
 
-export function generateMath(rng: Rng, d: Difficulty): MathBody {
+export function generateMath(rng: Rng, d: Difficulty, optionCount = 3): MathBody {
+  const need = optionCount - 1;
   const [a, b] = rng.pick(validPairs(d));
   const answer = a + b;
   const chosen: number[] = [];
   const ok = (n: number) => n >= 1 && n !== answer && !chosen.includes(n);
   for (const c of distractorPool(d, answer, rng)) {
-    if (chosen.length === 2) break;
+    if (chosen.length === need) break;
     if (ok(c)) chosen.push(c);
   }
-  for (let k = 1; chosen.length < 2; k++) {
-    for (const c of [answer + k, answer - k]) if (chosen.length < 2 && ok(c)) chosen.push(c);
+  for (let k = 1; chosen.length < need; k++) {
+    for (const c of [answer + k, answer - k]) if (chosen.length < need && ok(c)) chosen.push(c);
   }
-  return { text: `${a} + ${b}`, answer, distractors: [chosen[0], chosen[1]] };
+  return { text: `${a} + ${b}`, answer, distractors: chosen };
 }
