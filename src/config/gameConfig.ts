@@ -236,6 +236,34 @@ export const POLICE = {
   bumpSlowSec: 0.5,
   bumpSlowMult: 0.6,
   loseDistance: 1400,       // px — chasers give up beyond this
+  // --- package K additions ---
+  heatMax: 100,
+  heatImpactRef: 600,         // impact (px/s) at which heat gain is +50%
+  loseHoldSec: 1.5,
+  turboEscapeDistance: 900,
+  repathSec: 0.5,
+  lookaheadPx: 110,
+  directChaseDist: 450,
+  leadSec: 0.4,
+  stuckSpeed: 30,
+  stuckSec: 0.7,
+  reverseSec: 0.6,
+  patrolSpeedFrac: 0.55,
+  leaveSpeedFrac: 0.5,
+  maxTotal: 8,
+  spawnMinDist: 900,
+  spawnMaxDist: 1600,
+  patrolSpawnMinDist: 1200,
+  viewMargin: 160,
+  spawnIntervalSec: 0.8,
+  despawnDist: 2800,
+  joinSightDist: 700,
+  bumpShovePerUnit: 40,       // px/s of sideways shove per POLICE.bumpImpulse unit
+  bumpSpin: 2.5,              // rad/s
+  bumpBounce: 260,            // px/s the police car is thrown back
+  bumpBackoffSec: 0.9,
+  sirenNearDist: 1300,
+  lightFlashSec: 0.2,
 };
 
 // ───────────────────────── goals & round (package L) ─────────────────────────
