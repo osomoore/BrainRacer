@@ -6,10 +6,11 @@ import type { MusicTrack, SfxName } from '../../core/types';
 const SFX: SfxName[] = [
   'correct', 'wrong', 'timeout', 'turbo', 'crash', 'crashBig', 'skid', 'siren', 'policeBump', 'jump', 'land', 'goal',
   'goalArrive', 'countdown', 'go', 'roar', 'stomp', 'squash', 'shockwave', 'pop', 'menuMove', 'menuSelect', 'join',
+  'moo', 'baa', 'oink', 'neigh', 'cluck', 'quack', 'cornRustle', 'mudSplash',
 ];
-const SFX_KEYS = '1234567890qwertyuiopasd'.split('');
+const SFX_KEYS = '1234567890qwertyuiopasdfghjkl-=['.split('');
 const TRACKS: { name: MusicTrack; key: string }[] = [
-  { name: 'title', key: 'z' }, { name: 'race', key: 'x' }, { name: 'dino', key: 'c' }, { name: 'results', key: 'v' },
+  { name: 'title', key: 'z' }, { name: 'race', key: 'x' }, { name: 'dino', key: 'c' }, { name: 'results', key: 'v' }, { name: 'farm', key: 'n' },
 ];
 const FONT = 'Arial, sans-serif';
 
@@ -43,11 +44,11 @@ export default class AudioTest extends Phaser.Scene {
     SFX.forEach((name, i) => {
       const col = Math.floor(i / 8);
       const row = i % 8;
-      this.button(60 + col * 610, 170 + row * 70, `[${SFX_KEYS[i].toUpperCase()}] ${name}`, () => this.playSfx(i), 580);
+      this.button(60 + col * 465, 170 + row * 70, `[${SFX_KEYS[i].toUpperCase()}] ${name}`, () => this.playSfx(i), 450);
     });
 
     this.add.text(60, 760, 'Music:', { fontFamily: FONT, fontSize: '36px', color: '#cfe3ff' });
-    TRACKS.forEach((t, i) => this.button(220 + i * 330, 750, `[${t.key.toUpperCase()}] ${t.name}`, () => this.audio.music(t.name), 300));
+    TRACKS.forEach((t, i) => this.button(220 + i * 270, 750, `[${t.key.toUpperCase()}] ${t.name}`, () => this.audio.music(t.name), 260));
     this.button(1560, 750, '[M] stop', () => this.audio.music(null), 300);
 
     this.add.text(60, 840, 'Engine speed (drag, or Left/Right):', { fontFamily: FONT, fontSize: '36px', color: '#cfe3ff' });

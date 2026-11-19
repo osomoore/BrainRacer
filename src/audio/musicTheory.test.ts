@@ -3,6 +3,7 @@ import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
+import farm from './music/tracks/farm.json';
 import results from './music/tracks/results.json';
 import {
   beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
@@ -30,11 +31,16 @@ describe('units', () => {
 });
 
 describe('validateTrack', () => {
-  for (const [name, t] of Object.entries({ title, race, industrial, dino, results })) {
+  for (const [name, t] of Object.entries({ title, race, industrial, farm, dino, results })) {
     it(`${name}.json is well-formed`, () => {
       expect(validateTrack(t)).toEqual([]);
     });
   }
+  it('farm loops on a bar boundary', () => {
+    expect(farm.lengthBeats % 4).toBe(0);
+    expect(farm.bpm).toBeGreaterThanOrEqual(120);
+    expect(farm.bpm).toBeLessThanOrEqual(140);
+  });
   it('flags bad data', () => {
     const bad = { name: 'x', bpm: 0, loop: true, lengthBeats: 4, tracks: [{ instrument: 'banjo', volume: 1, notes: [{ t: 3.5, d: 1, p: 60, v: 1 }] }] };
     const errs = validateTrack(bad);

@@ -10,6 +10,7 @@ import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
+import farm from './music/tracks/farm.json';
 import results from './music/tracks/results.json';
 
 /** Optional MIDI overrides: drop <track>.mid files into src/audio/music/midi/ (resolved at build time). */
@@ -22,7 +23,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   title: title as TrackData,
   race: race as TrackData,
   industrial: industrial as TrackData,
-  farm: race as TrackData, // placeholder until the farm track lands
+  farm: farm as TrackData,
   dino: dino as TrackData,
   results: results as TrackData,
 };
@@ -77,6 +78,22 @@ class Playback {
     switch (layer.instrument) {
       case 'noise':
         return { notes, play: this.buildDrums(lvl) };
+      case 'pluck': {
+        // banjo-like: bright saw/pulse blend with a fast decay, through a lowpass that closes quickly
+        const lp = new Tone.Filter({ type: 'lowpass', frequency: 3200, Q: 1.2 });
+        lp.connect(lvl);
+        const synth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'pulse', width: 0.3 },
+          envelope: { attack: 0.002, decay: 0.22, sustain: 0.04, release: 0.08 },
+        } as never);
+        synth.maxPolyphony = 12;
+        synth.connect(lp);
+        this.nodes.push(lp, synth);
+        return {
+          notes,
+          play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.min(0.35, Math.max(0.03, n.d)), time, n.v),
+        };
+      }
       case 'pulse25':
       case 'square':
       case 'triangle':
