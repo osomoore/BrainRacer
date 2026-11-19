@@ -228,6 +228,14 @@ export const GOALS = {
   teammateWaitSec: 20,
   minDistance: 2200,         // px from previous goal
   maxDistance: 4200,
+  firstMin: 1500,            // first goal: distance from the players' midpoint
+  firstMax: 3000,
+  recentWords: 4,            // avoid repeating the last N place words
+  nextGoalDelaySec: 1.5,
+  shakeIntensity: 0.006,
+  shakeMs: 350,
+  magnetFlareScale: 1.6,
+  starThresholds: [3, 6] as [number, number],   // team points per minute for 2 / 3 stars
 };
 
 // ───────────────────────── dino (package O) ─────────────────────────
