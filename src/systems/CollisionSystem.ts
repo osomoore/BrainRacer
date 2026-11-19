@@ -44,6 +44,7 @@ export class CollisionSystem implements GameSystem {
       if (a.isSensor || b.isSensor) continue;
       const oa = ownerOf(a), ob = ownerOf(b);
       if (!oa || !ob) continue;
+      if (oa.kind === 'animal' || ob.kind === 'animal') continue; // farm animals: AnimalSystem launches them; no crash, no damage
       const pa = oa.kind === 'player' ? oa : null;
       const pb = ob.kind === 'player' ? ob : null;
       if (!pa && !pb && !(oa.kind === 'npc' && ob.kind === 'npc')) continue; // player hits and npc-npc hits only
