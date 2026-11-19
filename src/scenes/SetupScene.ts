@@ -1,3 +1,4 @@
+import { questionsOffAllowed } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { services } from '../core/services';
@@ -21,7 +22,7 @@ const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, RO
 const ROW_MAP = 8, ROW_LIGHTING = 9, ROW_START = 10;
 const MAPS: RaceMap[] = ['city', 'industrial'];
 const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial' };
-const MODES: Settings['challengeMode'][] = ['words', 'math', 'mixed', 'off'];
+const MODES: Settings['challengeMode'][] = questionsOffAllowed() ? ['words', 'math', 'mixed', 'off'] : ['words', 'math', 'mixed'];
 const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
 const STYLES: QuestionStyle[] = ['pause', 'drive'];
 const STYLE_LABEL: Record<QuestionStyle, string> = { pause: 'Stop & Answer', drive: 'While Driving' };

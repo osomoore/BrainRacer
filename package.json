@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "npm run assets",
     "dev": "vite",
+    "dev:questions": "vite --mode questions",
     "build": "npm run assets && tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",

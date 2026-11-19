@@ -8,6 +8,7 @@ export default defineConfig({
     command: 'npm run build && npm run preview',
     url: 'http://localhost:4173',
     reuseExistingServer: true,
+    env: { VITE_ALLOW_QUESTIONS_OFF: '1' }, // tests use ?questions=off and the menu Off option
     timeout: 180_000,
   },
 });

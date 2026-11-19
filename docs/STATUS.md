@@ -7,6 +7,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 ## How to play / test
 - Full game: `play.bat`, or `npm run dev` → http://localhost:5173/ (press A / Space three times to start).
 - Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines), or `&questions=off` (disable questions for this race).
+- **Questions are mandatory in normal play** (no "Off" in the setup menu; `?questions=off` is ignored). The ability to turn them off exists only when started with `VITE_ALLOW_QUESTIONS_OFF=1`: `npm run dev` does this automatically (`.env.development`) and also defaults questions to off (`VITE_QUESTIONS=off`); `npm run dev:questions` has the ability but questions stay on; `play.bat --questions-off` enables it for a built game; Playwright's webServer sets it. For a manual `npm run build && npm run preview` set `VITE_ALLOW_QUESTIONS_OFF=1` first. Logic: `src/config/questionsPolicy.ts`.
 - Industrial quick launch: `/?race=2&map=industrial&seed=3&questions=off`. Use `race=1` for solo or `map=city` to select City explicitly.
 - Test hooks: `&dino=now` (dino appears next to players in 2 s), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
 - Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.

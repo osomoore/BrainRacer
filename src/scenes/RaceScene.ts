@@ -1,3 +1,4 @@
+import { questionsOffAllowed, resolveChallengeMode } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
@@ -42,10 +43,9 @@ export class RaceScene extends Phaser.Scene {
   create() {
     const params = new URLSearchParams(location.search);
     const settings: Settings = structuredClone(this.registry.get(REG.settings) ?? DEFAULT_SETTINGS);
-    const questions = params.get('questions');
-    if (questions === 'off' || questions === 'words' || questions === 'math' || questions === 'mixed') {
-      settings.challengeMode = questions;
-    }
+    // Questions are mandatory unless the app was started with the questions-off option (see questionsPolicy.ts).
+    settings.challengeMode = resolveChallengeMode(
+      settings.challengeMode, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed());
     const night = params.get('night');
     if (night === '1' || night === '0') settings.nightDriving = night === '1';
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
