@@ -5,7 +5,7 @@ import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
 } from '../../core/types';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
-import { challengeRegion, HUD } from './hudConfig';
+import { breakSplitRegion, challengeRegion, HUD } from './hudConfig';
 import { easeInOut, easeOutBack, lerp } from './hudMath';
 
 const CARD_W = 270, CARD_H = 160;
@@ -224,7 +224,8 @@ export class ChallengePanel {
   private scales(): { big: number; dock: number } {
     if (this.centered) {
       const v = this.view;
-      const big = Math.max(0.3, Math.min(CHALLENGE.breakMaxScale, (v.w - 40) / this.dockW, (v.h - 270) / this.dockH));
+      const sr = breakSplitRegion(v);
+      const big = Math.max(0.3, Math.min(CHALLENGE.breakMaxScale, (v.w - 40) / this.dockW, sr.h / this.dockH));
       return { big, dock: big };
     }
     const z = this.zone();
@@ -238,7 +239,8 @@ export class ChallengePanel {
     const sc = this.scales();
     if (this.centered) {
       const v = this.view;
-      return { x: v.x + v.w / 2, y: v.y + v.h / 2 + 60, s: sc.big };
+      const sr = breakSplitRegion(v);
+      return { x: v.x + v.w / 2, y: sr.top + sr.h / 2, s: sc.big };
     }
     const z = this.zone();
     const s = lerp(sc.big, sc.dock, easeInOut(t));
