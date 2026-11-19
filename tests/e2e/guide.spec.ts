@@ -1,23 +1,31 @@
-import { expect, test } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
+import { GUIDE } from '../../src/config/gameConfig';
 import { TEX } from '../../src/core/assetKeys';
 import type { RaceContext } from '../../src/core/race';
+import { goalRingInView } from '../../src/entities/guideMath';
 
 type RaceWindow = Window & { __race?: RaceContext };
 
-test('the kart guide leads up and right toward a clipped destination ring', async ({ page }) => {
-  await page.goto('/?race=2&seed=3');
+async function parkKartByTheFountain(page: Page, x: number, angle: number) {
+  await page.goto('/?race=2&seed=3&questions=off');
   await page.waitForFunction(() => (window as RaceWindow).__race);
-  await page.evaluate(() => {
+  await page.evaluate(({ x, angle }) => {
     const race = (window as RaceWindow).__race!;
     const fountain = race.world.places.find(({ front }) => front.x === 2240 && front.y === 448)!;
     race.world.places.splice(0, race.world.places.length, fountain);
     // On this stretch the nearest traffic lane heads away from the fountain.
-    const car = race.players[1].body;
-    race.scene.matter.body.setPosition(car, { x: 1408, y: 416 });
-    race.scene.matter.body.setAngle(car, -Math.PI / 4);
-  });
+    const car = race.players[1];
+    car.setGhost(true); // Isolate the guide from traffic bumps while the kart turns in place.
+    race.scene.matter.body.setPosition(car.body, { x, y: 416 });
+    race.scene.matter.body.setAngle(car.body, angle);
+  }, { x, angle });
   await page.waitForFunction(() => ((window as RaceWindow).__race?.elapsedSec ?? 0) > 1);
+}
+
+test('the kart guide leads up and right toward a clipped destination ring', async ({ page }) => {
+  await parkKartByTheFountain(page, 1408, -Math.PI / 4);
   const { car, star, goal, view, nominalRadius, ringRadius } = await page.evaluate((starKey) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];
@@ -44,6 +52,76 @@ test('the kart guide leads up and right toward a clipped destination ring', asyn
   expect(goal.y).toBeLessThan(car.y);
   expect(star.x).toBeGreaterThan(car.x);
   expect(star.y).toBeLessThan(car.y);
+});
+
+test('turning toward a clipped goal keeps the kart guide moving smoothly', async ({ page }, testInfo) => {
+  await parkKartByTheFountain(page, 1280, -Math.PI / 2);
+  const frames = await page.evaluate((starKey) => {
+    const race = (window as RaceWindow).__race!;
+    const car = race.players[1];
+    const guide = (race.scene.children.list as Phaser.GameObjects.Image[])
+      .find((obj) => obj.texture?.key === starKey && obj.visible)!;
+    const goal = race.goal!;
+    const view = race.camera.layout().playerViews[1];
+    const project = ({ x, y }: { x: number; y: number }) => race.camera.worldToScreen(1, x, y);
+    const sample = () => {
+      const star = project(guide);
+      const kart = project(car);
+      const center = project(goal);
+      const rim = project({ x: goal.x + goal.ringRadius!, y: goal.y });
+      return {
+        elapsed: race.elapsedSec,
+        car: { x: car.x, y: car.y },
+        guide: { x: guide.x, y: guide.y },
+        offset: { x: star.x - kart.x, y: star.y - kart.y },
+        ring: { center, radius: Math.hypot(rim.x - center.x, rim.y - center.y), view },
+      };
+    };
+
+    return new Promise<ReturnType<typeof sample>[]>((resolve) => {
+      const samples = [sample()];
+      const start = race.elapsedSec;
+      let turned = false;
+      const capture = () => {
+        samples.push(sample());
+        const elapsed = race.elapsedSec - start;
+        if (!turned && elapsed >= 0.2) {
+          // Change the heading while parked. The real camera eases through the turn.
+          race.scene.matter.body.setAngle(car.body, -Math.PI / 4);
+          turned = true;
+        }
+        if (elapsed >= 1.5) {
+          race.scene.events.off('postupdate', capture);
+          resolve(samples);
+        }
+      };
+      race.scene.events.on('postupdate', capture);
+    });
+  }, TEX.buddyStar);
+
+  const steps = frames.slice(1).map((frame, i) => ({
+    from: frames[i],
+    to: frame,
+    distance: Math.hypot(frame.guide.x - frames[i].guide.x, frame.guide.y - frames[i].guide.y),
+  }));
+  const largest = steps.reduce((a, b) => a.distance > b.distance ? a : b);
+  const telemetry = testInfo.outputPath('guide-turn-frames.json');
+  await writeFile(telemetry, JSON.stringify({ largest, frames }, null, 2));
+  await testInfo.attach('guide-turn-frames', { path: telemetry, contentType: 'application/json' });
+
+  const { ring } = frames[0];
+  expect(goalRingInView(ring.center, ring.radius, ring.view)).toBe(false);
+  expect(frames[0].offset.x).toBeLessThan(-100);
+  expect(frames.some(({ ring, offset }) => goalRingInView(ring.center, ring.radius, ring.view) && offset.x > 100)).toBe(true);
+  const carTravel = Math.max(...frames.map(({ car }) => Math.hypot(car.x - frames[0].car.x, car.y - frames[0].car.y)));
+  expect(carTravel).toBeLessThan(1);
+
+  // Flight caps the step at 1/30 s. Allow the full range of the sprite's hover bob on top.
+  const maxStep = GUIDE.maxSpeed / 30 + 3 * GUIDE.bobAmp;
+  const { from, to, distance } = largest;
+  test.fail(true, 'The visible-goal handoff can snap the guide across the view in one frame.');
+  expect(distance, `Guide moved ${distance.toFixed(1)} world px in one frame. Screen offset: (${from.offset.x.toFixed(0)}, ${from.offset.y.toFixed(0)}) to (${to.offset.x.toFixed(0)}, ${to.offset.y.toFixed(0)}).`)
+    .toBeLessThanOrEqual(maxStep);
 });
 
 test('single-player team score and timer share a top-left panel', async ({ page }) => {
