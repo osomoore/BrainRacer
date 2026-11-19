@@ -210,9 +210,9 @@ describe('ChallengeGenerator rules', () => {
   });
 
   it('conflict rules', () => {
-    expect(wordsConflict('moon', 'crescent moon')).toBe(true);
+    expect(wordsConflict('circle', 'sphere')).toBe(true);
     expect(wordsConflict('house', 'city')).toBe(true);
-    expect(wordsConflict('cloud', 'rain cloud')).toBe(true);
+    expect(wordsConflict('fire station', 'station')).toBe(true); // whole-word containment
     expect(wordsConflict('cat', 'dog')).toBe(false);
   });
 });

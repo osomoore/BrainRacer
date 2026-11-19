@@ -21,7 +21,8 @@ export type AnswerSlot = 0 | 1 | 2;
 // ───────────────────────── images / words ─────────────────────────
 export interface SceneEntry {
   id: string;            // "scene_001"
-  word: string;          // lower-case label from manifest.csv
+  word: string;          // game word: manifest label mapped through src/data/wordAliases.json
+  label: string;         // original lower-case label from manifest.csv
   file: string;          // "scenes/scene_001.png" (relative to public/)
   source: string;        // source grid filename
   row: number;

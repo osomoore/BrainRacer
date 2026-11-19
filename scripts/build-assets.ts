@@ -14,7 +14,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'images', 'scenes');
 const outDir = join(root, 'public', 'scenes');
 const csv = readFileSync(join(srcDir, 'manifest.csv'), 'utf8');
-const entries = parseManifest(csv);
+const aliases = JSON.parse(readFileSync(join(root, 'src', 'data', 'wordAliases.json'), 'utf8')) as Record<string, string>;
+const entries = parseManifest(csv, aliases);
 
 mkdirSync(outDir, { recursive: true });
 for (const e of entries) {

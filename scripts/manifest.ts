@@ -22,7 +22,8 @@ function parseLine(line: string): string[] {
   return out;
 }
 
-export function parseManifest(csv: string): SceneEntry[] {
+/** `aliases` maps a manifest label to the (simpler) game word; keys starting with '_' are ignored. */
+export function parseManifest(csv: string, aliases: Record<string, string> = {}): SceneEntry[] {
   const lines = csv.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim().length > 0);
   const header = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
   const idx = (name: string) => {
@@ -34,9 +35,11 @@ export function parseManifest(csv: string): SceneEntry[] {
   return lines.slice(1).map((line) => {
     const f = parseLine(line);
     const source = f[iSrc].trim();
+    const label = f[iWord].trim().toLowerCase();
     return {
       id: f[iId].trim(),
-      word: f[iWord].trim().toLowerCase(),
+      word: aliases[label] ?? label,
+      label,
       file: `scenes/${f[iId].trim()}.png`,
       source,
       row: Number(f[iRow]),
