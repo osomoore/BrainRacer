@@ -96,8 +96,12 @@ export interface PlayerSettings {
   car: CarKind;
 }
 
+/** Which challenge kinds appear: words = picToWord + wordToPic (default), math = addition only, mixed = all. */
+export type ChallengeMode = 'words' | 'math' | 'mixed';
+
 export interface Settings {
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
+  challengeMode: ChallengeMode;   // default 'words'
   challengeIntervalSec: number;   // base period, default 5
   roundLengthSec: number;         // default 300
   goalPointsPerCar: number;       // default 3

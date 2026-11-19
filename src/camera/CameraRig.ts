@@ -91,6 +91,14 @@ export class CameraRig implements ICameraRig {
     return { mode: this.ctrl.mode, playerViews: this.views.map((r) => ({ ...r })) };
   }
 
+  /** Interim (north-up) implementation; the facing-up package replaces this. */
+  worldToScreen(player: PlayerId, x: number, y: number): Vec2 {
+    const s = this.cams[this.camIndexFor(player)];
+    return { x: s.viewport.x + s.viewport.w / 2 + (x - s.center.x) * s.zoom, y: s.viewport.y + s.viewport.h / 2 + (y - s.center.y) * s.zoom };
+  }
+
+  viewRotation(_player: PlayerId): number { return 0; }
+
   worldView(player: PlayerId): Rect {
     const c = this.cams[this.camIndexFor(player)];
     return worldRect(c.center, c.viewport.w, c.viewport.h, c.zoom);

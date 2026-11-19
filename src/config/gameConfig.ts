@@ -44,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   players: [
     { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' },
   ],
+  challengeMode: 'words',
   challengeIntervalSec: 5,
   roundLengthSec: 300,
   goalPointsPerCar: 3,

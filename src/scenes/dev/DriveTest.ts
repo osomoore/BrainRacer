@@ -58,6 +58,8 @@ export default class DriveTest extends Phaser.Scene {
       worldView: (): Rect => { const v = this.cameras.main.worldView; return { x: v.x, y: v.y, w: v.width, h: v.height }; },
       shake: (_p, intensity, ms) => this.cameras.main.shake(ms, intensity),
       shakeAt: (_x, _y, _r, intensity, ms) => this.cameras.main.shake(ms, intensity),
+      worldToScreen: (_p, x, y) => { const c = this.cameras.main; return { x: (x - c.worldView.x) * c.zoom, y: (y - c.worldView.y) * c.zoom }; },
+      viewRotation: () => 0,
     };
     this.ctx = {
       scene: this, bus, world: {} as WorldData, settings: DEFAULT_SETTINGS, rng: new Rng(1),

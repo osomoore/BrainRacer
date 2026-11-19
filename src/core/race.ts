@@ -71,8 +71,13 @@ export interface INpcVehicle extends IVehicle {
 
 export interface ICameraRig {
   layout(): CameraLayout;
-  /** World-space rectangle currently visible to `player`'s view. */
+  /** World-space AXIS-ALIGNED BOUNDING BOX of what `player`'s view shows (covers a rotated view). */
   worldView(player: PlayerId): Rect;
+  /** Map a world point to screen coords (1920x1080 game space) in the view showing `player`,
+   *  accounting for zoom, scroll AND rotation. */
+  worldToScreen(player: PlayerId, x: number, y: number): Vec2;
+  /** Current rotation (radians) applied to `player`'s camera; 0 = north-up. */
+  viewRotation(player: PlayerId): number;
   /** Shake the camera(s) showing `player` (null = all). intensity ~0.002..0.02. */
   shake(player: PlayerId | null, intensity: number, ms: number): void;
   /** Shake cameras near a world point, falling off with distance (radius px). */
