@@ -43,9 +43,16 @@ export class ChallengeGenerator {
     return ALL_WORDS.filter((w) => (!p.simpleOnly || WORD_META[w].simple) && (p.allowMultiWord || !hasSpace(w)));
   }
 
+  /** Place targets obey the same word profile as ordinary targets (simpleOnly / multi-word). */
+  placeAllowed(word: string, difficulty: Difficulty): boolean {
+    const p = DIFFICULTY[difficulty].words;
+    return (!p.simpleOnly || WORD_META[word]?.simple === true) && (p.allowMultiWord || !hasSpace(word));
+  }
+
   generate(kind: ChallengeKind, difficulty: Difficulty, opts: GenerateOpts = {}): GeneratedChallenge {
     const count = opts.optionCount ?? 3;
-    const place = opts.placeWord && scenesForWord(opts.placeWord).length > 0 ? opts.placeWord : undefined;
+    const place = opts.placeWord && scenesForWord(opts.placeWord).length > 0 && this.placeAllowed(opts.placeWord, difficulty)
+      ? opts.placeWord : undefined; // a too-hard place word falls through to a normal challenge
     if (place) {
       const k: ChallengeKind = this.rng.chance(CHALLENGE.placeWordToPicChance) ? 'wordToPic' : 'picToWord';
       return this.generateWord(k, difficulty, place, opts.recentWords, count);
