@@ -165,6 +165,13 @@ export const REWARDS = {
   magnetSec: 5,
   shockwaveRadius: 420,
   shockwaveImpulse: 22,
+  // --- package M ---
+  turboMaxSec: 8,           // cap when correct answers stack
+  flavorWeights: { rainbow: 3, shockwave: 3, ghost: 2, magnet: 2 },
+  fxMaxParticles: 520,
+  crashSparkMin: 250,
+  crashSmokeMin: 500,
+  shockwaveSec: 0.4,
 };
 
 // ───────────────────────── world (package C/G) ─────────────────────────
