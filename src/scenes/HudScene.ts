@@ -9,7 +9,7 @@ import { PauseOverlay } from '../ui/menu/PauseOverlay';
 import { Banners } from '../ui/hud/Banners';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
 import { GoalIndicator } from '../ui/hud/GoalIndicator';
-import { HUD } from '../ui/hud/hudConfig';
+import { HUD, scoreboardRect } from '../ui/hud/hudConfig';
 import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
@@ -328,21 +328,17 @@ export class HudScene extends Phaser.Scene {
   private updateGoals(dt: number) {
     const goal = this.ctx.goal;
     const cams = this.ctx.camera;
+    const scoreboard = scoreboardRect(this.nPlayers);
     const car = (p: number): Vec2 => ({ x: this.ctx.players[p]?.x ?? 0, y: this.ctx.players[p]?.y ?? 0 });
     if (this.shared()) {
       const cars = [...Array(this.nPlayers).keys()].map(car);
-      this.goals[0].update(dt, goal, (x, y) => cams.worldToScreen(0, x, y), this.mapRect(0), cars, this.magnet.some((m) => m > 0), this.sbRect());
+      this.goals[0].update(dt, goal, (x, y) => cams.worldToScreen(0, x, y), this.mapRect(0), cars, this.magnet.some((m) => m > 0), scoreboard);
       this.goals[1]?.hide();
     } else {
       for (let p = 0; p < this.nPlayers; p++) {
-        this.goals[p].update(dt, goal, (x, y) => cams.worldToScreen(p as PlayerId, x, y), this.curViews[p], [car(p)], this.magnet[p] > 0, this.sbRect());
+        this.goals[p].update(dt, goal, (x, y) => cams.worldToScreen(p as PlayerId, x, y), this.curViews[p], [car(p)], this.magnet[p] > 0, scoreboard);
       }
     }
-  }
-
-  private sbRect(): Rect {
-    const { w, h, top } = HUD.scoreboard;
-    return { x: GAME_WIDTH / 2 - w / 2, y: top, w, h: this.nPlayers > 1 ? h : h - 56 };
   }
 
   private drawDivider(dt: number) {

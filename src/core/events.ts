@@ -13,6 +13,7 @@ export interface GoalState {
   x: number;
   y: number;
   radius: number;
+  ringRadius?: number;    // current rendered radius in world pixels, including the intro animation
   placeWord?: string;     // e.g. "bakery" — shown in HUD with its icon
   sceneId?: string;       // icon image for the HUD
 }

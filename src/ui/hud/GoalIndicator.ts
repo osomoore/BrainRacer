@@ -106,15 +106,16 @@ export class GoalIndicator {
     const hw = (this.tagW * scale) / 2 + 12;
     const th = TAG_H * scale;
     const minY = rect.y + 16 + th / 2;
-    const cx = Math.min(rect.x + rect.w - hw, Math.max(rect.x + hw, x));
+    const minX = rect.x + hw, maxX = rect.x + rect.w - hw;
+    const cx = Math.min(maxX, Math.max(minX, x));
     const cy = Math.min(maxBottom, Math.max(minY, y));
     let fx = cx;
     const a = this.avoid;
     if (a && cy - th / 2 - 20 < a.y + a.h && cy + th / 2 + 20 > a.y && fx + hw > a.x && fx - hw < a.x + a.w) {
-      // Slide sideways out from under the scoreboard (toward whichever side is nearer).
+      // Slide to the nearest side of the scoreboard that fits in the view.
       const left = a.x - hw - 10, right = a.x + a.w + hw + 10;
-      fx = Math.abs(fx - left) < Math.abs(fx - right) ? left : right;
-      fx = Math.min(rect.x + rect.w - hw, Math.max(rect.x + hw, fx));
+      if (left >= minX && (right > maxX || fx - left < right - fx)) fx = left;
+      else if (right <= maxX) fx = right;
     }
     obj.setPosition(fx, cy);
   }

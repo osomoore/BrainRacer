@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS } from '../../config/gameConfig';
 import { bigText, FONT_HEAD } from '../menu/style';
-import { HUD } from './hudConfig';
+import { HUD, scoreboardRect } from './hudConfig';
 import { formatTime } from './hudMath';
 
-/** Top-center team score, per-player points and the round timer. Compact: HUD.scoreboard.w x h. */
+/** Team score, per-player points and the round timer. */
 export class Scoreboard {
   readonly root: Phaser.GameObjects.Container;
   private teamText: Phaser.GameObjects.Text;
@@ -19,9 +19,8 @@ export class Scoreboard {
 
   constructor(private scene: Phaser.Scene, numPlayers: number, depth: number) {
     this.numPlayers = numPlayers;
-    const { w, top } = HUD.scoreboard;
+    const { x, y, w, h } = scoreboardRect(numPlayers);
     const two = numPlayers > 1;
-    const h = two ? HUD.scoreboard.h : HUD.scoreboard.h - 56;
     const bg = scene.add.graphics();
     bg.fillStyle(HUD.colors.navy, 0.9).fillRoundedRect(-w / 2, 0, w, h, 34);
     bg.lineStyle(7, HUD.colors.gold, 1).strokeRoundedRect(-w / 2, 0, w, h, 34);
@@ -41,7 +40,7 @@ export class Scoreboard {
     }
     this.plusY = h + 40;
     items.push(this.plusText);
-    this.root = scene.add.container(this.scene.scale.width / 2, top, items).setDepth(depth);
+    this.root = scene.add.container(x + w / 2, y, items).setDepth(depth);
   }
 
   /** Screen point the "+1" should fly to. */

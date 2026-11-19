@@ -1,10 +1,14 @@
 /** Guide buddies: one flying dino / star per player that leads the way to the goal and circles it on arrival. */
-import { GUIDE } from '../config/gameConfig';
+import { GAME_HEIGHT, GAME_WIDTH, GUIDE } from '../config/gameConfig';
+import type { GoalState } from '../core/events';
 import { GuideBuddy } from '../entities/GuideBuddy';
-import { distToPath, edgeHoldDist, hoverSpot, viewEdgeDist, nextGoalMode, orbitPoint, pointAlongPath, trimPath } from '../entities/guideMath';
+import { distToPath, edgeHoldDist, goalRingInView, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, pointAlongPath, trimPath, viewEdgeDist } from '../entities/guideMath';
 import { NodeIndex, findPath } from '../entities/policeAI';
 import type { GameSystem, RaceContext } from '../core/race';
-import type { PlayerId, Vec2 } from '../core/types';
+import type { PlayerId, Rect, Vec2 } from '../core/types';
+import { scoreboardRect } from '../ui/hud/hudConfig';
+
+const FULL_VIEW = { x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT };
 
 interface PlayerGuide {
   buddy: GuideBuddy;
@@ -18,7 +22,7 @@ interface PlayerGuide {
 
 export class GuideSystem implements GameSystem {
   readonly name = 'guide';
-  static order = 160;   // after cars/camera have moved this frame
+  static order = 160;   // after cars have moved this frame
   private guides: PlayerGuide[] = [];
   private index: NodeIndex | null = null;
   private offs: (() => void)[] = [];
@@ -44,16 +48,19 @@ export class GuideSystem implements GameSystem {
 
   update(dt: number, ctx: RaceContext): void {
     const goal = ctx.goal;
+    const layout = ctx.camera.layout();
     ctx.players.forEach((car, i) => {
       const g = this.guides[i];
       if (!g) return;
       const pos: Vec2 = { x: car.x, y: car.y };
+      const view = layout.mode === 'merged' ? FULL_VIEW : layout.playerViews[i];
+      const holdFor = (toward: Vec2) => this.holdFor(ctx, car.player, pos, toward, view, layout.mode === 'split');
       let target: Vec2;
       if (!goal) {
         g.goalMode = false;
         g.buddy.setHappy(false);
         const fwd = { x: car.x + Math.cos(car.angle), y: car.y + Math.sin(car.angle) };
-        target = hoverSpot(pos, fwd, this.holdFor(ctx, i, pos, fwd), car.angle);
+        target = hoverSpot(pos, fwd, holdFor(fwd), car.angle);
       } else {
         const d = Math.hypot(goal.x - car.x, goal.y - car.y);
         g.goalMode = nextGoalMode(g.goalMode, d, g.arrived, GUIDE);
@@ -63,16 +70,32 @@ export class GuideSystem implements GameSystem {
           const rot = ctx.camera.viewRotation(car.player);   // world direction of screen-up
           const c = { x: goal.x - Math.sin(rot) * GUIDE.orbitLift, y: goal.y - Math.cos(rot) * GUIDE.orbitLift };
           target = orbitPoint(c, g.orbit, GUIDE.orbitRadius);
+        } else if (view && this.goalVisible(ctx, car.player, goal, view)) {
+          // Traffic lanes can take a detour even when the player can already see the destination.
+          g.repathT = 0;
+          target = hoverSpot(pos, goal, Math.min(holdFor(goal), d), car.angle);
+          const fly = g.buddy.fly;
+          if ((fly.x - pos.x) * (goal.x - pos.x) + (fly.y - pos.y) * (goal.y - pos.y) < 0) {
+            g.buddy.snapTo(target);
+          }
         } else {
-          target = this.guideSpot(g, ctx, i, pos, goal, car.angle, dt);
+          const ahead = this.routeLookAhead(g, ctx, pos, goal, dt);
+          const toAhead = Math.hypot(ahead.x - pos.x, ahead.y - pos.y);
+          target = hoverSpot(pos, ahead, Math.min(holdFor(ahead), Math.max(toAhead, GUIDE.holdDist)), car.angle);
         }
       }
       g.buddy.update(dt, target, { x: car.x, y: car.y, vx: car.velocity.x, vy: car.velocity.y, angle: car.angle });
     });
   }
 
-  /** Hover spot ahead of the car along the lane-graph route (straight line if there is none). */
-  private guideSpot(g: PlayerGuide, ctx: RaceContext, idx: number, pos: Vec2, goal: { id: number; x: number; y: number }, carAngle: number, dt: number): Vec2 {
+  private goalVisible(ctx: RaceContext, player: PlayerId, goal: GoalState, view: Rect): boolean {
+    const center = ctx.camera.worldToScreen(player, goal.x, goal.y);
+    const rim = ctx.camera.worldToScreen(player, goal.x + (goal.ringRadius ?? goal.radius), goal.y);
+    return goalRingInView(center, Math.hypot(rim.x - center.x, rim.y - center.y), view);
+  }
+
+  /** Look ahead along the lane-graph route, with the goal itself as the fallback. */
+  private routeLookAhead(g: PlayerGuide, ctx: RaceContext, pos: Vec2, goal: GoalState, dt: number): Vec2 {
     const graph = ctx.world?.laneGraph;
     let ahead: Vec2 = { x: goal.x, y: goal.y };
     if (graph && this.index) {
@@ -94,21 +117,17 @@ export class GuideSystem implements GameSystem {
         if (g.path.length) ahead = pointAlongPath(graph, g.path, pos, GUIDE.lookAhead);
       }
     }
-    const toAhead = Math.hypot(ahead.x - pos.x, ahead.y - pos.y);
-    return hoverSpot(pos, ahead, Math.min(this.holdFor(ctx, idx, pos, ahead), Math.max(toAhead, GUIDE.holdDist)), carAngle);
+    return ahead;
   }
 
   /** Hover distance (world px): GUIDE.edgeFrac of the way from the car to the edge of its view, toward `toward`. */
-  private holdFor(ctx: RaceContext, idx: number, pos: Vec2, toward: Vec2): number {
+  private holdFor(ctx: RaceContext, player: PlayerId, pos: Vec2, toward: Vec2, r: Rect | undefined, split: boolean): number {
     const cam = ctx.camera;
-    const player = ctx.players[idx].player;
-    const layout = cam.layout();
-    const r = layout.mode === 'merged' ? { x: 0, y: 0, w: 1920, h: 1080 } : layout.playerViews[idx];
     if (!r) return GUIDE.holdDist;
-    // keep clear of the centre HUD (scoreboard): inset the top, and the seam side in split screen
-    const seam = layout.mode === 'split' ? GUIDE.seamInset : 0;
-    const left = r.x + (idx === 1 ? seam : 0), right = r.x + r.w - (idx === 0 ? seam : 0);
-    const view = { x: left, y: r.y + GUIDE.topInset, w: right - left, h: r.h - GUIDE.topInset };
+    // Split views keep the seam and top clear of the shared scoreboard and destination cards.
+    const seam = split ? GUIDE.seamInset : 0;
+    const top = ctx.players.length > 1 ? GUIDE.topInset : 0;
+    const view = { x: r.x + (player === 1 ? seam : 0), y: r.y + top, w: r.w - seam, h: r.h - top };
     const dx = toward.x - pos.x, dy = toward.y - pos.y, l = Math.hypot(dx, dy);
     if (l < 1e-3) return GUIDE.holdDist;
     const u = { x: dx / l, y: dy / l };
@@ -117,7 +136,9 @@ export class GuideSystem implements GameSystem {
     const sx = s1.x - s0.x, sy = s1.y - s0.y, sl = Math.hypot(sx, sy);
     if (sl < 1e-3) return GUIDE.holdDist;
     const zoom = sl / 100;
-    const edge = viewEdgeDist(s0, { x: sx / sl, y: sy / sl }, view);
+    const dir = { x: sx / sl, y: sy / sl };
+    let edge = viewEdgeDist(s0, dir, view);
+    if (ctx.players.length === 1) edge = Math.min(edge, obstacleDist(s0, dir, scoreboardRect(1)));
     return edgeHoldDist(edge, GUIDE.edgeFrac, GUIDE.edgeMargin, zoom, GUIDE.holdDist, GUIDE.holdMax);
   }
 

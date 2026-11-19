@@ -1,4 +1,4 @@
-import { CAMERA } from '../../config/gameConfig';
+import { CAMERA, GAME_WIDTH } from '../../config/gameConfig';
 import type { Rect } from '../../core/types';
 
 /** HUD tunables (package I). */
@@ -32,6 +32,16 @@ export const HUD = {
   colors: { navy: 0x14213d, card: 0xffffff, green: 0x2ecc40, gray: 0xaab2bd, red: 0xff3b30, gold: 0xffd43b },
 } as const;
 
+export function scoreboardRect(players: number): Rect {
+  const { w, h, top } = HUD.scoreboard;
+  return {
+    x: players > 1 ? (GAME_WIDTH - w) / 2 : HUD.margin,
+    y: top,
+    w,
+    h: players > 1 ? h : h - 56,
+  };
+}
+
 /** Screen y of the car in a player's view (the camera keeps it at CAMERA.carScreenY). */
 export function carScreenPos(view: Rect): { x: number; y: number } {
   return { x: view.x + view.w / 2, y: view.y + view.h * CAMERA.carScreenY };
@@ -48,10 +58,9 @@ export function challengeRegion(view: Rect): Rect {
 
 /** Region for the centered question-break panel: {y: top, h: height available}; null = use the default centered layout. */
 export function breakSplitRegion(view: Rect): { top: number; h: number } {
-  const sb = HUD.scoreboard;
   // Split views (narrow) sit under the tall 2-player scoreboard; a full-width view under the shorter 1-player one.
-  const sbH = view.w > HUD.breakSplit.maxViewW ? sb.h - 56 : sb.h;
-  const top = sb.top + sbH + HUD.breakSplit.gapBelowScoreboard;
+  const sb = scoreboardRect(view.w > HUD.breakSplit.maxViewW ? 1 : 2);
+  const top = sb.y + sb.h + HUD.breakSplit.gapBelowScoreboard;
   const bottom = view.y + view.h - HUD.breakSplit.bottomMargin;
   return { top, h: bottom - top };
 }

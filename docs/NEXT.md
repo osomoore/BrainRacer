@@ -23,7 +23,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
 - `CHALLENGE.rewardPanelClearSec` (1.05) mirrors HUD `panel.resultHoldSec + fadeSec` by hand; keep them in sync if the HUD fade changes.
 - Held pad X/Y/B into a break is covered only by `answerGuardSec` (face buttons arrive as one-frame edges). Holding W/RT also blocks pad A's slot until released (no pad/keyboard distinction).
-- Guide buddy: `GUIDE.topInset`/`seamInset` keep it off the scoreboard, so straight up it sits ~0.5 of the true screen distance. Check the hand-off to the goal orbit (hover ~500 px vs `nearGoal` 450).
+- Guide buddy: `GUIDE.topInset`/`seamInset` keep it off the split-screen scoreboard. In single player it uses the full view and avoids the top-left scoreboard. Check the hand-off to the goal orbit (hover ~500 px vs `nearGoal` 450).
 - Sub-agents writing files from PowerShell can produce Windows-1252 bytes (a "…" broke `vite build` in session 2). Tests and typecheck don't catch it; `npm run e2e` does (it builds).
 
 ## Playtest checklist (needs the user, real pads, projector)

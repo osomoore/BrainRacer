@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LaneGraph } from '../core/types';
-import { distToPath, edgeHoldDist, hoverSpot, nextGoalMode, orbitPoint, pointAlongPath, stepFly, trimPath, viewEdgeDist, type FlyState } from './guideMath';
+import { distToPath, edgeHoldDist, goalRingInView, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, pointAlongPath, stepFly, trimPath, viewEdgeDist, type FlyState } from './guideMath';
 import { GUIDE } from '../config/gameConfig';
 
 // L-shaped route: east along y=0 to x=400, then south to y=400
@@ -113,4 +113,19 @@ describe('viewEdgeDist / edgeHoldDist', () => {
   it('keeps the margin from the edge', () => {
     expect(edgeHoldDist(300, 0.9, 120, 1, 50, 700)).toBeCloseTo(180);
   });
+});
+
+it('counts a clipped goal ring only when it reaches the view', () => {
+  const view = { x: 960, y: 0, w: 960, h: 1080 };
+  const center = { x: 2040, y: -50 };
+  expect(goalRingInView(center, 130, view)).toBe(true);
+  expect(goalRingInView(center, 129, view)).toBe(false);
+});
+
+it('limits guide travel only on rays that cross the scoreboard', () => {
+  const board = { x: 20, y: 10, w: 400, h: 194 };
+  const car = { x: 600, y: 562 };
+  const d = Math.SQRT1_2;
+  expect(obstacleDist(car, { x: -d, y: -d }, board)).toBeCloseTo((562 - 204) / d);
+  expect(obstacleDist(car, { x: 0, y: -1 }, board)).toBe(Infinity);
 });

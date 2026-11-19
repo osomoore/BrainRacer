@@ -1,5 +1,5 @@
 /** Guide-buddy maths (Phaser-free): route look-ahead, hover spot, spring flight, goal orbit. */
-import type { LaneGraph, Vec2 } from '../core/types';
+import type { LaneGraph, Rect, Vec2 } from '../core/types';
 
 export interface GuideTuning {
   lookAhead: number; holdDist: number; spring: number; damping: number; maxSpeed: number;
@@ -73,6 +73,13 @@ export function orbitPoint(center: Vec2, angle: number, radius: number): Vec2 {
   return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
 }
 
+/** The goal ring can be in view with its center past an edge. */
+export function goalRingInView(center: Vec2, radius: number, view: Rect): boolean {
+  const x = Math.max(view.x, Math.min(view.x + view.w, center.x));
+  const y = Math.max(view.y, Math.min(view.y + view.h, center.y));
+  return Math.hypot(center.x - x, center.y - y) <= radius;
+}
+
 /** Distance from `origin` (inside `rect`) along unit `dir` to the rect edge (Infinity if dir ~ 0). */
 export function viewEdgeDist(origin: Vec2, dir: Vec2, rect: { x: number; y: number; w: number; h: number }): number {
   let best = Infinity;
@@ -81,6 +88,25 @@ export function viewEdgeDist(origin: Vec2, dir: Vec2, rect: { x: number; y: numb
   if (dir.y > 1e-6) best = Math.min(best, (rect.y + rect.h - origin.y) / dir.y);
   else if (dir.y < -1e-6) best = Math.min(best, (rect.y - origin.y) / dir.y);
   return Math.max(0, best);
+}
+
+/** Distance along a unit ray to enter a HUD obstacle, or Infinity if it misses. */
+export function obstacleDist(origin: Vec2, dir: Vec2, rect: Rect): number {
+  let enter = 0;
+  let exit = Infinity;
+  for (const { offset, span, speed } of [
+    { offset: rect.x - origin.x, span: rect.w, speed: dir.x },
+    { offset: rect.y - origin.y, span: rect.h, speed: dir.y },
+  ]) {
+    if (Math.abs(speed) < 1e-6) {
+      if (offset > 0 || offset + span < 0) return Infinity;
+      continue;
+    }
+    const a = offset / speed, b = (offset + span) / speed;
+    enter = Math.max(enter, Math.min(a, b));
+    exit = Math.min(exit, Math.max(a, b));
+  }
+  return enter <= exit ? enter : Infinity;
 }
 
 /** World-px hover distance: `frac` of the screen distance to the view edge minus a margin, converted by zoom. */
