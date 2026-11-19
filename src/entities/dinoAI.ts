@@ -93,3 +93,29 @@ export function capsuleHit(c: Capsule, px: number, py: number, pr = 0): boolean 
 export function shouldSpawn(elapsedSec: number, roundLengthSec: number, fraction: number): boolean {
   return elapsedSec >= roundLengthSec * fraction;
 }
+
+/** Point on the guard loop around `center` at angle `phase`. */
+export function patrolPoint(center: Vec2, loopRadius: number, phase: number): Vec2 {
+  return { x: center.x + Math.cos(phase) * loopRadius, y: center.y + Math.sin(phase) * loopRadius };
+}
+
+export interface RamCfg {
+  minSpeed: number; speedMax: number; dmgMin: number; dmgMax: number; turboMult: number; teamMult: number;
+}
+
+/** Damage from a ram at `speed` px/s (0 below the minimum speed). */
+export function ramDamage(speed: number, turbo: boolean, team: boolean, c: RamCfg): number {
+  if (speed < c.minSpeed) return 0;
+  const k = Math.min(1, (speed - c.minSpeed) / Math.max(1, c.speedMax - c.minSpeed));
+  let d = c.dmgMin + (c.dmgMax - c.dmgMin) * k;
+  if (turbo) d *= c.turboMult;
+  if (team) d *= c.teamMult;
+  return d;
+}
+
+/** True if the other player hit within `window` sec before `now`. */
+export function isTeamHit(otherLastHit: number, now: number, window: number): boolean {
+  return now - otherLastHit <= window;
+}
+
+export function isDefeated(hp: number): boolean { return hp <= 0; }

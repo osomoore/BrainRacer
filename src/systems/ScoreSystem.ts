@@ -1,7 +1,8 @@
 /** Per-player stats and team score. Emits score:changed and '+1' popups. */
 import type { GameSystem, RaceContext } from '../core/race';
 import type { PlayerId } from '../core/types';
-import { applyChallenge, applyGoal, roundStore, teamTotal } from './roundStats';
+import { DINO } from '../config/gameConfig';
+import { applyChallenge, applyDino, applyGoal, roundStore, teamTotal } from './roundStats';
 
 export class ScoreSystem implements GameSystem {
   readonly name = 'score';
@@ -19,6 +20,15 @@ export class ScoreSystem implements GameSystem {
         if (!s) return;
         applyChallenge(s, result);
         if (result === 'correct') ctx.bus.emit('ui:popup', { player: challenge.player, text: '+1', color: '#7CFC00' });
+        this.emit();
+      }),
+      ctx.bus.on('dino:defeated', ({ by }) => {
+        for (const p of by) {
+          const s = roundStore.players[p];
+          if (!s) continue;
+          applyDino(s, DINO.defeatPoints);
+          ctx.bus.emit('ui:popup', { player: p, text: `+${DINO.defeatPoints}`, color: '#ffd34d' });
+        }
         this.emit();
       }),
       ctx.bus.on('goal:completed', ({ arrived }) => {

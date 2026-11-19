@@ -29,6 +29,13 @@ export class Dino {
   private roarT = -1;
   private looking = 0;
   private extras = new Set<Phaser.GameObjects.GameObject>();
+  private parts: Phaser.GameObjects.Image[] = [];
+  private mult = 1;
+  private wobble = 0;
+  private tintT = 0;
+  private stars: Phaser.GameObjects.Image[] = [];
+  private bar: Phaser.GameObjects.Container;
+  private barFill: Phaser.GameObjects.Rectangle;
 
   constructor(private scene: Phaser.Scene, x: number, y: number, angle: number) {
     this.scale = DINO.length / DINO_RIG.length;
@@ -51,6 +58,59 @@ export class Dino {
     this.body.setScale(LOOK.bodyScaleX, LOOK.bodyScaleY);
     this.tail.setScale(LOOK.tailScaleX, LOOK.tailScaleY);
     this.head.setScale(LOOK.headScale).setX(LOOK.headX);
+    this.parts = [this.legL, this.legR, this.tail, this.body, this.head];
+
+    const bw = DINO.barWidth, bh = DINO.barHeight;
+    const back = scene.add.rectangle(0, 0, bw + 12, bh + 12, 0xffffff).setStrokeStyle(6, 0x222222);
+    const hole = scene.add.rectangle(0, 0, bw, bh, 0x333333);
+    this.barFill = scene.add.rectangle(-bw / 2, 0, bw, bh, 0x59d84a).setOrigin(0, 0.5);
+    this.bar = scene.add.container(x, y - DINO.barOffset, [back, hole, this.barFill]).setDepth(DEPTH.worldUi).setVisible(false);
+  }
+
+  /** Health bar (world space, hidden at full HP). */
+  setHealth(frac: number): void {
+    const f = Math.max(0, Math.min(1, frac));
+    this.bar.setVisible(f < 1 && this.mult > 0.05);
+    this.barFill.width = Math.max(1, DINO.barWidth * f);
+    this.barFill.setFillStyle(f > 0.5 ? 0x59d84a : f > 0.25 ? 0xffc533 : 0xff4d3d);
+  }
+
+  /** Visual size multiplier (drop-in / shrink on defeat). */
+  setMult(k: number): void { this.mult = k; this.root.setScale(this.scale * k); }
+  setWobble(r: number): void { this.wobble = r; }
+
+  /** Red flash when hit. */
+  flinch(): void { this.tintT = 0.28; }
+
+  setDizzy(on: boolean): void {
+    if (on && this.stars.length === 0) {
+      for (let i = 0; i < 4; i++) this.stars.push(this.scene.add.image(0, 0, TEX.fxStar).setDepth(DEPTH.fx).setTint(0xffe14d).setScale(0.9));
+    } else if (!on) { for (const s of this.stars) s.destroy(); this.stars = []; }
+  }
+
+  /** Cartoon "poof": smoke, confetti and stars. Hides the dino itself. */
+  poof(): void {
+    this.root.setVisible(false);
+    this.bar.setVisible(false);
+    this.setDizzy(false);
+    const x = this.root.x, y = this.root.y;
+    const burst = (key: string, n: number, dist: number, scale: number, ms: number, tints: number[], fall: number) => {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, r = dist * (0.4 + Math.random() * 0.6);
+        const im = this.scene.add.image(x, y, key).setDepth(DEPTH.fx).setScale(scale * (0.6 + Math.random() * 0.6))
+          .setTint(tints[i % tints.length]).setRotation(Math.random() * 6);
+        this.extras.add(im);
+        this.scene.tweens.add({
+          targets: im, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r + fall, scale: im.scale * 1.8, alpha: { from: 1, to: 0 },
+          rotation: im.rotation + 3, duration: ms, ease: 'Quad.easeOut',
+          onComplete: () => { this.extras.delete(im); im.destroy(); },
+        });
+      }
+    };
+    burst(TEX.fxSmoke, 12, 220, 3.2, 1100, [0xffffff, 0xe8e8f4], 0);
+    burst(TEX.fxConfetti, 36, 420, 1.6, 1500, [0xff5a5a, 0xffd34d, 0x5ad8ff, 0x7cfc5a, 0xff7ae0], 90);
+    burst(TEX.fxStar, 10, 340, 1.3, 1300, [0xffe14d, 0xffffff], 0);
+    this.popText(x, y - 60, 'POOF!', '#ffffff', 150, 1300, 0.3);
   }
 
   get x() { return this.root.x; }
@@ -71,12 +131,13 @@ export class Dino {
   }
 
   setPose(x: number, y: number, angle: number): void {
-    this.root.setPosition(x, y).setRotation(angle);
+    this.root.setPosition(x, y).setRotation(angle + this.wobble);
+    this.bar.setPosition(x, y - DINO.barOffset);
   }
 
   get roaring() { return this.roarT >= 0; }
 
-  roar(): void {
+  roar(text = 'ROAAAR!', color = '#ff5a36'): void {
     this.roarT = 0;
     const m = this.mouth();
     for (let i = 0; i < 3; i++) {
@@ -90,7 +151,7 @@ export class Dino {
         onComplete: () => { this.extras.delete(ring); ring.destroy(); },
       });
     }
-    this.popText(m.x, m.y - 40, 'ROAAAR!', '#ff5a36', 120, 1500, 0.5);
+    this.popText(m.x, m.y - 40, text, color, 120, 1500, 0.5);
   }
 
   /** Comic world text that pops and fades. */
@@ -123,6 +184,18 @@ export class Dino {
   /** speedFrac 0..1 (walking vs looking around). */
   update(dt: number, moveDist: number, walking: boolean): void {
     this.t += dt;
+    if (this.tintT > 0) {
+      this.tintT -= dt;
+      for (const p of this.parts) { if (this.tintT > 0) p.setTint(0xff6a6a); else p.clearTint(); }
+    }
+    if (this.stars.length > 0) {
+      const hx = this.root.x + Math.cos(this.angle) * LOOK.headX * this.scale * this.mult;
+      const hy = this.root.y + Math.sin(this.angle) * LOOK.headX * this.scale * this.mult;
+      this.stars.forEach((st, i) => {
+        const a = this.t * 4 + (i * Math.PI) / 2;
+        st.setPosition(hx + Math.cos(a) * 110, hy + Math.sin(a) * 110).setRotation(a * 2);
+      });
+    }
     if (walking) this.phase += moveDist / 55; // one leg frame per ~55 world px of stride
     const frames = DINO_RIG.legs.frames;
     const f = Math.floor(this.phase);
@@ -155,6 +228,8 @@ export class Dino {
   }
 
   destroy(): void {
+    this.setDizzy(false);
+    this.bar.destroy();
     for (const e of this.extras) { this.scene.tweens.killTweensOf(e); e.destroy(); }
     this.extras.clear();
     this.root.destroy();

@@ -55,3 +55,6 @@ export function starRating(teamPoints: number, roundSec: number, thresholds: rea
   const ppm = teamPoints / Math.max(1, roundSec / 60);
   return ppm >= thresholds[1] ? 3 : ppm >= thresholds[0] ? 2 : 1;
 }
+
+/** Bonus points for helping defeat the dino (no stat-type change needed). */
+export function applyDino(s: PlayerStats, points: number): void { s.points += points; }
