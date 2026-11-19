@@ -1,4 +1,4 @@
-import { INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
+import { BOARDING_DRIVE, INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { pickSpawnNode, type SpawnQuery } from '../entities/laneFollow';
@@ -72,10 +72,19 @@ export class TrafficSystem implements GameSystem {
     }
     if (!best) return;
     let dx = best.x - pl.x, dy = best.y - pl.y;
+    const nx = -Math.sin(pl.angle), ny = Math.cos(pl.angle);
+    const heavy = pl.spec.mass >= BOARDING_DRIVE.heavyMass && pl.forwardSpeed >= BOARDING_DRIVE.minimumShoveSpeed
+      && dx * ny - dy * nx > 0;
+    if (heavy) {
+      const side = Math.sign(dx * nx + dy * ny) || (best.body.id % 2 ? 1 : -1);
+      const offset = Math.hypot(dx, dy) * side;
+      dx += nx * offset;
+      dy += ny * offset;
+    }
     const d = Math.hypot(dx, dy) || 1;
     dx /= d; dy /= d;
     const k = best.npcKind === 'truck' ? TRAFFIC.shoveTruckMult : 1;
-    const mag = Math.min(TRAFFIC.shoveMax, e.impact * TRAFFIC.shovePerImpact) * k;
+    const mag = Math.min(TRAFFIC.shoveMax, e.impact * TRAFFIC.shovePerImpact) * k * (heavy ? BOARDING_DRIVE.trafficShoveBoost : 1);
     best.applyImpulse(dx * mag, dy * mag, (this.rng.chance(0.5) ? 1 : -1) * TRAFFIC.shoveSpin * Math.min(1, e.impact / 400));
   }
 

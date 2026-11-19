@@ -27,7 +27,7 @@ export class JumpSystem implements GameSystem {
   /** Reward / script jump: same flight as a ramp, but boost jumps keep steering and speed. */
   private request(player: number, airSec: number, boost: boolean): void {
     const car = this.ctx.players[player];
-    if (!car || car.airborne || car.disabled || this.flights.has(car)) return;
+    if (!car || car.airborne || car.disabled || car.boardingPosition || this.flights.has(car)) return;
     const dur = Math.max(0.3, airSec);
     car.setAirborne(true);
     if (!boost) {
@@ -83,7 +83,7 @@ export class JumpSystem implements GameSystem {
     for (const car of ctx.players) {
       const f = this.flights.get(car);
       if (f) this.fly(car, f, now, dt);
-      else if (!car.airborne && !car.disabled) this.tryLaunch(car, now);
+      else if (!car.airborne && !car.disabled && !car.boardingPosition) this.tryLaunch(car, now);
     }
     this.updateNpcs(now);
   }

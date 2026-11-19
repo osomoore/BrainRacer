@@ -24,6 +24,11 @@ export const VEHICLE_CONDITION = {
   damageCooldownSec: 0.23,
   transferTapSec: 0.5,
   transferReach: 135,
+  transferHopSec: 0.32,
+  transferHopHeight: 34,
+  transferFlashHz: 5,
+  transferMarkerPadding: 10,
+  abandonedLimit: 8,
   recoverySec: 8,
   smokeIntervalSec: 0.12,
   particleLimit: 72,
@@ -201,8 +206,19 @@ export const COLLISION = {
 };
 
 export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 5, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
-export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 180, reverseSpeed: 80, accel: 140, brake: 500, turnRate: 1.6, grip: 0.97, drag: 0.8 };
+export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 255, reverseSpeed: 100, accel: 205, brake: 650, turnRate: 1.6, grip: 0.97, drag: 0.8 };
 export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 680, reverseSpeed: 240, accel: 600, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
+
+export const BOARDING_DRIVE = {
+  sedan: { mass: 11, maxSpeed: 595, reverseSpeed: 210, accel: 400, brake: 1100, turnRate: 2.9, grip: 0.86, drag: 0.65 },
+  police: { maxSpeed: 720 },
+  truck: { mass: 40, maxSpeed: 410, reverseSpeed: 140, accel: 310, brake: 900, turnRate: 2.05 },
+  freight: { mass: 56, maxSpeed: 375, reverseSpeed: 125, accel: 280, brake: 850, turnRate: 1.85 },
+  heavyMass: 40,
+  minimumShoveSpeed: 85,
+  trafficDamageScale: 0.32,
+  trafficShoveBoost: 1.65,
+};
 
 // ───────────────────────── rewards (package M) ─────────────────────────
 export const REWARDS = {
@@ -323,7 +339,7 @@ export const INDUSTRIAL_TRAFFIC = {
 };
 
 export const FREIGHT_TRUCK_SPEC: VehicleSpec = {
-  ...TRUCK_SPEC, length: 160, width: 58, mass: 20, maxSpeed: 160, accel: 125,
+  ...TRUCK_SPEC, length: 160, width: 58, mass: 20, maxSpeed: 225, accel: 175,
 };
 
 export const POLICE = {

@@ -59,7 +59,7 @@ export class GoalSystem implements GameSystem {
     for (const car of ctx.players) {
       const last = this.lastPos.get(car.player) ?? { x: car.x, y: car.y };
       this.lastPos.set(car.player, { x: car.x, y: car.y });
-      if (car.disabled || this.arrived.has(car.player)) continue;
+      if (car.disabled || car.boardingPosition || this.arrived.has(car.player)) continue;
       // airborne counts too; the segment test catches a fast jump that skips over the circle between frames
       if (!segmentHitsCircle(last.x, last.y, car.x, car.y, goal.x, goal.y, goal.radius)) continue;
       this.arrived.add(car.player);

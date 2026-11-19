@@ -59,6 +59,8 @@ export interface IPlayerCar extends IVehicle {
   readonly turbo: boolean;
   readonly ghost: boolean;
   readonly disabled: boolean;
+  readonly boardingPosition: Vec2 | null;
+  setBoarding(position: Vec2 | null): void;
   setDisabled(disabled: boolean): void;
   /** Replace the vehicle without changing the player, camera target, guide, or rewards. */
   replaceChassis(chassis: VehicleChassis): void;

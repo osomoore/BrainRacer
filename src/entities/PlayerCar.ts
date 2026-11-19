@@ -3,7 +3,7 @@ import { CAR_SPECS, CAT, DEPTH, REWARDS, VEHICLE_MODEL } from '../config/gameCon
 import { TEX } from '../core/assetKeys';
 import type { IPlayerCar, VehicleChassis } from '../core/race';
 import { services } from '../core/services';
-import type { CarKind, PlayerId, PlayerInput } from '../core/types';
+import type { CarKind, PlayerId, PlayerInput, Vec2 } from '../core/types';
 import type { SkidMarks } from '../fx/SkidMarks';
 import { PLAYER_MASK_ALL, STEP_HZ, Vehicle } from './Vehicle';
 import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
@@ -60,6 +60,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private _ghost = false;
   private _airborne = false;
   private _disabled = false;
+  private boarding: Vec2 | null = null;
   private baseMass = 0;
   private controlEnabled = true;
   private slowMult = 1;
@@ -140,6 +141,8 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   get speedFrac() { return Math.abs(this.forwardSpeed) / this.currentMaxSpeed; }
   get airborne() { return this._airborne; }
   get disabled() { return this._disabled; }
+  get boardingPosition() { return this.boarding; }
+  setBoarding(position: Vec2 | null): void { this.boarding = position; }
   get turbo() { return this._turbo; }
   get ghost() { return this._ghost; }
 
@@ -218,7 +221,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
       this.slowLeft -= dt;
       if (this.slowLeft <= 0) { this.slowLeft = 0; this.refreshMults(); }
     }
-    const on = this.controlEnabled && !this._disabled;
+    const on = this.controlEnabled && !this._disabled && !this.boarding;
     if (on) this.updateUnstick(input, dt);
     this.drive({ throttle: on ? input.throttle : 0, brake: on ? input.brake : 0, steer: on ? input.steer : 0 }, dt);
     this.syncView();

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import { TEX } from '../../src/core/assetKeys';
+import { BOARDING_DRIVE, CAR_SPECS } from '../../src/config/gameConfig';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 const WAIT = { timeout: 20_000 };
@@ -55,15 +56,41 @@ test('a battered car smokes, catches fire, breaks down, and can be replaced usin
       body.setPosition(target.body, { x: 2100, y: 1408 });
       body.setVelocity(car.body, { x: 0, y: 0 });
       body.setVelocity(target.body, { x: 0, y: 0 });
-      return { id: target.body.id, length: target.spec.length };
+      return { id: target.body.id, length: target.spec.length, texture: car.chassis.texture.key };
     }, kind);
     await tapPad(page, 0, 1);
     expect(await page.evaluate(() => window.__race.players[0].spec.length)).not.toBe(expected.length);
+    const preview = await page.evaluate(() => {
+      const { scene } = window.__race;
+      const marker = scene.children.getByName('boarding-target-0') as Phaser.GameObjects.Rectangle;
+      return { visible: marker.visible, alpha: marker.alpha };
+    });
+    expect(preview.visible).toBe(true);
+    expect(preview.alpha).toBeLessThan(1);
     await tapPad(page, 0, 1);
+    await page.waitForFunction(() => {
+      const { players, camera, scene } = window.__race;
+      const rider = scene.children.getByName('boarding-rider-0') as Phaser.GameObjects.Arc;
+      const point = players[0].boardingPosition;
+      if (!point || !rider.visible) return false;
+      const { x, w } = camera.layout().playerViews[0];
+      return Math.abs(camera.worldToScreen(0, point.x, point.y).x - (x + w / 2)) < 3;
+    }, undefined, WAIT);
     await expect.poll(() => page.evaluate((id) => {
       const { players, npcs } = window.__race;
       return { length: players[0].spec.length, disabled: players[0].disabled, remainsNpc: [...npcs].some((npc) => npc.body.id === id) };
     }, expected.id)).toEqual({ length: expected.length, disabled: false, remainsNpc: false });
+    const after = await page.evaluate(() => {
+      const { players, scene } = window.__race;
+      const left = scene.children.list.filter((child) => child.name === 'abandoned-car-0').at(-1) as Phaser.GameObjects.Container;
+      return { spec: players[0].spec, parkedTexture: (left.list[1] as Phaser.GameObjects.Image).texture.key };
+    });
+    expect(after.parkedTexture).toBe(expected.texture);
+    if (kind === 'police') expect(after.spec.maxSpeed).toBeGreaterThan(CAR_SPECS.dino.maxSpeed);
+    else {
+      expect(after.spec.mass).toBeGreaterThanOrEqual(BOARDING_DRIVE.heavyMass);
+      expect(after.spec.maxSpeed).toBeGreaterThan(350);
+    }
   }
   expect(await page.evaluate(() => window.__race.players[0].chassis.texture.key)).not.toBe(playerTexture);
 });

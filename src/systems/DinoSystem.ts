@@ -244,7 +244,7 @@ export class DinoSystem implements GameSystem {
     const cap = this.contactCapsule();
     const canHurt = this.mode === 'guard' && this.modeT >= DINO.graceSec;
     for (const car of ctx.players) {
-      if (car.airborne || car.disabled || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
+      if (car.airborne || car.disabled || car.boardingPosition || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
       const normal = this.contactNormal(cap, car);
       const v = car.velocity;
       const closing = -(v.x * normal.x + v.y * normal.y);

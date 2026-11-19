@@ -47,7 +47,8 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 ## Playtest follow-ups
 
 - Set **City lighting** to **Night** in Setup or add `&night=1` to a quick race. Night headlights work in solo and split screen.
-- A strong collision adds vehicle damage. Repeated hits lead to smoke, flames, and a comic burst when the engine stops. Double-tap pad **B** within half a second to take over a nearby vehicle, including a truck or police cruiser. Keyboard controls are **B** for P1 and **N** for P2. A stopped car is replaced on a clear nearby road after eight seconds if the player stays in it.
+- A strong collision adds vehicle damage. Repeated hits lead to smoke, flames, and a comic burst when the engine stops. Tap pad **B** to highlight a nearby vehicle. Tap again within half a second to hop over as the camera follows. Your old vehicle stays behind. Keyboard controls are **B** for P1 and **N** for P2. A stopped car is replaced on a clear nearby road after eight seconds if the player stays in it.
+- When you take over a sedan, it drives about as fast as a starter car. Police cruisers are faster. Trucks have a lower top speed and extra weight to push traffic aside.
 - The dino can stomp and toss nearby traffic. It can also knock a slow player car into the air and damage it.
 - Up to two police cruisers pursue each player at once.
 - Completing a goal activates the next goal immediately and redirects the guide buddy. Destination-ring glow fades to full transparency at the edges.

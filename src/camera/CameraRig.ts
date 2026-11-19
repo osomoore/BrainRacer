@@ -27,6 +27,7 @@ export interface CameraTarget {
   readonly y: number;
   readonly velocity: Vec2;
   readonly turbo?: boolean;
+  readonly boardingPosition?: Vec2 | null;
   /** Facing angle (radians, 0 = +x). Needed for the facing-up view (defaults to the velocity direction). */
   readonly angle?: number;
 }
@@ -165,7 +166,7 @@ export class CameraRig implements ICameraRig {
     const kLook = smoothFactor(cfg.lookSmoothing, dtSec);
     const kZoom = smoothFactor(cfg.zoomSmoothing, dtSec);
     if (this.facing) { this.updateFacing(dtSec, kZoom); return; }
-    const pos = this.targets.map((t) => ({ x: t.x, y: t.y }));
+    const pos = this.targets.map((t) => t.boardingPosition ?? { x: t.x, y: t.y });
     this.targets.forEach((t, i) => {
       const lt = lookTarget(t.velocity, cfg);
       this.look[i].x += (lt.x - this.look[i].x) * kLook;
@@ -223,7 +224,7 @@ export class CameraRig implements ICameraRig {
       this.viewHeading[i] = dtSec > 0 ? followAngle(this.viewHeading[i], target, dtSec, cfg.rotTau, cfg.maxAngVel) : this.viewHeading[i];
       const vp = n === 1 ? FULL : { x: i * (W / 2), y: 0, w: W / 2, h: H };
       const zoom = (n === 1 ? cfg.baseZoom : cfg.facingSplitZoom) - this.zoomOut[i];
-      const center = facingCenter({ x: t.x, y: t.y }, this.viewHeading[i], vp.h, zoom, cfg.carScreenY);
+      const center = facingCenter(t.boardingPosition ?? t, this.viewHeading[i], vp.h, zoom, cfg.carScreenY);
       this.setCam(i, vp, center, zoom, cameraRotationFor(this.viewHeading[i]));
     });
     this.emitIfChanged();
@@ -257,7 +258,7 @@ export class CameraRig implements ICameraRig {
   private computeNeeded(): number {
     if (this.targets.length < 2) return this.cfg.baseZoom;
     const [a, b] = this.targets;
-    return fitZoom(a, b, this.cfg.mergePadding, W, H, this.cfg.baseZoom);
+    return fitZoom(a.boardingPosition ?? a, b.boardingPosition ?? b, this.cfg.mergePadding, W, H, this.cfg.baseZoom);
   }
 
   /** Index of the camera currently showing `player` (0 = main). */

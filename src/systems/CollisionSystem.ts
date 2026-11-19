@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLLISION } from '../config/gameConfig';
+import { BOARDING_DRIVE, COLLISION } from '../config/gameConfig';
 import type { CrashWith } from '../core/events';
 import { ownerOf, type BodyOwner, type GameSystem, type RaceContext } from '../core/race';
 import { services } from '../core/services';
@@ -70,8 +70,16 @@ export class CollisionSystem implements GameSystem {
       const x = (a.position.x + b.position.x) / 2;
       const y = (a.position.y + b.position.y) / 2;
       this.ctx.bus.emit('vehicle:crash', { player, with: withKind, impact, x, y });
-      if (pa) this.ctx.bus.emit('vehicle:damage', { player: pa.player, impact });
-      if (pb) this.ctx.bus.emit('vehicle:damage', { player: pb.player, impact });
+      if (pa) {
+        const scale = ob.kind === 'npc' && pa.car.spec.mass >= BOARDING_DRIVE.heavyMass
+          ? BOARDING_DRIVE.trafficDamageScale : 1;
+        this.ctx.bus.emit('vehicle:damage', { player: pa.player, impact: impact * scale });
+      }
+      if (pb) {
+        const scale = oa.kind === 'npc' && pb.car.spec.mass >= BOARDING_DRIVE.heavyMass
+          ? BOARDING_DRIVE.trafficDamageScale : 1;
+        this.ctx.bus.emit('vehicle:damage', { player: pb.player, impact: impact * scale });
+      }
       this.feedback(player, impact);
     }
   }
