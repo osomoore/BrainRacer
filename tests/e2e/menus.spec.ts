@@ -45,7 +45,7 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('keyboard only: Space, Space, Space reaches the race', async ({ page }) => {
+test('keyboard only: join, select Questions Off, and start the race', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 0);
   await page.goto('/');
@@ -57,12 +57,43 @@ test('keyboard only: Space, Space, Space reaches the race', async ({ page }) => 
   await page.keyboard.press('Space');   // continue
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
+  await page.keyboard.press('KeyS');   // Car
+  await page.waitForTimeout(150);
+  await page.keyboard.press('KeyS');   // Questions
+  await page.waitForTimeout(150);
+  await page.keyboard.press('KeyA');   // Words wraps left to Off
+  await page.waitForTimeout(150);
   await page.keyboard.press('Space');   // start immediately
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
   expect(s.players).toHaveLength(1);
   expect(s.players[0].device).toEqual({ type: 'keyboard', layout: 'left' });
+  expect(s.challengeMode).toBe('off');
+  expect((await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!))).challengeMode).toBe('off');
+  await waitPastFirstQuestion(page);
+  expect(errors).toEqual([]);
+});
+
+async function waitPastFirstQuestion(page: Page) {
+  await page.waitForFunction(() => (window as any).__race?.elapsedSec > 6, null, { timeout: 20_000 });
+  const state = await page.evaluate(() => ({
+    questionBreak: (window as any).__race.questionBreak,
+    question: (window as any).__challenge.current(0),
+  }));
+  expect(state).toEqual({ questionBreak: false, question: null });
+}
+
+test('questions URL override disables the driving questions for this race only', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'math', questionStyle: 'drive' }));
+  });
+  await page.goto('/?race=1&seed=3&questions=off');
+  await waitScene(page, 'Race');
+  expect((await settingsOf(page)).challengeMode).toBe('math');
+  expect(await page.evaluate(() => (window as any).__race.settings.challengeMode)).toBe('off');
+  await waitPastFirstQuestion(page);
   expect(errors).toEqual([]);
 });
 

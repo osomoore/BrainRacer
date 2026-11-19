@@ -110,7 +110,7 @@ export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
-  challengeMode: ChallengeMode;   // default 'words'
+  challengeMode: ChallengeMode | 'off';   // default 'words'
   questionStyle: QuestionStyle;   // default 'pause'
   challengeIntervalSec: number;   // pause style: seconds of driving between question breaks (default 10); drive style: base period
   roundLengthSec: number;         // default 300

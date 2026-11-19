@@ -36,11 +36,20 @@ export class ChallengeSystem implements GameSystem {
   private pause = false;
 
   init(ctx: RaceContext): void {
+    ctx.questionBreak = false;
+    // Test hook: lets e2e read the current question's correct slot.
+    (globalThis as { __challenge?: unknown }).__challenge = {
+      current: (p: number): Challenge | null => this.breaks?.current(p as PlayerId) ?? this.schedulers[p]?.current ?? null,
+      phase: () => this.breaks?.phase ?? 'drive',
+      state: (p: number) => this.breaks?.playerState(p as PlayerId) ?? null,
+    };
+    const mode = ctx.settings.challengeMode ?? 'words';
+    if (mode === 'off') return;
+
     const rng: Rng = ctx.rng.fork(RNG_SALT);
     this.pause = (ctx.settings.questionStyle ?? 'pause') === 'pause';
     const players = ctx.settings.players;
     this.nPlayers = players.length;
-    const mode = ctx.settings.challengeMode ?? 'words';
     if (this.pause) {
       const factories = players.map((p, i) => new ChallengeFactory({
         player: i as PlayerId, difficulty: p.difficulty, generator: new ChallengeGenerator(rng.fork(i * 2 + 1)),
@@ -70,13 +79,6 @@ export class ChallengeSystem implements GameSystem {
     this.guard = players.map(() => 0);
     this.arming = players.map(() => new AnswerArming());
     this.navHold = players.map(() => new NavHoldTracker(CHALLENGE.navHoldFirstSec, CHALLENGE.navHoldRepeatSec));
-    ctx.questionBreak = false;
-    // Test hook: lets e2e read the current question's correct slot.
-    (globalThis as { __challenge?: unknown }).__challenge = {
-      current: (p: number): Challenge | null => this.breaks?.current(p as PlayerId) ?? this.schedulers[p]?.current ?? null,
-      phase: () => this.breaks?.phase ?? 'drive',
-      state: (p: number) => this.breaks?.playerState(p as PlayerId) ?? null,
-    };
   }
 
   update(dt: number, ctx: RaceContext): void {

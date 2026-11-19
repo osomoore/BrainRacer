@@ -19,7 +19,7 @@ const COUNTDOWN_SEC = 3;
  * Integration point (orchestrator-owned). Builds the world, cars, camera rig and all systems
  * (auto-registered from src/systems/*System.ts), runs the countdown, pause and round end.
  *
- * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?debug=1 (matter debug draw)
+ * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?debug=1  ?questions=off|words|math|mixed
  */
 export class RaceScene extends Phaser.Scene {
   private ctx!: RaceContext;
@@ -40,6 +40,10 @@ export class RaceScene extends Phaser.Scene {
   create() {
     const params = new URLSearchParams(location.search);
     const settings: Settings = structuredClone(this.registry.get(REG.settings) ?? DEFAULT_SETTINGS);
+    const questions = params.get('questions');
+    if (questions === 'off' || questions === 'words' || questions === 'math' || questions === 'mixed') {
+      settings.challengeMode = questions;
+    }
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     const roundLengthSec = Number(params.get('round')) || settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);

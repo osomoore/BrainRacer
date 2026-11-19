@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
-import type { CarKind, ChallengeMode, Difficulty, PlayerId, PlayerSettings, QuestionStyle, Settings } from '../core/types';
+import type { CarKind, Difficulty, PlayerId, PlayerSettings, QuestionStyle, Settings } from '../core/types';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
@@ -18,8 +18,8 @@ const TIMER_MIN = 5, TIMER_MAX = 20;
 
 // P1 cursor rows
 const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7, ROW_START = 8;
-const MODES: ChallengeMode[] = ['words', 'math', 'mixed'];
-const MODE_LABEL: Record<ChallengeMode, string> = { words: 'Words', math: 'Math', mixed: 'Mix' };
+const MODES: Settings['challengeMode'][] = ['words', 'math', 'mixed', 'off'];
+const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
 const STYLES: QuestionStyle[] = ['pause', 'drive'];
 const STYLE_LABEL: Record<QuestionStyle, string> = { pause: 'Stop & Answer', drive: 'While Driving' };
 const P1_LAST = ROW_START;
@@ -119,6 +119,7 @@ export class SetupScene extends Phaser.Scene {
 
   // ───────────────────────── view ─────────────────────────
   private hintText(d: Difficulty): string {
+    if (this.cfg.challengeMode === 'off') return '';
     const extra = this.cfg.challengeMode === 'words' ? '' : `\nSums like ${DIFF_EXAMPLE[d]}`;
     if (this.cfg.questionStyle === 'pause') return `${DIFF_BLURB[d]}${extra}`;
     const secs = Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1));
