@@ -98,9 +98,60 @@ export const CHALLENGE = {
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
 export const CAR_SPECS: Record<CarKind, VehicleSpec> = {
-  dino: { length: 72, width: 40, mass: 14, maxSpeed: 620, reverseSpeed: 200, accel: 520, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
-  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 570, reverseSpeed: 220, accel: 700, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
+  dino: { length: 72, width: 40, mass: 14, maxSpeed: 620, reverseSpeed: 200, accel: 360, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
+  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 570, reverseSpeed: 220, accel: 440, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
 };
+/** Tunables for the top-down tire model and collision feedback (package F). */
+export const VEHICLE_MODEL = {
+  /** Fraction of grip lost at full speed (gentle drift at high speed). */
+  highSpeedGripLoss: 0.45,
+  /** Steering authority ramps 0..1 over this fraction of maxSpeed. */
+  steerRampFrac: 0.3,
+  /** Full authority until this speed fraction, then declines to steerTopFactor at 1.0. */
+  steerPlateauEnd: 0.6,
+  steerTopFactor: 0.8,
+  /** Angular velocity response rate toward the steering target (1/s). */
+  steerResponse: 12,
+  /** Slower response used while collision spin is much larger than turnRate (1/s). */
+  spinDecay: 5,
+  /** Rate (1/s) at which forward speed above the current cap decays (turbo ending, slow). */
+  overspeedDecay: 3,
+  /** Reverse acceleration as a fraction of accel. */
+  reverseAccelFrac: 0.8,
+  /** |forward speed| (px/s) below which the brake starts reversing. */
+  reverseThreshold: 25,
+  /** Matter engine iterations recommended for ~1000 px/s turbo speeds. */
+  positionIterations: 10,
+  velocityIterations: 8,
+  restitution: 0.3,
+  /** After a hard hit (velocity jump above this, px/s) the car recoils: weaker throttle, lower grip. */
+  recoilTriggerSpeed: 150,
+  recoilSec: 0.5,
+  recoilThrottle: 0.15,
+  recoilGrip: 0.06,
+  friction: 0.02,
+  chamfer: 8,
+  /** Skid marks. */
+  skidLateralSpeed: 150,   // px/s sideways slip to start marking
+  skidBrakeSpeed: 260,     // px/s forward speed above which hard braking marks
+  skidBrakeAmount: 0.7,
+  skidFadeSec: 4,
+  skidMax: 400,
+  skidSpacing: 12,         // px between marks per wheel
+  airborneScale: 1.3,
+  ghostAlpha: 0.5,
+};
+
+/** Collision feedback (package F). */
+export const COLLISION = {
+  minImpact: 60,          // px/s along the normal to emit vehicle:crash
+  bigImpact: 350,         // px/s: crashBig + camera shake
+  pairThrottleMs: 250,
+  shakeMin: 0.004,
+  shakeMax: 0.014,
+  shakeMs: 220,
+};
+
 export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 12, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
 export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 30, maxSpeed: 180, reverseSpeed: 80, accel: 140, brake: 500, turnRate: 1.6, grip: 0.97, drag: 0.8 };
 export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 680, reverseSpeed: 240, accel: 600, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
