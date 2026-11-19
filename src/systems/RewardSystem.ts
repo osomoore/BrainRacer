@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { DEPTH, PLAYER_COLORS, REWARDS } from '../config/gameConfig';
+import { CHALLENGE, DEPTH, PLAYER_COLORS, REWARDS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { ownerOf, type GameSystem, type IPlayerCar, type RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerId } from '../core/types';
 import { ParticlePool } from '../fx/ParticlePool';
+import { stepPending, type PendingGrant } from './rewardDelay';
 import { extendTurbo, pickFlavor, type Flavor } from './rewardPick';
 
 const RAINBOW = [0xff3b30, 0xff9500, 0xffd60a, 0x34c759, 0x1e6fff, 0xa855f7];
@@ -37,7 +38,7 @@ export class RewardSystem implements GameSystem {
   private keyHandler?: (e: KeyboardEvent) => void;
   private clock = 0;
   /** Correct answers made during a question break; rewarded on the first frame after the world resumes. */
-  private pendingGrants: PlayerId[] = [];
+  private pendingGrants: (PendingGrant & { player: PlayerId })[] = [];
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
@@ -51,7 +52,7 @@ export class RewardSystem implements GameSystem {
     }));
     this.offs.push(ctx.bus.on('challenge:resolved', (e) => {
       if (e.result === 'correct') {
-        if (this.ctx.questionBreak) this.pendingGrants.push(e.challenge.player);
+        if (this.ctx.questionBreak) this.pendingGrants.push({ player: e.challenge.player, resolvedAtSec: performance.now() / 1000, waitSec: null });
         else this.grant(e.challenge.player);
       } else if (this.ctx.settings.questionStyle === 'drive') this.miss(e.challenge.player, e.result === 'timeout');
     }));
@@ -175,9 +176,14 @@ export class RewardSystem implements GameSystem {
   update(dt: number, ctx: RaceContext): void {
     this.clock += dt;
     if (this.pendingGrants.length > 0 && !ctx.questionBreak) {
-      const list = this.pendingGrants;
-      this.pendingGrants = [];
-      for (const p of list) this.grant(p);
+      // After the break: wait for the question panel to finish fading, then a beat more (game time, so it pauses).
+      const nowSec = performance.now() / 1000;
+      const keep: typeof this.pendingGrants = [];
+      for (const g of this.pendingGrants) {
+        if (stepPending(g, nowSec, dt, CHALLENGE.rewardPanelClearSec, CHALLENGE.rewardDelayAfterBreakSec)) this.grant(g.player);
+        else keep.push(g);
+      }
+      this.pendingGrants = keep;
     }
     for (let i = 0; i < this.states.length; i++) {
       const p = i as PlayerId;
@@ -205,11 +211,12 @@ export class RewardSystem implements GameSystem {
       }
       const turbo = st.turboLeft > 0;
       const magnet = st.flavor === 'magnet';
-      st.aura.setVisible(turbo || magnet);
+      const ready = this.pendingGrants.some((g) => g.player === p);
+      st.aura.setVisible(turbo || magnet || ready);
       if (st.aura.visible) {
         const pulse = 1 + 0.12 * Math.sin(this.clock * 18);
-        st.aura.setPosition(car.x, car.y).setScale((turbo ? 13 : 8) * pulse).setAlpha(turbo ? 1 : 0.7);
-        st.aura.setTint(turbo ? this.color(p) : 0xffd24a);
+        st.aura.setPosition(car.x, car.y).setScale((turbo ? 13 : 8) * pulse).setAlpha(turbo ? 1 : ready ? 0.5 : 0.7);
+        st.aura.setTint(turbo || ready ? this.color(p) : 0xffd24a);
       }
 
       if (st.flavor) {
