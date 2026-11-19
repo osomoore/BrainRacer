@@ -687,3 +687,27 @@ export const FREIGHT = {
   crateKey: 'industrial_cargo_crate',
   smashScore: 2,           // popup only: "+N" (no score event exists for this yet)
 };
+
+// ───────────────────────── farm map generator (package farm-gen) ─────────────────────────
+export const FARM_GEN = {
+  /** Shadows fall east and a little south (fixed low western sun). Radians, world space. */
+  shadowAngle: 0.35,
+  shadowLength: 2.5,
+  /** Fields with a long side of at least this many tiles are split in two (1-tile grass gap). */
+  splitLongSide: 12,
+  /** Width of each open pasture gate (tiles). */
+  gateTiles: 2,
+  /** Pastures get this many gates (on different road-facing sides when possible). */
+  gatesPerPasture: 2,
+  hayBalesPerYard: [2, 4] as [number, number],
+  hayBaleSize: 0.8,          // tiles
+  orchardTreeSize: 0.9,      // tiles
+  turbineSize: 0.5,          // tiles (tower base; blades are art)
+  turbineEveryTiles: 4,
+  mudPuddles: 5,
+  hillCrests: 3,
+  /** Corn-maze walls knocked out after carving so young drivers find a way through. */
+  mazeExtraOpenings: 3,
+  treeChance: 0.55,          // per free woods tile
+  animals: { cow: 4, sheep: 6, horse: 3, pig: 4, chicken: 6, duck: 5 },
+};

@@ -36,3 +36,4 @@ export function cityGen(seed: number): WorldData {
     buildings: blocks.lots, places, ramps, props, laneGraph, playerSpawns,
   };
 }
+export { generateFarm } from './farm';
