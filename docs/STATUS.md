@@ -19,6 +19,14 @@ Branch: `dev` (local only, not pushed). 197 unit tests + 5 browser e2e tests pas
 | 4 | Integration (RaceScene, system registry, perf, teardown, tuning) | ✅ automated part · ⏳ hands-on tuning with user |
 | 5 | Countryside / industrial biomes, minimap, remapping, more challenge types | not started |
 
+## Playtest round 1 changes (2026-11-19)
+- Challenge panel: appears large at the TOP with shake + glow, then docks smaller at the top (no center pop-in). `src/ui/hud/hudConfig.ts` (`dockFrac`, `showSec`, `bigMaxFrac`).
+- Camera: facing-up rotating view (car always points up); 2 players always split. `CAMERA.facingUp` (false = old north-up split/merge), `rotTau`, `maxAngVel`, `carScreenY`.
+- Driving: pivot-turn when slow/stopped + automatic wall unstick. `VEHICLE_MODEL.pivotRate`, `VEHICLE_MODEL.unstick.*`.
+- Challenges default to **Words** (picture->word, word->picture); Setup row "Questions: Words / Math / Mix".
+- Menus: A, A, A starts a race (A from any Setup row = start).
+- Images: no missing files found in dev/build; added load-error placeholder cards and `predev` now refreshes `public/scenes`.
+
 ## Decisions / notes
 - Phaser 3.90 (not 4) for sub-agent familiarity.
 - Words: `manifest.csv` labels → `src/data/wordAliases.json` → single simple words. Multi-word labels are Hard-only. Look-alike pairs live in `src/data/wordMeta.json` (`confusableWith`). After editing either: `npm run assets`.

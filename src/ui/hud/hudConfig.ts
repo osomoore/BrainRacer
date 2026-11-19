@@ -9,7 +9,7 @@ export const HUD = {
     shrinkSec: 0.3,        // then shrinks to the docked size
     shakePx: 16,
     bigMaxFrac: 0.38,      // big panel (incl. tag) stays within this fraction of the view height
-    dockFrac: 0.68,        // docked scale = big scale * this (capped at 1)
+    dockFrac: 0.85,        // docked scale = big scale * this (capped at 1)
     resultHoldSec: 0.7,    // show correct/wrong before fading
     fadeSec: 0.35,
     timeoutFadeSec: 0.4,
