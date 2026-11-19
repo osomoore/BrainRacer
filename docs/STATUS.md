@@ -1,6 +1,6 @@
 # BrainRacer — Status (as of 2026-11-19)
 
-**City (day) and Industrial (night) are playable.** A Farm map is planned in NEXT.md. Branch `dev` (local only, never pushed; `main` still has only the old prototype).
+**City (day), Industrial (night) and Farm (golden hour) are playable.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
@@ -9,8 +9,8 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines), or `&questions=off` (disable questions for this race).
 - **Launch options** (not in the Setup menu; URL params, also work with `npm run dev`, e.g. `http://localhost:5173/?round=240&every=12&music=0.5&sfx=0.7`): `round` = round length in seconds (default 300, accepted 10..3600), `every` = seconds of driving between question breaks (default 10, accepted 1..120), `music` / `sfx` = volume 0..1 (defaults 0.6 / 0.8; clamped). Invalid values fall back to the defaults; saved settings never override them. `play.bat --round 240 --every 12 --music 0.5 --sfx 0.7` (alongside `--questions-off`) turns the flags into these params. Logic + tests: `src/config/launchOptions.ts`.
 - **Questions are mandatory in normal play** (no "Off" in the setup menu; `?questions=off` is ignored). The ability to turn them off exists only when started with `VITE_ALLOW_QUESTIONS_OFF=1`: `npm run dev` does this automatically (`.env.development`) and also defaults questions to off (`VITE_QUESTIONS=off`); `npm run dev:questions` has the ability but questions stay on; `play.bat --questions-off` enables it for a built game; Playwright's webServer sets it. For a manual `npm run build && npm run preview` set `VITE_ALLOW_QUESTIONS_OFF=1` first. Logic: `src/config/questionsPolicy.ts`.
-- Industrial quick launch: `/?race=2&map=industrial&seed=3&questions=off`. Use `race=1` for solo or `map=city` to select City explicitly.
-- Test hooks: `&dino=now` (dino appears next to players in 2 s), `&laser=now` (dino fires lasers soon and often), `&train=near` (Industrial: a wagon passes P1's nearest rail point), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
+- Map quick launch: `/?race=2&map=industrial&seed=3&questions=off` or `&map=farm`. Use `race=1` for solo or `map=city` to select City explicitly. Free farm camera: `?dev=FarmView&seed=7&zoom=0.3` (WASD pan, Q/E zoom, R/T rotate).
+- Test hooks: `&dino=now` (dino appears next to players in 2 s), `&laser=now` (dino fires lasers soon and often), `&train=near` (Industrial: a wagon passes P1's nearest rail point), `&dinohits=N` / `&dinoride=N` (dino hits to defeat / ride seconds; console `__dinoDefeat()`), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
 - Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.
 - F2 anywhere: raw controller input overlay. `window.__race` = live RaceContext; `window.__challenge` = challenge state hook (used by e2e).
 
@@ -23,7 +23,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Right answer reward:** turbo (1.6× speed, flames), a **boost jump** over traffic/buildings (lands on drivable ground), **punch-through** (traffic/props thrown aside, speed kept), plus a random bonus (rainbow/shockwave/ghost/magnet).
 - **Guide buddies:** a pink flying dino (dino-car) or a twinkling star (kart) leads directly toward the destination, including when it is off-screen. It circles the goal when near or waiting. Each player sees only their own buddy. There is no on-screen destination text: players follow their buddy, and the goal ring marks the place. The team score and timer sit at the top left in single player and at the top center in split screen.
 - **Goals:** shared place destinations (bakery, school, …). Both players must arrive (20 s teammate wait). Jumping through counts. +3 points per arriving car.
-- **Dinosaur:** when one player reaches the goal early (2P), the dino drops in and slowly circles the goal until the teammate arrives. Ram it (health bar; turbo ×1.5; both players within 1.5 s = TEAM double); defeat = poof + 2 points each. 1P: appears at half time at the current goal.
+- **Dinosaur:** when one player reaches the goal early (2P), the dino drops in and slowly circles the goal until the teammate arrives, sometimes sweeping laser eyes. Ram it: **3 hits** defeat it (a TEAM hit, both players within 1.5 s, counts 2); defeat = 2 points each, then it is dizzy for 8 s and can be **ridden**: tap B twice next to it. The ridden dino is slow, walks over buildings, tosses traffic, and lasts 20 s of driving (question time not counted, countdown card at the bottom of the rider's view); then you hop back into your car (or your starting car respawns nearby) and it poofs. Nobody boards → it poofs. 1P: appears at half time at the current goal.
 - **World:** seeded 48×48 city, beveled 3D buildings, picture signs on place buildings, ramps, ~25 light traffic cars/trucks, police with a gentle siren (bump only, despawn off-screen).
 - **Words:** `manifest.csv` labels → `src/data/wordAliases.json` (single simple words) → `src/data/wordMeta.json` (category, `simple`, `confusableWith`). Multi-word labels are Hard only. After edits: `npm run assets`.
 - **Audio:** all synthesized (Tone.js). Music = JSON note tracks in `src/audio/music/tracks/` (optional `.mid` overrides in `src/audio/music/midi/`).
@@ -51,10 +51,27 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Building gaps:** no straight run of building tiles longer than `WORLD.maxBuildingRun` (6) in City or Industrial; cuts are one-tile sidewalk alleys (City) or yard gaps (Industrial). Seeded layouts changed (e.g. the seed-3 fountain moved).
 - Tests: 304 unit + 22 e2e. The e2e "battered car smokes" test failed before this session too; under full-suite load the Industrial/dino e2e specs can time out at startup (they pass alone).
 
+## Session 4 changes (2026-11-19)
+- **Industrial:** a bit lighter (`INDUSTRIAL_LIGHTING.nightAlpha` 0.57), far busier (~220 seeded props: containers, pallets, barrels, tanks, conveyors, smoke stacks, lamp posts with warm pools, parked trucks, forklifts, pipes, fences, lit roofs; `INDUSTRIAL_PROPS`), more traffic (40 cars, 8 freight trucks), **5 canal bridges**.
+- **Player police siren** louder and brighter (`POLICE.playerSirenVolume` 1.4; ≥ 1 switches to a triangle tone with an open filter).
+- **Guide buddy (2P):** an arrived player who drives off while waiting for the teammate now gets the buddy back (`guideMath.nextGoalMode`, `GUIDE.leaveGoal` 600).
+- **Ride the dino** (see Dinosaur above). Tunables `DINO.hitsToDefeat`, `DINO.teamHits`, `DINO_RIDE`. Events `dino:tamed`, `dino:ridden`, `dino:rideEnded`.
+- **Farm map** (see below).
+- Tests: 369 unit + 29 e2e; only the old "battered car smokes" e2e fails.
+
+## Farm
+
+- Pick **Farm** in Setup's Map row or `?map=farm`. Fixed golden late-afternoon sun: long soft shadows toward `world.farm.shadowAngle` (0.35 rad) for every building, tree, hay bale, fence and turbine/windmill (blades cast spinning shadows); warm grade layer (`FARM_LOOK`). Bouncy country music track `farm`.
+- Generator `src/world/gen/farm.ts` + `farmBuild.ts` (`FARM_GEN`): paved county loop, village crossroads (houses/shops/bakery/school), 2-wide dirt farm lanes (`Tile.Dirt` with roadMask ≠ 0), a stream with 4 bridges, 3–4 farmsteads (barn, farmhouse, silo, shed), a corn maze plus corn fields, fenced pastures (2-tile gates), duck pond, windmill hill, orchard, woods, pumpkin patch, wind-turbine row, mud on lanes, a hay-bale ramp and hill crests. 13 place words (`FARM_PLACE_WORDS`). Layout mirrored per seed.
+- Renderer `src/world/farmWorld.ts` / `farmGround.ts`, light `FarmLightSystem`. Fences are static bodies (owner `fence`).
+- **Corn & mud** (`CornSystem`, `FARM_CORN`): corn caps speed at 60%, mud at 50% with a wobble; corn flattens into a stamped track that springs back as soon as it is off every player's view (or after 30 s). Rustle and splash sounds.
+- **Animals** (`AnimalSystem`, `animalAI.ts`, `ANIMALS`): cows, sheep, pigs, horses in pastures, chickens in farmyards, ducks by the pond. They wander and scurry from fast cars; a hit sends them flying cartoon-style (star-eye tumble, spin, bounce, dazed, walk home). Never hurt, never damage cars (`CollisionSystem` skips animal contacts). Dino roar scatters them.
+- **Farm traffic** (`farmTraffic.ts`, `FARM_TRAFFIC`): 25 pickups, 4 slow tractors with hay wagons (`HayWagon.ts`), 2 combines. All boardable and dino-tossable.
+
 ## Industrial at Night
 
 - Pick **Industrial** in Setup's **Map** row. City is the default for new and older saved settings. Setup remembers the map selection, and quick launch can override it for that session. Industrial is always night.
-- Three lit canal bridges, a canal-side bypass, and factory cross streets connect the districts. The north and south bridge roads run through open factory bays. The south freight yard has an eastbound ramp. Oversized freight trucks serve the loading yards.
+- Five lit canal bridges, a canal-side bypass, and factory cross streets connect the districts. The north and south bridge roads run through open factory bays. The south freight yard has an eastbound ramp. Oversized freight trucks serve the loading yards.
 - The train stays on a closed rail circuit. Two sets of lights warn about the approaching train. The road network offers a bypass for either occupied crossing.
 - Both cars have headlights in Industrial. Its music starts at GO and resumes after the dino cue.
 

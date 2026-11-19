@@ -31,6 +31,17 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 
 ## Backlog
 
+### Session 4 follow-ups
+- Farm: a boarded tractor/combine drives at normal truck speed (`VehicleConditionSystem` overrides 'truck' NPCs with `BOARDING_DRIVE.truck`); add tractor/combine entries if they should stay slow. Tractors sometimes wander onto paved roads. Ramming a hay wagon never moves it; a wagon left alone after a dino toss freezes.
+- Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.
+- Farm look: lane mud is a square tile with no lane edges, square inner road corners, overlapping shadows stack darker, flower placement repeats, east turbine shadows run off the map. Golden-grade strength is `FARM_LOOK.gradeAlpha`/`gradeColor`.
+- Corn slowdown shares `car.slow()` with the police-bump slow (a bump in corn can be cut short); a `surfaceMult` on IPlayerCar would separate them.
+- Dino ride: police heat still builds while riding; the freight train passes through the ridden dino. `DINO.maxHp`/`ramDamage*`/`turboMult`/`teamMult` are mostly unused now.
+- Guide buddy: one cause fixed (arrived player driving off). Unverified: the orbit target is not clamped to the inset view (could sit under the scoreboard/seam near a view edge), and buddy visibility after vehicle hop / reset / dino events.
+- Industrial: 5 bridges (a 6th needs re-laying the north/south edge roads).
+- Audio by ear: farm track (new `pluck` instrument), animal sounds, corn rustle, mud splash, louder player siren.
+- Merge script lesson: only delete a package branch/worktree after `git merge` succeeded (a conflict leaves the merge in progress).
+
 ### Session 3 follow-ups
 - Freight smash "+2" is a popup only. Add a `train:smashed { player, cars }` event so ScoreSystem awards real points. A smash also registers as a normal building crash (damage/shake); decide if it should.
 - Proposed sounds (`SfxName`): `laser` (dino charge/fire; reuses turbo/shockwave/pop now) and `smash` (reuses crashBig/pop).
@@ -60,6 +71,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Dino: guard speed (75 px/s), ram difficulty (hp 100), roar loudness.
 - Audio by ear: boost, siren, roar, new music, overall balance.
 - Readability of question cards from the back of the room.
+- Session 4 by eye/ear: Farm golden hour and long shadows on a projector in both split views, corn slowdown/track/spring-back, animal launches (fun, not scary), tractors and combines, dino ride (3 hits, 20 s, speed, stomp shake), Industrial clutter and new bridges, guide buddy in 2P.
 - Session 3 by eye/ear: Industrial darkness on a projector (`INDUSTRIAL_LIGHTING.nightAlpha`), player siren loudness (`POLICE.playerSirenVolume`), dino laser fairness for 5-year-olds (`DINO_LASER.chargeSec`/`fireSec`), freight smash threshold and re-form time, whether the building alleys look intentional (`WORLD.maxBuildingRun`), Easy+ feel.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
@@ -67,103 +79,9 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
 - Decide whether/when to merge `dev` → `main` and push to a remote.
 
-## Farm kickoff plan (planned, not started)
+## Map kickoff plans (done)
 
-A third map: sunny countryside at golden hour, with long shadows, animals, barns, farm trucks and corn fields. Start it only when the user kicks it off.
-
-### Look and feel
-
-- **Time of day:** late afternoon. A low sun in the west casts long, soft shadows to the east (about 2–3× an object's height), with warm golden light and cool blue shadows. Everything is lit; the map should not feel dark. Shadows stay fixed in world space, so they turn with each player's rotating camera like the buildings do today.
-- **Shadows:** barns, silos, the farmhouse, windmills, trees, hay bales, fences, corn edges, trucks and animals all cast a baked directional shadow. Generalize the building shadow baker (`src/world/buildingTex.ts`) to take a direction and length instead of today's fixed short offset. No live Graphics.
-- **Grading:** one cheap world-sized warm tint layer (the same technique as the night overlay, but golden and low alpha). HUD, goal rings and guide buddies stay at full contrast.
-- **Music:** an original, bouncy country-style loop (plucky banjo-like synth, simple bass, light percussion). It starts at GO and resumes after the dino cue, the same way Industrial's track does.
-
-### First playable map
-
-- **Roads:** a paved county-road loop around the map, dirt farm lanes linking the farmsteads, and a small village crossroads with a few shops and houses for variety. Every road rejoins a loop, and short spurs end in a broad turnaround (same rule as Industrial).
-- **Farmsteads (3–4):** a red barn, a silo, a farmhouse and a yard with hay bales and a tractor. Barns and the farmhouse obey the `WORLD.maxBuildingRun` gap rule.
-- **Corn fields:** big fields of corn rows. Corn is drivable but slows cars (about 60% speed). Stalks bend flat under the car, leaving a trail like skid marks (baked into a render texture) that springs back up after ~10 s. One field is a simple corn maze with mown paths at full speed. Cars always draw above the corn so they stay visible. Corn is a fun shortcut when the guide buddy points straight across a field.
-- **Pastures:** fenced fields with cows, sheep, pigs and horses. Fences are solid with bouncy collisions, and each pasture has wide open gates.
-- **Water and features:** a duck pond, a stream with two little bridges, an orchard, a windmill hill, mud puddles (slow plus a brown splash), and a wind turbine row on the horizon edge. Ramps: a hay-bale ramp and a grassy hill crest with clear landings.
-- **Place words (goals and picture signs):** start from `COUNTRY_CANDIDATES` in `src/data/places.ts`: farm, barn, windmill, wind turbine, campsite, lake, forest, well, cave. Add a few town words (house, shop, bakery, school) at the village. Every goal must be reachable and approachable without hitting a fence or water.
-
-### Animals (kid-friendly)
-
-- **Herds:** they graze and wander inside pastures. Free-roaming chickens and ducks sometimes waddle across farm lanes in a little line.
-- **Animals are never hurt.** When a car comes close, they hop or scurry out of the way in time, with a feather or dust puff and a moo, baa, oink, cluck or quack. If a car somehow touches one, the animal bounces away and the car bounces too. Nothing is squashed.
-- **Dino:** when it roars, nearby animals scatter, then calm down and wander back.
-- **Optional later:** a "+1" for gently herding a lost sheep back through its gate.
-
-### Farm traffic
-
-- Pickup trucks on the county loop.
-- Slow tractors pulling hay wagons on the dirt lanes, wide enough that players go around or jump them with a boost.
-- A slow combine harvester that drives along a corn field and mows a full-speed path behind it.
-- The police and the dino work as on the other maps. The Farm uses a farm-flavored police car, the same behavior with a different look.
-
-### Contracts the orchestrator sets before dispatch
-
-- `RaceMap` gains `'farm'`. `generateFarm(seed)` runs in RaceScene, and the Setup Map row and `?map=farm` quick launch get a Farm option.
-- New tile types for corn, mown path, dirt lane, mud, fence, pond and stream, or a farm surface layer if that fits better.
-- New `BodyOwner` kinds for animals and fences.
-- New sounds (`SfxName` in `src/core/types.ts`): `moo`, `baa`, `oink`, `cluck`, `quack`, `cornRustle`, `mudSplash`.
-- New `MusicTrack`: `'farm'`.
-- New `TEX` keys for the farm art.
-- A per-tile surface query (speed factor plus effect) that the vehicle model can read for corn and mud. Check the existing surface handling in the vehicle model first.
-
-### Work packets
-
-| Packet | Owns | Handoff |
-|---|---|---|
-| Map generation | `src/world/gen/farm.ts` + tests | Road loop, lanes, farmsteads, fields, pastures with gates, pond and stream bridges, ramps, spawns, traffic lanes, animal zones and reachable goals. Determinism across seeds; max building run rule. |
-| Farm art | `src/art/farm.ts` | Tileset (grass, dirt, country road, corn rows, mown path, mud, water edges, fences), barn, silo, farmhouse, windmill, hay bales, orchard trees, 6 animals with a 2–3-frame walk, pickup, tractor + wagon, combine. Preview at driving zoom. |
-| Rendering and light | `src/world/farmWorld.ts`, shadow baker generalization, golden-hour layer | Place art from the generator output, long directional shadows for every caster, warm grade; check both rotated split views. |
-| Corn and mud | a surface/corn system + pure helper | Slowdown, flattened-stalk trail and spring-back, mud splash; combine mows paths. |
-| Animals | `AnimalSystem` + pure `animalAI.ts` + tests | Grazing and wandering, flee-from-car with guaranteed escape, lane-crossing lines, dino scatter, sounds, cleanup on restart. |
-| Farm traffic | farm traffic helper (like `industrialTraffic.ts`) | Pickups, tractors with wagons, combine; wide slow vehicles stay on their lanes. |
-| Music and SFX | farm track JSON, animal and corn sounds in `src/audio/` | Validated loop; sounds mixed under the engine and siren. |
-| Playtest coverage | `tests/e2e/` farm specs | Selection, `?race=2&map=farm&seed=3&questions=off`, corn slowdown, animals fleeing, restart into City. Solo and split screenshots. |
-
-Order: contracts first, then generation, art and music in parallel. Next rendering/light, corn and mud, animals, and traffic. Coverage runs last on the integrated map.
-
-### Decisions for the user before kickoff
-
-- **Time of day:** golden-hour afternoon is assumed. Is a fixed time OK, or should the sun move during the round?
-- **Corn:** drivable with a slowdown (assumed), or a solid maze wall?
-- **Animals:** decoration and obstacles only (assumed), or should herding earn points?
-
-## Industrial at Night kickoff plan
-
-### First playable map
-
-- Select City or Industrial in Setup. Industrial is a separate seeded map with a freight-yard loop and a factory loop, joined by two lit bridges over a service canal. Main roads rejoin a loop and any short spur ends in a broad turnaround. Bridge decks use ordinary road tiles so traffic and jump landings work on them.
-- Drive through open factory bays with an entrance and exit, under gantry cranes, and along loading yards with truck traffic. Use a water tower and bridge approaches as landmarks. Give one yard a straight ramp approach and a clear landing.
-- Run a freight train on its own track. Add one clearly marked grade crossing with warning lights before the train arrives, plus a bridge route that stays open. Keep goal rings clear of the tracks and give drivers room to stop or turn around.
-- Keep every goal connected to the driving loops. Put goal rings at exits and open approaches where the buddy's direct bearing is easy to follow. Playtest both directions through factory bays and across the canal to catch goals that pull drivers toward walls or water.
-- Use deep-blue shadows, cool pavement, and warm factory and crossing lights. Both player cars have soft headlights that rotate with them in world space. Keep bridge rails, the train, guides, and goal rings readable outside the beams. Check both rotating split views with the HUD at full contrast.
-- Write an original looping industrial night-drive track with a steady bass line, a bright synth melody, and light metallic percussion. Leave room in the mix for the train warning and engine sounds. The track starts at GO, gives way to the dino cue, and resumes when the dino leaves or is defeated.
-
-### Work packets for kickoff
-
-The coordinator defines map selection, decoration placements, the rail route and crossing data, texture keys, and the music track ID before dispatch. Shared contracts, Setup and RaceScene wiring, and final integration stay with the coordinator. Lower-tier workers return their changed files, checks, and screenshots or audio notes.
-
-| Packet | Owns | Handoff |
-|---|---|---|
-| Map generation | Industrial generator and tests under `src/world/gen/` | Connected road loops, two bridges, through-bays, turnarounds, reachable goals, and the rail route. Check determinism across seeds and that the road network stays connected while the grade crossing is blocked. |
-| Industrial art | Industrial texture generators under `src/art/` | Factory bays, cranes, bridge rails, tracks, crossing lights, and a freight train. Provide a preview at driving zoom. |
-| Music | Industrial track JSON, audio registration, and validation under `src/audio/` | A validated loop using the existing volume controls, with a listening note on the loop seam and SFX balance. |
-| World rendering | Industrial decoration building under `src/world/` | Place industrial art and rail markings and keep bridge decks and factory bays passable. Clean up on race restart. |
-| Freight train | Train and crossing behavior in a dedicated system | Make the warning readable before the train arrives, keep the train on its rail route, and verify that a blocked crossing leaves the bridge route usable. |
-| Headlights and night look | Industrial-only lighting system and its beam assets | Use cached beam textures attached to car transforms. Verify the beams track turns and jumps in both camera views. |
-| Playtest coverage | Industrial browser scenarios under `tests/e2e/` | Exercise selection, seeded quick launch, factory pass-throughs, the crossing and bridge bypass, split-screen lighting, and restarting into City. Capture solo and split views. |
-
-Start map generation, art, and music in parallel after the contracts are set. Next dispatch world rendering, freight train, and headlights. Then have the coverage worker test the integrated map. The queued destination text, guide timing, and vehicle damage work can be scheduled independently.
-
-### Integration and playtest
-
-- Add a seeded quick launch such as `/?race=2&map=industrial&seed=3&questions=off`. Verify City is still the default for existing settings.
-- Run typecheck, unit tests, and the production Edge suite. Drive both bridge routes and factory bays in solo and split screen. Check that the train warning gives enough time to turn or stop, the bypass stays open, and the guide brings players to every type of goal.
-- Check nighttime contrast on a projector and listen through one complete music loop, a dino interruption, and the return to Industrial music.
+The Industrial at Night and Farm kickoff plans were carried out (sessions 1–4); see STATUS "Industrial at Night" and "Farm". Use them as the template for a new map: orchestrator sets contracts (RaceMap, tiles, layout types, TEX block, SfxName/MusicTrack), phase 1 = generator (Opus) + art + audio in parallel, phase 2 = renderer (Opus) + gameplay systems + traffic, then wiring, Setup row and e2e.
 
 ## Small cleanups
 - Remove unused config key `WORLD.bigAirSec`; remove the HudTest "Nice jump!" popup.
