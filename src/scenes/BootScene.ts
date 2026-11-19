@@ -63,7 +63,7 @@ export class BootScene extends Phaser.Scene {
     const cars: CarKind[] = ['dino', 'kart'];
     const settings: Settings = {
       ...base,
-      map: map === 'industrial' || map === 'city' ? map : base.map,
+      map: map === 'industrial' || map === 'city' || map === 'farm' ? map : base.map,
       players: Array.from({ length: count }, (_, i) => ({
         device: pads[i] ?? kb[i],
         difficulty: base.players[i]?.difficulty ?? 'normal',

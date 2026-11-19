@@ -11,7 +11,8 @@ export function tileAt(world: WorldData, tx: number, ty: number): Tile | -1 {
 }
 
 export function isDrivableTile(t: number): boolean {
-  return t === Tile.Road || t === Tile.Sidewalk || t === Tile.Plaza || t === Tile.Park || t === Tile.Grass || t === Tile.Dirt;
+  return t === Tile.Road || t === Tile.Sidewalk || t === Tile.Plaza || t === Tile.Park || t === Tile.Grass || t === Tile.Dirt
+    || t === Tile.Corn || t === Tile.Mud;
 }
 
 export function isDrivable(world: WorldData, x: number, y: number): boolean {

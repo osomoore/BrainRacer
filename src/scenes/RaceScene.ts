@@ -11,7 +11,7 @@ import type { MusicTrack, PlayerId, RoundResults, Settings } from '../core/types
 import { PlayerCar } from '../entities/PlayerCar';
 import { SkidMarks } from '../fx/SkidMarks';
 import { createSystems } from '../systems';
-import { cityGen } from '../world/gen';
+import { cityGen, generateFarm } from '../world/gen';
 import { generateIndustrial } from '../world/gen/industrial';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
@@ -59,8 +59,9 @@ export class RaceScene extends Phaser.Scene {
     if (params.get('debug') === '1') this.matter.world.createDebugGraphic();
 
     const industrial = settings.map === 'industrial';
-    this.raceMusic = industrial ? 'industrial' : 'race';
-    const world = industrial ? generateIndustrial(seed) : cityGen(seed);
+    const farm = settings.map === 'farm';
+    this.raceMusic = industrial ? 'industrial' : farm ? 'farm' : 'race';
+    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : cityGen(seed);
     this.built = buildWorld(this, world, industrial);
     this.skids = new SkidMarks(this);
 

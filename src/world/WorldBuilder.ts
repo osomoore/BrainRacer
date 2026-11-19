@@ -92,6 +92,8 @@ function tileIndex(world: WorldData, i: number): number {
       return 4;
     }
     case Tile.Dirt: return 5;
+    case Tile.Mud: return 5;   // placeholder until the farm renderer draws its own tileset
+    case Tile.Corn: return 3;  // placeholder (park)
     case Tile.Road: return ROAD_BASE + (world.roadMask[i] & 15);
     default: return 1;
   }
