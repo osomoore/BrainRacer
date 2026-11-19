@@ -6,6 +6,7 @@ import { services } from '../core/services';
 import type { CarKind, PlayerId, PlayerInput } from '../core/types';
 import type { SkidMarks } from '../fx/SkidMarks';
 import { PLAYER_MASK_ALL, Vehicle } from './Vehicle';
+import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
 
 const MASK_GHOST = PLAYER_MASK_ALL & ~(CAT.traffic | CAT.police);
 const CAR_COLORS: Record<CarKind, { body: number; stripe: number }> = {
@@ -41,6 +42,14 @@ function shadowTexture(scene: Phaser.Scene): string {
   return fb;
 }
 
+interface ContactPair {
+  bodyA: MatterJS.BodyType;
+  bodyB: MatterJS.BodyType;
+  collision?: { normal?: { x: number; y: number }; supports?: { x: number; y: number }[] };
+  normal?: { x: number; y: number };
+  activeContacts?: { vertex: { x: number; y: number } }[];
+}
+
 export class PlayerCar extends Vehicle implements IPlayerCar {
   readonly player: PlayerId;
   readonly kind: CarKind;
@@ -56,6 +65,12 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private lastSkid: ({ x: number; y: number } | null)[] = [null, null];
   /** True while laying skid marks (for debug). */
   skidding = false;
+  private unstick: UnstickState = { stuckSec: 0, cooldownSec: 0 };
+  private contactNormal: { x: number; y: number } | null = null; // unit, pointing out of the wall
+  private contactAge = 99;
+  private assistLeft = 0;
+  private assistHeading = 0;
+  private readonly onContact = (ev: { pairs: ContactPair[] }) => this.trackContacts(ev.pairs);
 
   constructor(
     scene: Phaser.Scene, player: PlayerId, kind: CarKind, x: number, y: number, angle: number,
@@ -73,6 +88,50 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.view.add([this.shadow, this.sprite]);
     this.view.setDepth(DEPTH.vehicle);
     this.shadow.setPosition(3, 4);
+    this.pivotRate = VEHICLE_MODEL.pivotRate;
+    scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_ACTIVE, this.onContact);
+    scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_START, this.onContact);
+  }
+
+  /** Remember the latest contact with a static body (building/boundary): the normal pointing out of it. */
+  private trackContacts(pairs: ContactPair[]): void {
+    for (const p of pairs) {
+      const other = p.bodyA === this.body ? p.bodyB : p.bodyB === this.body ? p.bodyA : null;
+      if (!other || other.isSensor || !other.isStatic) continue;
+      const n = p.collision?.normal ?? p.normal;
+      if (!n) continue;
+      const sup = p.collision?.supports?.[0] ?? p.activeContacts?.[0]?.vertex;
+      const ref = sup ?? other.position;
+      let nx = n.x, ny = n.y;
+      if (nx * (this.x - ref.x) + ny * (this.y - ref.y) < 0) { nx = -nx; ny = -ny; }
+      const len = Math.hypot(nx, ny) || 1;
+      this.contactNormal = { x: nx / len, y: ny / len };
+      this.contactAge = 0;
+    }
+  }
+
+  /** Holding throttle but pinned against a wall: nudge away and swing toward the wall tangent. Runs before drive(). */
+  private updateUnstick(input: PlayerInput, dt: number): void {
+    const U = VEHICLE_MODEL.unstick;
+    this.contactAge += dt;
+    const inContact = this.contactNormal !== null && this.contactAge <= U.contactMemSec;
+    const v = this.velocity;
+    const res = updateUnstick(this.unstick, { throttle: input.throttle, speed: Math.hypot(v.x, v.y), inStaticContact: inContact }, dt);
+    this.unstick = res.state;
+    const n = this.contactNormal;
+    if (res.trigger && n) {
+      this.nudge(n.x * U.pushSpeed, n.y * U.pushSpeed);
+      this.assistHeading = unstickHeading(this.angle, n, input.steer);
+      this.assistLeft = U.maxAssistSec;
+      this.recoil = 0;
+    }
+    if (this.assistLeft > 0) {
+      this.assistLeft -= dt;
+      this.recoil = 0;
+      const a = rotateToward(this.angle, this.assistHeading, U.turnRate * dt);
+      this.rotateBody(a);
+      if (Math.abs(a - this.assistHeading) < 0.02) this.assistLeft = 0;
+    }
   }
 
   get speedFrac() { return Math.abs(this.forwardSpeed) / this.currentMaxSpeed; }
@@ -120,6 +179,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
       if (this.slowLeft <= 0) { this.slowLeft = 0; this.refreshMults(); }
     }
     const on = this.controlEnabled;
+    if (on) this.updateUnstick(input, dt);
     this.drive({ throttle: on ? input.throttle : 0, brake: on ? input.brake : 0, steer: on ? input.steer : 0 }, dt);
     this.syncView();
     this.updateVisual(dt);
@@ -164,6 +224,8 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   }
 
   destroy(): void {
+    this.scene.matter?.world?.off(Phaser.Physics.Matter.Events.COLLISION_ACTIVE, this.onContact);
+    this.scene.matter?.world?.off(Phaser.Physics.Matter.Events.COLLISION_START, this.onContact);
     services.audio.engine(this.player).stop();
     this.destroyVehicle();
   }

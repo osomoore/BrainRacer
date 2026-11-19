@@ -30,6 +30,8 @@ export class Vehicle implements IVehicle {
   lateralSpeed = 0;
   /** Seconds of "recoil" left after a hard hit (throttle weakened, grip lowered so the car bounces/slides off). */
   protected recoil = 0;
+  /** Pivot turn rate (rad/s at ~0 speed); player cars only, 0 = off. */
+  protected pivotRate = 0;
   private lastSet: Vec2 | null = null;
 
   constructor(readonly scene: Phaser.Scene, readonly spec: VehicleSpec, opts: VehicleOptions) {
@@ -72,7 +74,7 @@ export class Vehicle implements IVehicle {
     }
     const rc = this.recoil > 0;
     if (rc) this.recoil = Math.max(0, this.recoil - dt);
-    const mults: VehicleMults = { maxSpeed: this.maxSpeedMult, accel: this.accelMult, grip: rc ? VEHICLE_MODEL.recoilGrip : 1 };
+    const mults: VehicleMults = { maxSpeed: this.maxSpeedMult, accel: this.accelMult, grip: rc ? VEHICLE_MODEL.recoilGrip : 1, pivotRate: this.pivotRate };
     const ctl = rc ? { ...controls, throttle: controls.throttle * VEHICLE_MODEL.recoilThrottle } : controls;
     const r = stepVehicle(
       { vx: v.x, vy: v.y, angle: this.angle, angularVel: this.body.angularVelocity * STEP_HZ },
@@ -82,6 +84,17 @@ export class Vehicle implements IVehicle {
     this.lateralSpeed = r.lateral;
     this.scene.matter.body.setVelocity(this.body, { x: r.vx / STEP_HZ, y: r.vy / STEP_HZ });
     this.scene.matter.body.setAngularVelocity(this.body, r.angularVel / STEP_HZ);
+  }
+
+  /** Like applyImpulse but not mistaken for a crash by the recoil detector. Call before drive(). */
+  protected nudge(dvx: number, dvy: number): void {
+    this.applyImpulse(dvx, dvy);
+    if (this.lastSet) this.lastSet = { x: this.lastSet.x + dvx, y: this.lastSet.y + dvy };
+  }
+
+  /** Rotate the body a little (before drive(), which re-derives angular velocity from the new angle). */
+  protected rotateBody(angle: number): void {
+    this.scene.matter.body.setAngle(this.body, angle);
   }
 
   /** Instantaneous velocity change in px/s (and rad/s of spin). */

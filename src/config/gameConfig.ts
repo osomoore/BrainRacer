@@ -111,6 +111,20 @@ export const VEHICLE_MODEL = {
   /** Full authority until this speed fraction, then declines to steerTopFactor at 1.0. */
   steerPlateauEnd: 0.6,
   steerTopFactor: 0.8,
+  /** Pivot turning (player cars): rad/s at ~0 speed with full stick; blends into normal steering by steerRampFrac. */
+  pivotRate: 2.2,
+  /** Wall un-stick: holding throttle, nearly stationary, touching a static body. */
+  unstick: {
+    minThrottle: 0.3,
+    speed: 40,          // px/s below which we count as "no progress"
+    sec: 0.5,
+    cooldownSec: 0.6,
+    pushSpeed: 150,     // px/s gentle push away from the wall
+    turnRate: 4,        // rad/s the car is rotated toward the wall tangent
+    awayTilt: 0.35,     // rad: aim slightly away from the wall rather than along it
+    maxAssistSec: 0.6,
+    contactMemSec: 0.15, // static contact counts if seen this recently
+  },
   /** Angular velocity response rate toward the steering target (1/s). */
   steerResponse: 12,
   /** Slower response used while collision spin is much larger than turnRate (1/s). */
@@ -127,8 +141,8 @@ export const VEHICLE_MODEL = {
   restitution: 0.3,
   /** After a hard hit (velocity jump above this, px/s) the car recoils: weaker throttle, lower grip. */
   recoilTriggerSpeed: 150,
-  recoilSec: 0.5,
-  recoilThrottle: 0.15,
+  recoilSec: 0.35,
+  recoilThrottle: 0.5,
   recoilGrip: 0.06,
   friction: 0.02,
   chamfer: 8,
