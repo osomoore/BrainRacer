@@ -399,7 +399,7 @@ export const CAMERA = {
   // R1: facing-up (car-relative rotating) view
   facingUp: true,            // false = old north-up split/merge camera
   facingSplitZoom: 1.15,     // zoom of each half-view in facing-up split (about the same as single)
-  carScreenY: 0.64,          // car sits this far down the view (more road ahead; panels use the top)
+  carScreenY: 0.52,          // car sits this far down the view (room below for the challenge panel)
   rotTau: 0.3,               // s, time constant of the view-angle follow
   maxAngVel: 3,              // rad/s cap on view rotation speed (spins never whip the screen)
   velBlendMinSpeed: 150,     // px/s: above this (moving forward) the view leans toward the velocity direction

@@ -5,12 +5,13 @@ import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
 } from '../../core/types';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
-import { HUD } from './hudConfig';
-import { dockZone, easeInOut, lerp } from './hudMath';
+import { challengeRegion, HUD } from './hudConfig';
+import { easeInOut, lerp } from './hudMath';
 
-const CARD_W = 210, CARD_H = 170;
-const PROMPT_H = 230;
-const BADGE_DY = CARD_H / 2 + 38;
+const CARD_W = 270, CARD_H = 160;
+const PROMPT_H = 190;
+const QUESTION_FILL = 0xfff1b8;
+const BADGE_DY = CARD_H / 2 + 22;
 const NAVY = HUD.colors.navy;
 
 type Phase = 'show' | 'shrink' | 'docked';
@@ -54,7 +55,6 @@ export class ChallengePanel {
   private phase: Phase = 'show';
   private age = 0;
   private slideT = 0;       // 0 big .. 1 docked
-  private headerH = 0;      // unscaled room above the strip for the 'Look!' tag
   private resolved = false;
   private resolveAge = 0;
   private result: ChallengeResult | null = null;
@@ -109,11 +109,11 @@ export class ChallengePanel {
     const card = this.scene.add.graphics();
     c.add(card);
     if (p.kind === 'image') {
-      this.promptW = 250;
-      this.drawCard(card, this.promptW, PROMPT_H, HUD.colors.card, hexNum(this.color), 8);
+      this.promptW = 230;
+      this.drawCard(card, this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10);
       if (this.scene.textures.exists(sceneTex(p.sceneId))) {
         const img = this.scene.add.image(0, 0, sceneTex(p.sceneId));
-        fitImage(img, 210);
+        fitImage(img, 168);
         c.add(img);
       }
     } else {
@@ -121,8 +121,14 @@ export class ChallengePanel {
       const txt = isMath ? `${p.text} = ?` : p.text;
       const t = this.textFit(txt, isMath ? 96 : 104, 540, PROMPT_H - 30, 60);
       this.promptW = Math.max(250, Math.min(600, t.width * t.scaleX + 70));
-      this.drawCard(card, this.promptW, PROMPT_H, HUD.colors.card, hexNum(this.color), 8);
+      this.drawCard(card, this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10);
       c.add(t);
+    }
+    if (!(p.kind === 'text' && /^\s*\d+\s*\+\s*\d+\s*$/.test(p.text))) {
+      const q = this.scene.add.graphics();
+      q.fillStyle(hexNum(this.color), 1).fillCircle(0, 0, 26).lineStyle(4, 0xffffff, 1).strokeCircle(0, 0, 26);
+      const qt = bigText(this.scene, 0, 0, '?', 40, '#ffffff', { font: FONT_BODY, stroke: 0 });
+      c.add(this.scene.add.container(-this.promptW / 2 + 6, -PROMPT_H / 2 + 6, [q, qt]));
     }
     return c;
   }
@@ -139,7 +145,7 @@ export class ChallengePanel {
     if (o.kind === 'image') {
       if (this.scene.textures.exists(sceneTex(o.sceneId))) {
         const img = this.scene.add.image(0, 0, sceneTex(o.sceneId));
-        fitImage(img, 150);
+        fitImage(img, 135);
         content.add(img);
       }
     } else {
@@ -159,26 +165,22 @@ export class ChallengePanel {
     return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
   }
 
-  /** Compute the strip layout (local coords, strip center = 0,0). Big and docked share it; only the root scale differs. */
+  /** Stacked layout (local coords, panel center = 0,0): question on top, three answers below. */
   private layoutPoses() {
-    this.headerH = this.header ? 78 : 0;
-    const os = 0.9;
-    const ps = Math.min(0.72, 300 / this.promptW);
-    const pad = 16, gap = 14, cg = 8;
-    const pw = this.promptW * ps, cw = CARD_W * os;
-    this.dockW = pad * 2 + pw + gap + 3 * cw + 2 * cg;
-    const cellH = CARD_H * os + 6 + 60;
-    this.dockH = cellH + pad * 2 - 6;
-    const x0 = -this.dockW / 2 + pad;
-    const cardY = -cellH / 2 + (CARD_H * os) / 2 + 2;
-    this.promptDock = { x: x0 + pw / 2, y: cardY + 4, s: ps };
-    this.cells.forEach((c, k) => { c.dock = { x: x0 + pw + gap + cw / 2 + k * (cw + cg), y: cardY, s: os }; });
+    const pad = 14, gap = 10, cg = 14;
+    const cellsW = 3 * CARD_W + 2 * cg;
+    this.dockW = Math.max(cellsW, this.promptW) + pad * 2;
+    this.dockH = pad + PROMPT_H + gap + CARD_H + 52 + 6;
+    const top = -this.dockH / 2 + pad;
+    this.promptDock = { x: 0, y: top + PROMPT_H / 2, s: 1 };
+    const cy = top + PROMPT_H + gap + CARD_H / 2;
+    this.cells.forEach((c, k) => { c.dock = { x: -cellsW / 2 + CARD_W / 2 + k * (CARD_W + cg), y: cy, s: 1 }; });
   }
 
   // ───────────────────────── layout / update ─────────────────────────
   setView(view: Rect) { this.view = view; }
 
-  private zone(): Rect { return dockZone(this.view, 960, HUD.scoreboard.clearHalf, HUD.margin); }
+  private zone(): Rect { return challengeRegion(this.view); }
 
   private drawBg() {
     const w = this.dockW, h = this.dockH;
@@ -187,23 +189,20 @@ export class ChallengePanel {
     this.bg.lineStyle(8, hexNum(this.color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 36);
   }
 
-  /** Big and docked scale: big fills the zone width but stays within the top bigMaxFrac of the view. */
+  /** Big fills the region (width- or height-limited); docked is slightly smaller, same top-center anchor. */
   private scales(): { big: number; dock: number } {
-    const v = this.view, z = this.zone();
-    const maxH = v.h * HUD.panel.bigMaxFrac - HUD.panel.dockTop;
-    const big = Math.max(0.3, Math.min(HUD.panel.maxBigScale, (z.w - 2 * HUD.panel.shakePx) / this.dockW, maxH / (this.dockH + this.headerH)));
+    const z = this.zone();
+    const big = Math.max(0.3, Math.min(HUD.panel.maxBigScale, (z.w - 2 * HUD.panel.shakePx) / this.dockW, z.h / this.dockH));
     const dock = Math.min(1, big * HUD.panel.dockFrac);
     return { big, dock };
   }
 
-  /** Root pose for slide progress t (0 big, 1 docked): always top-anchored, centered in the free zone. */
+  /** Root pose for slide progress t (0 big, 1 docked): top edge pinned below the car, centered on it. */
   private rootPose(t: number): { x: number; y: number; s: number } {
-    const v = this.view, z = this.zone();
+    const z = this.zone();
     const sc = this.scales();
-    const e = easeInOut(t);
-    const s = lerp(sc.big, sc.dock, e);
-    const head = lerp(this.headerH * sc.big, 0, e);
-    return { x: z.x + z.w / 2, y: v.y + HUD.panel.dockTop + head + (this.dockH * s) / 2, s };
+    const s = lerp(sc.big, sc.dock, easeInOut(t));
+    return { x: z.x + z.w / 2, y: z.y + (this.dockH * s) / 2, s };
   }
 
   private apply() {
@@ -235,7 +234,7 @@ export class ChallengePanel {
     const pp = this.promptDock;
     this.promptRoot.setPosition(pp.x, pp.y).setScale(pp.s);
     for (const c of this.cells) c.root.setPosition(c.dock.x, c.dock.y).setScale(c.dock.s);
-    if (this.header) this.header.setPosition(0, -h / 2 - this.headerH / 2 + 8).setAlpha(1 - e).setVisible(e < 0.99);
+    if (this.header) this.header.setPosition(0, -h / 2).setAlpha(1 - e).setVisible(e < 0.99);
   }
 
   update(dt: number) {
