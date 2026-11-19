@@ -138,3 +138,29 @@ export function drawDinoShadow(scene: Phaser.Scene): void {
   ctx.restore();
   done();
 }
+
+/** Local texture keys for the laser eyes (not in TEX: baked lazily by Dino via ensureLaserTextures). */
+export const LASER_TEX = { beam: 'dino_laser_beam', glow: 'dino_laser_glow' } as const;
+
+/** Bake the beam (stretched along x, origin left-centre) and glow textures once. */
+export function ensureLaserTextures(scene: Phaser.Scene): void {
+  if (!scene.textures.exists(LASER_TEX.beam)) {
+    const { ctx, done } = makeCanvas(scene, LASER_TEX.beam, 64, 64);
+    const g = ctx.createLinearGradient(0, 0, 0, 64);
+    g.addColorStop(0, 'rgba(255,40,120,0)');
+    g.addColorStop(0.22, 'rgba(255,60,130,0.85)');
+    g.addColorStop(0.4, 'rgba(255,170,200,1)');
+    g.addColorStop(0.5, 'rgba(255,255,255,1)');
+    g.addColorStop(0.6, 'rgba(255,170,200,1)');
+    g.addColorStop(0.78, 'rgba(255,60,130,0.85)');
+    g.addColorStop(1, 'rgba(255,40,120,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+    done();
+  }
+  if (!scene.textures.exists(LASER_TEX.glow)) {
+    const { ctx, done } = makeCanvas(scene, LASER_TEX.glow, 128, 128);
+    ctx.fillStyle = radial(ctx, 64, 64, 0, 64, [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,170,200,0.95)'], [0.6, 'rgba(255,60,130,0.45)'], [1, 'rgba(255,40,120,0)']]);
+    ctx.fillRect(0, 0, 128, 128);
+    done();
+  }
+}
