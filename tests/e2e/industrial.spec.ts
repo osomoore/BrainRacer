@@ -34,8 +34,8 @@ async function openSetup(page: Page) {
 }
 
 async function chooseNextMap(page: Page) {
-  // Player one's cursor opens on Difficulty. Map is eight rows below it.
-  for (let row = 0; row < 8; row++) {
+  // Player one's cursor opens on Difficulty. Map is four rows below it.
+  for (let row = 0; row < 4; row++) {
     await page.keyboard.press('KeyS', { delay: 55 });
     await page.waitForTimeout(55);
   }

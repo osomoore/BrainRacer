@@ -14,24 +14,26 @@ function goalRingInView(center: Vec2, radius: number, view: Rect): boolean {
   return Math.hypot(dx, dy) <= radius;
 }
 
-async function parkKartByTheFountain(page: Page, x: number, angle: number) {
+/** `dx` = kart x relative to the fountain's front (the fountain sits on the top road, front y = 448). */
+async function parkKartByTheFountain(page: Page, dx: number, angle: number) {
   await page.goto('/?race=2&seed=3&questions=off');
   await page.waitForFunction(() => (window as RaceWindow).__race);
-  await page.evaluate(({ x, angle }) => {
+  await page.evaluate(({ dx, angle }) => {
     const race = (window as RaceWindow).__race!;
-    const fountain = race.world.places.find(({ front }) => front.x === 2240 && front.y === 448)!;
+    const fountain = race.world.places.find(({ word, front }) => word === 'fountain' && front.y === 448)!;
+    const x = fountain.front.x + dx;
     race.world.places.splice(0, race.world.places.length, fountain);
     // On this stretch the nearest traffic lane heads away from the fountain.
     const car = race.players[1];
     car.setGhost(true); // Isolate the guide from traffic bumps while the kart turns in place.
     race.scene.matter.body.setPosition(car.body, { x, y: 416 });
     race.scene.matter.body.setAngle(car.body, angle);
-  }, { x, angle });
+  }, { dx, angle });
   await page.waitForFunction(() => ((window as RaceWindow).__race?.elapsedSec ?? 0) > 1);
 }
 
 test('the kart guide leads up and right toward a clipped destination ring', async ({ page }) => {
-  await parkKartByTheFountain(page, 1408, -Math.PI / 4);
+  await parkKartByTheFountain(page, -832, -Math.PI / 4);
   const { car, star, goal, view, nominalRadius, ringRadius } = await page.evaluate(({ starKey, ringKey }) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];
@@ -62,7 +64,7 @@ test('the kart guide leads up and right toward a clipped destination ring', asyn
 });
 
 test('turning toward a clipped goal keeps the kart guide aligned and moving smoothly', async ({ page }, testInfo) => {
-  await parkKartByTheFountain(page, 1280, -Math.PI / 2);
+  await parkKartByTheFountain(page, -960, -Math.PI / 2);
   const frames = await page.evaluate(({ starKey, ringKey }) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];

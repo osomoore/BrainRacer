@@ -23,7 +23,9 @@ test('quick race runs: countdown, driving, challenges, no errors', async ({ page
   await page.screenshot({ path: 'test-results/break-2p.png' });
   await page.waitForTimeout(500);
   const still = await page.evaluate(() => { const r = (window as any).__race; return { t: r.elapsedSec, x: r.players[0].x, y: r.players[0].y }; });
-  expect(still).toEqual(frozen);
+  // The world (cars) is frozen, but the round clock keeps counting down during a break.
+  expect({ x: still.x, y: still.y }).toEqual({ x: frozen.x, y: frozen.y });
+  expect(still.t).toBeGreaterThan(frozen.t);
   const c0 = await challenge(0);
   expect(c0.options).toHaveLength(4);
   // wrong answer -> a different question arrives

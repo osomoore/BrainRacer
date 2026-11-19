@@ -39,6 +39,6 @@ Files changed · tests added · how to see it (`?dev=...`) · known gaps · prop
 ## Worktree setup (sub-agents)
 0. Worktrees are created manually by the orchestrator under `.worktrees/<pkg>` (see `docs/NEXT.md`). Work only inside yours, with absolute paths. **Never delete or replace the `node_modules` junction**: it links to the real one, and removing a worktree with it in place wipes the main `node_modules`.
 1. If `node_modules` is missing in your worktree, link the main one (PowerShell): `cmd /c mklink /J node_modules C:\Users\osomo\Projects\BrainRacer\node_modules`. Do not `npm install` new packages without listing it as a proposed change.
-2. `npm run assets` (copies scene PNGs to `public/scenes/`).
+2. `npm run assets` (copies scene PNGs to `public/scenes/`). **Never run `git stash`**: the stash is shared by every worktree, so you can pop another agent's work.
 3. Visual check: start `npm run dev` in the background (or `npx vite --port <free port>`), then
    `npx playwright screenshot --viewport-size=1920,1080 --wait-for-timeout=4000 "http://localhost:5173/?dev=<Scene>" shot.png` and view the PNG. Iterate until it looks good. Don't commit screenshots.
