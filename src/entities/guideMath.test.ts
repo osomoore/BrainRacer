@@ -20,7 +20,8 @@ describe('goal mode', () => {
     expect(nextGoalMode(false, 500, false, t)).toBe(false);
     expect(nextGoalMode(true, 500, false, t)).toBe(true);
     expect(nextGoalMode(true, 700, false, t)).toBe(false);
-    expect(nextGoalMode(false, 5000, true, t)).toBe(true);
+    expect(nextGoalMode(false, 300, true, t)).toBe(true);
+    expect(nextGoalMode(false, 5000, true, t)).toBe(false);
   });
   it('orbit is at the given radius', () => {
     const p = orbitPoint({ x: 100, y: 100 }, 1.2, 95);
@@ -81,4 +82,12 @@ it('limits guide travel only on rays that cross the scoreboard', () => {
   const d = Math.SQRT1_2;
   expect(obstacleDist(car, { x: -d, y: -d }, board)).toBeCloseTo((562 - 204) / d);
   expect(obstacleDist(car, { x: 0, y: -1 }, board)).toBe(Infinity);
+});
+
+describe('nextGoalMode arrived car driving off', () => {
+  const t = { nearGoal: 450, leaveGoal: 600 };
+  it('keeps goal mode while the arrived car is near, drops it when the car leaves', () => {
+    expect(nextGoalMode(true, 100, true, t)).toBe(true);
+    expect(nextGoalMode(true, 1000, true, t)).toBe(false);
+  });
 });

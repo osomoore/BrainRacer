@@ -155,3 +155,40 @@ test('single-player team score and timer share a top-left panel', async ({ page 
   expect(scoreboard.y).toBeLessThan(30);
   expect(scoreboard.content.some((text) => /^\d{2}:\d{2}$/.test(text))).toBe(true);
 });
+
+test('an arrived player who drives off while waiting for the teammate keeps their guide beside the car', async ({ page }) => {
+  await page.goto('/?race=2&seed=3&questions=off');
+  await page.waitForFunction(() => (window as RaceWindow).__race?.goal && (window as RaceWindow).__race!.elapsedSec > 1);
+  const result = await page.evaluate(async ({ starKey, dinoKeys }) => {
+    const race = (window as RaceWindow).__race!;
+    const car = race.players[0];
+    const goal = race.goal!;
+    const keys = [starKey, ...dinoKeys];
+    const images = race.scene.children.list as Phaser.GameObjects.Image[];
+    const bodies = images.filter((o) => keys.includes(o.texture?.key));
+    const guide = bodies[0];
+    const frames = () => new Promise<void>((r) => { let n = 0; const f = () => { if (++n >= 3) { race.scene.events.off('postupdate', f); r(); } }; race.scene.events.on('postupdate', f); });
+    let arrived = false;
+    race.bus.on('goal:arrived', ({ player }) => { if (player === car.player) arrived = true; });
+    car.setGhost(true);
+    race.scene.matter.body.setPosition(car.body, { x: goal.x, y: goal.y });
+    await frames();
+    // drive away (teleport) well beyond the hand-off distance while the teammate is still on the way
+    const away = { x: goal.x + 1000, y: goal.y };
+    race.scene.matter.body.setPosition(car.body, away);
+    await new Promise<void>((r) => { const t0 = race.elapsedSec; const f = () => { if (race.elapsedSec - t0 > 2.5) { race.scene.events.off('postupdate', f); r(); } }; race.scene.events.on('postupdate', f); });
+    const view = race.camera.layout().playerViews[0];
+    const s = race.camera.worldToScreen(car.player, guide.x, guide.y);
+    const c = race.camera.worldToScreen(car.player, car.x, car.y);
+    return { arrived, stillGoal: race.goal === goal, worldDist: Math.hypot(guide.x - car.x, guide.y - car.y), s, c, view, visible: guide.visible };
+  }, { starKey: TEX.buddyStar, dinoKeys: [...TEX.buddyDino] as string[] });
+
+  expect(result.arrived).toBe(true);
+  expect(result.stillGoal).toBe(true);
+  expect(result.visible).toBe(true);
+  expect(result.worldDist).toBeLessThan(GUIDE.holdMax + 50);
+  expect(result.s.x).toBeGreaterThan(result.view.x);
+  expect(result.s.x).toBeLessThan(result.view.x + result.view.w);
+  expect(result.s.y).toBeGreaterThan(result.view.y);
+  expect(result.s.y).toBeLessThan(result.view.y + result.view.h);
+});
