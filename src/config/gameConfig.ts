@@ -91,7 +91,7 @@ export interface DifficultyProfile {
     minA: number; maxA: number; minB: number; maxB: number; maxSum: number; requireCarry: boolean;
     /** Optional: chance a question uses a teen sum (>= 11) when both small and teen pairs exist. */
     teenChance?: number;
-    /** Optional: when true the the 'forgot to add one' (answer - 1) is tried first. */
+    /** Optional: when true the 'forgot to add one' (answer - 1) is tried first. */
     offByOneFirst?: boolean;
   };
   words: {
