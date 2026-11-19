@@ -18,6 +18,12 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 - **Merge loop:** `git merge --no-ff pkg/X` → `npx tsc --noEmit` → `npm test` → `npm run e2e` → screenshot check via Playwright on Edge (`chromium.launch({ channel: 'msedge' })`) → update STATUS.
 - Vite "Outdated Optimize Dep" after big merges → restart the dev server with `--force`.
 
+## Queued playtest changes
+
+- Remove on-screen destination text. Players follow their guide buddies.
+- Investigate the reported 2–3 second delay before the buddy turns toward the next destination after a goal.
+- Repeated rams make the player's vehicle smoke, catch fire, and eventually stop working. Double-tapping B within half a second lets the player jump straight into another vehicle of any kind, including police cars and trucks.
+
 ## Backlog
 Session 2 finished items 1–6 (Easy place words, reward delay, held-button arming, break panels vs scoreboard, goal banner → card pulse, guide buddy distance). See STATUS. Open follow-ups from that work:
 - Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
@@ -39,7 +45,11 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Readability of question cards and destination cards from the back of the room.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
-- Countryside and industrial biomes (generator + art + place words: farm, barn, windmill, water tower, harbor …).
+- **New driving area (queued).** Wave 5 calls for Countryside and Industrial. The game currently generates a City map.
+  - **Countryside (recommended first).** Open fields, dirt lanes, tractors, and long straights for jumps. Use the barn, windmill, and lake as prominent destinations, with driveable field shortcuts between them.
+  - **Industrial.** Warehouses, factory loading yards, wide truck lanes, and a water tower. Use ramps and open yards for jumps.
+  - **Harbor (alternate).** Docks, a lighthouse, a broad waterfront road, and bridge crossings linking the driving loops.
+  - **First playtest.** Make the Countryside a separate map selectable before a race. Start with a seeded loop, a few recognizable destinations, and a mix of roads and field shortcuts. Playtest it with questions off in solo and split screen, checking that every goal is reachable and the animals are easy to follow without destination text. The choice between separate maps and connected biomes can follow that playtest.
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
 - Decide whether/when to merge `dev` → `main` and push to a remote.
 
