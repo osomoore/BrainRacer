@@ -573,9 +573,31 @@ export const GUIDE = {
 export const INDUSTRIAL_LIGHTING = {
   bumperOffset: 0.44, // fraction of the chassis texture width measured from its center
   referenceWidth: 42, // world px, preserves lamp spacing across the two car models
-  alpha: 0.76,
-  airborneAlpha: 0.58,
+  alpha: 1,
+  airborneAlpha: 0.75,
   airborneLengthScale: 1.15,
+  beamLength: 460, // baked texture length px (world px at scale 1)
+  beamHeight: 260,
+  beamStrength: 1.6, // multiplies baked beam gradient alpha
+  // Darkness overlay: lower alpha = brighter night. Sits above ground/props/shadows, below vehicles/buildings.
+  nightColor: 0x050b24,
+  nightAlpha: 0.7,
+  nightDepth: 15,
+  // Buildings/bridges/factories sit above the overlay, so they get a dark tint instead.
+  buildingTint: 0x39485f,
+  decorationTint: 0x5b6d8a,
+  // Additive halo that keeps the goal readable under the darkness.
+  goalGlowScale: 3.2,
+  goalGlowAlpha: 0.55,
+  goalGlowColor: 0xffe9a0,
+  // Warm ground light pools under lit decorations (bridge, bays, gantry, tower).
+  poolAlpha: 0.5,
+  poolColor: 0xffb45a,
+  poolScale: 1.5,
+  // Soft ambient halo around each player car so it never disappears into the dark.
+  carHaloScale: 4.2,
+  carHaloAlpha: 0.32,
+  carHaloColor: 0xbcd2ff,
 };
 
 export const CITY_NIGHT_LIGHTING = {
