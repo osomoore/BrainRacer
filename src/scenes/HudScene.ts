@@ -231,11 +231,11 @@ export class HudScene extends Phaser.Scene {
     else this.banners.center(GAME_WIDTH / 2, CENTER_Y, text, color ?? '#ffd43b', dur ?? 1.6);
   }
 
-  /** Small "Waiting…" hint docked just under the destination card at the top of the player's view. */
+  /** Small "Waitingâ€¦" hint docked just under the destination card at the top of the player's view. */
   private waitBanner(p: number) {
     const r = this.curViews[p];
     this.banners.lines(`wait${p}`, r.x + r.w / 2, r.y + HUD.hint.y + 30, null, [
-      { text: 'Waiting…', size: HUD.hint.textSize, color: PLAYER_COLORS[p] === '#2ecc40' ? '#7dff8a' : '#ff8a80' },
+      { text: 'Waitingâ€¦', size: HUD.hint.textSize, color: PLAYER_COLORS[p] === '#2ecc40' ? '#7dff8a' : '#ff8a80' },
     ], HUD.hint.waitSec);
   }
 
