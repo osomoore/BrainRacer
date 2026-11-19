@@ -422,10 +422,6 @@ export const GOALS = {
   magnetFlareScale: 1.6,
   introScale: 2.5,           // goal visuals start this much bigger when first seen...
   introSec: 0.6,             // ...and shrink to normal in this long (ease-out back)
-  labelIntroScale: 2,        // HUD goal label scale-in start
-  labelIntroSec: 0.5,
-  arrowBandFrac: 0.4,        // HUD off-screen goal arrow/tag stay within the top this-fraction of a view
-  arrowBandMaxH: 420,
   starThresholds: [3, 6] as [number, number],   // team points per minute for 2 / 3 stars
 };
 

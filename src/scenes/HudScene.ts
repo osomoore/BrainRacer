@@ -8,14 +8,13 @@ import { bigText, FONT_HEAD, hexNum } from '../ui/menu/style';
 import { PauseOverlay } from '../ui/menu/PauseOverlay';
 import { Banners } from '../ui/hud/Banners';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
-import { GoalIndicator } from '../ui/hud/GoalIndicator';
-import { HUD, scoreboardRect } from '../ui/hud/hudConfig';
+import { HUD } from '../ui/hud/hudConfig';
 import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
 
-const D = { divider: 1, bars: 2, goal: 3, scoreboard: 5, panel: 6, banner: 20, fly: 30 };
+const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 20, fly: 30 };
 const CENTER_Y = 430;
 
 type Kind = 'dino' | 'half' | 'goal';
@@ -23,7 +22,7 @@ const KIND_RE: [Kind, RegExp][] = [['dino', /dino alert/i], ['half', /half/i], [
 
 const copy = (r: Rect): Rect => ({ ...r });
 
-/** HUD overlay scene: scoreboard, challenge panels, timer bars, goal arrows, banners, popups, pause. */
+/** HUD overlay scene: scoreboard, challenge panels, timer bars, banners, wait pills, popups, pause. */
 export class HudScene extends Phaser.Scene {
   private ctx!: RaceContext;
   private subs: (() => void)[] = [];
@@ -35,8 +34,6 @@ export class HudScene extends Phaser.Scene {
   private scoreboard!: Scoreboard;
   private panels: (ChallengePanel | null)[] = [null, null];
   private bars: TimerBar[] = [];
-  private goals: GoalIndicator[] = [];
-  private magnet = [0, 0];
   private banners!: Banners;
   private overlay!: PauseOverlay;
   private skipFrames = 0;
@@ -55,8 +52,6 @@ export class HudScene extends Phaser.Scene {
     this.subs = [];
     this.panels = [null, null];
     this.bars = [];
-    this.goals = [];
-    this.magnet = [0, 0];
     this.lastKind = {};
     this.clock = 0;
     this.dividerAlpha = 0;
@@ -78,7 +73,6 @@ export class HudScene extends Phaser.Scene {
     this.scoreboard.setRemaining(ctx.roundLengthSec);
     for (let p = 0; p < this.nPlayers; p++) {
       this.bars.push(new TimerBar(this, PLAYER_COLORS[p], D.bars));
-      this.goals.push(new GoalIndicator(this, PLAYER_COLORS[p], D.goal));
       this.waitCards.push(this.buildWaitCard(PLAYER_COLORS[p]));
     }
     this.banners = new Banners(this, D.banner);
@@ -122,9 +116,6 @@ export class HudScene extends Phaser.Scene {
       panel.resolve(result, chosen);
       this.bars[p]?.stop();
     });
-
-    this.on('reward:granted', (e) => { if (e.reward === 'magnet') this.magnet[e.player] = e.durationSec; });
-    this.on('reward:ended', (e) => { if (e.reward === 'magnet') this.magnet[e.player] = 0; });
 
     this.on('goal:arrived', ({ player, waitSec }) => {
       if (waitSec > 0 && player < this.nPlayers && this.nPlayers > 1) this.waitBanner(player);
@@ -231,7 +222,7 @@ export class HudScene extends Phaser.Scene {
     else this.banners.center(GAME_WIDTH / 2, CENTER_Y, text, color ?? '#ffd43b', dur ?? 1.6);
   }
 
-  /** Small "Waiting…" hint docked just under the destination card at the top of the player's view. */
+  /** Small "Waiting…" pill near the top of the player's view while the teammate catches up. */
   private waitBanner(p: number) {
     const r = this.curViews[p];
     this.banners.lines(`wait${p}`, r.x + r.w / 2, r.y + HUD.hint.y + 30, null, [
@@ -319,26 +310,8 @@ export class HudScene extends Phaser.Scene {
       }
       this.bars[p].setView(this.curViews[p]);
       this.bars[p].update(dt);
-      if (this.magnet[p] > 0) this.magnet[p] = Math.max(0, this.magnet[p] - dt);
     }
-    this.updateGoals(dt);
     this.banners.update(dt);
-  }
-
-  private updateGoals(dt: number) {
-    const goal = this.ctx.goal;
-    const cams = this.ctx.camera;
-    const scoreboard = scoreboardRect(this.nPlayers);
-    const car = (p: number): Vec2 => ({ x: this.ctx.players[p]?.x ?? 0, y: this.ctx.players[p]?.y ?? 0 });
-    if (this.shared()) {
-      const cars = [...Array(this.nPlayers).keys()].map(car);
-      this.goals[0].update(dt, goal, (x, y) => cams.worldToScreen(0, x, y), this.mapRect(0), cars, this.magnet.some((m) => m > 0), scoreboard);
-      this.goals[1]?.hide();
-    } else {
-      for (let p = 0; p < this.nPlayers; p++) {
-        this.goals[p].update(dt, goal, (x, y) => cams.worldToScreen(p as PlayerId, x, y), this.curViews[p], [car(p)], this.magnet[p] > 0, scoreboard);
-      }
-    }
   }
 
   private drawDivider(dt: number) {
