@@ -71,6 +71,20 @@ export function generateIndustrial(seed: number): WorldData {
     if (word && front) places.push({ word, buildingId: id, sign: px(tx + tw / 2, ty + th / 2), front });
   };
 
+  // Long warehouse walls are split by one-tile gaps (open yard ground) so no wall exceeds WORLD.maxBuildingRun.
+  const wall = ([tx, ty, tw, th]: Strip) => {
+    const horizontal = tw >= th;
+    const len = horizontal ? tw : th;
+    const pieces = Math.ceil((len + 1) / (WORLD.maxBuildingRun + 1));
+    const room = len - (pieces - 1);
+    let at = 0;
+    for (let i = 0; i < pieces; i++) {
+      const size = Math.floor(room / pieces) + (i < room % pieces ? 1 : 0);
+      lot(horizontal ? [tx + at, ty, size, th] : [tx, ty + at, tw, size]);
+      at += size + 1;
+    }
+  };
+
   // Signed exits and approaches sit on the loop and away from walls and rail.
   lot([10, 13, 3, 2], 'train station', px(CROSSING_X + 1, NORTH_BRIDGE + 1));
   lot([33, 6, 3, 2], 'bridge', px(37.5, NORTH_BRIDGE + 1));
@@ -78,13 +92,13 @@ export function generateIndustrial(seed: number): WorldData {
   lot([34, 40, 3, 2], 'water tower', px(37.5, SOUTH_BRIDGE + 1));
 
   // Low perimeter warehouses frame the district without blocking the open yards.
-  lot([3, 8, 3, rng.int(7, 10)]);
-  lot([3, 32, 3, rng.int(7, 10)]);
-  lot([11, 3, rng.int(4, 7), 2]);
-  lot([42, 13, 3, rng.int(5, 8)]);
-  lot([42, 27, 3, rng.int(5, 8)]);
-  lot([27, 3, rng.int(4, 6), 3]);
-  lot([27, 42, rng.int(4, 6), 3]);
+  wall([3, 8, 3, rng.int(7, 10)]);
+  wall([3, 32, 3, rng.int(7, 10)]);
+  wall([11, 3, rng.int(4, 7), 2]);
+  wall([42, 13, 3, rng.int(5, 8)]);
+  wall([42, 27, 3, rng.int(5, 8)]);
+  wall([27, 3, rng.int(4, 6), 3]);
+  wall([27, 42, rng.int(4, 6), 3]);
 
   const bridge = (y: number) => decoration('bridge', (CANAL_WEST + CANAL_EAST) / 2, y + 1, CANAL_EAST - CANAL_WEST, ROAD_WIDTH);
   const decorations = [

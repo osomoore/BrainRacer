@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GOALS } from '../../config/gameConfig';
+import { GOALS, WORLD } from '../../config/gameConfig';
 import { Tile, type Vec2, type WorldData } from '../../core/types';
 import { signSceneFor } from '../../data/places';
 import { isDrivable, tileAt } from '../geometry';
@@ -28,6 +28,22 @@ function reachableRoadTiles(world: WorldData, blocked: ReadonlySet<number>): Set
   }
   return visited;
 }
+
+describe('generateIndustrial walls', () => {
+  it('never has a building run longer than WORLD.maxBuildingRun, and gaps are open ground', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = generateIndustrial(seed);
+      const W = w.widthTiles, H = w.heightTiles;
+      let best = 0;
+      for (let y = 0; y < H; y++) { let r = 0; for (let x = 0; x < W; x++) { r = w.tiles[y * W + x] === Tile.Building ? r + 1 : 0; best = Math.max(best, r); } }
+      for (let x = 0; x < W; x++) { let r = 0; for (let y = 0; y < H; y++) { r = w.tiles[y * W + x] === Tile.Building ? r + 1 : 0; best = Math.max(best, r); } }
+      expect(best).toBeLessThanOrEqual(WORLD.maxBuildingRun);
+      expect(w.buildings.filter((b) => b.placeWord).length).toBe(4);
+      for (const b of w.buildings) expect(w.tiles[b.ty * W + b.tx]).toBe(Tile.Building);
+    }
+    expect(generateIndustrial(5)).toEqual(generateIndustrial(5));
+  });
+});
 
 describe('generateIndustrial', () => {
   it('repeats a seed and varies the warehouse footprints with the seed', () => {

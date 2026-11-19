@@ -8,6 +8,14 @@ import { computeRoadMask, type Grid } from './grid';
 import { cityGen } from './index';
 import { generateSpawns } from './spawns';
 
+function longestBuildingRun(w: WorldData): number {
+  const W = w.widthTiles, H = w.heightTiles;
+  let best = 0;
+  for (let y = 0; y < H; y++) { let r = 0; for (let x = 0; x < W; x++) { r = w.tiles[y * W + x] === Tile.Building ? r + 1 : 0; best = Math.max(best, r); } }
+  for (let x = 0; x < W; x++) { let r = 0; for (let y = 0; y < H; y++) { r = w.tiles[y * W + x] === Tile.Building ? r + 1 : 0; best = Math.max(best, r); } }
+  return best;
+}
+
 const SEEDS = [1, 2, 3, 7, 42, 99, 1234, 99999];
 const worlds = new Map<number, WorldData>(SEEDS.map((s) => [s, cityGen(s)]));
 const each = (fn: (w: WorldData, seed: number) => void) => () => { for (const [s, w] of worlds) fn(w, s); };
@@ -94,15 +102,31 @@ describe('cityGen', () => {
       w.tiles.forEach((tile, i) => {
         if (tile !== Tile.Sidewalk || neighbors.some((d) => w.tiles[i + d] === Tile.Road)) return;
         alleyTiles++;
-        const spans = (d: number, type: Tile) => w.tiles[i - d] === type && w.tiles[i + d] === type;
-        expect(
-          (spans(1, Tile.Sidewalk) && spans(W, Tile.Building)) ||
-          (spans(W, Tile.Sidewalk) && spans(1, Tile.Building)),
-        ).toBe(true);
+        // Open along one axis (alley direction), walled by buildings on the other, or a cut tile whose
+        // neighbours are open on at least one axis.
+        const open = (d: number) => w.tiles[i - d] !== Tile.Building && w.tiles[i + d] !== Tile.Building;
+        expect(open(1) || open(W)).toBe(true);
       });
     }
     expect(alleyTiles).toBeGreaterThan(0);
   });
+
+  it('never lets building tiles form a wall longer than WORLD.maxBuildingRun', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = cityGen(seed);
+      expect(longestBuildingRun(w)).toBeLessThanOrEqual(WORLD.maxBuildingRun);
+    }
+  });
+
+  it('keeps every place sign on a building and every building tile inside a lot', each((w) => {
+    const covered = new Set<number>();
+    for (const b of w.buildings) for (let y = b.ty; y < b.ty + b.th; y++) for (let x = b.tx; x < b.tx + b.tw; x++) {
+      expect(w.tiles[y * w.widthTiles + x]).toBe(Tile.Building);
+      expect(covered.has(y * w.widthTiles + x)).toBe(false);
+      covered.add(y * w.widthTiles + x);
+    }
+    w.tiles.forEach((t, i) => { if (t === Tile.Building) expect(covered.has(i)).toBe(true); });
+  }));
 
   it('puts ramps on straight runs, spaced apart', each((w) => {
     expect(w.ramps.length).toBe(WORLD.rampCount);

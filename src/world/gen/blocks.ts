@@ -123,7 +123,76 @@ export function generateBlocks(rng: Rng, g: Grid, seed: number, featureTiles: nu
       lotBlock.push(b.id);
     }
   }
-  return { blocks, blockOf, lots, lotBlock };
+  return breakLongWalls(g, { blocks, blockOf, lots, lotBlock });
+}
+
+/** Longest straight run of building tiles through (x,y) along the axis; returns [start, end] inclusive. */
+function runAt(g: Grid, x: number, y: number, horizontal: boolean): [number, number] {
+  const at = (p: number) => (horizontal ? g.tiles[y * g.w + p] : g.tiles[p * g.w + x]) === Tile.Building;
+  let a = horizontal ? x : y, b = a;
+  while (a > 0 && at(a - 1)) a--;
+  while (b < (horizontal ? g.w : g.h) - 1 && at(b + 1)) b++;
+  return [a, b];
+}
+
+/**
+ * Cut an alley (one-tile sidewalk strip, side to side through the building mass) wherever a straight run of
+ * building tiles exceeds WORLD.maxBuildingRun, so adjacent lots never form an unbroken wall. Lots crossed by a
+ * cut are split into smaller lots.
+ */
+function breakLongWalls(g: Grid, info: BlockInfo): BlockInfo {
+  const max = WORLD.maxBuildingRun;
+  const cut = new Set<number>();
+  for (let guard = 0; guard < g.w * g.h; guard++) {
+    let found = false;
+    scan:
+    for (const horizontal of [true, false]) {
+      for (let y = 0; y < g.h; y++) {
+        for (let x = 0; x < g.w; x++) {
+          if (g.tiles[y * g.w + x] !== Tile.Building) continue;
+          const [a, b] = runAt(g, x, y, horizontal);
+          const len = b - a + 1;
+          if (len <= max) { if (horizontal) x = b; continue; }
+          // Cut so the left piece is as close to max as possible (fewest alleys), at least 1 tile each side.
+          const c = a + Math.min(max, len - 2);
+          // Alley runs perpendicular to the wall, through every consecutive building tile of that line.
+          const pos = (p: number) => (horizontal ? p * g.w + c : c * g.w + p);
+          let lo = horizontal ? y : x, hi = lo;
+          const isB = (p: number) => g.tiles[pos(p)] === Tile.Building;
+          while (lo > 0 && isB(lo - 1)) lo--;
+          while (hi < (horizontal ? g.h : g.w) - 1 && isB(hi + 1)) hi++;
+          for (let p = lo; p <= hi; p++) { g.tiles[pos(p)] = Tile.Sidewalk; cut.add(pos(p)); }
+          found = true;
+          break scan;
+        }
+      }
+    }
+    if (!found) break;
+  }
+  if (!cut.size) return info;
+
+  // Re-tile lots that lost tiles into rectangles; untouched lots keep their shape.
+  const lots: BuildingLot[] = [];
+  const lotBlock: number[] = [];
+  for (const lot of info.lots) {
+    const blk = info.lotBlock[lot.id];
+    let touched = false;
+    for (let y = lot.ty; y < lot.ty + lot.th && !touched; y++) for (let x = lot.tx; x < lot.tx + lot.tw; x++) if (cut.has(y * g.w + x)) { touched = true; break; }
+    if (!touched) { lots.push({ ...lot, id: lots.length }); lotBlock.push(blk); continue; }
+    const used = new Set<number>();
+    const ok = (x: number, y: number) => x < lot.tx + lot.tw && y < lot.ty + lot.th && g.tiles[y * g.w + x] === Tile.Building && !used.has(y * g.w + x);
+    for (let y = lot.ty; y < lot.ty + lot.th; y++) for (let x = lot.tx; x < lot.tx + lot.tw; x++) {
+      if (!ok(x, y)) continue;
+      let w = 1, h = 1;
+      while (ok(x + w, y)) w++;
+      const rowOk = () => { for (let xx = x; xx < x + w; xx++) if (!ok(xx, y + h)) return false; return true; };
+      while (y + h < lot.ty + lot.th && rowOk()) h++;
+      for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) used.add(yy * g.w + xx);
+      lots.push({ id: lots.length, tx: x, ty: y, tw: w, th: h, style: lot.style });
+      lotBlock.push(blk);
+    }
+  }
+  return { ...info, lots, lotBlock };
 }
 
 /** Find one-tile-wide passages between two outer sidewalks with building space on both sides. */
