@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
+import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
 import results from './music/tracks/results.json';
 import {
@@ -29,7 +30,7 @@ describe('units', () => {
 });
 
 describe('validateTrack', () => {
-  for (const [name, t] of Object.entries({ title, race, dino, results })) {
+  for (const [name, t] of Object.entries({ title, race, industrial, dino, results })) {
     it(`${name}.json is well-formed`, () => {
       expect(validateTrack(t)).toEqual([]);
     });

@@ -54,6 +54,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   readonly player: PlayerId;
   readonly kind: CarKind;
   private readonly sprite: Phaser.GameObjects.Image;
+  get chassis() { return this.sprite; }
   private readonly shadow: Phaser.GameObjects.Image;
   private _turbo = false;
   private _ghost = false;

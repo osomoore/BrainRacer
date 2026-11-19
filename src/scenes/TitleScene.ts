@@ -34,6 +34,8 @@ export class TitleScene extends Phaser.Scene {
   create() {
     this.joined = []; this.cards = []; this.letters = []; this.drivers = []; this.leaving = false; this.lastJoinAt = -1e9;
     this.base = loadSettings();
+    this.audioStarted = services.audio.unlocked;
+    if (this.audioStarted) services.audio.music('title');
     services.input.reset();
     this.buildBackground();
     this.buildLogo();
@@ -52,7 +54,10 @@ export class TitleScene extends Phaser.Scene {
   private startAudio() {
     if (this.audioStarted) return;
     this.audioStarted = true;
-    services.audio.unlock().then(() => services.audio.music('title')).catch(() => { /* silent is fine */ });
+    services.audio.unlock().then(() => {
+      this.audioStarted = services.audio.unlocked;
+      if (this.audioStarted && this.scene.isActive()) services.audio.music('title');
+    }).catch(() => { this.audioStarted = false; });
   }
 
   // ───────────────────────── visuals ─────────────────────────

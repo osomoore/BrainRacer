@@ -9,6 +9,10 @@ export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
 export const TILE_SIZE = 128;
 
+export const INDUSTRIAL = {
+  goalRadius: 96,
+};
+
 export const PLAYER_COLORS = ['#2ecc40', '#ff3b30'] as const;      // P1 green (dino), P2 red (kart)
 export const ANSWER_COLORS = ['#1e6fff', '#ffcc00', '#ff3b30', '#2ecc40'] as const; // X blue, Y yellow, B red, A green
 export const ANSWER_LABELS = ['X', 'Y', 'B', 'A'] as const;
@@ -41,6 +45,7 @@ export const CAT = {
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
+  map: 'city',
   players: [
     { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' },
   ],
@@ -490,4 +495,29 @@ export const GUIDE = {
   starFlashEverySec: 1.1,
   dinoColors: [0xff3d9a, 0xff8a1f, 0xffd23a] as number[],   // ribbon puff tints
   starColors: [0xffe066, 0xffffff, 0xffc233] as number[],
+};
+
+export const INDUSTRIAL_LIGHTING = {
+  bumperOffset: 0.44, // fraction of the chassis texture width measured from its center
+  referenceWidth: 42, // world px, preserves lamp spacing across the two car models
+  alpha: 0.76,
+  airborneAlpha: 0.58,
+  airborneLengthScale: 1.15,
+};
+
+export const FREIGHT = {
+  firstWarningSec: 4,
+  periodSec: 20,
+  warningLeadSec: 2.75,
+  warningTailSec: 0.55,
+  flashStepSec: 0.35,
+  speed: 400,
+  wagonCount: 4,
+  carriageGap: 8,
+  terminalFade: 256,
+  signalRoadLength: 128,
+  signalShoulder: 32,
+  soundRadius: 1250,
+  soundVolume: 0.72,
+  releaseSpeed: 380,
 };

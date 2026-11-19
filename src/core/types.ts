@@ -15,6 +15,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
 export type PlayerId = 0 | 1;
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
+export type RaceMap = 'city' | 'industrial';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
 /**
  * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).
@@ -109,6 +110,7 @@ export type ChallengeMode = 'words' | 'math' | 'mixed';
 export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
+  map: RaceMap;
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
   challengeMode: ChallengeMode | 'off';   // default 'words'
   questionStyle: QuestionStyle;   // default 'pause'
@@ -183,7 +185,31 @@ export interface Prop { kind: PropKind; x: number; y: number; angle: number }
 export interface LaneNode { id: number; x: number; y: number; next: number[] }
 export interface LaneGraph { nodes: LaneNode[] }
 
+export type IndustrialDecorationKind = 'bridge' | 'factoryBay' | 'gantry' | 'loadingYard' | 'waterTower';
+/** Pixel center and footprint. Width is along the decoration's local +x axis. */
+export interface IndustrialDecoration extends Vec2 {
+  kind: IndustrialDecorationKind;
+  w: number;
+  h: number;
+  angle: number;
+}
+
+export interface FreightRoute {
+  /** Straight rail centerline. The train loops out of sight beyond these endpoints. */
+  start: Vec2;
+  end: Vec2;
+  crossing: Vec2;
+  /** Length of track inside the road, centered on the crossing. */
+  crossingWidth: number;
+}
+
+export interface IndustrialLayout {
+  decorations: IndustrialDecoration[];
+  rail: FreightRoute;
+}
+
 export interface WorldData {
+  industrial?: IndustrialLayout;
   seed: number;
   widthTiles: number;
   heightTiles: number;
@@ -218,9 +244,9 @@ export type SfxName =
   | 'correct' | 'wrong' | 'timeout' | 'turbo' | 'crash' | 'crashBig' | 'skid'
   | 'siren' | 'policeBump' | 'jump' | 'land' | 'goal' | 'goalArrive'
   | 'countdown' | 'go' | 'roar' | 'stomp' | 'squash' | 'shockwave' | 'pop'
-  | 'menuMove' | 'menuSelect' | 'join';
+  | 'menuMove' | 'menuSelect' | 'join' | 'crossing';
 
-export type MusicTrack = 'title' | 'race' | 'dino' | 'results';
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'dino' | 'results';
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 export type CameraMode = 'single' | 'merged' | 'split';

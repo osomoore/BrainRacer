@@ -1,15 +1,16 @@
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
-import { DEFAULT_SETTINGS, DINO, TILE_SIZE, VEHICLE_MODEL } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
-import type { PlayerId, RoundResults, Settings } from '../core/types';
+import type { MusicTrack, PlayerId, RoundResults, Settings } from '../core/types';
 import { PlayerCar } from '../entities/PlayerCar';
 import { SkidMarks } from '../fx/SkidMarks';
 import { createSystems } from '../systems';
 import { cityGen } from '../world/gen';
+import { generateIndustrial } from '../world/gen/industrial';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
@@ -33,6 +34,7 @@ export class RaceScene extends Phaser.Scene {
   private started = false;
   private ended = false;
   private inBreak = false;
+  private raceMusic: MusicTrack = 'race';
   private offs: (() => void)[] = [];
 
   constructor() { super(SCENE.race); }
@@ -53,7 +55,9 @@ export class RaceScene extends Phaser.Scene {
     engine.velocityIterations = VEHICLE_MODEL.velocityIterations;
     if (params.get('debug') === '1') this.matter.world.createDebugGraphic();
 
-    const world = cityGen(seed);
+    const industrial = settings.map === 'industrial';
+    this.raceMusic = industrial ? 'industrial' : 'race';
+    const world = industrial ? generateIndustrial(seed) : cityGen(seed);
     this.built = buildWorld(this, world);
     this.skids = new SkidMarks(this);
 
@@ -64,7 +68,7 @@ export class RaceScene extends Phaser.Scene {
       return car;
     });
 
-    const bounds = { x: 0, y: 0, w: world.widthTiles * TILE_SIZE, h: world.heightTiles * TILE_SIZE };
+    const bounds = { x: 0, y: 0, w: world.widthTiles * world.tileSize, h: world.heightTiles * world.tileSize };
     this.rig = new CameraRig(this, { targets: this.players, worldBounds: bounds, bus });
 
     this.ctx = {
@@ -88,11 +92,15 @@ export class RaceScene extends Phaser.Scene {
     this.systems = createSystems();
     for (const s of this.systems) s.init(this.ctx);
 
+    const unlockAudio = () => { if (!services.audio.unlocked) void services.audio.unlock(); };
+    this.input.keyboard?.on('keydown', unlockAudio);
+    this.input.on('pointerdown', unlockAudio);
     this.offs.push(
+      () => { this.input.keyboard?.off('keydown', unlockAudio); this.input.off('pointerdown', unlockAudio); },
       bus.on('game:resume', () => this.setPaused(false)),
       bus.on('dino:spawned', () => services.audio.music('dino', 1.5)),
-      bus.on('dino:defeated', () => { if (!this.ended) services.audio.music('race', 1.5); }),
-      bus.on('dino:left', () => { if (!this.ended) services.audio.music('race', 1.5); }),
+      bus.on('dino:defeated', () => { if (!this.ended) services.audio.music(this.raceMusic, 1.5); }),
+      bus.on('dino:left', () => { if (!this.ended) services.audio.music(this.raceMusic, 1.5); }),
       bus.on('round:end', ({ results }) => this.endRound(results)),
     );
 
@@ -168,7 +176,7 @@ export class RaceScene extends Phaser.Scene {
       this.started = true;
       bus.emit('ui:banner', { text: 'GO!', color: '#7CFC00', durationSec: 1 });
       services.audio.sfx('go');
-      services.audio.music('race', 0.5);
+      services.audio.music(this.raceMusic, 0.5);
       for (const car of this.players) car.setControlEnabled(true);
       bus.emit('round:start', { lengthSec: this.ctx.roundLengthSec });
     }

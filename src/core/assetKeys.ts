@@ -34,6 +34,19 @@ export const TEX = {
   signFrame: 'sign_frame',      // 150 x 150 board; scene image drawn on top at ~130 px
   ramp: 'ramp',                 // 128 x 96 (w along travel), yellow/black chevrons
 
+  industrial: {
+    bridge: 'industrial_bridge',
+    factoryBay: 'industrial_factory_bay',
+    gantry: 'industrial_gantry',
+    loadingYard: 'industrial_loading_yard',
+    waterTower: 'industrial_water_tower',
+    rail: 'industrial_rail',
+    crossing: ['industrial_crossing_idle', 'industrial_crossing_lit'],
+    engine: 'industrial_engine',
+    freightCar: 'industrial_freight_car',
+    headlight: 'industrial_headlight',
+  },
+
   // props
   tree: 'prop_tree',            // 80 x 80 canopy
   bush: 'prop_bush',            // 40 x 40

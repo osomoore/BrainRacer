@@ -11,6 +11,9 @@ import { Tile, type Prop, type Rect, type WorldData } from '../core/types';
 import { signSceneFor } from '../data/places';
 import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
+import {
+  INDUSTRIAL_BUILDING_TINT, INDUSTRIAL_SLAB_VARIANTS, INDUSTRIAL_TILESET_KEY, addIndustrialWorld, industrialTileSource,
+} from './industrialWorld';
 
 export interface BuiltWorld {
   /** World bounds in pixels. */
@@ -44,14 +47,17 @@ const TILE_KEYS: string[] = [
 ];
 const ROAD_BASE = 6;
 
-function ensureTileset(scene: Phaser.Scene): void {
-  if (scene.textures.exists(TILESET_KEY)) return;
-  const rows = Math.ceil(TILE_KEYS.length / COLS);
-  const tex = scene.textures.createCanvas(TILESET_KEY, COLS * CELL, rows * CELL);
+function ensureTileset(scene: Phaser.Scene, industrial: boolean): string {
+  const key = industrial ? INDUSTRIAL_TILESET_KEY : TILESET_KEY;
+  if (scene.textures.exists(key)) return key;
+  const tileCount = TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
+  const rows = Math.ceil(tileCount / COLS);
+  const tex = scene.textures.createCanvas(key, COLS * CELL, rows * CELL);
   if (!tex) throw new Error('tileset canvas failed');
   const ctx = tex.getContext();
-  TILE_KEYS.forEach((key, i) => {
-    const src = scene.textures.get(key).getSourceImage() as CanvasImageSource;
+  const drawTile = industrial ? industrialTileSource(TS) : undefined;
+  for (let i = 0; i < tileCount; i++) {
+    const src = drawTile ? drawTile(i) : scene.textures.get(TILE_KEYS[i]).getSourceImage() as CanvasImageSource;
     const cx = (i % COLS) * CELL, cy = Math.floor(i / COLS) * CELL;
     ctx.drawImage(src, cx + EXT, cy + EXT, TS, TS);
     // extrude edges to avoid seams at fractional zoom
@@ -59,8 +65,9 @@ function ensureTileset(scene: Phaser.Scene): void {
     ctx.drawImage(src, TS - 1, 0, 1, TS, cx + EXT + TS, cy + EXT, EXT, TS);
     ctx.drawImage(src, 0, 0, TS, 1, cx + EXT, cy, TS, EXT);
     ctx.drawImage(src, 0, TS - 1, TS, 1, cx + EXT, cy + EXT + TS, TS, EXT);
-  });
+  }
   tex.refresh();
+  return key;
 }
 
 function tileIndex(world: WorldData, i: number): number {
@@ -70,7 +77,13 @@ function tileIndex(world: WorldData, i: number): number {
     case Tile.Sidewalk: return 2;
     case Tile.Building: return 2;
     case Tile.Park: return 3;
-    case Tile.Plaza: return 4;
+    case Tile.Plaza: {
+      if (world.industrial) {
+        const weighted = hashPos(i % world.widthTiles, Math.floor(i / world.widthTiles)) % 13;
+        if (weighted < INDUSTRIAL_SLAB_VARIANTS) return TILE_KEYS.length + weighted;
+      }
+      return 4;
+    }
     case Tile.Dirt: return 5;
     case Tile.Road: return ROAD_BASE + (world.roadMask[i] & 15);
     default: return 1;
@@ -97,14 +110,16 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     collisionFilter: { category: CAT.static, mask: 0xffff, group: 0 },
     plugin: { owner },
   } as BodyCfg);
-  const addStaticRect = (cx: number, cy: number, w: number, h: number, owner: BodyOwner) => {
-    const b = M.add.rectangle(cx, cy, w, h, staticOpts(owner)) as unknown as MatterJS.BodyType;
+  const rememberStaticBody = (b: MatterJS.BodyType, owner: BodyOwner) => {
     (b as unknown as { plugin: { owner: BodyOwner } }).plugin.owner = owner;
     bodies.push(b);
   };
+  const addStaticRect = (cx: number, cy: number, w: number, h: number, owner: BodyOwner, angle = 0) => {
+    rememberStaticBody(M.add.rectangle(cx, cy, w, h, { ...staticOpts(owner), angle }) as unknown as MatterJS.BodyType, owner);
+  };
 
   // ── ground
-  ensureTileset(scene);
+  const tilesetKey = ensureTileset(scene, world.industrial !== undefined);
   const data: number[][] = [];
   for (let y = 0; y < world.heightTiles; y++) {
     const row: number[] = [];
@@ -112,7 +127,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     data.push(row);
   }
   const map = scene.make.tilemap({ data, tileWidth: ts, tileHeight: ts });
-  const tileset = map.addTilesetImage('world', TILESET_KEY, TS, TS, EXT, EXT * 2);
+  const tileset = map.addTilesetImage('world', tilesetKey, TS, TS, EXT, EXT * 2);
   if (!tileset) throw new Error('tileset failed');
   const layer = map.createLayer(0, tileset, 0, 0);
   if (!layer) throw new Error('layer failed');
@@ -131,7 +146,9 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     const m = BUILDING_3D.shadowMargin;
     objs.push(scene.add.image(fx - m, fy - m, sk).setOrigin(0, 0).setDepth(DEPTH.decal - 1));
     const bk = ensureBodyTexture(scene, fw, fh, b.style);
-    objs.push(scene.add.image(fx, fy, bk).setOrigin(0, 0).setDepth(DEPTH.building));
+    const building = scene.add.image(fx, fy, bk).setOrigin(0, 0).setDepth(DEPTH.building);
+    if (world.industrial) building.setTint(INDUSTRIAL_BUILDING_TINT);
+    objs.push(building);
     addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
     if (b.placeWord) {
       const bv = Math.min(bevelFor(b.style), Math.floor(Math.min(fw, fh) / 4));
@@ -147,6 +164,11 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
   }
   const T = L.boundaryThickness;
   const bnd: BodyOwner = { kind: 'boundary' };
+  if (world.industrial) {
+    addIndustrialWorld(scene, world.industrial, objs,
+      (x, y, w, h, angle) => addStaticRect(x, y, w, h, bnd, angle),
+      (x, y, radius) => rememberStaticBody(M.add.circle(x, y, radius, staticOpts(bnd)) as unknown as MatterJS.BodyType, bnd));
+  }
   addStaticRect(W / 2, -T / 2, W + 2 * T, T, bnd);
   addStaticRect(W / 2, H + T / 2, W + 2 * T, T, bnd);
   addStaticRect(-T / 2, H / 2, T, H, bnd);

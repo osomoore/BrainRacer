@@ -1,13 +1,13 @@
-# BrainRacer — Status (as of 2026-11-19, end of session 1)
+# BrainRacer — Status (as of 2026-11-19)
 
-**Playable v1 (city biome), after 3 rounds of playtest feedback.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
-Tests: 255 unit (`npm test`) + 6 browser e2e (`npm run e2e`), all passing. ~140 fps headless Edge (RTX 3060), 2 players.
+**City and Industrial at Night are playable.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
 ## How to play / test
 - Full game: `play.bat`, or `npm run dev` → http://localhost:5173/ (press A / Space three times to start).
 - Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines), or `&questions=off` (disable questions for this race).
+- Industrial quick launch: `/?race=2&map=industrial&seed=3&questions=off`. Use `race=1` for solo or `map=city` to select City explicitly.
 - Test hooks: `&dino=now` (dino appears next to players in 2 s), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
 - Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.
 - F2 anywhere: raw controller input overlay. `window.__race` = live RaceContext; `window.__challenge` = challenge state hook (used by e2e).
@@ -36,6 +36,13 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - Break panels sit below the scoreboard. The big "Drive to the …" banner is gone; the destination card pulses on a new goal, and a small "Waiting…" pill replaces the teammate-wait banner.
 - Guide buddy hovers ~0.8 of the way from the car to its view edge (`GUIDE.edgeFrac`, `edgeMargin`, `topInset`, `seamInset`, `holdMax`).
 - Tests: 272 unit + 7 e2e, all passing.
+
+## Industrial at Night
+
+- Pick **Industrial** in Setup's **Map** row. City is the default for new and older saved settings. Setup remembers the map selection, and quick launch can override it for that session.
+- The two lit service-canal bridges connect the freight side and the factory side. Both bridge roads run through open factory bays. The south freight loading yard has an eastbound ramp.
+- Flashing crossing lights warn of the approaching freight train. Use the bridges and the factory loop to travel between the north and south freight yards while the grade crossing is occupied.
+- Both cars have headlights in Industrial. Its music starts at GO and resumes after the dino cue.
 
 ## Known gaps (also tracked in NEXT.md)
 - Unused config keys: `WORLD.bigAirSec`, `GOALS.arrowBandFrac`, `GOALS.arrowBandMaxH`. HudTest still emits a "Nice jump!" popup (ignored).

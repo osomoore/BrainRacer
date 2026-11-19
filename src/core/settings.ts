@@ -7,7 +7,11 @@ const KEY = 'brainracer.settings.v1';
 export function loadSettings(): Settings {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
-    if (raw) return { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) } as Settings;
+    if (raw) {
+      const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) };
+      settings.map = settings.map === 'industrial' ? 'industrial' : 'city';
+      return settings;
+    }
   } catch { /* ignore */ }
   return structuredClone(DEFAULT_SETTINGS);
 }

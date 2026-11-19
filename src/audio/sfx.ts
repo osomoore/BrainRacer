@@ -100,6 +100,15 @@ function arpeggio(v: Voice, t: number, notes: number[], step: number, type: OscT
 }
 
 const RECIPES: Record<SfxName, Recipe> = {
+  crossing: (v, t) => {
+    for (const offset of [0, 0.28]) {
+      const strike = t + offset;
+      v.osc({ type: 'triangle', f0: 940, t: strike, dur: 0.23, vol: 0.42, attack: 0.004 });
+      v.osc({ type: 'sine', f0: 1570, t: strike, dur: 0.17, vol: 0.21, attack: 0.004 });
+      v.osc({ type: 'sine', f0: 2410, t: strike, dur: 0.09, vol: 0.12, attack: 0.004 });
+    }
+    return 0.55;
+  },
   correct: (v, t) => {
     arpeggio(v, t, [84, 88, 91, 96], 0.07, 'triangle', 0.4, 0.25);
     arpeggio(v, t, [96, 100, 103, 108], 0.07, 'sine', 0.12, 0.2);
@@ -316,9 +325,9 @@ const RECIPES: Record<SfxName, Recipe> = {
 };
 
 /** Loudness trims per sound so the mix feels even. */
-const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.5, turbo: 1.25, stomp: 0.9 };
+const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.5, turbo: 1.25, stomp: 0.9, crossing: 1.65 };
 /** Max simultaneous instances per sound, and minimum retrigger gap (seconds). */
-const MAX_VOICES: Partial<Record<SfxName, number>> = { menuMove: 2, timeout: 2, pop: 3, skid: 2, roar: 2, goal: 1 };
+const MAX_VOICES: Partial<Record<SfxName, number>> = { menuMove: 2, timeout: 2, pop: 3, skid: 2, roar: 2, goal: 1, crossing: 1 };
 const DEFAULT_MAX_VOICES = 4;
 const GLOBAL_MAX_VOICES = 20;
 const MIN_GAP: Partial<Record<SfxName, number>> = { menuMove: 0.04, timeout: 0.05, pop: 0.03, skid: 0.15, land: 0.06, correct: 0.05 };

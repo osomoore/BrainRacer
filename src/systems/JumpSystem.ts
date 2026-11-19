@@ -132,16 +132,14 @@ export class JumpSystem implements GameSystem {
     this.ctx.scene.matter.body.setAngularVelocity(car.body, 0);
     car.view.setScale(1 + WORLD.jumpPeakScale * altitude(t));
     if (f.spin) {
-      const sprite = car.view.list[1] as Phaser.GameObjects.Image | undefined;
-      if (sprite) sprite.setRotation(Math.PI * 2 * Phaser.Math.Easing.Sine.InOut(t));
+      car.chassis.setRotation(Math.PI * 2 * Phaser.Math.Easing.Sine.InOut(t));
     }
   }
 
   private land(car: IPlayerCar, _f: Flight): void {
     this.flights.delete(car);
     car.view.setScale(1);
-    const sprite = car.view.list[1] as Phaser.GameObjects.Image | undefined;
-    if (sprite) sprite.setRotation(0);
+    car.chassis.setRotation(0);
     car.setAirborne(false);
     car.setControlEnabled(true);
     const world = this.ctx.world;

@@ -47,18 +47,19 @@ export class BootScene extends Phaser.Scene {
     const dev = params.get('dev');
     const quick = Number(params.get('race'));
     if (dev && this.scene.get(dev)) this.scene.start(dev);
-    else if (quick === 1 || quick === 2) this.quickRace(quick);
+    else if (quick === 1 || quick === 2) this.quickRace(quick, params.get('map'));
     else this.scene.start(SCENE.title);
   }
 
   /** ?race=1|2 — skip menus: gamepads if connected, else keyboard WASD (P1) / arrows (P2). */
-  private quickRace(count: 1 | 2) {
+  private quickRace(count: 1 | 2, map: string | null) {
     const base = loadSettings();
     const pads = services.input.devices().filter((d) => d.type === 'gamepad');
     const kb: InputDevice[] = [{ type: 'keyboard', layout: 'left' }, { type: 'keyboard', layout: 'right' }];
     const cars: CarKind[] = ['dino', 'kart'];
     const settings: Settings = {
       ...base,
+      map: map === 'industrial' || map === 'city' ? map : base.map,
       players: Array.from({ length: count }, (_, i) => ({
         device: pads[i] ?? kb[i],
         difficulty: base.players[i]?.difficulty ?? 'normal',

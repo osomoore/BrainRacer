@@ -8,6 +8,7 @@ import {
 } from './musicTheory';
 import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
+import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
 import results from './music/tracks/results.json';
 
@@ -20,6 +21,7 @@ const MIDI_URLS: Record<string, string> = Object.fromEntries(
 const BUILTIN: Record<MusicTrack, TrackData> = {
   title: title as TrackData,
   race: race as TrackData,
+  industrial: industrial as TrackData,
   dino: dino as TrackData,
   results: results as TrackData,
 };
@@ -173,6 +175,7 @@ class Playback {
 export class MusicPlayer {
   private current: Playback | null = null;
   private currentName: MusicTrack | null = null;
+  private industrialPhase = 0;
   private token = 0;
   private readonly overrides = new Map<MusicTrack, Promise<TrackData | null>>();
 
@@ -182,25 +185,32 @@ export class MusicPlayer {
     const my = ++this.token;
     if (name === null) {
       this.currentName = null;
+      this.industrialPhase = 0;
       this.stopCurrent(crossfadeSec);
       return;
     }
     if (name === this.currentName && this.current && !this.current.finished) return;
-    this.currentName = name;
     void this.resolve(name).then((data) => {
       if (my !== this.token) return; // superseded by a newer call
-      this.start(data, crossfadeSec);
+      this.start(name, data, crossfadeSec);
     }).catch(() => { /* silent */ });
   }
 
-  private start(data: TrackData, fade: number): void {
+  private start(name: MusicTrack, data: TrackData, fade: number): void {
     const old = this.current;
     let phase = 0;
     const sameClock = old && old.data.loop && data.loop && old.data.bpm === data.bpm && old.data.lengthBeats === data.lengthBeats;
     if (sameClock && old) phase = old.phaseBeats();
+    if (name === 'industrial' && this.currentName === 'dino') phase = this.industrialPhase;
+
+    // Save the race position for this interruption only. A new race starts at beat zero.
+    this.industrialPhase = name === 'dino' && this.currentName === 'industrial' && old
+      ? old.phaseBeats()
+      : 0;
     const t = Tone.getTransport();
     if (t.state !== 'started') t.start();
     this.current = new Playback(data, this.mixer, phase, old ? fade : Math.min(fade, 0.3));
+    this.currentName = name;
     if (old) old.fadeOutAndDispose(fade);
   }
 

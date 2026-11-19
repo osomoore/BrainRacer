@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlaceSite } from '../core/types';
-import { pickGoal } from './goalPick';
+import { generateIndustrial } from '../world/gen/industrial';
+import { industrialGoalCandidates, pickGoal } from './goalPick';
 
 const site = (word: string, x: number, y = 0): PlaceSite => ({ word, buildingId: 0, sign: { x, y }, front: { x, y } });
 const opts = { min: 2200, max: 4200, firstMin: 1500, firstMax: 3000, recentWords: [] as string[] };
@@ -28,6 +29,25 @@ describe('pickGoal', () => {
     expect(pickGoal([site('a', 0), site('b', 50)], O, false, opts, r0)!.word).toBe('b');
   });
   it('empty list', () => expect(pickGoal([], O, false, opts, r0)).toBeNull());
+});
+
+describe('Industrial goal approaches', () => {
+  it('starts by pointing through the north bridge and factory bay', () => {
+    const world = generateIndustrial(3);
+    const origin = world.playerSpawns[0];
+    const candidates = industrialGoalCandidates(world.places, origin, world.industrial!);
+    expect(pickGoal(candidates, origin, true, opts, r0)?.word).toBe('bridge');
+  });
+
+  it('allows both bridges and keeps diagonal bearings off the canal', () => {
+    const world = generateIndustrial(3);
+    const canalCenter = world.industrial!.decorations.find(({ kind }) => kind === 'bridge')!.x;
+    for (const { front } of world.places) {
+      const candidates = industrialGoalCandidates(world.places, front, world.industrial!);
+      const crossing = candidates.filter((site) => (site.front.x < canalCenter) !== (front.x < canalCenter));
+      expect(crossing.map((site) => site.front.y)).toEqual([front.y]);
+    }
+  });
 });
 
 import { segmentHitsCircle } from './goalPick';

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
-import type { CarKind, Difficulty, PlayerId, PlayerSettings, QuestionStyle, Settings } from '../core/types';
+import type { CarKind, Difficulty, PlayerId, PlayerSettings, QuestionStyle, RaceMap, Settings } from '../core/types';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
@@ -17,7 +17,9 @@ const ROUND_CHOICES = [180, 300, 420];
 const TIMER_MIN = 5, TIMER_MAX = 20;
 
 // P1 cursor rows
-const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7, ROW_START = 8;
+const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7, ROW_MAP = 8, ROW_START = 9;
+const MAPS: RaceMap[] = ['city', 'industrial'];
+const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial' };
 const MODES: Settings['challengeMode'][] = ['words', 'math', 'mixed', 'off'];
 const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
 const STYLES: QuestionStyle[] = ['pause', 'drive'];
@@ -59,6 +61,7 @@ export class SetupScene extends Phaser.Scene {
     this.cfg = {
       ...base,
       players,
+      map: MAPS.includes(base.map) ? base.map : 'city',
       roundLengthSec: ROUND_CHOICES.includes(base.roundLengthSec) ? base.roundLengthSec : 300,
       challengeMode: MODES.includes(base.challengeMode) ? base.challengeMode : 'words',
       questionStyle: STYLES.includes(base.questionStyle) ? base.questionStyle : 'pause',
@@ -91,7 +94,7 @@ export class SetupScene extends Phaser.Scene {
 
   private buildColumn(i: number, cx: number): Column {
     const color = hexNum(PLAYER_COLORS[i]);
-    const top = 130, h = 535;
+    const top = 130, h = 480;
     const g = this.add.graphics();
     g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
     g.lineStyle(10, color, 1).strokeRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
@@ -100,19 +103,19 @@ export class SetupScene extends Phaser.Scene {
     const opts = { width: COL_ROW_W, valueX: 165, arrowSpan: 160 };
     const diff = new OptionRow(this, cx, top + 150, 'Difficulty', opts);
     const hint = bigText(this, cx, top + 200, '', 40, MENU.dim, { origin: [0.5, 0], bold: false, shadow: false, stroke: 4 });
-    const car = new OptionRow(this, cx, top + 335, 'Car', opts);
-    const carObj = carPreview(this, 'dino', cx, top + 450, 3.2);
+    const car = new OptionRow(this, cx, top + 290, 'Car', opts);
+    const carObj = carPreview(this, 'dino', cx, top + 405, 3.2);
     return { diff, car, hint, carObj };
   }
 
   private buildGlobals() {
     const cx = GAME_WIDTH / 2;
     const g = this.add.graphics();
-    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 672, 1120, 322, 36);
-    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 672, 1120, 322, 36);
+    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 620, 1120, 374, 36);
+    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 620, 1120, 374, 36);
     const opts = { width: 1040, height: 48, fontSize: 38, valueX: 230, arrowSpan: 200 };
-    ['Questions', 'Question style', 'Round length', 'Questions every', 'Music volume', 'Sound volume'].forEach((l, i) => {
-      this.globals.push(new OptionRow(this, cx, 703 + i * 52, l, opts));
+    ['Questions', 'Question style', 'Round length', 'Questions every', 'Music volume', 'Sound volume', 'Map'].forEach((l, i) => {
+      this.globals.push(new OptionRow(this, cx, 651 + i * 52, l, opts));
     });
     this.startBtn = new MenuButton(this, cx, 1038, 900, 74, 'A  =  START RACE!', hexNum(PLAYER_COLORS[0]), 64);
   }
@@ -143,6 +146,7 @@ export class SetupScene extends Phaser.Scene {
     this.globals[3].setValue(`${c.challengeIntervalSec} s`);
     this.globals[4].setValue(`${Math.round(c.musicVolume * 100)}%`);
     this.globals[5].setValue(`${Math.round(c.sfxVolume * 100)}%`);
+    this.globals[6].setValue(MAP_LABEL[c.map]);
     this.refreshCursors();
   }
 
@@ -211,6 +215,7 @@ export class SetupScene extends Phaser.Scene {
       c.challengeIntervalSec = Phaser.Math.Clamp(c.challengeIntervalSec + dir, TIMER_MIN, TIMER_MAX); target = this.globals[3];
     } else if (p === 0 && row === ROW_MUSIC) { c.musicVolume = volStep(c.musicVolume); target = this.globals[4]; }
     else if (p === 0 && row === ROW_SFX) { c.sfxVolume = volStep(c.sfxVolume); target = this.globals[5]; }
+    else if (p === 0 && row === ROW_MAP) { c.map = cycle(MAPS, c.map); target = this.globals[6]; }
     if (!target) return;
     services.audio.setVolumes(c.musicVolume, c.sfxVolume);
     services.audio.sfx('menuMove');

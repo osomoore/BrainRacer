@@ -1,13 +1,13 @@
 /** Shared goal zones: pick, draw (world-space), arrival, teammate wait, completion. */
 import Phaser from 'phaser';
-import { DEPTH, GOALS } from '../config/gameConfig';
+import { DEPTH, GOALS, INDUSTRIAL } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { GoalState } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { PlayerId } from '../core/types';
 import { signSceneFor } from '../data/places';
-import { pickGoal, segmentHitsCircle } from './goalPick';
+import { industrialGoalCandidates, pickGoal, segmentHitsCircle } from './goalPick';
 
 const SPARKLES = 8;
 const CONFETTI_TINTS = [0xff4d4d, 0xffd43b, 0x4dabf7, 0x69db7c, 0xff922b, 0xe599f7];
@@ -99,13 +99,15 @@ export class GoalSystem implements GameSystem {
     const ctx = this.ctx;
     const isFirst = this.prev === null;
     const origin = this.prev ?? this.midpoint();
-    const site = pickGoal(ctx.world.places, origin, isFirst, {
+    const layout = ctx.world.industrial;
+    const candidates = layout ? industrialGoalCandidates(ctx.world.places, origin, layout) : ctx.world.places;
+    const site = pickGoal(candidates, origin, isFirst, {
       min: GOALS.minDistance, max: GOALS.maxDistance, firstMin: GOALS.firstMin, firstMax: GOALS.firstMax,
       recentWords: this.recent.slice(-GOALS.recentWords),
     }, () => ctx.rng.next());
     if (!site) return;
     const goal: GoalState = {
-      id: this.nextId++, x: site.front.x, y: site.front.y, radius: GOALS.radius,
+      id: this.nextId++, x: site.front.x, y: site.front.y, radius: layout ? INDUSTRIAL.goalRadius : GOALS.radius,
       placeWord: site.word, sceneId: signSceneFor(site.word),
     };
     this.recent.push(site.word);

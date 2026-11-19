@@ -14,6 +14,7 @@ export type BodyOwner =
   | { kind: 'building'; buildingId: number }
   | { kind: 'prop'; prop: Phaser.GameObjects.GameObject }
   | { kind: 'boundary' }
+  | { kind: 'train' }
   | { kind: 'dino' };
 
 export function ownerOf(body: MatterJS.BodyType | undefined | null): BodyOwner | null {
@@ -42,6 +43,8 @@ export interface IPlayerCar extends IVehicle {
   readonly kind: CarKind;
   /** Root display object (position/rotation follow the body). */
   readonly view: Phaser.GameObjects.Container;
+  /** Visible chassis inside view, including jump scale and midair stunt rotation. */
+  readonly chassis: Phaser.GameObjects.Image;
   /** |forwardSpeed| / current max speed, 0..1+ */
   readonly speedFrac: number;
   readonly airborne: boolean;

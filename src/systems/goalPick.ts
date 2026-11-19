@@ -1,5 +1,5 @@
 /** Pure goal selection (no Phaser). */
-import type { PlaceSite, Vec2 } from '../core/types';
+import type { IndustrialLayout, PlaceSite, Vec2 } from '../core/types';
 
 export interface PickOpts {
   min: number;
@@ -11,6 +11,23 @@ export interface PickOpts {
 }
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/** Keep a direct bearing across the canal aligned with a deck on both banks. */
+export function industrialGoalCandidates(places: readonly PlaceSite[], origin: Vec2, layout: IndustrialLayout) {
+  const bridges = layout.decorations.filter(({ kind }) => kind === 'bridge');
+  const canal = bridges[0];
+  if (!canal) return places;
+  const west = canal.x - canal.w / 2;
+  const east = canal.x + canal.w / 2;
+  const reachable = places.filter(({ front }) => {
+    if (front.x === origin.x || (origin.x <= west && front.x <= west) || (origin.x >= east && front.x >= east)) {
+      return true;
+    }
+    const yAt = (x: number) => origin.y + (front.y - origin.y) * (x - origin.x) / (front.x - origin.x);
+    return bridges.some(({ y, h }) => Math.abs(yAt(west) - y) < h / 2 && Math.abs(yAt(east) - y) < h / 2);
+  });
+  return reachable.length ? reachable : places;
+}
 
 /**
  * Choose a place whose `front` lies in the distance window from `origin` (the previous goal, or the
