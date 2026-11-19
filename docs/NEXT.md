@@ -25,6 +25,23 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 - Repeated rams make the player's vehicle smoke, catch fire, and eventually stop working. Double-tapping B within half a second lets the player jump straight into another vehicle of any kind, including police cars and trucks.
 
 ## Backlog
+
+### Queued map and gameplay ideas
+
+Begin these follow-ups only when the user kicks them off.
+
+- Add more criss-crossing routes between areas.
+- Let players smash moving freight trains apart.
+- Give player cars headlights in dark areas. Industrial at Night is the first map with headlights.
+- Give the dino laser-eye beams.
+- Break up long buildings with usable gaps so that multiple blocks do not form a continuous barrier.
+- Restrict controller answer selection to buttons. Moving the controller stick should never select an answer.
+- Cap active police pursuit at two cars per player.
+- Fix the square masking or transparency artifact around destination rings on Industrial at Night.
+- Run trains on a continuous rail circuit so they stay in the world between crossings. Avoid long gates that block access to the crossing.
+
+### Session 2 follow-ups
+
 Session 2 finished items 1–6 (Easy place words, reward delay, held-button arming, break panels vs scoreboard, goal banner → card pulse, guide buddy distance). See STATUS. Open follow-ups from that work:
 - Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
 - `CHALLENGE.rewardPanelClearSec` (1.05) mirrors HUD `panel.resultHoldSec + fadeSec` by hand; keep them in sync if the HUD fade changes.
@@ -45,7 +62,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Readability of question cards and destination cards from the back of the room.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
-- **Industrial at Night is the next driving area.** See the kickoff plan below. Harbor is deferred until a layout can connect the docks without lots of dead ends.
+- **Industrial at Night is playable in Setup.** The kickoff plan below records its scope. The projector, real-controller, and by-ear checks remain on the playtest checklist. Harbor is deferred until a layout can connect the docks without lots of dead ends.
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
 - Decide whether/when to merge `dev` → `main` and push to a remote.
 
