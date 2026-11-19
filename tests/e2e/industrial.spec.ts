@@ -33,13 +33,13 @@ async function openSetup(page: Page) {
   await waitScene(page, 'Setup');
 }
 
-async function chooseNextMap(page: Page) {
+async function chooseNextMap(page: Page, key: 'KeyD' | 'KeyA' = 'KeyD') {
   // Player one's cursor opens on Difficulty. Map is four rows below it.
   for (let row = 0; row < 4; row++) {
     await page.keyboard.press('KeyS', { delay: 55 });
     await page.waitForTimeout(55);
   }
-  await page.keyboard.press('KeyD');
+  await page.keyboard.press(key);
 }
 
 async function assertMap(page: Page, map: RaceMap) {
@@ -76,7 +76,7 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
     await page.keyboard.press('KeyW', { delay: 80 }); // Wrap from Resume to Quit to Title.
     await page.keyboard.press('Space');
     await openSetup(page);
-    await chooseNextMap(page);
+    await chooseNextMap(page, map === 'city' ? 'KeyA' : 'KeyD'); // Map row: City, Industrial, Farm
     await page.keyboard.press('Space');
     await assertMap(page, map);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!).map)).toBe(map);

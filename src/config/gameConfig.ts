@@ -689,6 +689,41 @@ export const FREIGHT = {
 };
 
 // ───────────────────────── farm map generator (package farm-gen) ─────────────────────────
+/** Farm renderer look (package farm-render: src/world/farmWorld.ts, FarmLightSystem). */
+export const FARM_LOOK = {
+  /** Nominal heights (px) that set each caster's shadow length (× FarmLayout.shadowLength). */
+  heights: {
+    barn: 110, leanTo: 46, farmhouse: 86, porch: 16, silo: 175, shed: 52, pad: 4, windmill: 170, turbine: 230,
+    hay: 26, orchardTrunk: 26, orchardTop: 60, treeTrunk: 30, treeTop: 70, bush: 18, fence: 15, bridge: 10,
+    pumpkin: 10, mazeSign: 26, well: 34, campsite: 28, cave: 80, pines: 120, boathouse: 48, village: 72, corn: 28,
+  },
+  shadowAlpha: 0.34,
+  shadowBlur: 10,
+  shadowColor: '#1a2150',   // cool blue shadows against the warm light
+  shadowFade: 0.5,          // tips are this much lighter than the base
+  /** Shadow images sit between the golden grade and decals (skids, goal floor, corn trail). */
+  shadowDepth: 4,
+  bridgeDepth: 4.5,
+  /** Orchard canopies hang over cars a little (cars pass under the edges). */
+  canopyDepth: 24,
+  bladeDepth: 25.5,         // above roofs (25), below rooftop picture signs (26)
+  /** Warm tint on sprites standing above the grade layer (roofs, props). */
+  decorTint: 0xfff0d8,
+  /** Seconds per blade revolution. */
+  windmillSecPerTurn: 14,
+  turbineSecPerTurn: 6,
+  turbineScale: 1.25,       // tower top + blade sprite scale over the art size
+  windmillBladeScale: 1.5,  // over the 256-px sail sprite
+  windmillBodyPx: 150,
+  /** Corn rows go ripe on every Nth plain corn field. */
+  ripeEvery: 2,
+  pumpkinsPerTile: 3,
+  /** Golden-hour grade: one world-sized warm layer over the ground only (cars, HUD, goals stay crisp). */
+  gradeColor: 0xffa53a,
+  gradeAlpha: 0.17,
+  gradeDepth: 3,
+};
+
 export const FARM_GEN = {
   /** Shadows fall east and a little south (fixed low western sun). Radians, world space. */
   shadowAngle: 0.35,

@@ -102,6 +102,16 @@ export const TEX = {
     tractor: 'farm_tractor',           // 80 x 56 big rear wheels; hitch at rear (x=0)
     hayWagon: 'farm_hay_wagon',        // 120 x 50 trailer; hitch at front (+x)
     combine: 'farm_combine',           // 150 x 84 wide header at +x
+    // farm renderer extras (src/art/farmExtras.ts): signed-lot looks + fillers for square lots
+    well: 'farm_well',                 // 128 x 128 stone well with a little roof
+    campsite: 'farm_campsite',         // 256 x 256 clearing, two tents, campfire
+    cave: 'farm_cave',                 // 256 x 256 rocky hill, cave mouth opening toward +y
+    pines: 'farm_pines',               // 256 x 128 cluster of pine trees ('forest')
+    boathouse: 'farm_boathouse',       // 256 x 128 boathouse + jetty + rowboat ('lake')
+    leanTo: 'farm_lean_to',            // 384 x 128 tin lean-to, top edge goes against the barn
+    porch: 'farm_porch',               // 256 x 64 wooden porch, top edge goes against the farmhouse
+    pad: 'farm_pad',                   // 128 x 128 concrete pad (silo / turbine / tractor bay)
+    windmillBase: 'farm_windmill_base', // 256 x 256 grassy knoll with stone apron
   },
 
   // props
