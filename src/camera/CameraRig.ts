@@ -16,8 +16,8 @@ import type { EventBus } from '../core/events';
 import type { ICameraRig } from '../core/race';
 import type { CameraLayout, CameraMode, PlayerId, Rect, Vec2 } from '../core/types';
 import {
-  SplitController, clampCenter, clampLookToSlack, fitZoom, lerp, lerpVec, lookTarget, playerViewsFor,
-  screenConsistentCenter, shakeFalloff, smoothFactor, speedZoomOut, splitViewports, worldRect,
+  SplitController, cameraRotationFor, clampCenter, facingCenter, followAngle, rotatedWorldAabb, viewTargetHeading, worldToScreenRot, clampLookToSlack, fitZoom, lerp, lerpVec, lookTarget, playerViewsFor,
+  screenConsistentCenter, shakeFalloff, smoothFactor, speedZoomOut, splitViewports,
   type CameraTuning,
 } from './cameraMath';
 
@@ -27,6 +27,8 @@ export interface CameraTarget {
   readonly y: number;
   readonly velocity: Vec2;
   readonly turbo?: boolean;
+  /** Facing angle (radians, 0 = +x). Needed for the facing-up view (defaults to the velocity direction). */
+  readonly angle?: number;
 }
 
 export interface CameraRigOptions {
@@ -37,7 +39,7 @@ export interface CameraRigOptions {
   tuning?: Partial<CameraTuning>;
 }
 
-interface CamState { center: Vec2; zoom: number; viewport: Rect; visible: boolean }
+interface CamState { center: Vec2; zoom: number; viewport: Rect; visible: boolean; rot: number }
 
 const W = GAME_WIDTH, H = GAME_HEIGHT;
 const FULL: Rect = { x: 0, y: 0, w: W, h: H };
@@ -55,6 +57,8 @@ export class CameraRig implements ICameraRig {
   private readonly zoomOut: number[];
   private readonly views: Rect[];
   private readonly cams: CamState[];
+  private readonly viewHeading: number[];
+  private readonly facing: boolean;
   private lastMode: CameraMode | null = null;
   private destroyed = false;
 
@@ -78,7 +82,10 @@ export class CameraRig implements ICameraRig {
     this.look = this.targets.map(() => ({ x: 0, y: 0 }));
     this.zoomOut = this.targets.map(() => 0);
     this.views = playerViewsFor(this.targets.length, W, H);
-    this.cams = [0, 1].map(() => ({ center: { x: 0, y: 0 }, zoom: this.cfg.baseZoom, viewport: { ...FULL }, visible: false }));
+    this.cams = [0, 1].map(() => ({ center: { x: 0, y: 0 }, zoom: this.cfg.baseZoom, viewport: { ...FULL }, visible: false, rot: 0 }));
+    this.viewHeading = this.targets.map((t) => this.headingOf(t));
+    this.facing = !!this.cfg.facingUp;
+    if (this.facing) { this.main.setRoundPixels(false); this.second?.setRoundPixels(false); }
     this.ctrl = new SplitController(this.targets.length, this.cfg);
     this.neededZoom = this.computeNeeded();
     this.ctrl.reset(this.neededZoom);
@@ -88,20 +95,20 @@ export class CameraRig implements ICameraRig {
   // ───────────── ICameraRig ─────────────
 
   layout(): CameraLayout {
-    return { mode: this.ctrl.mode, playerViews: this.views.map((r) => ({ ...r })) };
+    return { mode: this.mode, playerViews: this.views.map((r) => ({ ...r })) };
   }
 
-  /** Interim (north-up) implementation; the facing-up package replaces this. */
   worldToScreen(player: PlayerId, x: number, y: number): Vec2 {
     const s = this.cams[this.camIndexFor(player)];
-    return { x: s.viewport.x + s.viewport.w / 2 + (x - s.center.x) * s.zoom, y: s.viewport.y + s.viewport.h / 2 + (y - s.center.y) * s.zoom };
+    return worldToScreenRot({ x, y }, s.center, s.zoom, s.rot, s.viewport);
   }
 
-  viewRotation(_player: PlayerId): number { return 0; }
+  viewRotation(player: PlayerId): number { return this.cams[this.camIndexFor(player)].rot; }
 
+  /** AABB of the (possibly rotated) view. */
   worldView(player: PlayerId): Rect {
     const c = this.cams[this.camIndexFor(player)];
-    return worldRect(c.center, c.viewport.w, c.viewport.h, c.zoom);
+    return rotatedWorldAabb(c.center, c.viewport.w, c.viewport.h, c.zoom, c.rot);
   }
 
   shake(player: PlayerId | null, intensity: number, ms: number): void {
@@ -124,6 +131,7 @@ export class CameraRig implements ICameraRig {
     const cfg = this.cfg;
     const kLook = smoothFactor(cfg.lookSmoothing, dtSec);
     const kZoom = smoothFactor(cfg.zoomSmoothing, dtSec);
+    if (this.facing) { this.updateFacing(dtSec, kZoom); return; }
     const pos = this.targets.map((t) => ({ x: t.x, y: t.y }));
     this.targets.forEach((t, i) => {
       const lt = lookTarget(t.velocity, cfg);
@@ -171,6 +179,28 @@ export class CameraRig implements ICameraRig {
     this.emitIfChanged();
   }
 
+  /** Facing-up mode: 1 player = single, 2 = permanent split; each view rotates so its car points up. */
+  private updateFacing(dtSec: number, kZoom: number): void {
+    const cfg = this.cfg;
+    const n = this.targets.length;
+    this.targets.forEach((t, i) => {
+      const zt = speedZoomOut(Math.hypot(t.velocity.x, t.velocity.y), !!t.turbo, cfg);
+      this.zoomOut[i] += (zt - this.zoomOut[i]) * kZoom;
+      const target = viewTargetHeading(this.headingOf(t), t.velocity, cfg);
+      this.viewHeading[i] = dtSec > 0 ? followAngle(this.viewHeading[i], target, dtSec, cfg.rotTau, cfg.maxAngVel) : this.viewHeading[i];
+      const vp = n === 1 ? FULL : { x: i * (W / 2), y: 0, w: W / 2, h: H };
+      const zoom = (n === 1 ? cfg.baseZoom : cfg.facingSplitZoom) - this.zoomOut[i];
+      const center = facingCenter({ x: t.x, y: t.y }, this.viewHeading[i], vp.h, zoom, cfg.carScreenY);
+      this.setCam(i, vp, center, zoom, cameraRotationFor(this.viewHeading[i]));
+    });
+    this.emitIfChanged();
+  }
+
+  private headingOf(t: CameraTarget): number {
+    if (t.angle !== undefined) return t.angle;
+    return Math.hypot(t.velocity.x, t.velocity.y) > 1 ? Math.atan2(t.velocity.y, t.velocity.x) : 0;
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -180,7 +210,10 @@ export class CameraRig implements ICameraRig {
 
   // ───────────── debug getters (CameraTest) ─────────────
 
-  get mode(): CameraMode { return this.ctrl.mode; }
+  get mode(): CameraMode {
+    if (this.facing) return this.targets.length < 2 ? 'single' : 'split';
+    return this.ctrl.mode;
+  }
   /** 0 = merged … 1 = split (eased). */
   get splitAmount(): number { return this.ctrl.eased; }
   camZoom(i: 0 | 1): number { return this.cams[i].zoom; }
@@ -196,6 +229,7 @@ export class CameraRig implements ICameraRig {
 
   /** Index of the camera currently showing `player` (0 = main). */
   private camIndexFor(player: PlayerId): 0 | 1 {
+    if (this.facing) return this.second && player === 1 ? 1 : 0;
     if (player === 1 && this.second && this.ctrl.eased >= 0.5) return 1;
     return 0;
   }
@@ -217,14 +251,15 @@ export class CameraRig implements ICameraRig {
     cam.shake(ms, intensity, true);
   }
 
-  private setCam(i: number, vp: Rect, center: Vec2, zoom: number): void {
+  private setCam(i: number, vp: Rect, center: Vec2, zoom: number, rot = 0): void {
     const cam = this.camera(i);
     const s = this.cams[i];
-    s.center = center; s.zoom = zoom; s.viewport = { ...vp }; s.visible = true;
+    s.center = center; s.zoom = zoom; s.rot = rot; s.viewport = { ...vp }; s.visible = true;
     if (!cam) return;
     if (cam.x !== vp.x || cam.y !== vp.y || cam.width !== vp.w || cam.height !== vp.h) cam.setViewport(vp.x, vp.y, vp.w, vp.h);
     cam.setVisible(true);
     cam.setZoom(zoom);
+    cam.setRotation(rot);
     cam.centerOn(center.x, center.y);
   }
 
@@ -235,7 +270,7 @@ export class CameraRig implements ICameraRig {
   }
 
   private emitIfChanged(): void {
-    const mode = this.ctrl.mode;
+    const mode = this.mode;
     if (mode === this.lastMode) return;
     this.lastMode = mode;
     this.bus.emit('camera:layout', { layout: this.layout() });

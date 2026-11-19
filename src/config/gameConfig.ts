@@ -347,4 +347,12 @@ export const CAMERA = {
   zoomSmoothing: 2.5,        // 1/s smoothing rate of the speed/turbo zoom-out
   speedZoomOut: 0.06,        // extra zoom-out at speedZoomRef (scaled linearly below it)
   speedZoomRef: 900,         // px/s at which speedZoomOut is fully applied
+  // R1: facing-up (car-relative rotating) view
+  facingUp: true,            // false = old north-up split/merge camera
+  facingSplitZoom: 1.15,     // zoom of each half-view in facing-up split (about the same as single)
+  carScreenY: 0.64,          // car sits this far down the view (more road ahead; panels use the top)
+  rotTau: 0.3,               // s, time constant of the view-angle follow
+  maxAngVel: 3,              // rad/s cap on view rotation speed (spins never whip the screen)
+  velBlendMinSpeed: 150,     // px/s: above this (moving forward) the view leans toward the velocity direction
+  velBlend: 0.5,             // 0..1 share of (velocity dir - heading) the view follows while sliding
 };

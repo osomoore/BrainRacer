@@ -12,7 +12,7 @@ import { Banners } from '../ui/hud/Banners';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
 import { GoalIndicator } from '../ui/hud/GoalIndicator';
 import { HUD } from '../ui/hud/hudConfig';
-import { easeInOut, smoothFactor, worldToScreen } from '../ui/hud/hudMath';
+import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
@@ -179,7 +179,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   private toScreen(p: number, wx: number, wy: number): Vec2 {
-    return worldToScreen(wx, wy, this.ctx.camera.worldView(p as PlayerId), this.mapRect(p));
+    return this.ctx.camera.worldToScreen(p as PlayerId, wx, wy);
   }
 
   // ───────────────────────── banners ─────────────────────────
@@ -304,11 +304,11 @@ export class HudScene extends Phaser.Scene {
     const car = (p: number): Vec2 => ({ x: this.ctx.players[p]?.x ?? 0, y: this.ctx.players[p]?.y ?? 0 });
     if (this.shared()) {
       const cars = [...Array(this.nPlayers).keys()].map(car);
-      this.goals[0].update(dt, goal, cams.worldView(0), this.mapRect(0), cars, this.magnet.some((m) => m > 0), this.sbRect());
+      this.goals[0].update(dt, goal, (x, y) => cams.worldToScreen(0, x, y), this.mapRect(0), cars, this.magnet.some((m) => m > 0), this.sbRect());
       this.goals[1]?.hide();
     } else {
       for (let p = 0; p < this.nPlayers; p++) {
-        this.goals[p].update(dt, goal, cams.worldView(p as PlayerId), this.curViews[p], [car(p)], this.magnet[p] > 0, this.sbRect());
+        this.goals[p].update(dt, goal, (x, y) => cams.worldToScreen(p as PlayerId, x, y), this.curViews[p], [car(p)], this.magnet[p] > 0, this.sbRect());
       }
     }
   }
