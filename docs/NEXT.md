@@ -20,6 +20,13 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 ## Queued playtest changes
 
+### Queued (session 4, start when the user says so)
+- **Players move too fast: halve every player speed except turning.** That covers top speed, acceleration, reverse, turbo/boost speed, punch-through speed and boost-jump distance. Turn rates stay as they are. Retune anything that was balanced against car speed:
+  - Dino laser sweep: `DINO_LASER` tip speed is about 610 px/s, set just under today's ~620 px/s top speed, so halved cars could never outrun it.
+  - Dino-ride speed: about 60% of a starter car.
+  - Ram and smash thresholds: `DINO.ramMinSpeed`, `FREIGHT.smashImpactSpeed` 760.
+  - Crash and damage impact thresholds, jump landing distances, the guide buddy's lead, police chase speed relative to players, and taken-over sedan/cruiser/truck speeds.
+
 Session 3 finished the queued playtest list and the map/gameplay ideas (destination text, round clock during breaks, launch options, day/night by map, darker Industrial, Easy+, player siren, freight smash, dino lasers, building gaps). See STATUS "Session 3 changes".
 
 ## Backlog
