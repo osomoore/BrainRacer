@@ -10,6 +10,8 @@ import { REG, SCENE } from './keys';
 
 const LOGO_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#ff922b'];
 const ROAD_TOP = 905;
+/** After someone joins, A-to-continue is ignored this long so the other player can still join. */
+const JOIN_GRACE_MS = 600;
 
 interface Driver { obj: Phaser.GameObjects.Container; speed: number; dir: 1 | -1 }
 
@@ -25,11 +27,12 @@ export class TitleScene extends Phaser.Scene {
   private base!: Settings;
   private audioStarted = false;
   private leaving = false;
+  private lastJoinAt = -1e9;
 
   constructor() { super(SCENE.title); }
 
   create() {
-    this.joined = []; this.cards = []; this.letters = []; this.drivers = []; this.leaving = false;
+    this.joined = []; this.cards = []; this.letters = []; this.drivers = []; this.leaving = false; this.lastJoinAt = -1e9;
     this.base = loadSettings();
     services.input.reset();
     this.buildBackground();
@@ -150,7 +153,7 @@ export class TitleScene extends Phaser.Scene {
       }
     }
     // continue
-    for (let i = 0; i < this.joined.length; i++) {
+    for (let i = 0; i < this.joined.length && time - this.lastJoinAt >= JOIN_GRACE_MS; i++) {
       const inp = input.get(i as 0 | 1);
       if (inp.confirm || inp.pause) { this.goSetup(); return; }
     }
@@ -159,6 +162,7 @@ export class TitleScene extends Phaser.Scene {
       const d = input.pollJoin(this.joined);
       if (d) {
         this.joined.push(d);
+        this.lastJoinAt = time;
         this.syncAssign();
         this.startAudio();
         services.audio.sfx('join');

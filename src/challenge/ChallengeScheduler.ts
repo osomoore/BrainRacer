@@ -1,7 +1,7 @@
 /** Per-player challenge timeline (pure; time is injected in seconds). */
 import { CHALLENGE, DIFFICULTY } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
-import type { AnswerSlot, Challenge, ChallengeKind, ChallengeResult, Difficulty, PlayerId } from '../core/types';
+import type { AnswerSlot, Challenge, ChallengeKind, ChallengeMode, ChallengeResult, Difficulty, PlayerId } from '../core/types';
 import type { ChallengeGenerator } from './ChallengeGenerator';
 
 export type SchedulerEvent =
@@ -17,15 +17,25 @@ export interface SchedulerOptions {
   generator: ChallengeGenerator;
   rng: Rng;
   startDelaySec: number;
+  /** Which question types may appear (missing = 'words'). */
+  mode?: ChallengeMode;
 }
 
 const KINDS: ChallengeKind[] = ['picToWord', 'math', 'wordToPic'];
+
+/** Kinds allowed by a mode. */
+export function kindsForMode(mode: ChallengeMode | undefined): ChallengeKind[] {
+  if (mode === 'math') return ['math'];
+  if (mode === 'mixed') return [...KINDS];
+  return ['picToWord', 'wordToPic'];
+}
 
 export class ChallengeScheduler {
   private readonly player: PlayerId;
   private readonly difficulty: Difficulty;
   private readonly generator: ChallengeGenerator;
   private readonly rng: Rng;
+  private readonly kinds: ChallengeKind[];
   readonly periodSec: number;
 
   private _state: SchedulerState = 'idle';
@@ -42,6 +52,7 @@ export class ChallengeScheduler {
     this.difficulty = o.difficulty;
     this.generator = o.generator;
     this.rng = o.rng;
+    this.kinds = kindsForMode(o.mode);
     this.periodSec = o.intervalSec * DIFFICULTY[o.difficulty].periodMultiplier;
     this.startAt = o.startDelaySec;
   }
@@ -72,6 +83,7 @@ export class ChallengeScheduler {
     this.advance(now, events);
     const last = this.lastPlaceAt.get(word);
     if (last !== undefined && now - last < CHALLENGE.placeCooldownSec) return events;
+    if (!this.kinds.includes('picToWord')) return events;   // place challenges are word challenges
     if (this._state === 'active') {
       if (this.queuedPlace !== null) return events;   // one queued place at a time
       this.queuedPlace = word;
@@ -98,7 +110,7 @@ export class ChallengeScheduler {
   }
 
   private start(at: number, placeWord: string | null, events: SchedulerEvent[]): void {
-    const kind = this.rng.weighted(KINDS, KINDS.map((k) => DIFFICULTY[this.difficulty].typeWeights[k]));
+    const kind = this.rng.weighted(this.kinds, this.kinds.map((k) => DIFFICULTY[this.difficulty].typeWeights[k]));
     const pool = this.generator.targetPool(this.difficulty);
     if (pool.every((w) => this.used.has(w))) this.used.clear();
     const body = this.generator.generate(kind, this.difficulty, {
