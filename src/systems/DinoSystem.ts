@@ -1,8 +1,9 @@
-import { DINO, DINO_LASER, DINO_SMASH } from '../config/gameConfig';
+import { DINO, DINO_LASER, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
 import { Dino } from '../entities/Dino';
 import {
-  capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, orbitStep, ramDamage, steer, wrapAngle, type Capsule, type DinoWalk,
+  capsuleHit, closestOnSegment, dinoCapsule, dist, isTeamHit, orbitStep, steer, wrapAngle, type Capsule, type DinoWalk,
 } from '../entities/dinoAI';
+import { addHits, clampInside, healthFrac, hitValue, newRideTimer, stepRide, type RideTimer } from '../entities/dinoRide';
 import {
   beamHitsCircle, beamSideNormal, cancelLaser, chargeFrac, laserReady, newLaser, startLaser, stepLaser, sweepAngle, type LaserState, type LaserTiming,
 } from '../entities/dinoLaser';
@@ -11,7 +12,9 @@ import { services } from '../core/services';
 import type { PlayerId, Vec2 } from '../core/types';
 
 const CAR_RADIUS = 30;
-type Mode = 'drop' | 'guard' | 'leaving' | 'dizzy' | 'poof';
+/** tamed = beaten, dizzy and boardable; ridden = a player drives it; dismount = happy roar before the poof. */
+type Mode = 'drop' | 'guard' | 'leaving' | 'tamed' | 'ridden' | 'dismount' | 'poof';
+type DevWindow = Window & { __dinoDefeat?: () => void };
 
 export class DinoSystem implements GameSystem {
   readonly name = 'dino';
@@ -27,7 +30,13 @@ export class DinoSystem implements GameSystem {
   private guardR = 0;
   private phase = 0;
   private waiting: PlayerId = 0;
-  private hp = DINO.maxHp;
+  private hits = 0;
+  private hitsToDefeat: number = DINO.hitsToDefeat;
+  private rideSec: number = DINO_RIDE.durationSec;
+  private rider: PlayerId | null = null;
+  private ride: RideTimer = newRideTimer(DINO_RIDE.durationSec);
+  private question = [false, false];
+  private roundOver = false;
   private hitBy = new Set<PlayerId>();
   private lastHit = [-1e9, -1e9];
   private faceT = 0;
@@ -49,6 +58,15 @@ export class DinoSystem implements GameSystem {
     const q = new URLSearchParams(location.search);
     this.devNow = q.get('dino') === 'now';
     this.laserDev = q.get('laser') === 'now';
+    const hits = Number(q.get('dinohits'));
+    if (hits >= 1) this.hitsToDefeat = Math.floor(hits);
+    const rideSec = Number(q.get('dinoride'));
+    if (rideSec > 0) this.rideSec = rideSec;
+    // dev/e2e hook: beat the dino right now (it becomes tame and boardable)
+    (window as DevWindow).__dinoDefeat = () => {
+      const d = this.dino;
+      if (d && (this.mode === 'guard' || this.mode === 'drop' || this.mode === 'leaving')) { this.hitBy.add(0); this.tame(ctx, d); }
+    };
     this.offs.push(
       ctx.bus.on('goal:arrived', ({ goal, player, waitSec }) => {
         if (ctx.players.length < 2 || waitSec <= 0) return;
@@ -58,6 +76,10 @@ export class DinoSystem implements GameSystem {
       ctx.bus.on('goal:completed', () => {
         if (this.dino && (this.mode === 'guard' || this.mode === 'drop')) this.startLeaving();
       }),
+      ctx.bus.on('dino:ridden', ({ player }) => this.board(ctx, player)),
+      ctx.bus.on('challenge:shown', ({ challenge }) => { this.question[challenge.player] = true; }),
+      ctx.bus.on('challenge:resolved', ({ challenge }) => { this.question[challenge.player] = false; }),
+      ctx.bus.on('round:end', () => { this.roundOver = true; }),
     );
   }
 
@@ -100,14 +122,23 @@ export class DinoSystem implements GameSystem {
         if (this.modeT > DINO.leaveTimeoutSec || this.offscreen(ctx)) { this.removeNow(); return; }
         break;
       }
-      case 'dizzy': {
-        const k = this.modeT / DINO.dizzySec;
-        d.setWobble(Math.sin(this.modeT * 9) * 0.12 * Math.min(1, k * 2));
-        const shrink = Math.max(0, this.modeT - (DINO.dizzySec - DINO.shrinkSec)) / DINO.shrinkSec;
-        d.setMult(1 - Math.min(1, shrink) * 0.95);
-        if (this.modeT >= DINO.dizzySec) this.defeat(ctx, d);
+      case 'tamed': {
+        if (this.roundOver) break;
+        d.setWobble(Math.sin(this.modeT * 9) * 0.12 * Math.min(1, this.modeT * 1.5));
+        const shrinkAt = DINO_RIDE.tameSec - DINO.shrinkSec;
+        if (this.modeT >= shrinkAt) {
+          ctx.dino.tamed = false; // too late to hop on
+          d.setMult(1 - Math.min(1, (this.modeT - shrinkAt) / DINO.shrinkSec) * 0.95);
+        }
+        if (this.modeT >= DINO_RIDE.tameSec) { this.poofOut(ctx, d); return; }
         break;
       }
+      case 'ridden':
+        walking = this.rideTick(dt, ctx);
+        break;
+      case 'dismount':
+        if (this.modeT >= DINO_RIDE.dismountSec) { this.poofOut(ctx, d); return; }
+        break;
       case 'poof':
         if (this.modeT >= DINO.poofSec) this.removeNow();
         return;
@@ -121,7 +152,10 @@ export class DinoSystem implements GameSystem {
 
     if (walking) {
       this.stepTimer -= dt;
-      if (this.stepTimer <= 0) { this.stepTimer = DINO.stepIntervalSec; this.step(ctx, d); }
+      if (this.stepTimer <= 0) {
+        this.stepTimer = this.mode === 'ridden' ? DINO_RIDE.stepIntervalSec : DINO.stepIntervalSec;
+        this.step(ctx, d);
+      }
     }
 
     this.laserTick(dt, ctx, d);
@@ -131,11 +165,15 @@ export class DinoSystem implements GameSystem {
       if (this.roarTimer <= 0) { this.faceT = DINO.faceSec; this.roar(ctx, d); }
     }
     if (this.mode === 'guard' || this.mode === 'leaving' || this.mode === 'drop') this.contacts(dt, ctx, d);
+    else if (this.mode === 'ridden') this.rideContacts(ctx, d);
   }
 
   destroy(): void {
     for (const off of this.offs) off();
     this.offs = [];
+    const w = window as DevWindow;
+    if (w.__dinoDefeat) delete w.__dinoDefeat;
+    this.rider = null;
     this.dino?.destroy();
     this.dino = null;
     if (this.ctx) this.ctx.dino.active = false;
@@ -156,7 +194,8 @@ export class DinoSystem implements GameSystem {
     this.dino = new Dino(ctx.scene, pos.x, pos.y, angle);
     this.dino.setMult(DINO.dropScale);
     this.mode = 'drop'; this.modeT = 0;
-    this.hp = DINO.maxHp;
+    this.hits = 0;
+    this.rider = null;
     this.hitBy.clear();
     this.lastHit = [-1e9, -1e9];
     this.hitCooldown.fill(0);
@@ -166,6 +205,7 @@ export class DinoSystem implements GameSystem {
     this.laserHitCd.fill(0);
     const st = ctx.dino;
     st.active = true; st.x = pos.x; st.y = pos.y; st.angle = angle;
+    st.tamed = false; st.rider = null; st.rideLeftSec = 0; st.rideTotalSec = 0;
     this.roarTimer = ctx.rng.range(DINO.guardRoarSec[0], DINO.guardRoarSec[1]);
     this.stepTimer = DINO.stepIntervalSec;
     ctx.bus.emit('dino:spawned', { x: pos.x, y: pos.y });
@@ -315,7 +355,9 @@ export class DinoSystem implements GameSystem {
   private removeNow(): void {
     this.dino?.destroy();
     this.dino = null;
-    this.ctx.dino.active = false;
+    this.rider = null;
+    const st = this.ctx.dino;
+    st.active = false; st.tamed = false; st.rider = null; st.rideLeftSec = 0;
     this.ctx.bus.emit('dino:left', {});
   }
 
@@ -352,7 +394,7 @@ export class DinoSystem implements GameSystem {
       const closing = -(v.x * normal.x + v.y * normal.y);
       if (canHurt && this.hitCooldown[car.player] <= 0 && closing >= DINO.ramMinSpeed) {
         this.ram(ctx, d, car.player, closing, normal.x, normal.y);
-        if (!this.hp) return;
+        if (this.mode !== 'guard') return;
       } else if (closing < DINO.ramMinSpeed) {
         if (canHurt && !car.ghost && this.tossCooldown[car.player] <= 0 && this.hitCooldown[car.player] <= 0) {
           this.tossPlayer(ctx, d, car, normal);
@@ -393,44 +435,131 @@ export class DinoSystem implements GameSystem {
     this.hitCooldown[id] = DINO.ramCooldownSec;
     const other = (1 - id) as PlayerId;
     const team = ctx.players.length > 1 && isTeamHit(this.lastHit[other], this.clock, DINO.teamWindowSec);
-    const dmg = ramDamage(closing, car.turbo, team, {
-      minSpeed: DINO.ramMinSpeed, speedMax: DINO.ramSpeedMax, dmgMin: DINO.ramDamageMin, dmgMax: DINO.ramDamageMax,
-      turboMult: DINO.turboMult, teamMult: DINO.teamMult,
-    });
+    // every counted ram is one hit (speed/turbo don't matter); a TEAM hit counts DINO.teamHits
+    const res = addHits(this.hits, hitValue(team, DINO.teamHits), this.hitsToDefeat);
     this.lastHit[id] = this.clock;
     if (team) this.lastHit = [-1e9, -1e9];
-    this.hp = Math.max(0, this.hp - dmg);
+    this.hits = res.hits;
     this.hitBy.add(id);
 
     const bounce = Math.min(DINO.ramBounceMax, closing * 1.3 + DINO.ramBounceBase);
     car.applyImpulse(nx * bounce, ny * bounce, DINO.ramSpin * (id === 0 ? 1 : -1));
     this.walk.x -= nx * DINO.flinchStagger; this.walk.y -= ny * DINO.flinchStagger;
     d.flinch();
-    d.setHealth(this.hp / DINO.maxHp);
+    d.setHealth(healthFrac(this.hits, this.hitsToDefeat));
     d.dust(car.x, car.y);
     services.audio.sfx('roar', { rate: 1.6, volume: 0.7, pan: this.panFor(ctx) });
     services.audio.sfx('crash', { volume: 0.8, pan: this.panFor(ctx) });
     services.input.rumble(id, 0.8, 300);
     ctx.camera.shake(id, 0.008, 250);
     ctx.bus.emit('dino:hit', { player: id, x: car.x, y: car.y });
-    ctx.bus.emit('dino:damaged', { hp: this.hp, maxHp: DINO.maxHp, by: id, x: this.walk.x, y: this.walk.y });
-    if (isDefeated(this.hp)) {
-      this.mode = 'dizzy'; this.modeT = 0;
-      d.setDizzy(true);
-      d.setHealth(0.001);
-    }
+    ctx.bus.emit('dino:damaged', { hp: this.hitsToDefeat - this.hits, maxHp: this.hitsToDefeat, by: id, x: this.walk.x, y: this.walk.y });
+    if (res.defeated) this.tame(ctx, d);
   }
 
-  private defeat(ctx: RaceContext, d: Dino): void {
-    this.mode = 'poof'; this.modeT = 0;
-    d.poof();
-    ctx.dino.active = false;
+  /** Beaten: points now, then dizzy stars for DINO_RIDE.tameSec while a player may hop on. */
+  private tame(ctx: RaceContext, d: Dino): void {
+    this.mode = 'tamed'; this.modeT = 0;
+    d.setDizzy(true);
+    d.setHealth(1); // bar hidden
+    d.setLaser(0, false, 0);
     const by = [...this.hitBy].sort() as PlayerId[];
     ctx.bus.emit('dino:defeated', { by, x: this.walk.x, y: this.walk.y });
     ctx.bus.emit('ui:banner', { text: 'DINO DEFEATED!', color: '#7CFC00', durationSec: 3 });
     services.audio.sfx('goal', { volume: 1 });
     services.audio.sfx('shockwave', { volume: 0.6 });
     ctx.camera.shake(null, 0.012, 500);
+    const st = ctx.dino;
+    st.tamed = true; st.rider = null;
+    ctx.bus.emit('dino:tamed', { x: this.walk.x, y: this.walk.y });
+  }
+
+  /** A player finished hopping on (VehicleConditionSystem): the dino is now driven through their car. */
+  private board(ctx: RaceContext, player: PlayerId): void {
+    const d = this.dino;
+    const car = ctx.players[player];
+    if (!d || !car || this.mode !== 'tamed' || this.rider !== null) {
+      // too late (it poofed / someone else got it): send the player straight back to a car
+      ctx.bus.emit('dino:rideEnded', { player, x: car?.x ?? this.walk.x, y: car?.y ?? this.walk.y });
+      return;
+    }
+    this.mode = 'ridden'; this.modeT = 0;
+    this.rider = player;
+    this.ride = newRideTimer(this.rideSec);
+    const st = ctx.dino;
+    st.tamed = false; st.rider = player; st.rideLeftSec = this.rideSec; st.rideTotalSec = this.rideSec;
+    d.setDizzy(false); d.setWobble(0); d.setMult(1); d.setHealth(1);
+    d.setRider(car.chassis.texture.key, parseInt(PLAYER_COLORS[player].slice(1), 16));
+    this.walk = { x: car.x, y: car.y, angle: car.angle, pauseLeft: 0 };
+    this.stepTimer = 0;
+    d.roar('ROAAAR!', '#ffd34d');
+    services.audio.sfx('roar', { pan: this.panFor(ctx), volume: 0.9, rate: 1.25 });
+    services.input.rumble(player, 0.7, 350);
+    ctx.camera.shake(player, 0.01, 350);
+  }
+
+  /** Follow the rider's (invisible, collision-free) car; count the ride down outside question time. */
+  private rideTick(dt: number, ctx: RaceContext): boolean {
+    const rider = this.rider;
+    const car = rider === null ? undefined : ctx.players[rider];
+    if (rider === null || !car) { this.endRide(ctx); return false; }
+    const { world } = ctx;
+    const inside = clampInside(car, world.widthTiles * world.tileSize, world.heightTiles * world.tileSize, DINO_RIDE.edgePad);
+    if (inside) {
+      ctx.scene.matter.body.setPosition(car.body, inside, false);
+      ctx.scene.matter.body.setVelocity(car.body, { x: 0, y: 0 });
+    }
+    this.walk.x = car.x; this.walk.y = car.y; this.walk.angle = car.angle;
+    if (!this.roundOver && stepRide(this.ride, dt, this.question[rider])) { this.endRide(ctx); return false; }
+    ctx.dino.rideLeftSec = this.ride.left;
+    const v = car.velocity;
+    return Math.hypot(v.x, v.y) >= DINO_RIDE.stepMinSpeed;
+  }
+
+  /** Time's up: the rider hops back to a car (VehicleConditionSystem), the dino roars happily and poofs. */
+  private endRide(ctx: RaceContext): void {
+    const player = this.rider;
+    this.mode = 'dismount'; this.modeT = 0;
+    this.rider = null;
+    const st = ctx.dino;
+    st.rider = null; st.rideLeftSec = 0;
+    const d = this.dino;
+    if (d) {
+      d.setRider(null);
+      d.roar('ROAAAR!', '#ffd34d');
+    }
+    services.audio.sfx('roar', { pan: this.panFor(ctx), volume: 0.8, rate: 1.35 });
+    if (player !== null) ctx.bus.emit('dino:rideEnded', { player, x: this.walk.x, y: this.walk.y });
+  }
+
+  private poofOut(ctx: RaceContext, d: Dino): void {
+    this.mode = 'poof'; this.modeT = 0;
+    d.poof();
+    const st = ctx.dino;
+    st.active = false; st.tamed = false; st.rider = null;
+    services.audio.sfx('pop', { volume: 0.9 });
+    services.audio.sfx('shockwave', { volume: 0.5 });
+  }
+
+  /** Ridden: traffic in the way gets the comic toss; the other player's car is just pushed aside. */
+  private rideContacts(ctx: RaceContext, d: Dino): void {
+    const cap = this.contactCapsule();
+    for (const car of ctx.players) {
+      if (car.player === this.rider || car.airborne || car.boardingPosition || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
+      const n = this.contactNormal(cap, car);
+      const v = car.velocity;
+      const out = v.x * n.x + v.y * n.y;
+      if (out < DINO_RIDE.playerPush) car.applyImpulse(n.x * (DINO_RIDE.playerPush - out), n.y * (DINO_RIDE.playerPush - out));
+    }
+    for (const npc of ctx.npcs) {
+      if (npc.destroyed || !this.touchesNpc(cap, npc)) continue;
+      const { x, y } = npc;
+      d.toss(npc, this.contactNormal(cap, npc));
+      ctx.npcs.delete(npc);
+      npc.destroy();
+      ctx.bus.emit('dino:squash', { x, y });
+      this.smashSound(ctx, x, y);
+    }
   }
 
   private nearestPlayerDist(ctx: RaceContext): number {
@@ -465,6 +594,10 @@ export class DinoSystem implements GameSystem {
     ctx.bus.emit('dino:step', { x: this.walk.x, y: this.walk.y });
     if (vol > 0) services.audio.sfx('stomp', { pan: this.panFor(ctx), volume: vol });
     ctx.camera.shakeAt(this.walk.x, this.walk.y, DINO.shakeRadius, 0.004, 120);
+    if (this.mode === 'ridden' && this.rider !== null) {
+      ctx.camera.shake(this.rider, DINO_RIDE.stepShake, 110);
+      services.input.rumble(this.rider, 0.25, 90);
+    }
     const side = (Math.floor(this.clock / DINO.stepIntervalSec) % 2 === 0 ? -1 : 1) as -1 | 1;
     const f = d.foot(side);
     d.dust(f.x, f.y);

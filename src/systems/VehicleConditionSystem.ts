@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
-import { BOARDING_DRIVE, CAT, DEPTH, PLAYER_COLORS, TRAFFIC_SPEC, VEHICLE_CONDITION } from '../config/gameConfig';
+import { BOARDING_DRIVE, CAT, DEPTH, DINO_RIDE, PLAYER_COLORS, TRAFFIC_SPEC, VEHICLE_CONDITION } from '../config/gameConfig';
+import { dinoBoardable, dinoBoardDistance, returnChoice } from '../entities/dinoRide';
 import { TEX } from '../core/assetKeys';
 import { ownerOf, type GameSystem, type IPlayerCar, type RaceContext, type VehicleChassis } from '../core/race';
 import type { PlayerId, Vec2 } from '../core/types';
@@ -17,7 +18,10 @@ interface Condition {
   damage: number;
   lastHit: number;
   aim: { target: BoardingTarget; started: number } | null;
-  hop: { target: BoardingTarget; started: number; from: Vec2 } | null;
+  /** `back`: hopping off the dino into a car at the end of a ride. */
+  hop: { target: BoardingTarget; started: number; from: Vec2; back?: boolean } | null;
+  /** Riding the dino: the car the player left behind (parked, kept out of ctx.npcs while they ride). */
+  ride: { own: NpcVehicle | null; ownInNpcs: boolean } | null;
   marker: Phaser.GameObjects.Rectangle;
   rider: Phaser.GameObjects.Arc;
   question: boolean;
@@ -27,13 +31,23 @@ interface Condition {
 }
 
 interface BoardingTarget {
-  body: MatterJS.BodyType;
+  /** Identity for "someone is already hopping onto this" (a Matter body, or DINO_TARGET). */
+  id: object;
   damage: number;
+  /** The tame dino (rideable) rather than a vehicle. */
+  dino?: boolean;
+  /** Reach is measured from the target's centre minus this (default: half its length). */
+  reachPad?: number;
+  /** Highlight box size (default: the vehicle's size). */
+  marker?: { length: number; width: number };
   current(): VehicleChassis | null;
   remove(): void;
 }
 
 type AbandonedCar = { car: NpcVehicle; damage: number };
+
+/** Boarding identity of the (single) dino. */
+const DINO_TARGET = { dino: true };
 
 export class VehicleConditionSystem implements GameSystem {
   readonly name = 'vehicleCondition';
@@ -61,7 +75,7 @@ export class VehicleConditionSystem implements GameSystem {
       ctx.camera.showOnlyTo(marker, car.player);
       return {
         starter: { spec: car.spec, texture: car.chassis.texture.key, angle: car.angle },
-        damage: 0, lastHit: -Infinity, aim: null, hop: null, marker, rider,
+        damage: 0, lastHit: -Infinity, aim: null, hop: null, ride: null, marker, rider,
         question: false, recoverAt: Infinity, emitAt: 0, lastResetTap: -Infinity,
       };
     });
@@ -70,8 +84,11 @@ export class VehicleConditionSystem implements GameSystem {
       ctx.bus.on('round:end', () => {
         this.active = false;
         for (const car of ctx.players) {
-          this.clearAim(this.states[car.player]);
-          this.clearHop(car, this.states[car.player]);
+          const state = this.states[car.player];
+          const back = state.hop?.back ? state.hop.target : null;
+          this.clearAim(state);
+          this.clearHop(car, state);
+          if (back) { state.ride = { own: null, ownInNpcs: false }; this.leaveDino(car.player); } // finish hopping off in place
         }
       }),
       ctx.bus.on('vehicle:damage', ({ player, impact }) => this.damage(player, impact)),
@@ -85,6 +102,7 @@ export class VehicleConditionSystem implements GameSystem {
         if (result === 'correct') this.repair(ctx.players[challenge.player], this.states[challenge.player]);
       }),
       ctx.bus.on('game:pause', () => { for (const state of this.states) this.clearAim(state); }),
+      ctx.bus.on('dino:rideEnded', ({ player }) => this.leaveDino(player)),
     );
   }
 
@@ -99,6 +117,7 @@ export class VehicleConditionSystem implements GameSystem {
     for (const car of ctx.players) {
       const state = this.states[car.player];
       if (state.hop) { this.updateHop(car, state); continue; }
+      if (state.ride) continue; // riding the dino: no taps, damage or recovery until the ride ends
       const input = services.input.get(car.player);
       if (!state.question && input.resetCar) this.resetTap(car, state);
       if (!state.question && input.transfer) this.tap(car, state);
@@ -116,7 +135,7 @@ export class VehicleConditionSystem implements GameSystem {
     const car = this.ctx.players[player];
     const state = this.states[player];
     const now = this.ctx.elapsedSec;
-    if (!this.active || car.disabled || car.airborne || state.hop || impact < T.minImpact || now - state.lastHit < T.damageCooldownSec) return;
+    if (!this.active || car.disabled || car.airborne || state.hop || state.ride || impact < T.minImpact || now - state.lastHit < T.damageCooldownSec) return;
     state.lastHit = now;
     const severity = Math.min(1, (impact - T.minImpact) / (T.maxImpact - T.minImpact));
     state.damage += T.minDamage + (T.maxDamage - T.minDamage) * severity;
@@ -177,14 +196,14 @@ export class VehicleConditionSystem implements GameSystem {
     car.setBoarding(null);
   }
 
-  private reserved(target: MatterJS.BodyType): boolean {
-    return this.states.some((state) => state.hop?.target.body === target);
+  private reserved(target: object): boolean {
+    return this.states.some((state) => state.hop?.target.id === target);
   }
 
   private boardable(car: IPlayerCar, target: BoardingTarget): VehicleChassis | null {
     const chassis = target.current();
-    if (!chassis || car.airborne || this.reserved(target.body)) return null;
-    const distance = Math.hypot(chassis.position.x - car.x, chassis.position.y - car.y) - chassis.spec.length / 2;
+    if (!chassis || car.airborne || this.reserved(target.id)) return null;
+    const distance = Math.hypot(chassis.position.x - car.x, chassis.position.y - car.y) - (target.reachPad ?? chassis.spec.length / 2);
     return distance <= T.transferReach ? chassis : null;
   }
 
@@ -193,9 +212,10 @@ export class VehicleConditionSystem implements GameSystem {
     const age = this.ctx.elapsedSec - started;
     const chassis = age <= T.transferTapSec && this.boardable(car, target);
     if (!chassis) { this.clearAim(state); return; }
-    const { position, angle, spec } = chassis;
+    const { position, angle } = chassis;
+    const box = target.marker ?? chassis.spec;
     state.marker.setPosition(position.x, position.y).setRotation(angle)
-      .setSize(spec.length + T.transferMarkerPadding * 2, spec.width + T.transferMarkerPadding * 2)
+      .setSize(box.length + T.transferMarkerPadding * 2, box.width + T.transferMarkerPadding * 2)
       .setAlpha(0.76 + 0.19 * Math.cos(age * Math.PI * 2 * T.transferFlashHz))
       .setVisible(true);
   }
@@ -203,7 +223,12 @@ export class VehicleConditionSystem implements GameSystem {
   private updateHop(car: IPlayerCar, state: Condition): void {
     const { target, started, from } = state.hop!;
     const chassis = target.current();
-    if (!chassis) { this.clearHop(car, state); return; }
+    if (!chassis) {
+      const back = state.hop!.back;
+      this.clearHop(car, state);
+      if (back) { state.ride = { own: null, ownInNpcs: false }; this.leaveDino(car.player); } // car gone: respawn instead
+      return;
+    }
     const t = Math.min(1, (this.ctx.elapsedSec - started) / T.transferHopSec);
     const eased = t * t * (3 - 2 * t);
     const { x, y } = chassis.position;
@@ -214,13 +239,74 @@ export class VehicleConditionSystem implements GameSystem {
       ground.y - Math.cos(rotation) * lift * T.transferHopHeight).setScale(1 + lift * 0.38);
     car.setBoarding(ground);
     if (t < 1) return;
+    const back = state.hop!.back;
     target.remove();
-    this.leaveCar(car, state.damage);
+    if (back) {
+      // off the dino and into a car again
+      this.clearHop(car, state);
+      car.setRiding?.(false);
+      state.ride = null;
+      this.change(car, state, chassis, target.damage);
+      return;
+    }
+    const own = this.leaveCar(car, state.damage);
     this.clearHop(car, state);
-    this.change(car, state, chassis, target.damage);
+    if (!target.dino) { this.change(car, state, chassis, target.damage); return; }
+    // onto the dino: the left car is parked out of reach of tosses / other boarders until the ride ends
+    const ownInNpcs = this.ctx.npcs.delete(own);
+    this.change(car, state, chassis, 0);
+    car.setRiding?.(true);
+    state.ride = { own, ownInNpcs };
+    this.ctx.bus.emit('dino:ridden', { player: car.player });
   }
 
-  private leaveCar(car: IPlayerCar, damage: number): void {
+  /** Ride over: hop into the car you left if it is close and still works, else your starting car on a clear road nearby. */
+  private leaveDino(player: PlayerId): void {
+    const car = this.ctx.players[player];
+    const state = this.states[player];
+    if (!car || !state?.ride) return;
+    const { own, ownInNpcs } = state.ride;
+    const ownLeft = own && !own.destroyed ? this.abandoned.find((a) => a.car === own) : undefined;
+    // a car that was wrecked when left (kept out of ctx.npcs) is not worth going back to
+    const choice = returnChoice(ownLeft ? { x: own!.x, y: own!.y, usable: ownInNpcs } : null, car, DINO_RIDE.returnMaxDist);
+    let target: BoardingTarget;
+    if (choice === 'own' && ownLeft) {
+      const parked = ownLeft.car;
+      target = {
+        id: parked.body, damage: ownLeft.damage,
+        current: () => parked.destroyed ? null : {
+          position: { x: parked.x, y: parked.y }, angle: parked.angle, spec: parked.spec, texture: parked.appearanceKey,
+        },
+        remove: () => {
+          this.abandoned = this.abandoned.filter((a) => a.car !== parked);
+          this.ctx.npcs.delete(parked);
+          parked.destroy();
+        },
+      };
+    } else {
+      if (own && !own.destroyed && ownInNpcs) this.ctx.npcs.add(own); // stays parked as an ordinary abandoned car
+      const position = this.recoveryPosition(car, state) ?? { x: car.x, y: car.y };
+      const angle = car.angle;
+      target = { id: {}, damage: 0, current: () => ({ ...state.starter, position, angle }), remove: () => {} };
+    }
+    state.ride = { own: null, ownInNpcs: false };
+    if (!this.active) {
+      // round over: just swap back in place
+      target.remove();
+      car.setRiding?.(false);
+      state.ride = null;
+      const chassis = target.current();
+      if (chassis) this.change(car, state, chassis, target.damage);
+      return;
+    }
+    const from = { x: car.x, y: car.y };
+    state.hop = { target, started: this.ctx.elapsedSec, from, back: true };
+    car.setBoarding(from);
+    state.rider.setPosition(from.x, from.y).setScale(1).setVisible(true);
+    services.audio.sfx('jump', { volume: 0.55 });
+  }
+
+  private leaveCar(car: IPlayerCar, damage: number): NpcVehicle {
     const texture = car.chassis.texture.key;
     const kind = TEX.police.some((key) => key === texture) ? 'police'
       : texture === TEX.truck || texture === TEX.freightTruck ? 'truck' : 'traffic';
@@ -233,13 +319,14 @@ export class VehicleConditionSystem implements GameSystem {
     else this.ctx.npcs.add(parked);
     this.abandoned.push({ car: parked, damage });
     if (this.abandoned.length > T.abandonedLimit) {
-      const index = this.abandoned.findIndex(({ car: old }) => !this.reserved(old.body));
+      const index = this.abandoned.findIndex(({ car: old }) => !this.reserved(old.body) && !this.states.some((s) => s.ride?.own === old));
       if (index >= 0) {
         const [{ car: old }] = this.abandoned.splice(index, 1);
         this.ctx.npcs.delete(old);
         old.destroy();
       }
     }
+    return parked;
   }
 
   private nearestTarget(car: IPlayerCar): BoardingTarget | null {
@@ -252,7 +339,7 @@ export class VehicleConditionSystem implements GameSystem {
       reach = distance;
       const old = this.abandoned.find(({ car: abandoned }) => abandoned === npc);
       nearest = {
-        body: npc.body, damage: old?.damage ?? 0,
+        id: npc.body, damage: old?.damage ?? 0,
         current: () => !npc.destroyed && this.ctx.npcs.has(npc) ? {
           position: { x: npc.x, y: npc.y }, angle: npc.angle, velocity: npc.velocity,
           spec: old ? npc.spec : {
@@ -276,13 +363,28 @@ export class VehicleConditionSystem implements GameSystem {
       if (distance > reach) continue;
       reach = distance;
       nearest = {
-        body, damage: 0,
+        id: body, damage: 0,
         current: () => image.active ? {
           position: { ...body.position }, angle: body.angle, spec: { ...TRAFFIC_SPEC, ...BOARDING_DRIVE.sedan }, texture,
           velocity: { x: body.velocity.x * STEP_HZ, y: body.velocity.y * STEP_HZ },
         } : null,
         remove: () => image.destroy(),
       };
+    }
+    const dino = this.ctx.dino;
+    if (dinoBoardable(dino) && !this.reserved(DINO_TARGET)) {
+      const distance = dinoBoardDistance(dino, car, DINO_RIDE.boardReach);
+      if (distance <= reach) {
+        const texture = car.chassis.texture.key;
+        nearest = {
+          id: DINO_TARGET, damage: 0, dino: true, reachPad: DINO_RIDE.boardReach,
+          marker: { length: DINO_RIDE.markerLength, width: DINO_RIDE.markerWidth },
+          current: () => dinoBoardable(dino)
+            ? { position: { x: dino.x, y: dino.y }, angle: dino.angle, spec: { ...DINO_RIDE.spec }, texture }
+            : null,
+          remove: () => {},
+        };
+      }
     }
     return nearest;
   }

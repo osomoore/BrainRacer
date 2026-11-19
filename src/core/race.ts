@@ -76,6 +76,9 @@ export interface IPlayerCar extends IVehicle {
   slow(mult: number, sec: number): void;
   /** Disable/enable player control (countdown, pause). */
   setControlEnabled(on: boolean): void;
+  /** dino-ride: true while this player drives the tame dino (car hidden, no collisions). */
+  readonly riding?: boolean;
+  setRiding?(on: boolean): void;
 }
 
 export interface INpcVehicle extends IVehicle {
@@ -113,6 +116,13 @@ export interface DinoState {
   angle: number;
   /** Collision radius (px) used for avoidance checks by other systems. */
   radius: number;
+  /** dino-ride: beaten and boardable right now. */
+  tamed?: boolean;
+  /** dino-ride: the player riding it, else null/undefined. */
+  rider?: PlayerId | null;
+  /** dino-ride: ride seconds left / total (for the HUD countdown). */
+  rideLeftSec?: number;
+  rideTotalSec?: number;
 }
 
 export interface RaceContext {

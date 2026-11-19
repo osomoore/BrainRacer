@@ -487,7 +487,9 @@ export const DINO = {
   graceSec: 1.2,             // no damage right after landing
   leaveSec: 1.2,             // happy roar before stomping off
   leaveTimeoutSec: 45,
-  maxHp: 100,
+  maxHp: 100,                // legacy (variable damage); the dino now counts hits
+  hitsToDefeat: 3,           // rams that count as a hit (>= ramMinSpeed, off cooldown) to beat the dino
+  teamHits: 2,               // a TEAM hit (both players within teamWindowSec) counts as this many hits
   ramMinSpeed: 200,          // px/s closing speed to hurt
   ramSpeedMax: 700,
   ramDamageMin: 12,
@@ -508,6 +510,25 @@ export const DINO = {
   barWidth: 300,
   barHeight: 38,
   barOffset: 290,
+};
+
+// rideable dino (package dino-ride): beaten dino is tame for a while; a player can board it like a vehicle
+export const DINO_RIDE = {
+  tameSec: 8,                  // dizzy + boardable window after the last hit; then it poofs if nobody boards
+  durationSec: 20,             // ride length (race time; question breaks don't count). URL &dinoride=N overrides
+  dismountSec: 1.4,            // happy roar before the poof after the rider hops off
+  boardReach: 150,             // px from the dino centre (minus this) that still counts as "nearby" (see VEHICLE_CONDITION.transferReach)
+  markerLength: 380,           // boarding highlight box around the dino
+  markerWidth: 230,
+  returnMaxDist: 1400,         // own car farther than this from the dino -> respawn the starter car on a clear road nearby
+  // driving: slow (~60% of a starter car), heavy, turns gently. length/width = invisible body size
+  spec: { length: 240, width: 140, mass: 80, maxSpeed: 360, reverseSpeed: 130, accel: 230, brake: 700, turnRate: 1.45, grip: 0.95, drag: 0.75 },
+  stepIntervalSec: 0.42,       // stomp (dust + sfx + small shake) cadence while moving
+  stepMinSpeed: 40,            // px/s: below this the dino stands still (no stomps)
+  stepShake: 0.004,            // rider camera shake per stomp
+  playerPush: 380,             // px/s: the other player's car is pushed out of the way (no damage)
+  riderScale: 1.7,             // the rider's car drawn on the dino's back, x its normal size
+  edgePad: 160,                // keep the ridden dino this far inside the world edge
 };
 
 // dino laser eyes (package dino-laser)
