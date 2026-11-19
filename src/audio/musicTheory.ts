@@ -1,7 +1,7 @@
 /** Pure (Tone-free, Phaser-free) music helpers: units, validation, MIDI-file -> track conversion. */
 
-export type InstrumentKind = 'square' | 'pulse25' | 'triangle' | 'sawtooth' | 'noise';
-export const INSTRUMENTS: readonly InstrumentKind[] = ['square', 'pulse25', 'triangle', 'sawtooth', 'noise'];
+export type InstrumentKind = 'square' | 'pulse25' | 'triangle' | 'sawtooth' | 'pluck' | 'noise';
+export const INSTRUMENTS: readonly InstrumentKind[] = ['square', 'pulse25', 'triangle', 'sawtooth', 'pluck', 'noise'];
 
 export interface TrackNote { t: number; d: number; p: number; v: number }
 export interface TrackLayer { instrument: InstrumentKind; volume: number; notes: TrackNote[] }

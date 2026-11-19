@@ -99,16 +99,112 @@ function arpeggio(v: Voice, t: number, notes: number[], step: number, type: OscT
   });
 }
 
+interface VocalSpec {
+  type: OscType;
+  /** Pitch keyframes [offset seconds, Hz]. */
+  pitch: [number, number][];
+  dur: number;
+  vol: number;
+  lp: number;
+  lpEnd?: number;
+  q?: number;
+  attack?: number;
+  /** Vibrato depth in cents and rate in Hz. */
+  vib?: number;
+  vibRate?: number;
+  /** Amplitude tremolo depth 0..1 and rate in Hz (a bleat). */
+  trem?: number;
+  tremRate?: number;
+}
+
+/** Cartoon animal voice: pitched oscillator -> lowpass -> envelope, with optional vibrato / tremolo. */
+function vocal(v: Voice, t: number, s: VocalSpec): void {
+  const o = v.add(new Tone.Oscillator({ type: s.type, frequency: v.f(s.pitch[0][1]) }));
+  for (const [off, hz] of s.pitch) o.frequency.exponentialRampToValueAtTime(v.f(hz), t + off + 0.0001);
+  o.frequency.setValueAtTime(v.f(s.pitch[0][1]), t);
+  const fl = v.add(new Tone.Filter({ type: 'lowpass', frequency: v.f(s.lp), Q: s.q ?? 1.5 }));
+  fl.frequency.setValueAtTime(v.f(s.lp), t);
+  if (s.lpEnd) fl.frequency.exponentialRampToValueAtTime(v.f(s.lpEnd), t + s.dur);
+  const env = v.add(new Tone.Gain(FLOOR));
+  o.connect(fl);
+  fl.connect(env);
+  let out: Tone.Gain = env;
+  if (s.trem) {
+    const tg = v.add(new Tone.Gain(1));
+    const lfo = v.add(new Tone.LFO({ frequency: s.tremRate ?? 28, min: 1 - s.trem, max: 1, type: 'sine' }));
+    lfo.connect(tg.gain);
+    lfo.start(t);
+    lfo.stop(t + s.dur + 0.05);
+    env.connect(tg);
+    out = tg;
+  }
+  out.connect(v.input);
+  if (s.vib) {
+    const lfo = v.add(new Tone.LFO({ frequency: s.vibRate ?? 6, min: -s.vib, max: s.vib, type: 'sine' }));
+    lfo.connect(o.detune);
+    lfo.start(t);
+    lfo.stop(t + s.dur + 0.05);
+  }
+  v.envelope(env, t, s.dur, s.vol, s.attack ?? 0.03);
+  o.start(t);
+  o.stop(t + s.dur + 0.03);
+}
+
 const RECIPES: Record<SfxName, Recipe> = {
-  // Farm placeholders (farm-audio package replaces these).
-  moo: (v, t) => RECIPES.pop(v, t),
-  baa: (v, t) => RECIPES.pop(v, t),
-  oink: (v, t) => RECIPES.pop(v, t),
-  neigh: (v, t) => RECIPES.pop(v, t),
-  cluck: (v, t) => RECIPES.pop(v, t),
-  quack: (v, t) => RECIPES.pop(v, t),
-  cornRustle: (v, t) => RECIPES.pop(v, t),
-  mudSplash: (v, t) => RECIPES.pop(v, t),
+  // Farm animals and ground sounds: cute, short, gentle.
+  moo: (v, t) => {
+    // long rounded "mooo": low pitch rises, holds, sags
+    vocal(v, t, { type: 'sawtooth', pitch: [[0, 120], [0.25, 175], [0.7, 165], [1.0, 105]], dur: 1.0, vol: 0.55, lp: 450, lpEnd: 380, q: 2, attack: 0.12, vib: 25, vibRate: 5 });
+    vocal(v, t, { type: 'triangle', pitch: [[0, 120], [0.25, 175], [0.7, 165], [1.0, 105]], dur: 1.0, vol: 0.4, lp: 900, attack: 0.12 });
+    return 1.0;
+  },
+  baa: (v, t) => {
+    // wobbly bleat: fast tremolo on a nasal tone
+    vocal(v, t, { type: 'sawtooth', pitch: [[0, 360], [0.15, 330], [0.55, 270]], dur: 0.55, vol: 0.4, lp: 1400, q: 3, attack: 0.04, vib: 40, vibRate: 11, trem: 0.55, tremRate: 24 });
+    return 0.6;
+  },
+  oink: (v, t) => {
+    // two snorty grunts
+    for (const [off, f] of [[0, 230], [0.17, 200]] as [number, number][]) {
+      vocal(v, t + off, { type: 'sawtooth', pitch: [[0, f], [0.12, f * 0.62]], dur: 0.13, vol: 0.42, lp: 750, q: 2, attack: 0.01 });
+      v.noise({ type: 'pink', t: t + off, dur: 0.1, vol: 0.18, filter: 'bandpass', f0: 900, q: 1.2, attack: 0.01 });
+    }
+    return 0.4;
+  },
+  neigh: (v, t) => {
+    // rising whinny that tips over and falls, with a quick flutter
+    vocal(v, t, { type: 'sawtooth', pitch: [[0, 420], [0.18, 780], [0.4, 700], [0.8, 330]], dur: 0.8, vol: 0.3, lp: 2200, lpEnd: 900, q: 2, attack: 0.05, vib: 60, vibRate: 14 });
+    v.noise({ type: 'pink', t, dur: 0.3, vol: 0.06, filter: 'bandpass', f0: 2500, q: 1, attack: 0.05 });
+    return 0.85;
+  },
+  cluck: (v, t) => {
+    // bok-bok-bok
+    for (const [i, f] of [520, 470, 430].entries()) {
+      vocal(v, t + i * 0.11, { type: 'sawtooth', pitch: [[0, f * 1.25], [0.06, f * 0.8]], dur: 0.07, vol: 0.26, lp: 1500, q: 2, attack: 0.004 });
+    }
+    return 0.4;
+  },
+  quack: (v, t) => {
+    for (const [off, vol, f] of [[0, 0.32, 430], [0.2, 0.2, 390]] as [number, number, number][]) {
+      vocal(v, t + off, { type: 'sawtooth', pitch: [[0, f], [0.14, f * 0.72]], dur: 0.15, vol, lp: 1700, lpEnd: 900, q: 4, attack: 0.012, trem: 0.3, tremRate: 40 });
+    }
+    return 0.4;
+  },
+  cornRustle: (v, t) => {
+    // soft papery swish; kept quiet and short because it repeats while driving
+    v.noise({ type: 'pink', t, dur: 0.3, vol: 0.1, filter: 'bandpass', f0: 3200, f1: 5200, q: 0.8, attack: 0.07 });
+    v.noise({ type: 'white', t: t + 0.05, dur: 0.2, vol: 0.035, filter: 'highpass', f0: 5500, attack: 0.06 });
+    return 0.35;
+  },
+  mudSplash: (v, t) => {
+    // squelchy splat: wet low noise burst plus a few rising bubble blips
+    v.noise({ type: 'brown', t, dur: 0.28, vol: 0.7, filter: 'lowpass', f0: 1200, f1: 250, attack: 0.01 });
+    v.noise({ type: 'pink', t, dur: 0.1, vol: 0.18, filter: 'bandpass', f0: 1800, f1: 700, q: 1.5, attack: 0.005 });
+    for (const [i, f] of [180, 240, 150].entries()) {
+      v.osc({ type: 'sine', f0: f, f1: f * 2.2, t: t + 0.04 + i * 0.07, dur: 0.1, vol: 0.28, attack: 0.008 });
+    }
+    return 0.42;
+  },
   crossing: (v, t) => {
     for (const offset of [0, 0.28]) {
       const strike = t + offset;
@@ -334,12 +430,12 @@ const RECIPES: Record<SfxName, Recipe> = {
 };
 
 /** Loudness trims per sound so the mix feels even. */
-const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.5, turbo: 1.25, stomp: 0.9, crossing: 1.65 };
+const TRIM: Partial<Record<SfxName, number>> = { crashBig: 0.9, roar: 0.5, turbo: 1.25, stomp: 0.9, crossing: 1.65, moo: 0.8, baa: 0.85, oink: 0.9, neigh: 0.8, cluck: 0.9, quack: 0.9, cornRustle: 0.7, mudSplash: 0.9 };
 /** Max simultaneous instances per sound, and minimum retrigger gap (seconds). */
-const MAX_VOICES: Partial<Record<SfxName, number>> = { menuMove: 2, timeout: 2, pop: 3, skid: 2, roar: 2, goal: 1, crossing: 1 };
+const MAX_VOICES: Partial<Record<SfxName, number>> = { menuMove: 2, timeout: 2, pop: 3, skid: 2, roar: 2, goal: 1, crossing: 1, moo: 2, baa: 2, oink: 2, neigh: 2, cluck: 3, quack: 3, cornRustle: 2, mudSplash: 2 };
 const DEFAULT_MAX_VOICES = 4;
 const GLOBAL_MAX_VOICES = 20;
-const MIN_GAP: Partial<Record<SfxName, number>> = { menuMove: 0.04, timeout: 0.05, pop: 0.03, skid: 0.15, land: 0.06, correct: 0.05 };
+const MIN_GAP: Partial<Record<SfxName, number>> = { menuMove: 0.04, timeout: 0.05, pop: 0.03, skid: 0.15, land: 0.06, correct: 0.05, moo: 0.3, baa: 0.3, oink: 0.3, neigh: 0.3, cluck: 0.2, quack: 0.2, cornRustle: 0.25, mudSplash: 0.2 };
 
 const clampRate = (r: number | undefined): number => Math.min(4, Math.max(0.25, r ?? 1));
 
