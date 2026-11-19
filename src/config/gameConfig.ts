@@ -343,6 +343,41 @@ export const DINO = {
   spawnEdgeTiles: 7,         // spawn on a road within this many tiles of the map edge
   stepAudioRange: 1600,
   devSpawnDelaySec: 2,       // ?dino=now
+  // S3: goal guard + ramming
+  guardSpeedFrac: 0.45,      // of `speed`
+  guardRadiusMul: 1.2,       // x goal radius ...
+  guardRadiusPad: 150,       // ... + this = max distance from goal centre
+  patrolLoopFrac: 0.55,      // patrol loop radius as a fraction of the guard radius
+  patrolStepRad: Math.PI / 3,
+  patrolPauseSec: 0.15,
+  guardRoarSec: [5, 8] as [number, number],
+  faceSec: 1.3,              // turns to face the waiting player while roaring
+  dropSec: 0.55,             // drop-in animation
+  dropScale: 2.2,
+  graceSec: 1.2,             // no damage right after landing
+  leaveSec: 1.2,             // happy roar before stomping off
+  leaveTimeoutSec: 14,
+  maxHp: 100,
+  ramMinSpeed: 200,          // px/s closing speed to hurt
+  ramSpeedMax: 700,
+  ramDamageMin: 12,
+  ramDamageMax: 30,
+  turboMult: 1.5,
+  teamMult: 2,
+  teamWindowSec: 1.5,
+  ramCooldownSec: 0.6,
+  ramBounceBase: 80,         // px/s added on top of 1.3x closing speed
+  ramBounceMax: 760,
+  ramSpin: 2,
+  shoveSpeed: 320,           // px/s^2 gentle push of slow cars
+  flinchStagger: 14,
+  dizzySec: 1.6,
+  shrinkSec: 0.7,
+  poofSec: 1.6,
+  defeatPoints: 2,
+  barWidth: 300,
+  barHeight: 38,
+  barOffset: 290,
 };
 
 // ───────────────────────── camera (package H) ─────────────────────────

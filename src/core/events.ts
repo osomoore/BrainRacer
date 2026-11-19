@@ -52,6 +52,9 @@ export interface GameEvents {
   'dino:step': { x: number; y: number };
   'dino:hit': { player: PlayerId; x: number; y: number };
   'dino:squash': { x: number; y: number };
+  'dino:damaged': { hp: number; maxHp: number; by: PlayerId; x: number; y: number };
+  'dino:defeated': { by: PlayerId[]; x: number; y: number };
+  'dino:left': Record<string, never>;
 
   // round
   'round:start': { lengthSec: number };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DINO } from '../config/gameConfig';
 import { Rng } from '../core/rng';
-import { capsuleHit, chooseWaypoint, dinoCapsule, dist, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
+import { capsuleHit, chooseWaypoint, dinoCapsule, dist, isDefeated, isTeamHit, patrolPoint, ramDamage, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
 
 const sites = Array.from({ length: 40 }, (_, i) => ({ x: (i % 8) * 600 + 100, y: Math.floor(i / 8) * 600 + 100 }));
 const opts = { goalChance: 0.6, goalRadius: 250, minDist: 300 };
@@ -68,5 +69,51 @@ describe('shouldSpawn', () => {
   it('spawns at half time', () => {
     expect(shouldSpawn(149, 300, 0.5)).toBe(false);
     expect(shouldSpawn(150, 300, 0.5)).toBe(true);
+  });
+});
+
+describe('guard patrol', () => {
+  it('stays within the guard radius around the goal', () => {
+    const goal = { x: 3000, y: 2000 };
+    const guardR = 170 * DINO.guardRadiusMul + DINO.guardRadiusPad;
+    const loop = guardR * DINO.patrolLoopFrac;
+    let phase = 0.7;
+    const w: DinoWalk = { ...patrolPoint(goal, loop, phase), angle: phase + Math.PI / 2, pauseLeft: 0 };
+    phase += DINO.patrolStepRad;
+    let target = patrolPoint(goal, loop, phase);
+    let maxD = 0;
+    for (let i = 0; i < 60 * 240; i++) {
+      const r = steer(w, target, 1 / 60, { speed: DINO.speed * DINO.guardSpeedFrac, turnRate: DINO.turnRate, arriveRadius: DINO.arriveRadius, pauseSec: DINO.patrolPauseSec });
+      if (r === 'arrived') { phase += DINO.patrolStepRad; target = patrolPoint(goal, loop, phase); }
+      maxD = Math.max(maxD, dist(w, goal));
+    }
+    expect(maxD).toBeLessThanOrEqual(guardR);
+  });
+});
+
+describe('ram damage', () => {
+  const c = { minSpeed: 200, speedMax: 700, dmgMin: 12, dmgMax: 30, turboMult: 1.5, teamMult: 2 };
+  it('scales with speed and ignores slow bumps', () => {
+    expect(ramDamage(199, false, false, c)).toBe(0);
+    expect(ramDamage(200, false, false, c)).toBeCloseTo(12);
+    expect(ramDamage(700, false, false, c)).toBeCloseTo(30);
+    expect(ramDamage(5000, false, false, c)).toBeCloseTo(30);
+  });
+  it('applies turbo and team multipliers', () => {
+    expect(ramDamage(700, true, false, c)).toBeCloseTo(45);
+    expect(ramDamage(700, false, true, c)).toBeCloseTo(60);
+    expect(ramDamage(700, true, true, c)).toBeCloseTo(90);
+  });
+  it('team window', () => {
+    expect(isTeamHit(10, 11.4, 1.5)).toBe(true);
+    expect(isTeamHit(10, 11.6, 1.5)).toBe(false);
+  });
+  it('defeat threshold and lone-player hit count', () => {
+    expect(isDefeated(0)).toBe(true);
+    expect(isDefeated(0.1)).toBe(false);
+    let hp = DINO.maxHp, n = 0;
+    while (!isDefeated(hp)) { hp -= ramDamage(450, false, false, c); n++; }
+    expect(n).toBeGreaterThanOrEqual(4);
+    expect(n).toBeLessThanOrEqual(6);
   });
 });
