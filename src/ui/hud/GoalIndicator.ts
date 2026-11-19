@@ -3,6 +3,7 @@ import type { GoalState } from '../../core/events';
 import { sceneTex, TEX } from '../../core/assetKeys';
 import type { Rect, Vec2 } from '../../core/types';
 import { bigText, FONT_HEAD, hexNum } from '../menu/style';
+import { GOALS } from '../../config/gameConfig';
 import { HUD } from './hudConfig';
 import { distanceMeters, edgeArrow, isOnScreen } from './hudMath';
 
@@ -17,6 +18,9 @@ export class GoalIndicator {
   private dist: Phaser.GameObjects.Text;
   private goalId = -1;
   private onScreen = false;
+  /** Goal id whose first on-screen scale-in already started, and seconds since it did. */
+  private introGoalId = -1;
+  private introT = 99;
   private clock = 0;
   private hasTex: boolean;
   private avoid?: Rect;
@@ -74,6 +78,8 @@ export class GoalIndicator {
     if (goal.id !== this.goalId) { this.goalId = goal.id; this.buildTag(goal); }
     this.root.setVisible(true);
 
+    if (this.introGoalId !== goal.id && this.goalVisible(w2s, goal, mapRect)) { this.introGoalId = goal.id; this.introT = 0; }
+    this.introT += dt;
     const gs = w2s(goal.x, goal.y);
     const zx = w2s(goal.x + 1, goal.y);
     const zoom = Math.hypot(zx.x - gs.x, zx.y - gs.y);
@@ -89,21 +95,34 @@ export class GoalIndicator {
       const bounce = Math.abs(Math.sin(this.clock * 5)) * 26;
       const top = gs.y - goal.radius * zoom * 0.35 - 70 - bounce;
       ring.setPosition(gs.x, top).setRotation(Math.PI / 2).setScale(scale);
-      const ty = Math.max(mapRect.y + 130, top - 62 * k - TAG_H / 2);
+      const ty = Math.max(mapRect.y + 100, top - 62 * k - TAG_H / 2);
       this.placeTag(mapRect, gs.x, ty);
       this.dist.setVisible(false);
     } else {
       const car = this.nearest(cars, goal);
       const cs = w2s(car.x, car.y);
-      const e = edgeArrow(mapRect, HUD.goal.edgeMargin, cs, gs);
-      ring.setPosition(e.x, e.y).setRotation(e.angle).setScale(scale);
-      const dir = { x: Math.cos(e.angle), y: Math.sin(e.angle) };
+      // Off-screen arrow lives in the TOP band of the view (challenge panel is below the car now):
+      // position is clamped to the band's top/side edges, the angle still points at the goal.
+      const band: Rect = { x: mapRect.x, y: mapRect.y, w: mapRect.w, h: Math.min(mapRect.h * GOALS.arrowBandFrac, GOALS.arrowBandMaxH) };
+      let dx = gs.x - cs.x, dy = gs.y - cs.y;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      const px = Math.abs(dx) < 0.02 && dy >= 0 ? 1 : dx;   // goal straight behind: park at a side edge
+      const e = edgeArrow(band, HUD.goal.edgeMargin, { x: 0, y: 0 }, { x: px, y: Math.min(dy, 0) });
+      const angle = Math.atan2(dy, dx);
+      ring.setPosition(e.x, e.y).setRotation(angle).setScale(scale);
       const back = 70 * k + 90;
-      this.placeTag(mapRect, e.x - dir.x * back, e.y - dir.y * back);
+      this.placeTag(mapRect, e.x - Math.cos(angle) * back, e.y - Math.sin(angle) * back, band.y + band.h);
       const m = distanceMeters(car.x, car.y, goal.x, goal.y);
       this.dist.setText(`${m} m`).setVisible(true).setPosition(this.tag.x, this.tag.y + TAG_H / 2 + 34);
     }
-    if (magnet) this.tag.setScale(1.15); else this.tag.setScale(1);
+    const u = Math.min(1, this.introT / GOALS.labelIntroSec);
+    const intro = this.onScreen ? 1 + (GOALS.labelIntroScale - 1) * (1 - easeOutBack(u)) : 1;
+    this.tag.setScale((magnet ? 1.15 : 1) * intro);
+  }
+
+  private goalVisible(w2s: (x: number, y: number) => Vec2, goal: GoalState, rect: Rect): boolean {
+    return isOnScreen(w2s(goal.x, goal.y), rect, HUD.goal.onScreenMargin + 20);
   }
 
   private nearest(cars: Vec2[], goal: GoalState): Vec2 {
@@ -115,12 +134,12 @@ export class GoalIndicator {
     return best;
   }
 
-  private placeTag(rect: Rect, x: number, y: number) {
+  private placeTag(rect: Rect, x: number, y: number, maxBottom = rect.y + rect.h - 150) {
     const hw = this.tagW / 2 + 12;
     // Keep tag (and the distance line under it) inside the view and below the dock row.
-    const minY = rect.y + 150 + TAG_H / 2;
+    const minY = rect.y + 16 + TAG_H / 2;
     const cx = Math.min(rect.x + rect.w - hw, Math.max(rect.x + hw, x));
-    const cy = Math.min(rect.y + rect.h - 150, Math.max(minY, y));
+    const cy = Math.min(maxBottom, Math.max(minY, y));
     let fx = cx;
     const a = this.avoid;
     if (a && cy - TAG_H / 2 - 50 < a.y + a.h && cy + TAG_H / 2 + 60 > a.y && fx + hw > a.x && fx - hw < a.x + a.w) {
@@ -133,4 +152,9 @@ export class GoalIndicator {
   }
 
   destroy() { this.root.destroy(); }
+}
+
+function easeOutBack(u: number): number {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
 }
