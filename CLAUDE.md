@@ -3,6 +3,8 @@
 Top-down 2-player co-op racer for kids 5–9 with picture/word/math question breaks.
 **Start here:** `docs/STATUS.md` (current behavior, how to test, tunables) → `docs/NEXT.md` (backlog + how the orchestrator/sub-agent/Codex workflow runs). `docs/PLAN.md` is the original design (STATUS supersedes it where they differ).
 
+Codex or another agent driving instead of Claude? Read `AGENTS.md` too (driver-specific differences).
+
 ## Stack
 TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest · Playwright. Node 24, Windows.
 
