@@ -96,6 +96,10 @@ export const CHALLENGE = {
   wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
   breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
   breakMaxScale: 2.0,          // cap on the centered question panel scale
+  navHoldFirstSec: 0.45,       // D-pad/stick up/down counts as held this long after a fresh nav edge (input repeats after 0.4 s)
+  navHoldRepeatSec: 0.2,       // ...and this long after each auto-repeat edge
+  rewardDelayAfterBreakSec: 0.7, // game-time wait after the question panel has fully faded, before turbo/jump/bonus
+  rewardPanelClearSec: 1.05,   // answer -> HUD panel fully gone (hudConfig panel.resultHoldSec 0.7 + fadeSec 0.35); keep in sync
   answerGuardSec: 0.25,        // ignore answers this long after a break question appears
   pauseOptions: 4,             // answers per question in pause style (drive = 3)
   // package B additions
