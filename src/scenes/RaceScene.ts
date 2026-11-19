@@ -85,6 +85,8 @@ export class RaceScene extends Phaser.Scene {
     this.offs.push(
       bus.on('game:resume', () => this.setPaused(false)),
       bus.on('dino:spawned', () => services.audio.music('dino', 1.5)),
+      bus.on('dino:defeated', () => { if (!this.ended) services.audio.music('race', 1.5); }),
+      bus.on('dino:left', () => { if (!this.ended) services.audio.music('race', 1.5); }),
       bus.on('round:end', ({ results }) => this.endRound(results)),
     );
 

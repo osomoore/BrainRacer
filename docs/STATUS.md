@@ -27,6 +27,15 @@ Branch: `dev` (local only, not pushed). 197 unit tests + 5 browser e2e tests pas
 - Menus: A, A, A starts a race (A from any Setup row = start).
 - Images: no missing files found in dev/build; added load-error placeholder cards and `predev` now refreshes `public/scenes`.
 
+## Playtest round 2 changes (2026-11-19)
+- Challenge panel centered BELOW the car (question on top row, 3 answers on their own row); car at `CAMERA.carScreenY` 0.52. Goal arrow/tag moved to the top band.
+- Buildings: baked beveled 3D blocks (read correctly at any rotation); building text labels removed (picture signs kept). Goal name drawn upright in the HUD; goals pop in large and shrink when first on screen.
+- Correct answer = turbo + **boost jump** over traffic/buildings (lands on drivable ground) + **punch-through** (traffic/props thrown aside, speed kept).
+- Wrong/timeout answer = short slowdown (0.7x / 0.8x) with exhaust sputter.
+- Traffic: 25 cars, lighter, easy to shove. Police: gentle siren, despawn after 1.5 s off-screen.
+- Dino: appears when one player reaches the goal early, guards it slowly until the teammate arrives; rammable (health bar, turbo x1.5, both-players TEAM HIT x2), "POOF" defeat = +2 per player. 1-player: half-time at the current goal. Louder roar.
+- Music: new, more exciting tracks (Codex); music returns to race theme after the dino leaves/is defeated.
+
 ## Decisions / notes
 - Phaser 3.90 (not 4) for sub-agent familiarity.
 - Words: `manifest.csv` labels → `src/data/wordAliases.json` → single simple words. Multi-word labels are Hard-only. Look-alike pairs live in `src/data/wordMeta.json` (`confusableWith`). After editing either: `npm run assets`.

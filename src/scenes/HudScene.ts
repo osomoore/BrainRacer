@@ -21,7 +21,7 @@ const D = { divider: 1, bars: 2, goal: 3, scoreboard: 5, panel: 6, banner: 20, f
 const CENTER_Y = 430;
 
 type Kind = 'dino' | 'half' | 'goal';
-const KIND_RE: [Kind, RegExp][] = [['dino', /dino/i], ['half', /half/i], ['goal', /^goal/i]];
+const KIND_RE: [Kind, RegExp][] = [['dino', /dino alert/i], ['half', /half/i], ['goal', /^goal/i]];
 
 const copy = (r: Rect): Rect => ({ ...r });
 
