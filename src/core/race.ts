@@ -38,6 +38,14 @@ export interface IVehicle {
   applyImpulse(dvx: number, dvy: number, spin?: number): void;
 }
 
+export interface VehicleChassis {
+  spec: VehicleSpec;
+  texture: string;
+  position: Vec2;
+  angle: number;
+  velocity?: Vec2;
+}
+
 export interface IPlayerCar extends IVehicle {
   readonly player: PlayerId;
   readonly kind: CarKind;
@@ -50,6 +58,10 @@ export interface IPlayerCar extends IVehicle {
   readonly airborne: boolean;
   readonly turbo: boolean;
   readonly ghost: boolean;
+  readonly disabled: boolean;
+  setDisabled(disabled: boolean): void;
+  /** Replace the vehicle without changing the player, camera target, guide, or rewards. */
+  replaceChassis(chassis: VehicleChassis): void;
   /** Turbo multiplies max speed & accel (values from REWARDS). */
   setTurbo(on: boolean): void;
   /** Ghost: no collisions with npcs (still collides with buildings); semi-transparent. */
@@ -64,6 +76,7 @@ export interface IPlayerCar extends IVehicle {
 
 export interface INpcVehicle extends IVehicle {
   readonly npcKind: 'traffic' | 'truck' | 'police';
+  readonly appearanceKey: string;
   readonly view: Phaser.GameObjects.Container | Phaser.GameObjects.Image;
   /** True once removed from the world. */
   readonly destroyed: boolean;

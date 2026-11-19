@@ -11,7 +11,7 @@ function isRoadAt(world: WorldData, { x, y }: Vec2): boolean {
   return tileAt(world, Math.floor(x / world.tileSize), Math.floor(y / world.tileSize)) === Tile.Road;
 }
 
-function reachableRoadTiles(world: WorldData, blocked: ReadonlySet<number>): number {
+function reachableRoadTiles(world: WorldData, blocked: ReadonlySet<number>): Set<number> {
   const { widthTiles, tiles } = world;
   const start = tiles.indexOf(Tile.Road);
   const visited = new Set([start]);
@@ -26,7 +26,7 @@ function reachableRoadTiles(world: WorldData, blocked: ReadonlySet<number>): num
       queue.push(next);
     }
   }
-  return visited.size;
+  return visited;
 }
 
 describe('generateIndustrial', () => {
@@ -35,30 +35,37 @@ describe('generateIndustrial', () => {
     expect(generateIndustrial(3).tiles).not.toEqual(generateIndustrial(17).tiles);
   });
 
-  it.each([3, 17, 92])('connects the loops and both bridge decks even with the grade crossing closed (seed %d)', (seed) => {
+  it.each([3, 17, 92])('keeps the road network connected while either crossing is closed (seed %d)', (seed) => {
     const world = generateIndustrial(seed);
     const { decorations, rail } = world.industrial!;
     const { tileSize: ts, widthTiles } = world;
-    const crossingTiles = new Set<number>();
-    const left = rail.crossing.x - rail.crossingWidth / 2;
-    const right = rail.crossing.x + rail.crossingWidth / 2;
-    for (let x = rail.start.x + ts / 2; x < rail.end.x; x += ts) {
-      for (const y of [rail.crossing.y - ts / 2, rail.crossing.y + ts / 2]) {
-        const road = isRoadAt(world, { x, y });
-        expect(road).toBe(x > left && x < right);
-        if (road) crossingTiles.add(Math.floor(y / ts) * widthTiles + Math.floor(x / ts));
-      }
-    }
-    expect(crossingTiles.size).toBeGreaterThan(0);
+    const tileId = ({ x, y }: Vec2) => Math.floor(y / ts) * widthTiles + Math.floor(x / ts);
     const roadCount = world.tiles.filter((tile) => tile === Tile.Road).length;
-    expect(reachableRoadTiles(world, new Set())).toBe(roadCount);
-    expect(reachableRoadTiles(world, crossingTiles)).toBe(roadCount - crossingTiles.size);
+    expect(reachableRoadTiles(world, new Set()).size).toBe(roadCount);
+    const allCrossings = new Set<number>();
+    expect(rail.crossings).toHaveLength(2);
+    for (const { center, width } of rail.crossings) {
+      const blocked = new Set<number>();
+      for (let x = center.x - width / 2 + ts / 2; x < center.x + width / 2; x += ts) {
+        for (const y of [center.y - ts / 2, center.y + ts / 2]) {
+          expect(isRoadAt(world, { x, y })).toBe(true);
+          blocked.add(tileId({ x, y }));
+          allCrossings.add(tileId({ x, y }));
+        }
+      }
+      expect(reachableRoadTiles(world, blocked).size).toBe(roadCount - blocked.size);
+    }
+    const reachable = reachableRoadTiles(world, allCrossings);
+    for (const point of [...world.places.map((p) => p.front), ...world.playerSpawns, ...world.ramps]) {
+      expect(reachable.has(tileId(point))).toBe(true);
+    }
     expect(largestScc(world.laneGraph)).toBe(world.laneGraph.nodes.length);
     expect(world.laneGraph.nodes.every((node) => isRoadAt(world, node))).toBe(true);
 
     const bridges = decorations.filter(({ kind }) => kind === 'bridge');
-    expect(bridges).toHaveLength(2);
+    expect(bridges).toHaveLength(3);
     for (const bridge of bridges) {
+      expect(reachable.has(tileId(bridge))).toBe(true);
       for (let x = bridge.x - bridge.w / 2 + ts / 2; x < bridge.x + bridge.w / 2; x += ts) {
         expect(isRoadAt(world, { x, y: bridge.y - ts / 2 })).toBe(true);
         expect(isRoadAt(world, { x, y: bridge.y + ts / 2 })).toBe(true);
@@ -66,6 +73,30 @@ describe('generateIndustrial', () => {
         expect(isDrivable(world, x, bridge.y + bridge.h / 2 + ts / 2)).toBe(false);
       }
     }
+  });
+
+  it('runs the entire rail circuit over usable ground and marks every road crossing', () => {
+    const world = generateIndustrial(3);
+    const { points, crossings } = world.industrial!.rail;
+    const { tileSize: ts } = world;
+    const seen = new Set<number>();
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], b = points[(i + 1) % points.length];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const length = Math.hypot(dx, dy);
+      expect(length).toBeGreaterThan(ts);
+      const samples = Math.ceil(length / (ts / 8));
+      for (let j = 0; j < samples; j++) {
+        const t = (j + 0.5) / samples;
+        const x = a.x + t * dx, y = a.y + t * dy;
+        expect(isDrivable(world, x, y)).toBe(true);
+        const crossing = crossings.findIndex(({ center, width }) =>
+          center.y === y && Math.abs(center.x - x) < width / 2);
+        expect(isRoadAt(world, { x, y })).toBe(crossing !== -1);
+        if (crossing !== -1) seen.add(crossing);
+      }
+    }
+    expect(seen.size).toBe(crossings.length);
   });
 
   it('keeps both factory portals, open goal approaches and the ramp run on usable ground', () => {
@@ -84,7 +115,9 @@ describe('generateIndustrial', () => {
     for (const { front, sign, word } of world.places) {
       expect(signSceneFor(word)).toBeTruthy();
       expect(isRoadAt(world, front)).toBe(true);
-      expect(Math.abs(front.y - rail.crossing.y)).toBeGreaterThan(GOALS.radius);
+      for (const { center } of rail.crossings) {
+        expect(Math.hypot(front.x - center.x, front.y - center.y)).toBeGreaterThan(GOALS.radius);
+      }
       expect(isDrivable(world, sign.x, sign.y)).toBe(false);
       for (const { dx, dy } of DIRS) {
         expect(isDrivable(world, front.x + dx * GOALS.radius, front.y + dy * GOALS.radius)).toBe(true);

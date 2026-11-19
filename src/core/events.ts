@@ -37,6 +37,8 @@ export interface GameEvents {
 
   // vehicles / world
   'vehicle:crash': { player: PlayerId | null; with: CrashWith; impact: number; x: number; y: number };
+  'vehicle:damage': { player: PlayerId; impact: number };
+  'vehicle:changed': { player: PlayerId; position: Vec2 };
   'jump:start': { player: PlayerId | null; x: number; y: number; airSec: number };
   'jump:request': { player: PlayerId; airSec: number; boost?: boolean };
   'jump:land': { player: PlayerId | null; x: number; y: number };

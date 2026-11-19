@@ -120,7 +120,7 @@ export function drawGoal(scene: Phaser.Scene): void {
     ctx.fillStyle = radial(ctx, c, c, 120, 180, [[0, 'rgba(255,210,60,0)'], [0.55, 'rgba(255,210,60,0.35)'], [1, 'rgba(255,210,60,0)']]);
     ctx.fillRect(0, 0, 360, 360);
     // inner faint wash
-    ctx.fillStyle = radial(ctx, c, c, 10, 140, [[0, 'rgba(255,240,150,0.0)'], [1, 'rgba(255,230,110,0.18)']]);
+    ctx.fillStyle = radial(ctx, c, c, 0, 150, [[0, 'rgba(255,240,150,0.18)'], [1, 'rgba(255,230,110,0)']]);
     ctx.fillRect(0, 0, 360, 360);
     // main band
     ctx.lineCap = 'round';

@@ -8,16 +8,13 @@ import { CHALLENGE } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
 import type { GameSystem, RaceContext } from '../core/race';
 import { services } from '../core/services';
-import type { AnswerSlot, Challenge, PlayerId } from '../core/types';
-import { AnswerArming, heldKeys, NavHoldTracker, type AnswerDir } from './answerArming';
+import type { Challenge, PlayerId } from '../core/types';
 import { BreakScheduler, type BreakEvent } from '../challenge/BreakScheduler';
 import { ChallengeFactory } from '../challenge/ChallengeFactory';
 import { ChallengeGenerator } from '../challenge/ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from '../challenge/ChallengeScheduler';
 
 const RNG_SALT = 0xb1;
-type Dir = AnswerDir;
-const DIR_SLOT: Record<Dir, AnswerSlot> = { left: 0, up: 1, right: 2, down: 3 };
 
 export class ChallengeSystem implements GameSystem {
   readonly name = 'challenge';
@@ -27,12 +24,6 @@ export class ChallengeSystem implements GameSystem {
   /** Indices of places each player is currently near (to fire once per entry). */
   private near: Set<number>[] = [];
   private guard: number[] = [];
-  /** Per player: inputs held when a question appears must be released before they count. */
-  private arming: AnswerArming[] = [];
-  private navHold: NavHoldTracker[] = [];
-  private clock = 0;
-  /** Per player: this frame's nav edge is an auto-repeat of a held direction. */
-  private navRepeat: boolean[] = [];
   private pause = false;
 
   init(ctx: RaceContext): void {
@@ -77,8 +68,6 @@ export class ChallengeSystem implements GameSystem {
     }
     this.near = players.map(() => new Set<number>());
     this.guard = players.map(() => 0);
-    this.arming = players.map(() => new AnswerArming());
-    this.navHold = players.map(() => new NavHoldTracker(CHALLENGE.navHoldFirstSec, CHALLENGE.navHoldRepeatSec));
   }
 
   update(dt: number, ctx: RaceContext): void {
@@ -103,47 +92,22 @@ export class ChallengeSystem implements GameSystem {
 
   // ───────────────────────── pause style ─────────────────────────
   private updateBreaks(dt: number, ctx: RaceContext, now: number, br: BreakScheduler): void {
-    this.clock += dt;
-    // Track held D-pad/stick directions even while driving, so a break that starts mid-hold knows.
-    for (let i = 0; i < this.nPlayers; i++) this.navRepeat[i] = this.navHold[i].note(this.navDir(services.input.get(i as PlayerId)), this.clock);
     if (!br.active) {
       for (let i = 0; i < this.nPlayers; i++) {
         for (const word of this.enteredPlaces(i as PlayerId, ctx)) br.notifyPlace(i as PlayerId, word);
       }
     }
+    for (let i = 0; i < this.nPlayers; i++) this.guard[i] = Math.max(0, this.guard[i] - dt);
     this.handle(br.update(now, dt), ctx);
     if (br.phase === 'asking') {
       for (let i = 0; i < this.nPlayers; i++) {
         const p = i as PlayerId;
-        this.guard[p] = Math.max(0, this.guard[p] - dt);
-        const slot = this.readAnswer(p);
+        const inp = services.input.get(p);
+        const slot = inp.answer ?? inp.answerDirection;
         if (slot !== null && this.guard[p] <= 0) this.handle(br.answer(p, slot), ctx);
       }
     }
     ctx.questionBreak = br.active;
-  }
-
-  private navDir(inp: { navX: number; navY: number }): Dir | null {
-    return inp.navY === -1 ? 'up' : inp.navY === 1 ? 'down' : inp.navX === -1 ? 'left' : inp.navX === 1 ? 'right' : null;
-  }
-
-  /** Everything the player holds right now (as answer keys), including recent nav auto-repeat. */
-  private held(p: PlayerId) {
-    return heldKeys(services.input.get(p), this.navHold[p].recent(this.clock));
-  }
-
-  /** Face buttons, plus directions as the diamond (up Y, left X, right B, down A). Held inputs must be released first. */
-  private readAnswer(p: PlayerId): AnswerSlot | null {
-    const inp = services.input.get(p);
-    const arming = this.arming[p];
-    const dir = this.navDir(inp);
-    // A fresh (non-repeat) nav edge this frame is a new press, not a hold.
-    const recent = this.navHold[p].recent(this.clock).filter((d) => this.navRepeat[p] || d !== dir);
-    arming.update(heldKeys(inp, recent));
-    if (inp.answer !== null) return arming.isArmed(`slot:${inp.answer}`) ? inp.answer : null;
-    if (!dir || !arming.isArmed(`dir:${dir}`)) return null;
-    arming.consume(`dir:${dir}`);
-    return DIR_SLOT[dir];
   }
 
   private handle(events: BreakEvent[], ctx: RaceContext): void {
@@ -151,11 +115,9 @@ export class ChallengeSystem implements GameSystem {
       switch (e.type) {
         case 'breakStart':
           ctx.questionBreak = true;
-          for (let i = 0; i < this.nPlayers; i++) this.arming[i].snapshot(this.held(i as PlayerId));
           break;
         case 'shown':
           this.guard[e.challenge.player] = CHALLENGE.answerGuardSec;
-          this.arming[e.challenge.player].snapshot(this.held(e.challenge.player));
           ctx.bus.emit('challenge:shown', { challenge: e.challenge });
           break;
         case 'resolved':

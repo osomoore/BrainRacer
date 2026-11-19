@@ -53,6 +53,12 @@ export class GuideBuddy {
 
   setHappy(on: boolean) { this.happy = on; }
 
+  redirect(target: Vec2): void {
+    if (!this.placed) return;
+    this.fly.vx = this.fly.vy = 0;
+    this.heading = Math.atan2(target.y - this.fly.y, target.x - this.fly.x);
+  }
+
   update(dt: number, target: Vec2, car: CarMotion) {
     if (!this.placed) {
       this.fly.x = target.x;

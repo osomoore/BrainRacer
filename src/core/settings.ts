@@ -10,6 +10,7 @@ export function loadSettings(): Settings {
     if (raw) {
       const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) };
       settings.map = settings.map === 'industrial' ? 'industrial' : 'city';
+      settings.nightDriving = settings.nightDriving === true;
       return settings;
     }
   } catch { /* ignore */ }

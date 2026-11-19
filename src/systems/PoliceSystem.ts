@@ -71,6 +71,7 @@ export class PoliceSystem implements GameSystem {
   private bump(p: PlayerId, car: IPlayerCar, x: number, y: number): void {
     let cop: PoliceCar | null = null, bd = Infinity;
     for (const c of this.cars) {
+      if (!this.isActive(c)) continue;
       const d = (c.x - x) ** 2 + (c.y - y) ** 2;
       if (d < bd) { bd = d; cop = c; }
     }
@@ -109,8 +110,8 @@ export class PoliceSystem implements GameSystem {
 
   // ───────────────────────── update ─────────────────────────
   update(dt: number): void {
-    this.cars = this.cars.filter((c) => !c.destroyed);
-    for (const k of this.offSec.keys()) if (k.destroyed) this.offSec.delete(k);
+    this.cars = this.cars.filter((c) => this.isActive(c));
+    for (const k of this.offSec.keys()) if (!this.isActive(k)) this.offSec.delete(k);
 
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
@@ -130,7 +131,21 @@ export class PoliceSystem implements GameSystem {
   }
 
   private chasersOf(p: PlayerId): PoliceCar[] {
-    return this.cars.filter((c) => c.mode === 'chase' && c.target === p);
+    return this.cars.filter((c) => c.mode === 'chase' && c.target === p && this.isActive(c));
+  }
+
+  private isActive(car: PoliceCar): boolean {
+    return !car.destroyed && this.ctx.npcs.has(car);
+  }
+
+  private hasChaseSlot(p: PlayerId, desired: number = POLICE.maxChasersPerPlayer): boolean {
+    return this.per[p].chasing && this.chasersOf(p).length < Math.min(desired, POLICE.maxChasersPerPlayer);
+  }
+
+  private startPursuit(car: PoliceCar, p: PlayerId): void {
+    car.mode = 'chase';
+    car.target = p;
+    car.brain.path = [];
   }
 
   private updateChase(p: PlayerId, dt: number): void {
@@ -151,14 +166,17 @@ export class PoliceSystem implements GameSystem {
       st.lastCount = chasers.length;
       if (chasers.length > 0) this.ctx.bus.emit('police:chase', { player: p, count: chasers.length });
     }
+    if (st.heat < POLICE.heatChaseThreshold / 2) {
+      this.endChase(p);
+      return;
+    }
     if (chasers.length === 0) return; // still waiting for the first spawn
     let minDist = Infinity;
     for (const c of chasers) minDist = Math.min(minDist, Math.hypot(c.x - player.x, c.y - player.y));
-    const cooled = st.heat < POLICE.heatChaseThreshold / 2;
-    if (updateEscape(st.escape, minDist, player.turbo, dt) || cooled) this.endChase(p, !cooled);
+    if (updateEscape(st.escape, minDist, player.turbo, dt)) this.endChase(p);
   }
 
-  private endChase(p: PlayerId, _escaped: boolean): void {
+  private endChase(p: PlayerId): void {
     const st = this.per[p];
     st.chasing = false;
     st.escape.farSec = 0;
@@ -173,12 +191,11 @@ export class PoliceSystem implements GameSystem {
   }
 
   private driveCar(car: PoliceCar, dt: number): void {
+    if (car.mode === 'patrol') this.maybeJoinChase(car);
     let target = null;
     if (car.mode === 'chase' && car.target !== null) {
       const pl = this.ctx.players[car.target];
       if (pl) target = { x: pl.x, y: pl.y, vx: pl.velocity.x, vy: pl.velocity.y };
-    } else if (car.mode === 'patrol') {
-      this.maybeJoinChase(car);
     }
     if (car.backoff > 0) {
       car.backoff -= dt;
@@ -215,12 +232,10 @@ export class PoliceSystem implements GameSystem {
   private maybeJoinChase(car: PoliceCar): void {
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
-      const st = this.per[p], pl = this.ctx.players[p];
-      if (!st.chasing || !pl || this.chasersOf(p).length >= POLICE.maxChasersPerPlayer) continue;
+      const pl = this.ctx.players[p];
+      if (!pl || !this.hasChaseSlot(p)) continue;
       if (Math.hypot(pl.x - car.x, pl.y - car.y) < POLICE.joinSightDist && lineOfSight(this.ctx.world, car, pl)) {
-        car.mode = 'chase';
-        car.target = p;
-        car.brain.path = [];
+        this.startPursuit(car, p);
         return;
       }
     }
@@ -232,15 +247,12 @@ export class PoliceSystem implements GameSystem {
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
       const st = this.per[p];
-      if (!st.chasing) continue;
       const want = Math.max(1, desiredChasers(st.heat));
-      if (this.chasersOf(p).length < want && this.cars.length < POLICE.maxTotal && this.ctx.elapsedSec >= st.respawnUntil) {
+      if (this.hasChaseSlot(p, want) && this.cars.length < POLICE.maxTotal && this.ctx.elapsedSec >= st.respawnUntil) {
         const pl = this.ctx.players[p];
         const spot = this.findSpawn(pl.x, pl.y, POLICE.spawnMinDist, POLICE.spawnMaxDist);
         if (spot) {
-          const car = this.spawn(spot);
-          car.mode = 'chase';
-          car.target = p;
+          this.startPursuit(this.spawn(spot), p);
           return;
         }
       }

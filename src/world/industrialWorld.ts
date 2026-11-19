@@ -3,18 +3,14 @@ import { hash, makeCanvas, type Ctx } from '../art/draw';
 import { DEPTH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import {
-  ROAD_E, ROAD_N, ROAD_S, ROAD_W, type IndustrialDecoration, type IndustrialLayout,
+  ROAD_E, ROAD_N, ROAD_S, ROAD_W, type IndustrialDecoration, type IndustrialLayout, type Vec2,
 } from '../core/types';
 
 export const INDUSTRIAL_TILESET_KEY = 'world_tileset_industrial';
 export const INDUSTRIAL_BUILDING_TINT = 0x718eab;
 export const INDUSTRIAL_SLAB_VARIANTS = 3;
 
-const FENCE_KEY = 'world_industrial_fence';
-const RAIL_REPEAT = 128;
 const RAIL_WIDTH = 64;
-const FENCE_WIDTH = 22;
-const FENCE_OFFSET = 54;
 
 type AddRect = (x: number, y: number, w: number, h: number, angle: number) => void;
 type AddCircle = (x: number, y: number, radius: number) => void;
@@ -117,21 +113,6 @@ export function industrialTileSource(size: number): (index: number) => HTMLCanva
   };
 }
 
-function ensureFence(scene: Phaser.Scene): void {
-  if (scene.textures.exists(FENCE_KEY)) return;
-  const { ctx, done } = makeCanvas(scene, FENCE_KEY, RAIL_REPEAT, FENCE_WIDTH);
-  paint(ctx, '#121c2bc0', 0, 7, 128, 15);
-  paint(ctx, '#273c50', 0, 5, 128, 13);
-  paint(ctx, '#e0b477', 0, 6, 128, 4);
-  paint(ctx, '#8198a4', 0, 14, 128, 2);
-  for (let x = 12; x < 128; x += 32) {
-    paint(ctx, '#141d30', x, 3, 8, 17);
-    paint(ctx, '#9eb2b9', x, 3, 3, 13);
-    paint(ctx, '#ffe9ae', x - 3, 6, 3, 4);
-  }
-  done();
-}
-
 function addDecoration(
   scene: Phaser.Scene, decoration: IndustrialDecoration, objects: Phaser.GameObjects.GameObject[],
   addRect: AddRect, addCircle: AddCircle,
@@ -168,26 +149,45 @@ export function addIndustrialWorld(
 ): void {
   for (const decoration of decorations) addDecoration(scene, decoration, objects, addRect, addCircle);
 
-  const length = Math.hypot(rail.end.x - rail.start.x, rail.end.y - rail.start.y);
-  const angle = Math.atan2(rail.end.y - rail.start.y, rail.end.x - rail.start.x);
-  const dx = Math.cos(angle), dy = Math.sin(angle);
-  objects.push(scene.add.tileSprite(
-    rail.start.x + dx * length / 2, rail.start.y + dy * length / 2, length, RAIL_WIDTH, TEX.industrial.rail,
-  ).setRotation(angle).setDepth(DEPTH.decal - 1));
+  objects.push(addRailCircuit(scene, rail.points));
+}
 
-  ensureFence(scene);
-  const along = (rail.crossing.x - rail.start.x) * dx + (rail.crossing.y - rail.start.y) * dy;
-  const halfWidth = rail.crossingWidth / 2;
-  for (const [start, end] of [[0, along - halfWidth], [along + halfWidth, length]]) {
-    const fenceLength = end - start;
-    if (fenceLength <= 0) continue;
-    const middle = (start + end) / 2;
-    for (const offset of [-FENCE_OFFSET, FENCE_OFFSET]) {
-      const x = rail.start.x + middle * dx - offset * dy;
-      const y = rail.start.y + middle * dy + offset * dx;
-      objects.push(scene.add.tileSprite(x, y, fenceLength, FENCE_WIDTH, FENCE_KEY)
-        .setRotation(angle).setDepth(DEPTH.prop));
-      addRect(x, y, fenceLength, 12, angle);
-    }
+/** Bake mitered strips of the track texture into one continuous ground decal. */
+function addRailCircuit(scene: Phaser.Scene, points: Vec2[]): Phaser.GameObjects.Image {
+  const left = Math.floor(Math.min(...points.map((p) => p.x)) - RAIL_WIDTH);
+  const top = Math.floor(Math.min(...points.map((p) => p.y)) - RAIL_WIDTH);
+  const width = Math.ceil(Math.max(...points.map((p) => p.x)) - left + RAIL_WIDTH);
+  const height = Math.ceil(Math.max(...points.map((p) => p.y)) - top + RAIL_WIDTH);
+  const key = 'world-industrial-rail-circuit';
+  const { ctx, done } = makeCanvas(scene, key, width, height);
+  const source = scene.textures.get(TEX.industrial.rail).getSourceImage() as HTMLCanvasElement;
+  const sleepers = ctx.createPattern(source, 'repeat-x')!;
+  const angles = points.map((p, i) => {
+    const next = points[(i + 1) % points.length];
+    return Math.atan2(next.y - p.y, next.x - p.x);
+  });
+  const bevels = angles.map((angle, i) => {
+    const turn = angle - angles[(i + angles.length - 1) % angles.length];
+    return RAIL_WIDTH / 2 * Math.tan(turn / 2);
+  });
+  for (let i = 0; i < points.length; i++) {
+    const next = (i + 1) % points.length;
+    const a = points[i], b = points[next];
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    ctx.save();
+    ctx.translate(a.x - left, a.y - top);
+    ctx.rotate(angles[i]);
+    ctx.translate(0, -RAIL_WIDTH / 2);
+    ctx.beginPath();
+    ctx.moveTo(-bevels[i], 0);
+    ctx.lineTo(length + bevels[next], 0);
+    ctx.lineTo(length - bevels[next], RAIL_WIDTH);
+    ctx.lineTo(bevels[i], RAIL_WIDTH);
+    ctx.closePath();
+    ctx.fillStyle = sleepers;
+    ctx.fill();
+    ctx.restore();
   }
+  done();
+  return scene.add.image(left, top, key).setOrigin(0).setDepth(DEPTH.decal - 1);
 }

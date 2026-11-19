@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
+import { FREIGHT_TRUCK_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -17,6 +17,7 @@ export class TrafficCar extends NpcVehicle {
   /** Set when stuck while off-screen; the system removes the car. */
   wantsDespawn = false;
   readonly follow: FollowState;
+  readonly oversized: boolean;
   private readonly cruise: number;
   private readonly res: FollowResult = newFollowResult();
   private stateT = 0;
@@ -29,12 +30,16 @@ export class TrafficCar extends NpcVehicle {
   private braking = false;
   private launched = false;
 
-  constructor(scene: Phaser.Scene, rng: Rng, isTruck: boolean, x: number, y: number, angle: number, target: number) {
+  constructor(
+    scene: Phaser.Scene, rng: Rng, kind: 'car' | 'truck' | 'freight',
+    x: number, y: number, angle: number, target: number,
+  ) {
     super(
-      scene, isTruck ? 'truck' : 'traffic',
-      isTruck ? TEX.truck : TEX.traffic[rng.int(0, TEX.traffic.length - 1)],
-      isTruck ? TRUCK_SPEC : TRAFFIC_SPEC, x, y, angle,
+      scene, kind === 'car' ? 'traffic' : 'truck',
+      kind === 'freight' ? TEX.freightTruck : kind === 'truck' ? TEX.truck : TEX.traffic[rng.int(0, TEX.traffic.length - 1)],
+      kind === 'freight' ? FREIGHT_TRUCK_SPEC : kind === 'truck' ? TRUCK_SPEC : TRAFFIC_SPEC, x, y, angle,
     );
+    this.oversized = kind === 'freight';
     this.follow = { target, next: -1 };
     this.cruise = this.spec.maxSpeed * rng.range(TRAFFIC.speedMinFrac, TRAFFIC.speedMaxFrac);
     this.stuckX = x; this.stuckY = y;

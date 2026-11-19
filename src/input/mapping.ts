@@ -16,7 +16,8 @@ export interface RepeatState { x: NavRepeat; y: NavRepeat }
 export const newRepeatState = (): RepeatState => ({ x: { dir: 0, nextAt: 0 }, y: { dir: 0, nextAt: 0 } });
 
 export const emptyInput = (): PlayerInput => ({
-  steer: 0, throttle: 0, brake: 0, answer: null, confirm: false, back: false, pause: false, navX: 0, navY: 0,
+  steer: 0, throttle: 0, brake: 0, answer: null, answerDirection: null, confirm: false, back: false, transfer: false,
+  pause: false, navX: 0, navY: 0,
 });
 
 /** Radial deadzone with rescale so output ramps smoothly from 0 at the edge of the deadzone. */
@@ -69,8 +70,10 @@ export function mapGamepad(
     throttle: Math.max(analog(snap, m.rt), down(snap, m.a) ? 1 : 0),
     brake: analog(snap, m.lt),
     answer: pickAnswer([edge(m.x), edge(m.y), edge(m.b), edge(m.a)]),
+    answerDirection: directionAnswer(edge(m.dLeft), edge(m.dUp), edge(m.dRight), edge(m.dDown)),
     confirm: edge(m.a),
     back: edge(m.b),
+    transfer: edge(m.b),
     pause: edge(m.start),
     navX: navEdge(navDirX, repeat.x, now),
     navY: navEdge(navDirY, repeat.y, now),
@@ -85,11 +88,20 @@ export function mergeInputs(list: readonly PlayerInput[]): PlayerInput {
     out.throttle = Math.max(out.throttle, i.throttle);
     out.brake = Math.max(out.brake, i.brake);
     if (out.answer === null) out.answer = i.answer;
+    if (out.answerDirection === null) out.answerDirection = i.answerDirection;
     out.confirm ||= i.confirm;
     out.back ||= i.back;
+    out.transfer ||= i.transfer;
     out.pause ||= i.pause;
     if (out.navX === 0) out.navX = i.navX;
     if (out.navY === 0) out.navY = i.navY;
   }
   return out;
+}
+
+/** Map directional button presses to the diamond, giving vertical presses priority. */
+export function directionAnswer(left: boolean, up: boolean, right: boolean, down: boolean): AnswerSlot | null {
+  if (up !== down) return up ? 1 : 3;
+  if (left !== right) return left ? 0 : 2;
+  return null;
 }

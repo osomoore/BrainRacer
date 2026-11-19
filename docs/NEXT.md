@@ -21,8 +21,6 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 ## Queued playtest changes
 
 - Remove on-screen destination text. Players follow their guide buddies.
-- Investigate the reported 2–3 second delay before the buddy turns toward the next destination after a goal.
-- Repeated rams make the player's vehicle smoke, catch fire, and eventually stop working. Double-tapping B within half a second lets the player jump straight into another vehicle of any kind, including police cars and trucks.
 
 ## Backlog
 
@@ -30,27 +28,22 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 Begin these follow-ups only when the user kicks them off.
 
-- Add more criss-crossing routes between areas.
 - Let players smash moving freight trains apart.
-- Give player cars headlights in dark areas. Industrial at Night is the first map with headlights.
 - Give the dino laser-eye beams.
 - Break up long buildings with usable gaps so that multiple blocks do not form a continuous barrier.
-- Restrict controller answer selection to buttons. Moving the controller stick should never select an answer.
-- Cap active police pursuit at two cars per player.
-- Fix the square masking or transparency artifact around destination rings on Industrial at Night.
-- Run trains on a continuous rail circuit so they stay in the world between crossings. Avoid long gates that block access to the crossing.
+
+The completed vehicle, lighting, freight, guide, and control follow-ups are recorded in [STATUS.md](STATUS.md).
 
 ### Session 2 follow-ups
 
 Session 2 finished items 1–6 (Easy place words, reward delay, held-button arming, break panels vs scoreboard, goal banner → card pulse, guide buddy distance). See STATUS. Open follow-ups from that work:
 - Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
 - `CHALLENGE.rewardPanelClearSec` (1.05) mirrors HUD `panel.resultHoldSec + fadeSec` by hand; keep them in sync if the HUD fade changes.
-- Held pad X/Y/B into a break is covered only by `answerGuardSec` (face buttons arrive as one-frame edges). Holding W/RT also blocks pad A's slot until released (no pad/keyboard distinction).
 - Guide buddy: `GUIDE.topInset`/`seamInset` keep it off the split-screen scoreboard. In single player it uses the full view and avoids the top-left scoreboard. Check the hand-off to the goal orbit (hover ~500 px vs `nearGoal` 450).
 - Sub-agents writing files from PowerShell can produce Windows-1252 bytes (a "…" broke `vite build` in session 2). Tests and typecheck don't catch it; `npm run e2e` does (it builds).
 
 ## Playtest checklist (needs the user, real pads, projector)
-- Xbox pads: steering, RT/LT, the diamond answers, held-button behavior (hold A / D-pad / stick into a break and after a wrong answer: nothing should answer), Start = pause, hot-plug, rumble.
+- Xbox pads: steering, RT/LT, diamond answers with face or D-pad buttons, held-button behavior into a break or after a wrong answer, double-tap B to switch vehicles, Start = pause, hot-plug, rumble.
 - Reward timing: turbo + jump should land ~0.7 s after the question panel fades (car glows in between).
 - Destination card pulse on a new goal: noticeable enough? (`HUD.goalPulse` in hudConfig.ts). "Waiting…" pill readable?
 - Car feel: pivot turning, wall unstick, turbo and punch-through strength, boost-jump height and distance.

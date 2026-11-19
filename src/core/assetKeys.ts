@@ -12,6 +12,7 @@ export const TEX = {
   // traffic / police
   traffic: ['traffic_0', 'traffic_1', 'traffic_2', 'traffic_3'] as const, // 64 x 36 sedans, varied colors
   truck: 'truck',               // 120 x 48 box truck
+  freightTruck: 'vehicle_freight_truck', // 160 x 58 heavy freight truck
   police: ['police_0', 'police_1'] as const, // 66 x 38, light bar frames (red-left / blue-left) for flashing
 
   // dino (top-down T-rex, facing +x)

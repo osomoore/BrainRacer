@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
 import { CAR_SPECS, CAT, DEPTH, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
-import type { IPlayerCar } from '../core/race';
+import type { IPlayerCar, VehicleChassis } from '../core/race';
 import { services } from '../core/services';
 import type { CarKind, PlayerId, PlayerInput } from '../core/types';
 import type { SkidMarks } from '../fx/SkidMarks';
-import { PLAYER_MASK_ALL, Vehicle } from './Vehicle';
+import { PLAYER_MASK_ALL, STEP_HZ, Vehicle } from './Vehicle';
 import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
 
 const MASK_GHOST = PLAYER_MASK_ALL & ~(CAT.traffic | CAT.police);
@@ -59,6 +59,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private _turbo = false;
   private _ghost = false;
   private _airborne = false;
+  private _disabled = false;
   private baseMass = 0;
   private controlEnabled = true;
   private slowMult = 1;
@@ -138,6 +139,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
 
   get speedFrac() { return Math.abs(this.forwardSpeed) / this.currentMaxSpeed; }
   get airborne() { return this._airborne; }
+  get disabled() { return this._disabled; }
   get turbo() { return this._turbo; }
   get ghost() { return this._ghost; }
 
@@ -172,6 +174,36 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
 
   setControlEnabled(on: boolean): void { this.controlEnabled = on; }
 
+  setDisabled(disabled: boolean): void {
+    this._disabled = disabled;
+    if (disabled) this.sprite.setTint(0x686e78);
+    else this.sprite.clearTint();
+  }
+
+  replaceChassis({ spec, texture, position, angle, velocity }: VehicleChassis): void {
+    const turbo = this._turbo;
+    this.setTurbo(false);
+    this.replaceBody(spec, { ...position, angle, category: CAT.player, mask: PLAYER_MASK_ALL });
+    this.setOwner({ kind: 'player', player: this.player, car: this });
+    this.setDisabled(false);
+    this.setAirborne(false);
+    this.setTurbo(turbo);
+    this.slowLeft = 0;
+    this.refreshMults();
+    this.unstick = { stuckSec: 0, cooldownSec: 0 };
+    this.contactNormal = null;
+    this.assistLeft = 0;
+    this.lastSkid = [null, null];
+    this.visScale = 1;
+    this.view.setScale(1);
+    this.shadow.setDisplaySize(spec.length * 1.1, spec.width * 1.2);
+    this.sprite.setTexture(texture).setDisplaySize(spec.length, spec.width).setRotation(0);
+    if (velocity) {
+      this.scene.matter.body.setVelocity(this.body, { x: velocity.x / STEP_HZ, y: velocity.y / STEP_HZ });
+    }
+    this.syncView();
+  }
+
   private refreshMults(): void {
     this.maxSpeedMult = (this._turbo ? REWARDS.turboSpeedMult : 1) * (this.slowLeft > 0 ? this.slowMult : 1);
     this.accelMult = this._turbo ? REWARDS.turboAccelMult : 1;
@@ -186,13 +218,13 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
       this.slowLeft -= dt;
       if (this.slowLeft <= 0) { this.slowLeft = 0; this.refreshMults(); }
     }
-    const on = this.controlEnabled;
+    const on = this.controlEnabled && !this._disabled;
     if (on) this.updateUnstick(input, dt);
     this.drive({ throttle: on ? input.throttle : 0, brake: on ? input.brake : 0, steer: on ? input.steer : 0 }, dt);
     this.syncView();
     this.updateVisual(dt);
     this.updateSkids(on ? input.brake : 0);
-    services.audio.engine(this.player).set(Math.min(this.speedFrac, 1.5), this._turbo);
+    services.audio.engine(this.player).set(this._disabled ? 0 : Math.min(this.speedFrac, 1.5), this._turbo && !this._disabled);
   }
 
   /** Airborne scale + shadow offset (eased). */

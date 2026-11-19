@@ -60,6 +60,7 @@ export class PoliceCar extends Vehicle implements INpcVehicle {
   }
 
   get destroyed() { return this._destroyed; }
+  get appearanceKey() { return this.sprite.texture.key; }
 
   /** Drive + visuals for one frame. */
   step(controls: { throttle: number; brake: number; steer: number }, dt: number): void {

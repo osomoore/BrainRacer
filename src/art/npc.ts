@@ -47,20 +47,29 @@ export function drawTraffic(scene: Phaser.Scene): void {
 }
 
 export function drawTruck(scene: Phaser.Scene): void {
-  const { ctx, done } = makeCanvas(scene, TEX.truck, 120, 48);
+  drawTruckBody(scene, TEX.truck, { cargo: '#ffffff', cargoShade: '#b9c2d0', stripe: '#ff8a1f',
+    cab: '#ff6a5c', cabShade: '#c4160e', roof: '#e0403a' });
+  drawTruckBody(scene, TEX.freightTruck, { cargo: '#92e1da', cargoShade: '#358b91', stripe: '#ffe078',
+    cab: '#ffc56b', cabShade: '#c16a15', roof: '#f5a73a' });
+}
+
+function drawTruckBody(scene: Phaser.Scene, key: string, colors: {
+  cargo: string; cargoShade: string; stripe: string; cab: string; cabShade: string; roof: string;
+}): void {
+  const { ctx, done } = makeCanvas(scene, key, 120, 48);
   for (const x of [10, 30, 62, 94]) { tire(ctx, x, 0.5, 15, 7); tire(ctx, x, 40.5, 15, 7); }
   rr(ctx, 2, 4, 84, 40, 6);
-  fillStroke(ctx, bodyGrad(ctx, 2, 4, 84, 40, '#ffffff', '#b9c2d0'), OUTLINE, 3);
+  fillStroke(ctx, bodyGrad(ctx, 2, 4, 84, 40, colors.cargo, colors.cargoShade), OUTLINE, 3);
   ctx.strokeStyle = 'rgba(80,95,120,0.35)'; ctx.lineWidth = 2;
   for (let x = 14; x < 84; x += 12) { ctx.beginPath(); ctx.moveTo(x, 7); ctx.lineTo(x, 41); ctx.stroke(); }
-  ctx.fillStyle = '#ff8a1f'; ctx.fillRect(6, 20, 76, 8);
+  ctx.fillStyle = colors.stripe; ctx.fillRect(6, 20, 76, 8);
   ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5; ctx.strokeRect(6, 20, 76, 8);
   ctx.fillStyle = '#454b60'; ctx.fillRect(85, 19, 6, 10);
   rr(ctx, 90, 6, 28, 36, 9);
-  fillStroke(ctx, bodyGrad(ctx, 90, 6, 28, 36, '#ff6a5c', '#c4160e'), OUTLINE, 3);
+  fillStroke(ctx, bodyGrad(ctx, 90, 6, 28, 36, colors.cab, colors.cabShade), OUTLINE, 3);
   poly(ctx, [104, 10, 112, 13, 112, 35, 104, 38]);
   fillStroke(ctx, lin(ctx, 104, 0, 112, 0, [[0, '#2b4a78'], [1, '#7bb4ea']]), OUTLINE, 2);
-  rr(ctx, 92, 11, 11, 26, 4); fillStroke(ctx, '#e0403a', OUTLINE, 2);
+  rr(ctx, 92, 11, 11, 26, 4); fillStroke(ctx, colors.roof, OUTLINE, 2);
   headlights(ctx, 116, 11, 37);
   taillights(ctx, 2.5, 10, 38);
   glossHighlight(ctx, 100, 9.5, 6, 1.6, 0.5);

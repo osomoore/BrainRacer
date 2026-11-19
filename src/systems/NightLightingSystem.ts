@@ -3,8 +3,8 @@ import { DEPTH, INDUSTRIAL_LIGHTING } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
 
-export class IndustrialLightingSystem implements GameSystem {
-  readonly name = 'industrialLighting';
+export class NightLightingSystem implements GameSystem {
+  readonly name = 'nightLighting';
   static order = 150; // after JumpSystem updates the rendered chassis
 
   private readonly beams: { car: IPlayerCar; image: Phaser.GameObjects.Image }[] = [];
@@ -13,10 +13,11 @@ export class IndustrialLightingSystem implements GameSystem {
   private readonly nose = new Phaser.Math.Vector2();
 
   init(ctx: RaceContext): void {
-    if (ctx.settings.map !== 'industrial') return;
+    const industrial = ctx.settings.map === 'industrial';
+    if (!industrial && !ctx.settings.nightDriving) return;
     for (const car of ctx.players) {
       const image = ctx.scene.add.image(0, 0, TEX.industrial.headlight)
-        .setName(`industrial-headlight-${car.player}`)
+        .setName(`${industrial ? 'industrial' : 'city'}-headlight-${car.player}`)
         .setOrigin(0, 0.5)
         .setDepth(DEPTH.decal + 1)
         .setBlendMode(Phaser.BlendModes.ADD);
@@ -34,7 +35,7 @@ export class IndustrialLightingSystem implements GameSystem {
       image.setPosition(this.nose.x, this.nose.y)
         .setRotation(Math.atan2(transform.b, transform.a))
         .setScale(car.airborne ? INDUSTRIAL_LIGHTING.airborneLengthScale : 1, lateralScale)
-        .setAlpha((car.airborne ? INDUSTRIAL_LIGHTING.airborneAlpha : INDUSTRIAL_LIGHTING.alpha) * car.view.alpha);
+        .setAlpha(car.disabled ? 0 : (car.airborne ? INDUSTRIAL_LIGHTING.airborneAlpha : INDUSTRIAL_LIGHTING.alpha) * car.view.alpha);
     }
   }
 

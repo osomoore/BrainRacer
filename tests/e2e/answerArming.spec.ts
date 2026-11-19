@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 // Gas keys (W / Arrow Up) held through the start of a question break must not register as an answer.
 test('holding gas into a question break does not answer', async ({ page }) => {
@@ -30,4 +31,34 @@ test('holding gas into a question break does not answer', async ({ page }) => {
   await page.keyboard.press(['Digit1', 'Digit2', 'Digit3', 'Digit4'][c0.correct]);
   await page.waitForFunction(() => (window as any).__challenge.state(0) !== 'asking', null, { timeout: 3_000 });
   expect(errors).toEqual([]);
+});
+
+test('a held D-pad button needs a fresh press and stick movement cannot answer', async ({ page }) => {
+  await installGamepadMock(page, 1);
+  await page.goto('/');
+  await page.waitForFunction(() => (window as any).__game?.scene.isActive('Title'));
+  await tapPad(page, 0, 0);
+  await page.waitForTimeout(850);
+  await tapPad(page, 0, 0);
+  await page.waitForFunction(() => (window as any).__game?.scene.isActive('Setup'));
+  await page.waitForTimeout(400);
+  await tapPad(page, 0, 0);
+
+  await page.waitForFunction(() => ((window as any).__race?.elapsedSec ?? 0) > 0.5);
+  await setPad(page, 0, { buttons: { 12: 1 } });
+  await page.waitForFunction(() => (window as any).__challenge?.phase() === 'asking' && !!(window as any).__challenge.current(0));
+  const question = await page.evaluate(() => (window as any).__challenge.current(0));
+
+  await page.waitForTimeout(700);
+  await setPad(page, 0, { buttons: { 12: 0 }, axes: { 0: 1, 1: 0 } });
+  await page.waitForTimeout(700);
+  await setPad(page, 0, { axes: { 0: 0, 1: -1 } });
+  await page.waitForTimeout(700);
+  expect(await page.evaluate(() => ({
+    id: (window as any).__challenge.current(0)?.id,
+    state: (window as any).__challenge.state(0),
+  }))).toEqual({ id: question.id, state: 'asking' });
+
+  await tapPad(page, 0, [14, 12, 15, 13][question.correct]);
+  await page.waitForFunction(() => (window as any).__challenge.phase() === 'resuming');
 });

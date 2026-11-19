@@ -70,6 +70,8 @@ export class CollisionSystem implements GameSystem {
       const x = (a.position.x + b.position.x) / 2;
       const y = (a.position.y + b.position.y) / 2;
       this.ctx.bus.emit('vehicle:crash', { player, with: withKind, impact, x, y });
+      if (pa) this.ctx.bus.emit('vehicle:damage', { player: pa.player, impact });
+      if (pb) this.ctx.bus.emit('vehicle:damage', { player: pb.player, impact });
       this.feedback(player, impact);
     }
   }

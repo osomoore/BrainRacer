@@ -13,6 +13,22 @@ export const INDUSTRIAL = {
   goalRadius: 96,
 };
 
+export const VEHICLE_CONDITION = {
+  minImpact: 155,
+  maxImpact: 700,
+  minDamage: 13,
+  maxDamage: 39,
+  smokeDamage: 26,
+  fireDamage: 59,
+  wreckDamage: 100,
+  damageCooldownSec: 0.23,
+  transferTapSec: 0.5,
+  transferReach: 135,
+  recoverySec: 8,
+  smokeIntervalSec: 0.12,
+  particleLimit: 72,
+};
+
 export const PLAYER_COLORS = ['#2ecc40', '#ff3b30'] as const;      // P1 green (dino), P2 red (kart)
 export const ANSWER_COLORS = ['#1e6fff', '#ffcc00', '#ff3b30', '#2ecc40'] as const; // X blue, Y yellow, B red, A green
 export const ANSWER_LABELS = ['X', 'Y', 'B', 'A'] as const;
@@ -46,6 +62,7 @@ export const CAT = {
 
 export const DEFAULT_SETTINGS: Settings = {
   map: 'city',
+  nightDriving: false,
   players: [
     { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' },
   ],
@@ -101,8 +118,6 @@ export const CHALLENGE = {
   wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
   breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
   breakMaxScale: 2.0,          // cap on the centered question panel scale
-  navHoldFirstSec: 0.45,       // D-pad/stick up/down counts as held this long after a fresh nav edge (input repeats after 0.4 s)
-  navHoldRepeatSec: 0.2,       // ...and this long after each auto-repeat edge
   rewardDelayAfterBreakSec: 0.7, // game-time wait after the question panel has fully faded, before turbo/jump/bonus
   rewardPanelClearSec: 1.05,   // answer -> HUD panel fully gone (hudConfig panel.resultHoldSec 0.7 + fadeSec 0.35); keep in sync
   answerGuardSec: 0.25,        // ignore answers this long after a break question appears
@@ -299,12 +314,24 @@ export const TRAFFIC = {
   shoveTruckMult: 0.6,
 };
 
+export const INDUSTRIAL_TRAFFIC = {
+  regularVehicles: 27,
+  freightTrucks: 6,
+  yardPaddingTiles: 2,
+  spawnGap: 170,
+  freightSpawnGap: 190,
+};
+
+export const FREIGHT_TRUCK_SPEC: VehicleSpec = {
+  ...TRUCK_SPEC, length: 160, width: 58, mass: 20, maxSpeed: 160, accel: 125,
+};
+
 export const POLICE = {
   patrolCount: 2,
   heatPerCrash: { traffic: 15, police: 25, prop: 5, building: 0, player: 0, dino: 0 },
   heatDecayPerSec: 3,
   heatChaseThreshold: 40,
-  maxChasersPerPlayer: 3,
+  maxChasersPerPlayer: 2,
   bumpCooldownSec: 1.5,
   bumpImpulse: 9,
   bumpSlowSec: 0.5,
@@ -355,7 +382,6 @@ export const GOALS = {
   firstMin: 1500,            // first goal: distance from the players' midpoint
   firstMax: 3000,
   recentWords: 4,            // avoid repeating the last N place words
-  nextGoalDelaySec: 1.5,
   shakeIntensity: 0.006,
   shakeMs: 350,
   magnetFlareScale: 1.6,
@@ -438,6 +464,20 @@ export const DINO = {
   barOffset: 290,
 };
 
+export const DINO_SMASH = {
+  playerCooldownSec: 2,
+  playerLaunchSpeed: 620,
+  playerAirSec: 0.52,
+  playerImpact: 480,
+  npcLaunchSpeed: 720,
+  truckSpeedMult: 0.82,
+  npcAirSec: 0.72,
+  npcPeakHeight: 105,
+  npcPeakScale: 0.35,
+  npcSquashSec: 0.24,
+  stompAnimationSec: 0.34,
+};
+
 // ───────────────────────── camera (package H) ─────────────────────────
 export const CAMERA = {
   baseZoom: 1.2,             // orchestrator: bigger cars for kids / projector
@@ -505,16 +545,19 @@ export const INDUSTRIAL_LIGHTING = {
   airborneLengthScale: 1.15,
 };
 
+export const CITY_NIGHT_LIGHTING = {
+  groundTint: '#677cab',
+  buildingTint: 0x7188b8,
+};
+
 export const FREIGHT = {
   firstWarningSec: 4,
-  periodSec: 20,
   warningLeadSec: 2.75,
   warningTailSec: 0.55,
   flashStepSec: 0.35,
   speed: 400,
   wagonCount: 4,
   carriageGap: 8,
-  terminalFade: 256,
   signalRoadLength: 128,
   signalShoulder: 32,
   soundRadius: 1250,

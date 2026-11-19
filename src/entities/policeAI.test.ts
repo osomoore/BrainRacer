@@ -104,7 +104,7 @@ describe('heat math', () => {
   it('desired chasers scales with heat', () => {
     expect(desiredChasers(POLICE.heatChaseThreshold - 1)).toBe(0);
     expect(desiredChasers(POLICE.heatChaseThreshold)).toBe(1);
-    expect(desiredChasers(POLICE.heatMax)).toBe(POLICE.maxChasersPerPlayer);
+    expect(desiredChasers(POLICE.heatMax)).toBe(2);
   });
   it('escape needs 1.5 s far, or turbo beyond 900', () => {
     const st = { farSec: 0 };

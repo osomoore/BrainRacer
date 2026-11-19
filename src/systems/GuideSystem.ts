@@ -13,6 +13,7 @@ interface PlayerGuide {
   goalMode: boolean;
   arrived: boolean;
   orbit: number;
+  redirect: boolean;
 }
 
 export class GuideSystem implements GameSystem {
@@ -24,10 +25,15 @@ export class GuideSystem implements GameSystem {
   init(ctx: RaceContext): void {
     this.guides = ctx.players.map((car, i) => ({
       buddy: new GuideBuddy(ctx, car.player, car.kind),
-      goalMode: false, arrived: false, orbit: i * Math.PI,
+      goalMode: false, arrived: false, orbit: i * Math.PI, redirect: false,
     }));
     this.offs.push(
-      ctx.bus.on('goal:spawned', () => { for (const g of this.guides) g.arrived = false; }),
+      ctx.bus.on('goal:spawned', () => {
+        for (const g of this.guides) {
+          g.arrived = g.goalMode = false;
+          g.redirect = true;
+        }
+      }),
       ctx.bus.on('goal:arrived', ({ player }) => { const g = this.byPlayer(ctx, player); if (g) g.arrived = true; }),
       ctx.bus.on('goal:completed', () => { for (const g of this.guides) { g.arrived = false; g.goalMode = false; g.buddy.setHappy(false); } }),
     );
@@ -65,6 +71,10 @@ export class GuideSystem implements GameSystem {
         } else {
           target = hoverSpot(pos, goal, Math.min(holdFor(goal), d), car.angle);
         }
+      }
+      if (g.redirect) {
+        g.buddy.redirect(target);
+        g.redirect = false;
       }
       g.buddy.update(dt, target, { x: car.x, y: car.y, vx: car.velocity.x, vy: car.velocity.y, angle: car.angle });
     });

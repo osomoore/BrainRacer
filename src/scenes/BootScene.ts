@@ -54,6 +54,7 @@ export class BootScene extends Phaser.Scene {
   /** ?race=1|2 — skip menus: gamepads if connected, else keyboard WASD (P1) / arrows (P2). */
   private quickRace(count: 1 | 2, map: string | null) {
     const base = loadSettings();
+    services.input.poll();
     const pads = services.input.devices().filter((d) => d.type === 'gamepad');
     const kb: InputDevice[] = [{ type: 'keyboard', layout: 'left' }, { type: 'keyboard', layout: 'right' }];
     const cars: CarKind[] = ['dino', 'kart'];

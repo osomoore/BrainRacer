@@ -74,6 +74,29 @@ describe('edges', () => {
   it('held answer does not repeat', () => {
     expect(run(pad({ down: [2] }), pad({ down: [2] })).answer).toBeNull();
   });
+  it('keeps the B transfer edge when another button wins answer priority', () => {
+    const pressed = pad({ down: [1, 2] });
+    expect(run(pressed, pad())).toMatchObject({ answer: 0, transfer: true });
+    expect(run(pressed, pressed).transfer).toBe(false);
+  });
+  it('uses the stick for steering and menu navigation while keeping it out of answers', () => {
+    expect(run(pad({ axes: [-1, 0] }))).toMatchObject({
+      steer: -1, navX: -1, answer: null, answerDirection: null,
+    });
+    expect(run(pad({ axes: [0, -1] }))).toMatchObject({
+      navY: -1, answer: null, answerDirection: null,
+    });
+  });
+  it('maps fresh D-pad presses even while the stick points in the same direction', () => {
+    const sameDirectionStick = pad({ axes: [0, -1] });
+    const up = pad({ axes: [0, -1], down: [12] });
+    const repeat = newRepeatState();
+    mapGamepad(sameDirectionStick, null, repeat, 0);
+    expect(mapGamepad(up, sameDirectionStick, repeat, 0.1)).toMatchObject({ navY: 0, answerDirection: 1 });
+    expect(mapGamepad(up, up, repeat, 0.5)).toMatchObject({ navY: -1, answerDirection: null });
+    expect(run(up, sameDirectionStick).answerDirection).toBe(1);
+    expect([14, 12, 15, 13].map((b) => run(pad({ down: [b] }), pad()).answerDirection)).toEqual([0, 1, 2, 3]);
+  });
 });
 
 describe('nav repeat', () => {
@@ -149,6 +172,14 @@ describe('keyboard', () => {
     expect(kb('left', ['Digit2', 'Digit1']).answer).toBe(0);
     expect(kb('left', ['Digit4']).answer).toBe(3);
     expect(kb('right', ['KeyM']).answer).toBe(3);
+  });
+  it('keeps directional answers and transfer on fresh keyboard presses', () => {
+    expect(kb('left', ['KeyW']).answerDirection).toBe(1);
+    expect(kb('left', ['KeyW'], ['KeyW']).answerDirection).toBeNull();
+    expect(kb('right', ['ArrowRight']).answerDirection).toBe(2);
+    expect(kb('left', ['KeyB']).transfer).toBe(true);
+    expect(kb('right', ['KeyN']).transfer).toBe(true);
+    expect(kb('left', ['KeyN', 'Backspace']).transfer).toBe(false);
   });
   it('confirm keys are per layout; back/pause shared', () => {
     expect(kb('left', ['Space']).confirm).toBe(true);

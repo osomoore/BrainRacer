@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { DINO_RIG, type RigPart } from '../art/dinoRig';
-import { DEPTH, DINO } from '../config/gameConfig';
+import { DEPTH, DINO, DINO_SMASH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
+import type { INpcVehicle } from '../core/race';
+import type { Vec2 } from '../core/types';
 
 /** Chunkier, friendlier proportions applied on top of the rig (rig is just a starting layout). */
 const LOOK = {
@@ -14,6 +16,18 @@ const LOOK = {
 };
 
 const ROAR_SEC = 1.3;
+
+interface VehicleToss {
+  sprite: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image;
+  start: Vec2;
+  velocity: Vec2;
+  angle: number;
+  spin: number;
+  length: number;
+  width: number;
+  elapsed: number;
+}
 
 /** Visual-only giant dino. Position/heading are driven by DinoSystem; no physics body. */
 export class Dino {
@@ -33,6 +47,8 @@ export class Dino {
   private mult = 1;
   private wobble = 0;
   private tintT = 0;
+  private stompT = 0;
+  private readonly tosses: VehicleToss[] = [];
   private stars: Phaser.GameObjects.Image[] = [];
   private bar: Phaser.GameObjects.Container;
   private barFill: Phaser.GameObjects.Rectangle;
@@ -180,9 +196,68 @@ export class Dino {
     }
   }
 
+  smash(x: number, y: number): void {
+    this.stompT = DINO_SMASH.stompAnimationSec;
+    const ring = this.scene.add.image(x, y, TEX.fxRing).setDepth(DEPTH.fx).setTint(0xffd670).setScale(0.25);
+    this.extras.add(ring);
+    this.scene.tweens.add({
+      targets: ring, scale: 1.4, alpha: 0, duration: 260, ease: 'Cubic.easeOut',
+      onComplete: () => { this.extras.delete(ring); ring.destroy(); },
+    });
+    this.dust(x, y);
+  }
+
+  /** Keep a visual of the old chassis while the NPC slot and its collider are released. */
+  toss(npc: INpcVehicle, normal: Vec2): void {
+    const { x, y, angle, spec } = npc;
+    const speed = DINO_SMASH.npcLaunchSpeed * (npc.npcKind === 'truck' ? DINO_SMASH.truckSpeedMult : 1);
+    const shadow = this.scene.add.image(x, y, TEX.carShadow).setDepth(DEPTH.shadow)
+      .setDisplaySize(spec.length, spec.width).setAlpha(0.35).setRotation(angle);
+    const sprite = this.scene.add.image(x, y, npc.appearanceKey).setDepth(DEPTH.fx)
+      .setDisplaySize(spec.length, spec.width).setRotation(angle);
+    const side = Math.cos(this.angle) * normal.y - Math.sin(this.angle) * normal.x;
+    this.tosses.push({
+      sprite, shadow, start: { x, y }, velocity: { x: normal.x * speed, y: normal.y * speed },
+      angle, spin: Math.sign(side || 1) * Math.PI * 1.5, length: spec.length, width: spec.width, elapsed: 0,
+    });
+    this.smash(x, y);
+  }
+
+  updateTosses(dt: number): void {
+    for (let i = this.tosses.length - 1; i >= 0; i--) {
+      const flight = this.tosses[i];
+      const { sprite, shadow, start, velocity, length, width } = flight;
+      flight.elapsed += dt;
+      const airtime = Math.min(flight.elapsed, DINO_SMASH.npcAirSec);
+      const t = airtime / DINO_SMASH.npcAirSec;
+      const height = 4 * t * (1 - t);
+      const x = start.x + velocity.x * airtime, y = start.y + velocity.y * airtime;
+      const angle = flight.angle + flight.spin * t;
+      shadow.setPosition(x, y).setRotation(angle).setAlpha(0.35 - height * 0.2);
+      if (t < 1) {
+        const scale = 1 + DINO_SMASH.npcPeakScale * height;
+        sprite.setPosition(x, y - DINO_SMASH.npcPeakHeight * height).setRotation(angle)
+          .setDisplaySize(length * scale, width * scale);
+        continue;
+      }
+      const squash = (flight.elapsed - DINO_SMASH.npcAirSec) / DINO_SMASH.npcSquashSec;
+      if (squash >= 1) {
+        sprite.destroy();
+        shadow.destroy();
+        this.dust(x, y);
+        this.tosses.splice(i, 1);
+      } else {
+        sprite.setPosition(x, y).setRotation(angle)
+          .setDisplaySize(length * (1 + 0.18 * squash), width * (1 - 0.85 * squash)).setAlpha(1 - squash);
+      }
+    }
+  }
+
   /** speedFrac 0..1 (walking vs looking around). */
   update(dt: number, moveDist: number, walking: boolean): void {
     this.t += dt;
+    this.stompT = Math.max(0, this.stompT - dt);
+    const stomp = Math.sin(Math.PI * this.stompT / DINO_SMASH.stompAnimationSec);
     if (this.tintT > 0) {
       this.tintT -= dt;
       for (const p of this.parts) { if (this.tintT > 0) p.setTint(0xff6a6a); else p.clearTint(); }
@@ -204,7 +279,8 @@ export class Dino {
     this.looking += ((walking ? 0 : 1) - this.looking) * Math.min(1, dt * 5);
     const wag = DINO_RIG.tailWag * (walking ? 1.4 : 0.8);
     this.tail.setRotation(Math.sin(this.t * (walking ? 4.2 : 2.2)) * wag);
-    this.body.setScale(LOOK.bodyScaleX * (1 + Math.sin(this.t * 3.1) * 0.015), LOOK.bodyScaleY * (1 + Math.sin(this.t * 3.1) * 0.02));
+    this.body.setScale(LOOK.bodyScaleX * (1 + Math.sin(this.t * 3.1) * 0.015 - stomp * 0.09),
+      LOOK.bodyScaleY * (1 + Math.sin(this.t * 3.1) * 0.02 + stomp * 0.12));
 
     let headRot = Math.sin(this.t * 2.6) * 0.06 + Math.sin(this.t * 1.1) * 0.35 * this.looking;
     let headScaleX = LOOK.headScale;
@@ -223,7 +299,7 @@ export class Dino {
         headY = 0;
       }
     }
-    this.head.setRotation(headRot).setScale(headScaleX, headScaleY).setY(headY);
+    this.head.setRotation(headRot).setScale(headScaleX, headScaleY).setY(headY).setX(LOOK.headX + stomp * 26);
   }
 
   destroy(): void {
@@ -231,6 +307,8 @@ export class Dino {
     this.bar.destroy();
     for (const e of this.extras) { this.scene.tweens.killTweensOf(e); e.destroy(); }
     this.extras.clear();
+    for (const { sprite, shadow } of this.tosses) { sprite.destroy(); shadow.destroy(); }
+    this.tosses.length = 0;
     this.root.destroy();
   }
 }

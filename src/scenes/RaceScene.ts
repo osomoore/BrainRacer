@@ -20,7 +20,7 @@ const COUNTDOWN_SEC = 3;
  * Integration point (orchestrator-owned). Builds the world, cars, camera rig and all systems
  * (auto-registered from src/systems/*System.ts), runs the countdown, pause and round end.
  *
- * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?debug=1  ?questions=off|words|math|mixed
+ * URL overrides (dev/testing): ?seed=N  ?round=SEC  ?debug=1  ?questions=off|words|math|mixed  ?night=1|0
  */
 export class RaceScene extends Phaser.Scene {
   private ctx!: RaceContext;
@@ -46,6 +46,8 @@ export class RaceScene extends Phaser.Scene {
     if (questions === 'off' || questions === 'words' || questions === 'math' || questions === 'mixed') {
       settings.challengeMode = questions;
     }
+    const night = params.get('night');
+    if (night === '1' || night === '0') settings.nightDriving = night === '1';
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     const roundLengthSec = Number(params.get('round')) || settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
@@ -58,7 +60,7 @@ export class RaceScene extends Phaser.Scene {
     const industrial = settings.map === 'industrial';
     this.raceMusic = industrial ? 'industrial' : 'race';
     const world = industrial ? generateIndustrial(seed) : cityGen(seed);
-    this.built = buildWorld(this, world);
+    this.built = buildWorld(this, world, settings.nightDriving);
     this.skids = new SkidMarks(this);
 
     this.players = settings.players.map((p, i) => {

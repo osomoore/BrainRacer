@@ -1,8 +1,9 @@
-import { TRAFFIC } from '../config/gameConfig';
+import { INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { pickSpawnNode, type SpawnQuery } from '../entities/laneFollow';
 import { TrafficCar } from '../entities/TrafficCar';
+import { findFreightStarts, pickFreightStart, type FreightSpawn } from './industrialTraffic';
 
 /** Keeps ~TRAFFIC.maxVehicles AI cars in a ring around the players, spawned off-screen. */
 export class TrafficSystem implements GameSystem {
@@ -11,6 +12,10 @@ export class TrafficSystem implements GameSystem {
   private ctx!: RaceContext;
   private rng!: Rng;
   private cars: TrafficCar[] = [];
+  private freightStarts: FreightSpawn[] = [];
+  private freightCount = 0;
+  private regularLimit = TRAFFIC.maxVehicles;
+  private freightLimit = 0;
   private spawnT = 0;
   private scratch: number[] = [];
   private occupied: { x: number; y: number }[] = [];
@@ -22,9 +27,15 @@ export class TrafficSystem implements GameSystem {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x7aff1c);
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
+    if (ctx.world.industrial) {
+      this.freightStarts = findFreightStarts(ctx.world);
+      this.freightLimit = this.freightStarts.length ? INDUSTRIAL_TRAFFIC.freightTrucks : 0;
+      this.regularLimit = INDUSTRIAL_TRAFFIC.regularVehicles;
+    }
     // Initial fill: a nearer ring is allowed, still off-screen.
-    for (let i = 0; i < TRAFFIC.maxVehicles * 3 && this.cars.length < TRAFFIC.maxVehicles; i++) {
-      if (!this.trySpawn(TRAFFIC.initialSpawnMin)) continue;
+    const limit = this.regularLimit + this.freightLimit;
+    for (let i = 0; i < limit * 3 && this.cars.length < limit; i++) {
+      this.trySpawn(TRAFFIC.initialSpawnMin);
     }
   }
 
@@ -39,10 +50,10 @@ export class TrafficSystem implements GameSystem {
         const dx = p.x - car.x, dy = p.y - car.y;
         if (dx * dx + dy * dy < r2) { far = false; break; }
       }
-      if ((far || car.wantsDespawn) && !this.visible(car.x, car.y)) { car.destroy(); this.remove(i); }
+      if ((far || car.wantsDespawn) && !this.visible(car)) { car.destroy(); this.remove(i); }
     }
     this.spawnT -= dt;
-    if (this.cars.length < TRAFFIC.maxVehicles && this.spawnT <= 0) {
+    if (this.cars.length < this.regularLimit + this.freightLimit && this.spawnT <= 0) {
       this.spawnT = TRAFFIC.spawnIntervalSec;
       this.trySpawn(TRAFFIC.spawnRadiusMin);
     }
@@ -77,20 +88,21 @@ export class TrafficSystem implements GameSystem {
   private remove(i: number): void {
     const car = this.cars[i];
     this.ctx.npcs.delete(car);
+    if (car.oversized) this.freightCount--;
     this.cars[i] = this.cars[this.cars.length - 1];
     this.cars.pop();
   }
 
-  private visible(x: number, y: number): boolean {
-    const m = TRAFFIC.spawnMargin * 0.5;
+  private visible(car: TrafficCar): boolean {
+    const m = car.oversized ? Math.hypot(car.spec.length, car.spec.width) / 2 : TRAFFIC.spawnMargin * 0.5;
     for (const p of this.ctx.players) {
       const v = this.ctx.camera.worldView(p.player);
-      if (x > v.x - m && x < v.x + v.w + m && y > v.y - m && y < v.y + v.h + m) return true;
+      if (car.x > v.x - m && car.x < v.x + v.w + m && car.y > v.y - m && car.y < v.y + v.h + m) return true;
     }
     return false;
   }
 
-  private trySpawn(minR: number): boolean {
+  private trySpawn(minR: number): void {
     const ctx = this.ctx;
     const graph = ctx.world.laneGraph;
     const q = this.query;
@@ -104,18 +116,37 @@ export class TrafficSystem implements GameSystem {
     for (const n of ctx.npcs) if (!n.destroyed) this.occupied.push({ x: n.x, y: n.y });
     for (const p of ctx.players) this.occupied.push({ x: p.x, y: p.y });
     q.views = views; q.players = this.playerPts; q.occupied = this.occupied;
-    q.minR = minR; q.maxR = TRAFFIC.spawnRadiusMax; q.margin = TRAFFIC.spawnMargin; q.gap = TRAFFIC.spawnGap;
+    q.minR = minR; q.maxR = TRAFFIC.spawnRadiusMax; q.margin = TRAFFIC.spawnMargin;
+
+    if (this.freightCount < this.freightLimit) {
+      // Yard trucks can fill the nearer ring throughout the race, but still stay off-screen.
+      q.minR = TRAFFIC.initialSpawnMin;
+      q.gap = INDUSTRIAL_TRAFFIC.freightSpawnGap;
+      const start = pickFreightStart(this.freightStarts, q, this.rng);
+      if (start) {
+        const { node, next } = start;
+        const angle = Math.atan2(next.y - node.y, next.x - node.x);
+        this.add(new TrafficCar(ctx.scene, this.rng, 'freight', node.x, node.y, angle, next.id));
+        this.freightCount++;
+        return;
+      }
+    }
+    if (this.cars.length - this.freightCount >= this.regularLimit) return;
+    q.minR = minR;
+    q.gap = ctx.world.industrial ? INDUSTRIAL_TRAFFIC.spawnGap : TRAFFIC.spawnGap;
 
     const id = pickSpawnNode(graph, q, this.rng, this.scratch);
-    if (id < 0) return false;
+    if (id < 0) return;
     const n = graph.nodes[id];
     const nextId = n.next[Math.floor(this.rng.next() * n.next.length)];
     const nn = graph.nodes[nextId];
     const angle = Math.atan2(nn.y - n.y, nn.x - n.x);
-    const truck = this.rng.chance(TRAFFIC.truckFraction);
-    const car = new TrafficCar(ctx.scene, this.rng, truck, n.x, n.y, angle, nextId);
+    const kind = this.rng.chance(TRAFFIC.truckFraction) ? 'truck' : 'car';
+    this.add(new TrafficCar(ctx.scene, this.rng, kind, n.x, n.y, angle, nextId));
+  }
+
+  private add(car: TrafficCar): void {
     this.cars.push(car);
-    ctx.npcs.add(car);
-    return true;
+    this.ctx.npcs.add(car);
   }
 }

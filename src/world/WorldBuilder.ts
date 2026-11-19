@@ -4,7 +4,7 @@
  * water/boundary/building/tree bodies are static; small props and parked cars are dynamic.
  */
 import Phaser from 'phaser';
-import { CAMERA, CAT, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
+import { CAMERA, CAT, CITY_NIGHT_LIGHTING, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { roadTex, sceneTex, TEX } from '../core/assetKeys';
 import type { BodyOwner } from '../core/race';
 import { Tile, type Prop, type Rect, type WorldData } from '../core/types';
@@ -39,6 +39,7 @@ export const BUILDING_LOOK = {
 };
 
 const TILESET_KEY = 'world_tileset';
+const NIGHT_TILESET_KEY = 'world_tileset_night';
 const TS = 128, EXT = 2, CELL = TS + EXT * 2, COLS = 8;
 /** Tileset index: 0 water, 1 grass, 2 sidewalk, 3 park, 4 plaza, 5 dirt, 6.. road masks. */
 const TILE_KEYS: string[] = [
@@ -47,8 +48,8 @@ const TILE_KEYS: string[] = [
 ];
 const ROAD_BASE = 6;
 
-function ensureTileset(scene: Phaser.Scene, industrial: boolean): string {
-  const key = industrial ? INDUSTRIAL_TILESET_KEY : TILESET_KEY;
+function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean): string {
+  const key = industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
   if (scene.textures.exists(key)) return key;
   const tileCount = TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
   const rows = Math.ceil(tileCount / COLS);
@@ -65,6 +66,12 @@ function ensureTileset(scene: Phaser.Scene, industrial: boolean): string {
     ctx.drawImage(src, TS - 1, 0, 1, TS, cx + EXT + TS, cy + EXT, EXT, TS);
     ctx.drawImage(src, 0, 0, TS, 1, cx + EXT, cy, TS, EXT);
     ctx.drawImage(src, 0, TS - 1, TS, 1, cx + EXT, cy + EXT + TS, TS, EXT);
+  }
+  if (night && !industrial) {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = CITY_NIGHT_LIGHTING.groundTint;
+    ctx.fillRect(0, 0, tex.width, tex.height);
+    ctx.globalCompositeOperation = 'source-over';
   }
   tex.refresh();
   return key;
@@ -96,7 +103,7 @@ function hashPos(x: number, y: number): number {
 
 type BodyCfg = Phaser.Types.Physics.Matter.MatterBodyConfig;
 
-export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
+export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false): BuiltWorld {
   const ts = world.tileSize;
   const W = world.widthTiles * ts, H = world.heightTiles * ts;
   const L = BUILDING_LOOK;
@@ -119,7 +126,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
   };
 
   // ── ground
-  const tilesetKey = ensureTileset(scene, world.industrial !== undefined);
+  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night);
   const data: number[][] = [];
   for (let y = 0; y < world.heightTiles; y++) {
     const row: number[] = [];
@@ -148,6 +155,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     const bk = ensureBodyTexture(scene, fw, fh, b.style);
     const building = scene.add.image(fx, fy, bk).setOrigin(0, 0).setDepth(DEPTH.building);
     if (world.industrial) building.setTint(INDUSTRIAL_BUILDING_TINT);
+    else if (night) building.setTint(CITY_NIGHT_LIGHTING.buildingTint);
     objs.push(building);
     addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
     if (b.placeWord) {

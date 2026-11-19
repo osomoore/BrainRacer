@@ -8,9 +8,9 @@ type Strip = readonly [x: number, y: number, width: number, height: number];
 const CANAL_WEST = 22;
 const CANAL_EAST = 26;
 const NORTH_BRIDGE = 10;
+const CENTRAL_BRIDGE = 24;
 const SOUTH_BRIDGE = 36;
 const CROSSING_X = 8;
-const RAIL_Y = 24;
 const ROAD_WIDTH = 2;
 
 // Two playable tiles make a wide road. A separate one-tile skeleton generates
@@ -18,14 +18,18 @@ const ROAD_WIDTH = 2;
 const HORIZONTAL: readonly Strip[] = [
   [8, 5, 12, ROAD_WIDTH], // freight loop, north edge
   [8, NORTH_BRIDGE, 34, ROAD_WIDTH],
-  [37, 24, 5, ROAD_WIDTH], // factory loop cross street
+  [8, 15, 12, ROAD_WIDTH], // streets at either end of the railway yard
+  [8, 30, 12, ROAD_WIDTH],
+  [18, CENTRAL_BRIDGE, 24, ROAD_WIDTH],
+  [28, 17, 14, ROAD_WIDTH], // shorter connections inside the factory district
+  [28, 31, 14, ROAD_WIDTH],
   [8, SOUTH_BRIDGE, 34, ROAD_WIDTH],
   [8, 42, 12, ROAD_WIDTH], // loading loop, south edge
 ];
 const VERTICAL: readonly Strip[] = [
   [CROSSING_X, 5, ROAD_WIDTH, 39],
-  [18, 5, ROAD_WIDTH, 7],
-  [18, SOUTH_BRIDGE, ROAD_WIDTH, 8],
+  [18, 5, ROAD_WIDTH, 39], // canal-side road bypasses both grade crossings
+  [28, NORTH_BRIDGE, ROAD_WIDTH, 28],
   [37, NORTH_BRIDGE, ROAD_WIDTH, 28],
   [40, NORTH_BRIDGE, ROAD_WIDTH, 28],
 ];
@@ -86,6 +90,7 @@ export function generateIndustrial(seed: number): WorldData {
   const decorations = [
     bridge(NORTH_BRIDGE),
     bridge(SOUTH_BRIDGE),
+    bridge(CENTRAL_BRIDGE),
     decoration('factoryBay', 32, NORTH_BRIDGE + 1, 6, 3.25),
     decoration('factoryBay', 32, SOUTH_BRIDGE + 1, 6, 3.25),
     decoration('gantry', 12, NORTH_BRIDGE + 1, 1.5, 3.25),
@@ -95,8 +100,13 @@ export function generateIndustrial(seed: number): WorldData {
     decoration('waterTower', 37.5, 41.5, 1.75, 1.75),
   ];
   const rail = {
-    start: px(0, RAIL_Y), end: px(CANAL_WEST, RAIL_Y),
-    crossing: px(CROSSING_X + ROAD_WIDTH / 2, RAIL_Y), crossingWidth: ROAD_WIDTH * TILE_SIZE,
+    // The west road crosses both long straights. The gently clipped corners
+    // keep the carriages clear of warehouses and the neighboring canal road.
+    points: [
+      px(7, 18), px(13, 18), px(15, 18.75), px(16, 21), px(16, 26), px(15, 28.25),
+      px(13, 29), px(7, 29), px(5, 28.25), px(4, 26), px(4, 21), px(5, 18.75),
+    ],
+    crossings: [18, 29].map((y) => ({ center: px(CROSSING_X + ROAD_WIDTH / 2, y), width: ROAD_WIDTH * TILE_SIZE })),
   };
 
   const spawn = px(rng.range(15.5, 16.5), NORTH_BRIDGE + 1);

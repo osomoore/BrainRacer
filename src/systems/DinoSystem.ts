@@ -1,13 +1,12 @@
-import { DINO } from '../config/gameConfig';
+import { DINO, DINO_SMASH } from '../config/gameConfig';
 import { Dino } from '../entities/Dino';
 import {
-  capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, orbitStep, ramDamage, steer, wrapAngle, type DinoWalk,
+  capsuleHit, closestOnSegment, dinoCapsule, dist, isDefeated, isTeamHit, orbitStep, ramDamage, steer, wrapAngle, type Capsule, type DinoWalk,
 } from '../entities/dinoAI';
-import type { GameSystem, INpcVehicle, RaceContext } from '../core/race';
+import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { PlayerId, Vec2 } from '../core/types';
 
-const NPC_RADIUS = 30;
 const CAR_RADIUS = 30;
 type Mode = 'drop' | 'guard' | 'leaving' | 'dizzy' | 'poof';
 
@@ -35,6 +34,7 @@ export class DinoSystem implements GameSystem {
   private roarTimer = 0;
   private stepTimer = 0;
   private hitCooldown: number[] = [0, 0];
+  private tossCooldown: number[] = [0, 0];
   private clock = 0;
 
   init(ctx: RaceContext): void {
@@ -64,8 +64,12 @@ export class DinoSystem implements GameSystem {
       return;
     }
     const d = this.dino;
+    d.updateTosses(dt);
     this.modeT += dt;
-    for (let i = 0; i < 2; i++) this.hitCooldown[i] -= dt;
+    for (let i = 0; i < 2; i++) {
+      this.hitCooldown[i] -= dt;
+      this.tossCooldown[i] -= dt;
+    }
     let walking = false;
     const px = this.walk.x, py = this.walk.y;
 
@@ -143,6 +147,8 @@ export class DinoSystem implements GameSystem {
     this.hp = DINO.maxHp;
     this.hitBy.clear();
     this.lastHit = [-1e9, -1e9];
+    this.hitCooldown.fill(0);
+    this.tossCooldown.fill(0);
     this.faceT = 0;
     const st = ctx.dino;
     st.active = true; st.x = pos.x; st.y = pos.y; st.angle = angle;
@@ -159,6 +165,10 @@ export class DinoSystem implements GameSystem {
     services.audio.sfx('stomp', { volume: 1 });
     services.audio.sfx('crashBig', { volume: 0.8 });
     for (let i = 0; i < 4; i++) d.dust(this.walk.x + (i - 1.5) * 110, this.walk.y + (i % 2 ? 90 : -90));
+    const cap = this.contactCapsule();
+    for (const npc of ctx.npcs) {
+      if (!npc.destroyed && this.touchesNpc(cap, npc)) this.squash(ctx, d, npc);
+    }
     this.roar(ctx, d);
   }
 
@@ -207,31 +217,73 @@ export class DinoSystem implements GameSystem {
     this.ctx.bus.emit('dino:left', {});
   }
 
-  private contacts(dt: number, ctx: RaceContext, d: Dino): void {
+  private contactCapsule(): Capsule {
     const front = DINO.length * DINO.capsuleFront, back = DINO.length * DINO.capsuleBack;
-    const cap = dinoCapsule(this.walk.x, this.walk.y, this.walk.angle, front, back, DINO.capsuleRadius);
+    return dinoCapsule(this.walk.x, this.walk.y, this.walk.angle, front, back, DINO.capsuleRadius);
+  }
+
+  /** Sample the center and both rounded ends so a truck can be caught by its cab or its trailer. */
+  private touchesNpc(cap: Capsule, npc: INpcVehicle): boolean {
+    const r = npc.spec.width / 2;
+    const half = Math.max(0, npc.spec.length / 2 - r);
+    const dx = Math.cos(npc.angle) * half, dy = Math.sin(npc.angle) * half;
+    return capsuleHit(cap, npc.x, npc.y, r)
+      || capsuleHit(cap, npc.x + dx, npc.y + dy, r)
+      || capsuleHit(cap, npc.x - dx, npc.y - dy, r);
+  }
+
+  private contactNormal(cap: Capsule, target: Vec2): Vec2 {
+    const q = closestOnSegment(cap, target.x, target.y);
+    const x = target.x - q.x, y = target.y - q.y;
+    const length = Math.hypot(x, y);
+    if (length < 1e-3) return { x: -Math.sin(this.walk.angle), y: Math.cos(this.walk.angle) };
+    return { x: x / length, y: y / length };
+  }
+
+  private contacts(dt: number, ctx: RaceContext, d: Dino): void {
+    const cap = this.contactCapsule();
     const canHurt = this.mode === 'guard' && this.modeT >= DINO.graceSec;
     for (const car of ctx.players) {
-      if (car.airborne || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
-      const q = closestOnSegment(cap, car.x, car.y);
-      let nx = car.x - q.x, ny = car.y - q.y;
-      let l = Math.hypot(nx, ny);
-      if (l < 1e-3) { nx = -Math.sin(this.walk.angle); ny = Math.cos(this.walk.angle); l = 1; }
-      nx /= l; ny /= l;
+      if (car.airborne || car.disabled || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
+      const normal = this.contactNormal(cap, car);
       const v = car.velocity;
-      const closing = -(v.x * nx + v.y * ny);
+      const closing = -(v.x * normal.x + v.y * normal.y);
       if (canHurt && this.hitCooldown[car.player] <= 0 && closing >= DINO.ramMinSpeed) {
-        this.ram(ctx, d, car.player, closing, nx, ny);
+        this.ram(ctx, d, car.player, closing, normal.x, normal.y);
+        if (!this.hp) return;
       } else if (closing < DINO.ramMinSpeed) {
-        car.applyImpulse(nx * DINO.shoveSpeed * dt, ny * DINO.shoveSpeed * dt);
+        if (canHurt && !car.ghost && this.tossCooldown[car.player] <= 0 && this.hitCooldown[car.player] <= 0) {
+          this.tossPlayer(ctx, d, car, normal);
+        } else {
+          car.applyImpulse(normal.x * DINO.shoveSpeed * dt, normal.y * DINO.shoveSpeed * dt);
+        }
       }
     }
-    if (ctx.npcs.size > 0) {
-      for (const npc of [...ctx.npcs]) {
-        if (npc.destroyed || !capsuleHit(cap, npc.x, npc.y, NPC_RADIUS)) continue;
-        this.squash(ctx, npc);
-      }
+
+    if (!canHurt) return;
+    for (const npc of ctx.npcs) {
+      if (npc.destroyed || !this.touchesNpc(cap, npc)) continue;
+      const { x, y } = npc;
+      d.toss(npc, this.contactNormal(cap, npc));
+      ctx.npcs.delete(npc);
+      npc.destroy();
+      this.smashSound(ctx, x, y);
     }
+  }
+
+  private tossPlayer(ctx: RaceContext, d: Dino, car: IPlayerCar, normal: Vec2): void {
+    this.tossCooldown[car.player] = DINO_SMASH.playerCooldownSec;
+    ctx.bus.emit('vehicle:damage', { player: car.player, impact: DINO_SMASH.playerImpact });
+    const v = car.velocity;
+    const forward = v.x * normal.x + v.y * normal.y;
+    const speed = Math.max(0, DINO_SMASH.playerLaunchSpeed - forward);
+    car.applyImpulse(normal.x * speed, normal.y * speed);
+    ctx.bus.emit('jump:request', { player: car.player, airSec: DINO_SMASH.playerAirSec });
+    ctx.bus.emit('dino:hit', { player: car.player, x: car.x, y: car.y });
+    d.smash(car.x, car.y);
+    services.audio.sfx('crashBig', { pan: this.panFor(ctx), volume: 0.8 });
+    services.input.rumble(car.player, 0.9, 260);
+    ctx.camera.shake(car.player, 0.012, 260);
   }
 
   private ram(ctx: RaceContext, d: Dino, id: PlayerId, closing: number, nx: number, ny: number): void {
@@ -316,11 +368,19 @@ export class DinoSystem implements GameSystem {
     d.dust(f.x, f.y);
   }
 
-  private squash(ctx: RaceContext, npc: INpcVehicle): void {
+  private squash(ctx: RaceContext, d: Dino, npc: INpcVehicle): void {
     const x = npc.x, y = npc.y;
     ctx.npcs.delete(npc);
     npc.squash();
+    d.smash(x, y);
     ctx.bus.emit('dino:squash', { x, y });
-    services.audio.sfx('squash', { pan: this.panFor(ctx), volume: 0.9 });
+    this.smashSound(ctx, x, y);
+  }
+
+  private smashSound(ctx: RaceContext, x: number, y: number): void {
+    if (this.nearestPlayerDist(ctx) <= DINO.stepAudioRange) {
+      services.audio.sfx('squash', { pan: this.panFor(ctx), volume: 0.9 });
+    }
+    ctx.camera.shakeAt(x, y, DINO.shakeRadius, 0.007, 150);
   }
 }

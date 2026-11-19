@@ -46,7 +46,8 @@ export interface IAudio {
 }
 
 export const ZERO_INPUT: PlayerInput = Object.freeze({
-  steer: 0, throttle: 0, brake: 0, answer: null, confirm: false, back: false, pause: false, navX: 0, navY: 0,
+  steer: 0, throttle: 0, brake: 0, answer: null, answerDirection: null, transfer: false,
+  confirm: false, back: false, pause: false, navX: 0, navY: 0,
 }) as PlayerInput;
 
 class StubInput implements IInput {

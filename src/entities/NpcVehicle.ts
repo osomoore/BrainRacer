@@ -66,6 +66,7 @@ export class NpcVehicle extends Vehicle implements INpcVehicle {
   }
 
   get destroyed() { return this._destroyed; }
+  get appearanceKey() { return this.sprite.texture.key; }
 
   /** Comic flatten: body is removed immediately, the sprite squishes, then disappears. */
   squash(): void {

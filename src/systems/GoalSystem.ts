@@ -25,7 +25,6 @@ export class GoalSystem implements GameSystem {
   private vis: Visuals | null = null;
   private arrived = new Set<PlayerId>();
   private waitLeft = -1;
-  private nextIn = -1;
   private nextId = 1;
   private started = false;
   private ended = false;
@@ -43,6 +42,7 @@ export class GoalSystem implements GameSystem {
     this.offs.push(
       ctx.bus.on('round:start', () => { this.started = true; this.spawn(); }),
       ctx.bus.on('round:end', () => { this.ended = true; }),
+      ctx.bus.on('vehicle:changed', ({ player, position }) => this.lastPos.set(player, position)),
       ctx.bus.on('reward:granted', ({ reward, durationSec }) => {
         if (reward === 'magnet') this.flareUntil = Math.max(this.flareUntil, this.t + durationSec);
       }),
@@ -54,19 +54,12 @@ export class GoalSystem implements GameSystem {
     this.t += dt;
     this.animate(dt);
     const goal = ctx.goal;
-    if (!goal) {
-      if (this.nextIn >= 0 && !this.ended) {
-        this.nextIn -= dt;
-        if (this.nextIn <= 0) { this.nextIn = -1; this.spawn(); }
-      }
-      return;
-    }
-    if (this.ended) return;
+    if (!goal || this.ended) return;
 
     for (const car of ctx.players) {
       const last = this.lastPos.get(car.player) ?? { x: car.x, y: car.y };
       this.lastPos.set(car.player, { x: car.x, y: car.y });
-      if (this.arrived.has(car.player)) continue;
+      if (car.disabled || this.arrived.has(car.player)) continue;
       // airborne counts too; the segment test catches a fast jump that skips over the circle between frames
       if (!segmentHitsCircle(last.x, last.y, car.x, car.y, goal.x, goal.y, goal.radius)) continue;
       this.arrived.add(car.player);
@@ -131,7 +124,7 @@ export class GoalSystem implements GameSystem {
     ctx.goal = null;
     this.arrived.clear();
     this.waitLeft = -1;
-    this.nextIn = GOALS.nextGoalDelaySec;
+    if (!this.ended) this.spawn();
   }
 
   private midpoint() {

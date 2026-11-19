@@ -22,7 +22,8 @@ export interface VehicleOptions {
 }
 
 export class Vehicle implements IVehicle {
-  readonly body: MatterJS.BodyType;
+  protected vehicleBody: MatterJS.BodyType;
+  protected vehicleSpec: VehicleSpec;
   readonly view: Phaser.GameObjects.Container;
   protected maxSpeedMult = 1;
   protected accelMult = 1;
@@ -34,9 +35,29 @@ export class Vehicle implements IVehicle {
   protected pivotRate = 0;
   private lastSet: Vec2 | null = null;
 
-  constructor(readonly scene: Phaser.Scene, readonly spec: VehicleSpec, opts: VehicleOptions) {
+  constructor(readonly scene: Phaser.Scene, spec: VehicleSpec, opts: VehicleOptions) {
+    this.vehicleSpec = spec;
+    this.vehicleBody = this.createBody(spec, opts);
+    this.view = scene.add.container(opts.x, opts.y);
+    this.view.setRotation(opts.angle ?? 0);
+  }
+
+  get spec() { return this.vehicleSpec; }
+  get body() { return this.vehicleBody; }
+
+  protected replaceBody(spec: VehicleSpec, opts: VehicleOptions): void {
+    const next = this.createBody(spec, opts);
+    this.scene.matter.world.remove(this.body);
+    this.vehicleSpec = spec;
+    this.vehicleBody = next;
+    this.recoil = this.lateralSpeed = 0;
+    this.lastSet = null;
+  }
+
+  private createBody(spec: VehicleSpec, opts: VehicleOptions): MatterJS.BodyType {
+    const { scene } = this;
     const M = VEHICLE_MODEL;
-    this.body = scene.matter.add.rectangle(opts.x, opts.y, spec.length, spec.width, {
+    const body = scene.matter.add.rectangle(opts.x, opts.y, spec.length, spec.width, {
       chamfer: { radius: M.chamfer },
       frictionAir: 0,
       friction: M.friction,
@@ -44,10 +65,9 @@ export class Vehicle implements IVehicle {
       restitution: M.restitution,
       collisionFilter: { category: opts.category, mask: opts.mask, group: 0 },
     }) as MatterJS.BodyType;
-    scene.matter.body.setMass(this.body, spec.mass);
-    scene.matter.body.setAngle(this.body, opts.angle ?? 0);
-    this.view = scene.add.container(opts.x, opts.y);
-    this.view.setRotation(opts.angle ?? 0);
+    scene.matter.body.setMass(body, spec.mass);
+    scene.matter.body.setAngle(body, opts.angle ?? 0);
+    return body;
   }
 
   setOwner(owner: BodyOwner): void {

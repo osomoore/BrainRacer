@@ -89,6 +89,8 @@ export interface PlayerInput {
   throttle: number;       // 0..1
   brake: number;          // 0..1 (also reverse when slow)
   answer: AnswerSlot | null;  // edge
+  answerDirection: AnswerSlot | null; // keyboard or D-pad button edge during a question break
+  transfer: boolean;      // edge: B on pad, B or N on keyboard
   confirm: boolean;       // edge: A / Enter / Space
   back: boolean;          // edge: B-in-menus / Backspace
   pause: boolean;         // edge: Start / Esc
@@ -111,6 +113,7 @@ export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
   map: RaceMap;
+  nightDriving: boolean;          // enable nighttime in City as well
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
   challengeMode: ChallengeMode | 'off';   // default 'words'
   questionStyle: QuestionStyle;   // default 'pause'
@@ -194,13 +197,16 @@ export interface IndustrialDecoration extends Vec2 {
   angle: number;
 }
 
+export interface FreightCrossing {
+  center: Vec2;
+  /** Length of track across the road. */
+  width: number;
+}
+
 export interface FreightRoute {
-  /** Straight rail centerline. The train loops out of sight beyond these endpoints. */
-  start: Vec2;
-  end: Vec2;
-  crossing: Vec2;
-  /** Length of track inside the road, centered on the crossing. */
-  crossingWidth: number;
+  /** Ordered closed centerline. The closing segment runs from the last point to the first. */
+  points: Vec2[];
+  crossings: FreightCrossing[];
 }
 
 export interface IndustrialLayout {

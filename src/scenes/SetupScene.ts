@@ -17,7 +17,8 @@ const ROUND_CHOICES = [180, 300, 420];
 const TIMER_MIN = 5, TIMER_MAX = 20;
 
 // P1 cursor rows
-const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7, ROW_MAP = 8, ROW_START = 9;
+const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_ROUND = 4, ROW_TIMER = 5, ROW_MUSIC = 6, ROW_SFX = 7;
+const ROW_MAP = 8, ROW_LIGHTING = 9, ROW_START = 10;
 const MAPS: RaceMap[] = ['city', 'industrial'];
 const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial' };
 const MODES: Settings['challengeMode'][] = ['words', 'math', 'mixed', 'off'];
@@ -62,6 +63,7 @@ export class SetupScene extends Phaser.Scene {
       ...base,
       players,
       map: MAPS.includes(base.map) ? base.map : 'city',
+      nightDriving: base.nightDriving === true,
       roundLengthSec: ROUND_CHOICES.includes(base.roundLengthSec) ? base.roundLengthSec : 300,
       challengeMode: MODES.includes(base.challengeMode) ? base.challengeMode : 'words',
       questionStyle: STYLES.includes(base.questionStyle) ? base.questionStyle : 'pause',
@@ -113,9 +115,9 @@ export class SetupScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 620, 1120, 374, 36);
     g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 620, 1120, 374, 36);
-    const opts = { width: 1040, height: 48, fontSize: 38, valueX: 230, arrowSpan: 200 };
-    ['Questions', 'Question style', 'Round length', 'Questions every', 'Music volume', 'Sound volume', 'Map'].forEach((l, i) => {
-      this.globals.push(new OptionRow(this, cx, 651 + i * 52, l, opts));
+    const opts = { width: 1040, height: 42, fontSize: 40, valueX: 230, arrowSpan: 200 };
+    ['Questions', 'Question style', 'Round length', 'Questions every', 'Music volume', 'Sound volume', 'Map', 'City lighting'].forEach((l, i) => {
+      this.globals.push(new OptionRow(this, cx, 647 + i * 46, l, opts));
     });
     this.startBtn = new MenuButton(this, cx, 1038, 900, 74, 'A  =  START RACE!', hexNum(PLAYER_COLORS[0]), 64);
   }
@@ -147,6 +149,7 @@ export class SetupScene extends Phaser.Scene {
     this.globals[4].setValue(`${Math.round(c.musicVolume * 100)}%`);
     this.globals[5].setValue(`${Math.round(c.sfxVolume * 100)}%`);
     this.globals[6].setValue(MAP_LABEL[c.map]);
+    this.globals[7].setValue(c.nightDriving ? 'Night' : 'Day');
     this.refreshCursors();
   }
 
@@ -216,6 +219,7 @@ export class SetupScene extends Phaser.Scene {
     } else if (p === 0 && row === ROW_MUSIC) { c.musicVolume = volStep(c.musicVolume); target = this.globals[4]; }
     else if (p === 0 && row === ROW_SFX) { c.sfxVolume = volStep(c.sfxVolume); target = this.globals[5]; }
     else if (p === 0 && row === ROW_MAP) { c.map = cycle(MAPS, c.map); target = this.globals[6]; }
+    else if (p === 0 && row === ROW_LIGHTING) { c.nightDriving = !c.nightDriving; target = this.globals[7]; }
     if (!target) return;
     services.audio.setVolumes(c.musicVolume, c.sfxVolume);
     services.audio.sfx('menuMove');
