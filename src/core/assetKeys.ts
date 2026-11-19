@@ -58,6 +58,11 @@ export const TEX = {
   fxRainbow: 'fx_rainbow',      // already colored
   skid: 'fx_skid',              // 8 x 8 dark mark
 
+  // guide buddies (flying dino for the dino car, shining star for the kart)
+  buddyDino: ['buddy_dino_0', 'buddy_dino_1', 'buddy_dino_2'] as const, // 64 x 56 wing-flap frames, face +x
+  buddyStar: 'buddy_star',      // 56 x 56
+  buddyGlow: 'buddy_glow',      // 128 x 128 soft additive glow (white, tint as needed)
+
   // ui
   buttonBadge: ['btn_x', 'btn_y', 'btn_b', 'btn_a'] as const, // 72 x 72 round badges with letters, colored per ANSWER_COLORS (index = AnswerSlot)
   panel: 'ui_panel',            // 9-slice-able rounded panel 96x96 (white, tint as needed)

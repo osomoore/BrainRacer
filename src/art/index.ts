@@ -7,6 +7,7 @@ import { drawBench, drawBush, drawCone, drawGoal, drawHydrant, drawLamp, drawRam
 import { drawRoads } from './roads';
 import { drawDirt, drawGrass, drawPark, drawPlaza, drawRoofs, drawSidewalk, drawWater } from './tiles';
 import { drawUi } from './ui';
+import { drawBuddies } from './buddies';
 
 export { allTextureKeys } from './keys';
 export { DINO_RIG } from './dinoRig';
@@ -23,5 +24,5 @@ export function generateTextures(scene: Phaser.Scene): void {
   drawRoads(scene); drawRoofs(scene);
   drawSignFrame(scene); drawRamp(scene);
   drawTree(scene); drawBush(scene); drawLamp(scene); drawHydrant(scene); drawBench(scene); drawCone(scene);
-  drawGoal(scene); drawFx(scene); drawUi(scene);
+  drawGoal(scene); drawFx(scene); drawUi(scene); drawBuddies(scene);
 }
