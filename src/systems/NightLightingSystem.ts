@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { DEPTH, INDUSTRIAL_LIGHTING } from '../config/gameConfig';
+import { INDUSTRIAL_LIGHTING } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
+import { ensureNightGlow } from '../art/industrialHeadlight';
 import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
 
 export class NightLightingSystem implements GameSystem {
@@ -10,23 +11,59 @@ export class NightLightingSystem implements GameSystem {
   private readonly beams: { car: IPlayerCar; image: Phaser.GameObjects.Image }[] = [];
   private readonly chassisMatrix = new Phaser.GameObjects.Components.TransformMatrix();
   private readonly parentMatrix = new Phaser.GameObjects.Components.TransformMatrix();
+  private ctx?: RaceContext;
+  private goalGlow?: Phaser.GameObjects.Image;
+  private readonly halos: { car: IPlayerCar; image: Phaser.GameObjects.Image }[] = [];
+  private readonly extras: Phaser.GameObjects.GameObject[] = [];
   private readonly nose = new Phaser.Math.Vector2();
 
   init(ctx: RaceContext): void {
     const industrial = ctx.settings.map === 'industrial';
     if (!industrial && !ctx.settings.nightDriving) return;
+    const L = INDUSTRIAL_LIGHTING;
+    const glow = ensureNightGlow(ctx.scene);
+    if (industrial) {
+      const W = ctx.world.widthTiles * ctx.world.tileSize, H = ctx.world.heightTiles * ctx.world.tileSize;
+      this.extras.push(ctx.scene.add.image(0, 0, '__WHITE').setName('industrial-night-overlay')
+        .setOrigin(0).setDisplaySize(W, H).setTint(L.nightColor).setAlpha(L.nightAlpha).setDepth(L.nightDepth));
+      this.goalGlow = ctx.scene.add.image(0, 0, glow).setDepth(L.nightDepth + 1)
+        .setBlendMode(Phaser.BlendModes.ADD).setTint(L.goalGlowColor).setVisible(false);
+      this.extras.push(this.goalGlow);
+      for (const d of ctx.world.industrial?.decorations ?? []) {
+        if (d.kind === 'loadingYard') continue;
+        const pool = ctx.scene.add.image(d.x, d.y, glow).setDepth(L.nightDepth + 1)
+          .setBlendMode(Phaser.BlendModes.ADD).setTint(L.poolColor).setAlpha(L.poolAlpha)
+          .setRotation(d.angle).setDisplaySize(d.w * L.poolScale, d.h * L.poolScale);
+        this.extras.push(pool);
+      }
+      this.ctx = ctx;
+    }
     for (const car of ctx.players) {
       const image = ctx.scene.add.image(0, 0, TEX.industrial.headlight)
         .setName(`${industrial ? 'industrial' : 'city'}-headlight-${car.player}`)
         .setOrigin(0, 0.5)
-        .setDepth(DEPTH.decal + 1)
+        .setDepth(L.nightDepth + 1)
         .setBlendMode(Phaser.BlendModes.ADD);
       this.beams.push({ car, image });
+      const halo = ctx.scene.add.image(0, 0, glow).setDepth(L.nightDepth + 1)
+        .setBlendMode(Phaser.BlendModes.ADD).setTint(L.carHaloColor)
+        .setScale(L.carHaloScale * 42 / 128).setAlpha(L.carHaloAlpha);
+      this.halos.push({ car, image: halo });
     }
     this.update();
   }
 
   update(): void {
+    const goal = this.ctx?.goal;
+    if (this.goalGlow) {
+      this.goalGlow.setVisible(!!goal);
+      if (goal) this.goalGlow.setPosition(goal.x, goal.y)
+        .setDisplaySize(goal.radius * 2 * INDUSTRIAL_LIGHTING.goalGlowScale, goal.radius * 2 * INDUSTRIAL_LIGHTING.goalGlowScale)
+        .setAlpha(INDUSTRIAL_LIGHTING.goalGlowAlpha);
+    }
+    for (const { car, image } of this.halos) {
+      image.setPosition(car.chassis.x, car.chassis.y).setVisible(!car.disabled);
+    }
     for (const { car, image } of this.beams) {
       const chassis = car.chassis;
       const transform = chassis.getWorldTransformMatrix(this.chassisMatrix, this.parentMatrix);
@@ -42,5 +79,10 @@ export class NightLightingSystem implements GameSystem {
   destroy(): void {
     for (const { image } of this.beams) image.destroy();
     this.beams.length = 0;
+    for (const { image } of this.halos) image.destroy();
+    this.halos.length = 0;
+    for (const o of this.extras) o.destroy();
+    this.extras.length = 0;
+    this.goalGlow = undefined;
   }
 }

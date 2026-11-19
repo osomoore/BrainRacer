@@ -1,13 +1,13 @@
 import type Phaser from 'phaser';
 import { hash, makeCanvas, type Ctx } from '../art/draw';
-import { DEPTH } from '../config/gameConfig';
+import { DEPTH, INDUSTRIAL_LIGHTING } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import {
   ROAD_E, ROAD_N, ROAD_S, ROAD_W, type IndustrialDecoration, type IndustrialLayout, type Vec2,
 } from '../core/types';
 
 export const INDUSTRIAL_TILESET_KEY = 'world_tileset_industrial';
-export const INDUSTRIAL_BUILDING_TINT = 0x718eab;
+export const INDUSTRIAL_BUILDING_TINT = INDUSTRIAL_LIGHTING.buildingTint;
 export const INDUSTRIAL_SLAB_VARIANTS = 3;
 
 const RAIL_WIDTH = 64;
@@ -119,7 +119,9 @@ function addDecoration(
 ): void {
   const { kind, x, y, w, h, angle } = decoration;
   const depth = kind === 'loadingYard' ? DEPTH.decal - 2 : DEPTH.building;
-  objects.push(scene.add.image(x, y, TEX.industrial[kind]).setDisplaySize(w, h).setRotation(angle).setDepth(depth));
+  const img = scene.add.image(x, y, TEX.industrial[kind]).setDisplaySize(w, h).setRotation(angle).setDepth(depth);
+  if (kind !== 'loadingYard') img.setTint(INDUSTRIAL_LIGHTING.decorationTint);
+  objects.push(img);
 
   const localRect = (offsetY: number, width: number, height: number) => {
     addRect(x - offsetY * Math.sin(angle), y + offsetY * Math.cos(angle), width, height, angle);
