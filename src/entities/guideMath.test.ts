@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LaneGraph } from '../core/types';
-import { distToPath, hoverSpot, nextGoalMode, orbitPoint, pointAlongPath, stepFly, trimPath, type FlyState } from './guideMath';
+import { distToPath, edgeHoldDist, hoverSpot, nextGoalMode, orbitPoint, pointAlongPath, stepFly, trimPath, viewEdgeDist, type FlyState } from './guideMath';
 import { GUIDE } from '../config/gameConfig';
 
 // L-shaped route: east along y=0 to x=400, then south to y=400
@@ -85,5 +85,32 @@ describe('stepFly', () => {
     stepFly(s, { x: 1e6, y: 0 }, { x: 0, y: 0 }, 1, GUIDE);
     for (let i = 0; i < 60; i++) stepFly(s, { x: 1e6, y: 0 }, { x: 0, y: 0 }, 1 / 60, GUIDE);
     expect(Math.hypot(s.vx, s.vy)).toBeLessThanOrEqual(GUIDE.maxSpeed + 1e-6);
+  });
+});
+
+describe('viewEdgeDist / edgeHoldDist', () => {
+  const full = { x: 0, y: 0, w: 1920, h: 1080 };
+  const half = { x: 0, y: 0, w: 960, h: 1080 };
+  const car = { x: 960, y: 562 };
+  it('measures straight up, left and right', () => {
+    expect(viewEdgeDist(car, { x: 0, y: -1 }, full)).toBeCloseTo(562);
+    expect(viewEdgeDist(car, { x: 1, y: 0 }, full)).toBeCloseTo(960);
+    expect(viewEdgeDist({ x: 480, y: 562 }, { x: 1, y: 0 }, half)).toBeCloseTo(480);
+    expect(viewEdgeDist({ x: 480, y: 562 }, { x: -1, y: 0 }, half)).toBeCloseTo(480);
+  });
+  it('takes the nearer edge on a diagonal', () => {
+    const d = Math.SQRT1_2;
+    expect(viewEdgeDist(car, { x: d, y: -d }, full)).toBeCloseTo(562 / d);
+    expect(viewEdgeDist(car, { x: d, y: d }, full)).toBeCloseTo(518 / d);
+  });
+  it('gives Infinity-safe fallback and clamps', () => {
+    expect(viewEdgeDist(car, { x: 0, y: 0 }, full)).toBe(Infinity);
+    expect(edgeHoldDist(Infinity, 0.8, 100, 1, 170, 700)).toBe(170);
+    expect(edgeHoldDist(500, 0.8, 100, 1, 170, 700)).toBeCloseTo(400);
+    expect(edgeHoldDist(500, 0.8, 100, 0.5, 170, 700)).toBe(700);   // zoomed out: more world px, capped
+    expect(edgeHoldDist(150, 0.8, 100, 1, 170, 700)).toBe(170);     // tiny view: never below min
+  });
+  it('keeps the margin from the edge', () => {
+    expect(edgeHoldDist(300, 0.9, 120, 1, 50, 700)).toBeCloseTo(180);
   });
 });

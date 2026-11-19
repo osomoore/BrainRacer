@@ -73,6 +73,23 @@ export function orbitPoint(center: Vec2, angle: number, radius: number): Vec2 {
   return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
 }
 
+/** Distance from `origin` (inside `rect`) along unit `dir` to the rect edge (Infinity if dir ~ 0). */
+export function viewEdgeDist(origin: Vec2, dir: Vec2, rect: { x: number; y: number; w: number; h: number }): number {
+  let best = Infinity;
+  if (dir.x > 1e-6) best = Math.min(best, (rect.x + rect.w - origin.x) / dir.x);
+  else if (dir.x < -1e-6) best = Math.min(best, (rect.x - origin.x) / dir.x);
+  if (dir.y > 1e-6) best = Math.min(best, (rect.y + rect.h - origin.y) / dir.y);
+  else if (dir.y < -1e-6) best = Math.min(best, (rect.y - origin.y) / dir.y);
+  return Math.max(0, best);
+}
+
+/** World-px hover distance: `frac` of the screen distance to the view edge minus a margin, converted by zoom. */
+export function edgeHoldDist(edgeScreenDist: number, frac: number, marginScreen: number, zoom: number, minHold: number, maxHold: number): number {
+  if (!isFinite(edgeScreenDist)) return minHold;
+  const screen = Math.max(0, Math.min(edgeScreenDist * frac, edgeScreenDist - marginScreen));
+  return Math.max(minHold, Math.min(maxHold, screen / Math.max(zoom, 1e-3)));
+}
+
 export interface FlyState { x: number; y: number; vx: number; vy: number }
 
 /**
