@@ -1,8 +1,218 @@
 import Phaser from 'phaser';
-import { SCENE } from './keys';
+import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { services } from '../core/services';
+import { loadSettings, saveSettings } from '../core/settings';
+import type { CarKind, Difficulty, PlayerId, PlayerSettings, Settings } from '../core/types';
+import { MenuButton } from '../ui/menu/MenuButton';
+import { OptionRow } from '../ui/menu/OptionRow';
+import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
+import { REG, SCENE } from './keys';
 
-/** Placeholder — replaced by package P. */
+const DIFFS: Difficulty[] = ['easy', 'normal', 'hard'];
+const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', normal: 'Normal ★★', hard: 'Hard ★★★' };
+const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', normal: '14 + 5', hard: '38 + 47' };
+const DIFF_BLURB: Record<Difficulty, string> = { easy: 'Nice and relaxed', normal: 'Just right', hard: 'Super speedy' };
+const CARS: CarKind[] = ['dino', 'kart'];
+const ROUND_CHOICES = [180, 300, 420];
+const TIMER_MIN = 3, TIMER_MAX = 10;
+
+// P1 cursor rows
+const ROW_DIFF = 0, ROW_CAR = 1, ROW_ROUND = 2, ROW_TIMER = 3, ROW_MUSIC = 4, ROW_SFX = 5, ROW_START = 6;
+const P1_LAST = ROW_START;
+const P2_LAST = ROW_CAR;
+
+const COL_W = 780;
+const COL_ROW_W = 740;
+
+interface Column {
+  diff: OptionRow;
+  car: OptionRow;
+  hint: Phaser.GameObjects.Text;
+  carObj: Phaser.GameObjects.Container;
+}
+
 export class SetupScene extends Phaser.Scene {
+  private cfg!: Settings;
+  private cursors: number[] = [0, 0];
+  private cols: Column[] = [];
+  private globals: OptionRow[] = [];
+  private startBtn!: MenuButton;
+  private leaving = false;
+
   constructor() { super(SCENE.setup); }
-  create() { this.scene.start(SCENE.race); }
+
+  create() {
+    this.leaving = false;
+    this.cols = []; this.globals = []; this.cursors = [0, 0];
+    const reg = this.registry.get(REG.settings) as Settings | undefined;
+    const saved = loadSettings();
+    const base = reg && reg.players?.length ? reg : saved;
+    const players: PlayerSettings[] = base.players.slice(0, 2).map((p, i) => ({
+      device: p.device,
+      difficulty: p.difficulty ?? saved.players[i]?.difficulty ?? 'normal',
+      car: p.car ?? (i === 0 ? 'dino' : 'kart'),
+    }));
+    this.cfg = {
+      ...base,
+      players,
+      roundLengthSec: ROUND_CHOICES.includes(base.roundLengthSec) ? base.roundLengthSec : 300,
+      challengeIntervalSec: Phaser.Math.Clamp(Math.round(base.challengeIntervalSec), TIMER_MIN, TIMER_MAX),
+    };
+    services.input.reset();
+    players.forEach((p, i) => services.input.assign(i as PlayerId, p.device));
+
+    this.buildBackground();
+    bigText(this, GAME_WIDTH / 2, 62, 'GET READY!', 96, '#ffd43b', { font: FONT_HEAD, stroke: 14 });
+
+    const n = players.length;
+    players.forEach((_p, i) => {
+      const cx = n === 1 ? GAME_WIDTH / 2 : 480 + i * 960;
+      this.cols.push(this.buildColumn(i, cx));
+    });
+    this.buildGlobals();
+    this.refreshAll();
+  }
+
+  private buildBackground() {
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x1a2a6c, 0x1a2a6c, 0x2b8cff, 0x2b8cff, 1);
+    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    for (let i = 0; i < 14; i++) {
+      const y = 40 + i * 80;
+      g.fillStyle(0xffffff, i % 2 ? 0.04 : 0.07).fillRect(0, y, GAME_WIDTH, 40);
+    }
+  }
+
+  private buildColumn(i: number, cx: number): Column {
+    const color = hexNum(PLAYER_COLORS[i]);
+    const top = 130, h = 535;
+    const g = this.add.graphics();
+    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
+    g.lineStyle(10, color, 1).strokeRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
+    bigText(this, cx - 250, top + 55, `PLAYER ${i + 1}`, 60, PLAYER_COLORS[i], { font: FONT_HEAD, stroke: 10 });
+    bigText(this, cx + 190, top + 55, deviceLabel(this.cfg.players[i].device), 40, '#ffffff');
+    const opts = { width: COL_ROW_W, valueX: 165, arrowSpan: 160 };
+    const diff = new OptionRow(this, cx, top + 150, 'Difficulty', opts);
+    const hint = bigText(this, cx, top + 200, '', 40, MENU.dim, { origin: [0.5, 0], bold: false, shadow: false, stroke: 4 });
+    const car = new OptionRow(this, cx, top + 335, 'Car', opts);
+    const carObj = carPreview(this, 'dino', cx, top + 450, 3.2);
+    return { diff, car, hint, carObj };
+  }
+
+  private buildGlobals() {
+    const cx = GAME_WIDTH / 2;
+    const g = this.add.graphics();
+    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 690, 1120, 270, 36);
+    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 690, 1120, 270, 36);
+    const opts = { width: 1040, height: 58, fontSize: 42, valueX: 230, arrowSpan: 200 };
+    ['Round length', 'Question timer', 'Music volume', 'Sound volume'].forEach((l, i) => {
+      this.globals.push(new OptionRow(this, cx, 725 + i * 68, l, opts));
+    });
+    this.startBtn = new MenuButton(this, cx, 1015, 760, 96, 'START RACE!', hexNum(PLAYER_COLORS[0]), 70);
+  }
+
+  // ───────────────────────── view ─────────────────────────
+  private hintText(d: Difficulty): string {
+    const secs = Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1));
+    return `${DIFF_BLURB[d]}: ${secs} s per question\nSums like ${DIFF_EXAMPLE[d]}`;
+  }
+
+  private refreshAll() {
+    const c = this.cfg;
+    this.cols.forEach((col, i) => {
+      const p = c.players[i];
+      col.diff.setValue(DIFF_LABEL[p.difficulty]);
+      col.hint.setText(this.hintText(p.difficulty));
+      col.car.setValue(carName(p.car));
+      col.carObj.destroy();
+      const cx = col.car.x;
+      col.carObj = carPreview(this, p.car, cx, col.car.y + 115, 3.2);
+    });
+    this.globals[0].setValue(`${c.roundLengthSec / 60} min`);
+    this.globals[1].setValue(`${c.challengeIntervalSec} s`);
+    this.globals[2].setValue(`${Math.round(c.musicVolume * 100)}%`);
+    this.globals[3].setValue(`${Math.round(c.sfxVolume * 100)}%`);
+    this.refreshCursors();
+  }
+
+  private refreshCursors() {
+    const p1 = hexNum(PLAYER_COLORS[0]), p2 = hexNum(PLAYER_COLORS[1]);
+    this.cols.forEach((col, i) => {
+      const cur = this.cursors[i];
+      const color = i === 0 ? p1 : p2;
+      col.diff.setSelected(cur === ROW_DIFF, color);
+      col.car.setSelected(cur === ROW_CAR, color);
+    });
+    const c1 = this.cursors[0];
+    this.globals.forEach((r, i) => r.setSelected(c1 === ROW_ROUND + i, p1));
+    this.startBtn.setSelected(c1 === ROW_START, p1);
+  }
+
+  // ───────────────────────── logic ─────────────────────────
+  update() {
+    services.input.poll();
+    if (this.leaving) return;
+    for (let p = 0; p < this.cfg.players.length; p++) {
+      if (this.handle(p as PlayerId)) return;
+    }
+  }
+
+  /** Returns true if the scene is being left. */
+  private handle(p: PlayerId): boolean {
+    const inp = services.input.get(p);
+    const last = p === 0 ? P1_LAST : P2_LAST;
+    let cur = this.cursors[p];
+    if (inp.navY) {
+      const n = Phaser.Math.Clamp(cur + inp.navY, 0, last);
+      if (n !== cur) { this.cursors[p] = cur = n; services.audio.sfx('menuMove'); this.refreshCursors(); }
+    }
+    if (inp.navX) this.change(p, cur, inp.navX);
+    if (inp.confirm) {
+      if (p === 0 && cur === ROW_START) { this.startRace(); return true; }
+      if (cur < last) { this.cursors[p] = cur + 1; services.audio.sfx('menuSelect'); this.refreshCursors(); }
+    }
+    if (inp.back && p === 0) {
+      if (cur === ROW_DIFF) {
+        this.leaving = true;
+        services.audio.sfx('menuMove');
+        this.scene.start(SCENE.title);
+        return true;
+      }
+      this.cursors[0] = ROW_DIFF; services.audio.sfx('menuMove'); this.refreshCursors();
+    }
+    return false;
+  }
+
+  private change(p: PlayerId, row: number, dir: 1 | -1) {
+    const c = this.cfg;
+    const ps = c.players[p];
+    const cycle = <T,>(list: T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
+    const volStep = (v: number) => Phaser.Math.Clamp(Math.round((v + dir * 0.1) * 10) / 10, 0, 1);
+    let target: OptionRow | undefined;
+    if (row === ROW_DIFF) { ps.difficulty = cycle(DIFFS, ps.difficulty); target = this.cols[p].diff; }
+    else if (row === ROW_CAR) { ps.car = cycle(CARS, ps.car); target = this.cols[p].car; }
+    else if (p === 0 && row === ROW_ROUND) {
+      const i = Phaser.Math.Clamp(ROUND_CHOICES.indexOf(c.roundLengthSec) + dir, 0, ROUND_CHOICES.length - 1);
+      c.roundLengthSec = ROUND_CHOICES[i]; target = this.globals[0];
+    } else if (p === 0 && row === ROW_TIMER) {
+      c.challengeIntervalSec = Phaser.Math.Clamp(c.challengeIntervalSec + dir, TIMER_MIN, TIMER_MAX); target = this.globals[1];
+    } else if (p === 0 && row === ROW_MUSIC) { c.musicVolume = volStep(c.musicVolume); target = this.globals[2]; }
+    else if (p === 0 && row === ROW_SFX) { c.sfxVolume = volStep(c.sfxVolume); target = this.globals[3]; }
+    if (!target) return;
+    services.audio.setVolumes(c.musicVolume, c.sfxVolume);
+    services.audio.sfx('menuMove');
+    this.refreshAll();
+    target.bump(dir);
+  }
+
+  private startRace() {
+    this.leaving = true;
+    services.audio.sfx('menuSelect');
+    const settings: Settings = { ...loadSettings(), ...this.cfg, seed: loadSettings().seed };
+    saveSettings(settings);
+    this.registry.set(REG.settings, settings);
+    services.input.reset();
+    settings.players.forEach((pl, i) => services.input.assign(i as PlayerId, pl.device));
+    this.scene.start(SCENE.race);
+  }
 }
