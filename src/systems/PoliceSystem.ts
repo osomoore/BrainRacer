@@ -18,6 +18,7 @@ interface PlayerPolice {
   bumpUntil: number;
   stopSiren: (() => void) | null;
   lastCount: number;
+  respawnUntil: number;
 }
 
 export class PoliceSystem implements GameSystem {
@@ -29,6 +30,8 @@ export class PoliceSystem implements GameSystem {
   private cars: PoliceCar[] = [];
   private per: PlayerPolice[] = [];
   private spawnT = 0;
+  /** Seconds each car has been off every player's view (negative = spawn grace). */
+  private offSec = new Map<PoliceCar, number>();
   private offCrash: (() => void) | null = null;
 
   init(ctx: RaceContext): void {
@@ -37,7 +40,7 @@ export class PoliceSystem implements GameSystem {
     this.index = new NodeIndex(ctx.world.laneGraph);
     this.env = { world: ctx.world, index: this.index, pickGoal: () => this.randomNode() };
     this.per = ctx.players.map(() => ({
-      heat: 0, lastEmitHeat: 0, chasing: false, escape: { farSec: 0 }, bumpUntil: -1, stopSiren: null, lastCount: 0,
+      heat: 0, lastEmitHeat: 0, chasing: false, escape: { farSec: 0 }, bumpUntil: -1, stopSiren: null, lastCount: 0, respawnUntil: 0,
     }));
     const h = new URLSearchParams(location.search).get('heat'); // dev hook: ?heat=100
     if (h !== null && this.per[0]) this.per[0].heat = Math.max(0, Math.min(POLICE.heatMax, Number(h) || 0));
@@ -49,6 +52,7 @@ export class PoliceSystem implements GameSystem {
     for (const p of this.per) { p.stopSiren?.(); p.stopSiren = null; }
     for (const c of this.cars) c.destroy();
     this.cars = [];
+    this.offSec.clear();
   }
 
   // ───────────────────────── events ─────────────────────────
@@ -107,6 +111,7 @@ export class PoliceSystem implements GameSystem {
   // ───────────────────────── update ─────────────────────────
   update(dt: number): void {
     this.cars = this.cars.filter((c) => !c.destroyed);
+    for (const k of this.offSec.keys()) if (k.destroyed) this.offSec.delete(k);
 
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
@@ -121,7 +126,7 @@ export class PoliceSystem implements GameSystem {
       this.maintainPopulation();
     }
 
-    for (const car of this.cars) this.driveCar(car, dt);
+    for (const car of this.cars) { this.driveCar(car, dt); this.checkOffscreen(car, dt); }
     this.updateSirens();
   }
 
@@ -192,6 +197,23 @@ export class PoliceSystem implements GameSystem {
     if (car.mode !== 'chase' && this.nearestPlayerDist(car) > POLICE.despawnDist) car.destroy();
   }
 
+  /** Cars (patrols and chasers) that stay off every player's view for a while are removed. */
+  private checkOffscreen(car: PoliceCar, dt: number): void {
+    if (car.destroyed) return;
+    let t = this.offSec.get(car);
+    if (t === undefined) t = -POLICE.spawnGraceSec;
+    if (this.offscreen(car.x, car.y, POLICE.offscreenMargin)) t += dt; else t = Math.max(0, Math.min(t, 0));
+    if (t >= POLICE.offscreenDespawnSec) {
+      if (car.mode === 'chase' && car.target !== null) {
+        this.per[car.target].respawnUntil = this.ctx.elapsedSec + POLICE.chaserRespawnCooldownSec;
+      }
+      car.destroy();
+      this.offSec.delete(car);
+      return;
+    }
+    this.offSec.set(car, t);
+  }
+
   private maybeJoinChase(car: PoliceCar): void {
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
@@ -214,7 +236,7 @@ export class PoliceSystem implements GameSystem {
       const st = this.per[p];
       if (!st.chasing) continue;
       const want = Math.max(1, desiredChasers(st.heat));
-      if (this.chasersOf(p).length < want && this.cars.length < POLICE.maxTotal) {
+      if (this.chasersOf(p).length < want && this.cars.length < POLICE.maxTotal && this.ctx.elapsedSec >= st.respawnUntil) {
         const pl = this.ctx.players[p];
         const spot = this.findSpawn(pl.x, pl.y, POLICE.spawnMinDist, POLICE.spawnMaxDist);
         if (spot) {
@@ -262,8 +284,7 @@ export class PoliceSystem implements GameSystem {
     return null;
   }
 
-  private offscreen(x: number, y: number): boolean {
-    const m = POLICE.viewMargin;
+  private offscreen(x: number, y: number, m: number = POLICE.viewMargin): boolean {
     for (const pl of this.ctx.players) {
       const v = this.ctx.camera.worldView(pl.player);
       if (x > v.x - m && x < v.x + v.w + m && y > v.y - m && y < v.y + v.h + m) return false;
@@ -282,8 +303,8 @@ export class PoliceSystem implements GameSystem {
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
       const st = this.per[p], pl = this.ctx.players[p];
-      const near = !!pl && st.chasing && this.chasersOf(p).some((c) => Math.hypot(c.x - pl.x, c.y - pl.y) < POLICE.sirenNearDist);
-      if (near && !st.stopSiren) st.stopSiren = services.audio.loop('siren', { pan: this.pan(p), volume: 0.5 });
+      const near = !!pl && st.chasing && this.chasersOf(p).some((c) => Math.hypot(c.x - pl.x, c.y - pl.y) < POLICE.sirenNearDist && !this.offscreen(c.x, c.y, 0));
+      if (near && !st.stopSiren) st.stopSiren = services.audio.loop('siren', { pan: this.pan(p), volume: POLICE.sirenVolume });
       else if (!near && st.stopSiren) { st.stopSiren(); st.stopSiren = null; }
     }
   }

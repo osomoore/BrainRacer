@@ -167,8 +167,8 @@ export const COLLISION = {
   shakeMs: 220,
 };
 
-export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 12, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
-export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 30, maxSpeed: 180, reverseSpeed: 80, accel: 140, brake: 500, turnRate: 1.6, grip: 0.97, drag: 0.8 };
+export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 5, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
+export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 180, reverseSpeed: 80, accel: 140, brake: 500, turnRate: 1.6, grip: 0.97, drag: 0.8 };
 export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 680, reverseSpeed: 240, accel: 600, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
 
 // ───────────────────────── rewards (package M) ─────────────────────────
@@ -187,6 +187,21 @@ export const REWARDS = {
   crashSparkMin: 250,
   crashSmokeMin: 500,
   shockwaveSec: 0.4,
+  // --- playtest 2: wrong/timeout answers slow the car a little ---
+  missSlowMult: 0.7,
+  missSlowSec: 1.2,
+  timeoutSlowMult: 0.8,
+  timeoutSlowSec: 1.0,
+  sputterPuffs: 5,
+  boostJumpSec: 1.1,
+  // --- boost punch-through ---
+  turboMassMult: 5,          // player body mass multiplier while turbo is on
+  punchImpulse: 0.9,         // px/s thrown at the hit object per px/s of player speed
+  punchMax: 900,
+  punchSpin: 6,
+  punchKeepFrac: 0.9,        // restore the pre-hit speed if it dropped below this fraction
+  punchRadius: 150,
+  punchCooldownSec: 0.2,
 };
 
 // ───────────────────────── world (package C/G) ─────────────────────────
@@ -208,6 +223,9 @@ export const WORLD = {
   rampDirCos: 0.5,           // min |cos(heading - ramp angle)| to launch
   bigAirSec: 1.0,            // airtime above this shows "BIG AIR!"
   spinSpeedFrac: 0.85,       // speed frac above which the car does a 360 spin
+  boostLandSearchPx: 700,    // how far ahead a boost jump looks for drivable ground when it lands on a building
+  boostJumpMinSpeed: 420,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
+  boostJumpPeakScale: 0.55,  // bigger arc for the correct-answer boost jump
   jumpPeakScale: 0.3,        // extra view scale at the peak of the arc
   npcHopScale: 0.12,
   npcHopSec: 0.4,
@@ -232,7 +250,7 @@ export const WORLD = {
 
 // ───────────────────────── traffic & police (packages J/K) ─────────────────────────
 export const TRAFFIC = {
-  maxVehicles: 35,
+  maxVehicles: 25,
   truckFraction: 0.2,
   spawnRadiusMin: 1300,
   spawnRadiusMax: 2000,
@@ -245,7 +263,7 @@ export const TRAFFIC = {
   lookAheadMax: 80,
   advanceRadius: 34,         // reaching a node this close advances to the next one
   turnSlowFrac: 0.45,         // speed multiplier on sharpest turns
-  knockSpeed: 150,           // px/s velocity jump counted as a significant hit
+  knockSpeed: 70,            // px/s velocity jump counted as a significant hit
   knockSec: 1.5,
   knockDamping: 1.6,         // 1/s velocity decay while knocked
   stuckSec: 3,
@@ -256,6 +274,11 @@ export const TRAFFIC = {
   spawnIntervalSec: 0.12,    // at most one spawn per interval after the initial fill
   initialSpawnMin: 700,      // initial fill may use a smaller ring (still off-screen)
   nodeCell: 256,             // spatial grid cell size for lane-node queries
+  // --- playtest 2: traffic is light and gets shoved off the player ---
+  shovePerImpact: 0.9,       // extra px/s of push away from the player per px/s of impact
+  shoveMax: 700,
+  shoveSpin: 4,              // rad/s of spin on a hit
+  shoveTruckMult: 0.6,
 };
 
 export const POLICE = {
@@ -297,6 +320,12 @@ export const POLICE = {
   bumpBackoffSec: 0.9,
   sirenNearDist: 1300,
   lightFlashSec: 0.2,
+  // --- playtest 2 ---
+  offscreenDespawnSec: 1.5,  // off every player's view this long -> removed
+  offscreenMargin: 80,
+  chaserRespawnCooldownSec: 4,
+  sirenVolume: 0.22,
+  spawnGraceSec: 6,          // freshly spawned (off-screen) cars are exempt from the off-screen despawn
 };
 
 // ───────────────────────── goals & round (package L) ─────────────────────────

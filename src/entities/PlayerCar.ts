@@ -58,6 +58,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private _turbo = false;
   private _ghost = false;
   private _airborne = false;
+  private baseMass = 0;
   private controlEnabled = true;
   private slowMult = 1;
   private slowLeft = 0;
@@ -140,6 +141,12 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   get ghost() { return this._ghost; }
 
   setTurbo(on: boolean): void {
+    if (on !== this._turbo) {
+      // boost = heavy: plow through traffic and props (mass restored exactly afterwards)
+      const m = this.scene.matter.body;
+      if (on) { this.baseMass = this.body.mass; m.setMass(this.body, this.baseMass * REWARDS.turboMassMult); }
+      else if (this.baseMass > 0) { m.setMass(this.body, this.baseMass); this.baseMass = 0; }
+    }
     this._turbo = on;
     this.refreshMults();
   }

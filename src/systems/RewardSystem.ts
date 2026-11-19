@@ -18,6 +18,9 @@ interface PState {
   flavorLeft: number;
   lastFlavor: Flavor | null;
   aura: Phaser.GameObjects.Image;
+  missLeft: number;
+  punchT: number;
+  restore: { vx: number; vy: number } | null;
   flameAcc: number; lineAcc: number; trailAcc: number; ghostAcc: number; swirlAcc: number;
   swirl: number;
 }
@@ -43,12 +46,13 @@ export class RewardSystem implements GameSystem {
       turboLeft: 0, flavor: null, flavorLeft: 0, lastFlavor: null,
       aura: ctx.scene.add.image(car.x, car.y, TEX.fxDust).setBlendMode(Phaser.BlendModes.ADD)
         .setTint(hex(PLAYER_COLORS[i % PLAYER_COLORS.length])).setDepth(DEPTH.vehicle - 1).setVisible(false),
-      flameAcc: 0, lineAcc: 0, trailAcc: 0, ghostAcc: 0, swirlAcc: 0, swirl: 0,
+      missLeft: 0, punchT: 0, restore: null, flameAcc: 0, lineAcc: 0, trailAcc: 0, ghostAcc: 0, swirlAcc: 0, swirl: 0,
     }));
     this.offs.push(ctx.bus.on('challenge:resolved', (e) => {
       if (e.result === 'correct') this.grant(e.challenge.player);
+      else this.miss(e.challenge.player, e.result === 'timeout');
     }));
-    this.offs.push(ctx.bus.on('vehicle:crash', (e) => this.crashFx(e.x, e.y, e.impact)));
+    this.offs.push(ctx.bus.on('vehicle:crash', (e) => { this.crashFx(e.x, e.y, e.impact); this.punch(e); }));
     this.offs.push(ctx.bus.on('jump:land', (e) => this.dustRing(e.x, e.y)));
 
     if (new URLSearchParams(location.search).get('rewards') === '1') {
@@ -80,6 +84,8 @@ export class RewardSystem implements GameSystem {
     bus.emit('ui:popup', { player: p, text: 'TURBO!', color: '#ffd60a' });
     bus.emit('reward:granted', { player: p, reward: 'turbo', durationSec: st.turboLeft });
     this.turboBurst(car, p);
+    // boost jump: launch over whatever is ahead (ignored if already airborne)
+    bus.emit('jump:request', { player: p, airSec: REWARDS.boostJumpSec, boost: true });
 
     // FLAVOR
     const flavor = forced ?? pickFlavor(this.rng, REWARDS.flavorWeights, st.lastFlavor);
@@ -95,6 +101,65 @@ export class RewardSystem implements GameSystem {
       case 'shockwave': this.shockwave(car, p); st.flavorLeft = REWARDS.shockwaveSec; break;
       case 'ghost': car.setGhost(true); break;
       case 'magnet': this.starBurst(car.x, car.y, 14, 0xffd24a); break;
+    }
+  }
+
+  /** Turbo punch-through: throw the hit traffic / police / prop away with spin and keep the player's speed. */
+  private punch(e: { player: PlayerId | null; with: string; impact: number; x: number; y: number }): void {
+    if (e.player === null || (e.with !== 'traffic' && e.with !== 'police' && e.with !== 'prop')) return;
+    const car = this.ctx.players[e.player];
+    const st = this.states[e.player];
+    if (!car || !st || st.turboLeft <= 0 || st.punchT > 0) return;
+    st.punchT = REWARDS.punchCooldownSec;
+    const v = car.velocity;
+    const sp = Math.hypot(v.x, v.y);
+    st.restore = { vx: v.x, vy: v.y };
+    const R2 = REWARDS.punchRadius ** 2;
+    const mag = Math.min(REWARDS.punchMax, sp * REWARDS.punchImpulse);
+    const dir = (x: number, y: number) => {
+      const dx = x - car.x, dy = y - car.y, d = Math.hypot(dx, dy) || 1;
+      // blend "away from car" with the car's travel direction so things fly forward/aside
+      const fx = sp > 1 ? v.x / sp : 0, fy = sp > 1 ? v.y / sp : 0;
+      const ux = dx / d * 0.6 + fx * 0.6, uy = dy / d * 0.6 + fy * 0.6, l = Math.hypot(ux, uy) || 1;
+      return { x: ux / l, y: uy / l };
+    };
+    let hit = false;
+    for (const npc of this.ctx.npcs) {
+      if (npc.destroyed || (npc.x - e.x) ** 2 + (npc.y - e.y) ** 2 > R2) continue;
+      const u = dir(npc.x, npc.y);
+      npc.applyImpulse(u.x * mag, u.y * mag, (this.rng.chance(0.5) ? 1 : -1) * REWARDS.punchSpin);
+      hit = true;
+    }
+    const bodies = (this.ctx.scene.matter.world as unknown as { localWorld: { bodies: MatterJS.BodyType[] } }).localWorld.bodies ?? [];
+    for (const b of bodies) {
+      if (b.isStatic || b.parent !== b || ownerOf(b)?.kind !== 'prop') continue;
+      if ((b.position.x - e.x) ** 2 + (b.position.y - e.y) ** 2 > R2) continue;
+      const u = dir(b.position.x, b.position.y);
+      this.ctx.scene.matter.body.setVelocity(b, { x: b.velocity.x + u.x * mag / STEP_HZ, y: b.velocity.y + u.y * mag / STEP_HZ });
+      this.ctx.scene.matter.body.setAngularVelocity(b, b.angularVelocity + REWARDS.punchSpin / STEP_HZ);
+      hit = true;
+    }
+    if (!hit) return;
+    this.starBurst(e.x, e.y, 10, 0xffd60a);
+    this.ring(e.x, e.y, 120, 0.25, 0xffffff);
+    this.ctx.bus.emit('ui:popup', { player: e.player, text: 'POW!', world: { x: e.x, y: e.y }, color: '#ffd60a' });
+  }
+
+  /** Wrong / timed-out answer: a gentle, short slowdown plus a grey sputter puff. One penalty at a time. */
+  private miss(p: PlayerId, timeout: boolean): void {
+    const car = this.ctx.players[p];
+    const st = this.states[p];
+    if (!car || !st || st.missLeft > 0) return;
+    const sec = timeout ? REWARDS.timeoutSlowSec : REWARDS.missSlowSec;
+    st.missLeft = sec;
+    car.slow(timeout ? REWARDS.timeoutSlowMult : REWARDS.missSlowMult, sec);
+    const r = this.rear(car);
+    for (let i = 0; i < REWARDS.sputterPuffs; i++) {
+      this.pool.spawn({
+        key: TEX.fxSmoke, x: r.x + this.rng.range(-6, 6), y: r.y + this.rng.range(-6, 6),
+        vx: -r.c * this.rng.range(60, 160) + this.rng.range(-30, 30), vy: -r.s * this.rng.range(60, 160) + this.rng.range(-30, 30),
+        life: this.rng.range(0.5, 0.8), s0: 0.6, s1: 1.8, a0: 0.75, a1: 0, tint: 0x8a8a8a, drag: 2.5,
+      });
     }
   }
 
@@ -115,6 +180,16 @@ export class RewardSystem implements GameSystem {
       const st = this.states[p];
       if (!car || !st) continue;
 
+      if (st.punchT > 0) st.punchT -= dt;
+      if (st.restore) {
+        // collision resolved by now: put back the speed the punch cost us
+        const r = st.restore; st.restore = null;
+        const v = car.velocity;
+        if (Math.hypot(v.x, v.y) < REWARDS.punchKeepFrac * Math.hypot(r.vx, r.vy)) {
+          ctx.scene.matter.body.setVelocity(car.body, { x: r.vx / STEP_HZ, y: r.vy / STEP_HZ });
+        }
+      }
+      if (st.missLeft > 0) st.missLeft = Math.max(0, st.missLeft - dt);
       if (st.turboLeft > 0) {
         st.turboLeft -= dt;
         if (st.turboLeft <= 0) {
