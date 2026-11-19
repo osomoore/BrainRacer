@@ -10,7 +10,8 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
-      "airplane"
+      "airplane",
+      "train station"
     ]
   },
   "apple": {
@@ -37,6 +38,7 @@
     "confusableWith": [
       "beach",
       "circle",
+      "frisbee",
       "soccer",
       "sphere"
     ]
@@ -50,7 +52,8 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
-      "farm"
+      "farm",
+      "house"
     ]
   },
   "battery": {
@@ -77,7 +80,10 @@
   "bicycle": {
     "category": "vehicle",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "running",
+      "skating"
+    ]
   },
   "binoculars": {
     "category": "activity",
@@ -88,7 +94,9 @@
     "category": "animal",
     "simple": true,
     "confusableWith": [
-      "duck"
+      "duck",
+      "egg",
+      "tree"
     ]
   },
   "blocks": {
@@ -104,7 +112,8 @@
     "simple": true,
     "confusableWith": [
       "library",
-      "reading"
+      "reading",
+      "school"
     ]
   },
   "bowl": {
@@ -140,6 +149,7 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
+      "river",
       "road"
     ]
   },
@@ -147,20 +157,21 @@
     "category": "vehicle",
     "simple": true,
     "confusableWith": [
-      "train"
+      "train",
+      "train station"
     ]
   },
   "campsite": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "forest"
+    ]
   },
   "cap": {
     "category": "clothing",
     "simple": true,
-    "confusableWith": [
-      "glove"
-    ]
+    "confusableWith": []
   },
   "car": {
     "category": "vehicle",
@@ -173,6 +184,7 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
+      "museum",
       "tower"
     ]
   },
@@ -219,7 +231,8 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
-      "house"
+      "house",
+      "school"
     ]
   },
   "cloud": {
@@ -232,9 +245,7 @@
   "clownfish": {
     "category": "animal",
     "simple": false,
-    "confusableWith": [
-      "fishing"
-    ]
+    "confusableWith": []
   },
   "coin": {
     "category": "object",
@@ -246,7 +257,10 @@
   "cone": {
     "category": "object",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "cylinder",
+      "triangle"
+    ]
   },
   "cooking": {
     "category": "activity",
@@ -275,28 +289,38 @@
   "cylinder": {
     "category": "object",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "cone",
+      "sphere"
+    ]
   },
   "dam": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "river"
+    ]
   },
   "dancing": {
     "category": "activity",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "guitar"
+    ]
   },
   "desert": {
     "category": "nature",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "mountain"
+    ]
   },
   "diamond": {
     "category": "shape",
     "simple": false,
     "confusableWith": [
-      "ring"
+      "ring",
+      "triangle"
     ]
   },
   "digging": {
@@ -315,13 +339,15 @@
     "category": "animal",
     "simple": true,
     "confusableWith": [
-      "bird"
+      "bird",
+      "lake"
     ]
   },
   "egg": {
     "category": "food",
     "simple": true,
     "confusableWith": [
+      "bird",
       "cheese"
     ]
   },
@@ -345,7 +371,8 @@
     "confusableWith": [
       "barn",
       "horse",
-      "tractor"
+      "tractor",
+      "well"
     ]
   },
   "fire station": {
@@ -359,7 +386,6 @@
     "category": "activity",
     "simple": false,
     "confusableWith": [
-      "clownfish",
       "lake"
     ]
   },
@@ -382,6 +408,7 @@
     "category": "nature",
     "simple": false,
     "confusableWith": [
+      "campsite",
       "park",
       "tree"
     ]
@@ -389,17 +416,24 @@
   "fork": {
     "category": "object",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "spoon"
+    ]
   },
   "fountain": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "park"
+    ]
   },
   "frisbee": {
     "category": "activity",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "ball",
+      "soccer"
+    ]
   },
   "girl": {
     "category": "person",
@@ -426,14 +460,15 @@
     "category": "clothing",
     "simple": true,
     "confusableWith": [
-      "cap",
       "mitten"
     ]
   },
   "guitar": {
     "category": "activity",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "dancing"
+    ]
   },
   "harbor": {
     "category": "place",
@@ -451,7 +486,10 @@
   "hexagon": {
     "category": "shape",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "octagon",
+      "pentagon"
+    ]
   },
   "horse": {
     "category": "animal",
@@ -469,6 +507,7 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
+      "barn",
       "city",
       "treehouse"
     ]
@@ -511,8 +550,10 @@
     "category": "nature",
     "simple": true,
     "confusableWith": [
+      "duck",
       "fishing",
-      "river"
+      "river",
+      "swimming"
     ]
   },
   "lamp": {
@@ -543,7 +584,8 @@
     "simple": true,
     "confusableWith": [
       "cheese",
-      "glass"
+      "glass",
+      "mug"
     ]
   },
   "mitten": {
@@ -564,6 +606,7 @@
     "category": "nature",
     "simple": false,
     "confusableWith": [
+      "desert",
       "skiing",
       "volcano"
     ]
@@ -572,24 +615,31 @@
     "category": "object",
     "simple": true,
     "confusableWith": [
-      "glass"
+      "glass",
+      "milk"
     ]
   },
   "museum": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "castle"
+    ]
   },
   "octagon": {
     "category": "shape",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "hexagon",
+      "pentagon"
+    ]
   },
   "oval": {
     "category": "shape",
     "simple": true,
     "confusableWith": [
-      "circle"
+      "circle",
+      "sphere"
     ]
   },
   "paintbrush": {
@@ -612,8 +662,11 @@
     "confusableWith": [
       "flower",
       "forest",
+      "fountain",
       "playground",
-      "tree"
+      "tree",
+      "treehouse",
+      "watering flowers"
     ]
   },
   "pencil": {
@@ -621,13 +674,17 @@
     "simple": false,
     "confusableWith": [
       "crayon",
+      "scissors",
       "writing"
     ]
   },
   "pentagon": {
     "category": "shape",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "hexagon",
+      "octagon"
+    ]
   },
   "playground": {
     "category": "place",
@@ -655,7 +712,8 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
-      "envelope"
+      "envelope",
+      "shop"
     ]
   },
   "pyramid": {
@@ -705,7 +763,10 @@
     "category": "nature",
     "simple": true,
     "confusableWith": [
-      "lake"
+      "bridge",
+      "dam",
+      "lake",
+      "swimming"
     ]
   },
   "road": {
@@ -719,6 +780,7 @@
     "category": "activity",
     "simple": false,
     "confusableWith": [
+      "bicycle",
       "jumping",
       "skating"
     ]
@@ -735,13 +797,17 @@
     "category": "place",
     "simple": true,
     "confusableWith": [
+      "book",
+      "city",
       "library"
     ]
   },
   "scissors": {
     "category": "object",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "pencil"
+    ]
   },
   "ship": {
     "category": "vehicle",
@@ -756,6 +822,7 @@
     "simple": true,
     "confusableWith": [
       "bakery",
+      "post office",
       "restaurant"
     ]
   },
@@ -763,13 +830,14 @@
     "category": "activity",
     "simple": false,
     "confusableWith": [
+      "bicycle",
       "running",
       "skiing"
     ]
   },
   "skiing": {
     "category": "activity",
-    "simple": true,
+    "simple": false,
     "confusableWith": [
       "mountain",
       "skating",
@@ -804,6 +872,7 @@
     "simple": false,
     "confusableWith": [
       "ball",
+      "frisbee",
       "stadium"
     ]
   },
@@ -819,17 +888,21 @@
     "simple": false,
     "confusableWith": [
       "ball",
-      "circle"
+      "circle",
+      "cylinder",
+      "oval"
     ]
   },
   "spoon": {
     "category": "object",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "fork"
+    ]
   },
   "square": {
     "category": "shape",
-    "simple": true,
+    "simple": false,
     "confusableWith": [
       "box",
       "cube"
@@ -858,7 +931,9 @@
     "category": "activity",
     "simple": false,
     "confusableWith": [
-      "beach"
+      "beach",
+      "lake",
+      "river"
     ]
   },
   "swinging": {
@@ -878,7 +953,9 @@
     "simple": false,
     "confusableWith": [
       "castle",
-      "lighthouse"
+      "lighthouse",
+      "water tower",
+      "wind turbine"
     ]
   },
   "tractor": {
@@ -901,6 +978,8 @@
     "category": "place",
     "simple": false,
     "confusableWith": [
+      "airport",
+      "bus",
       "train"
     ]
   },
@@ -913,6 +992,7 @@
     "category": "nature",
     "simple": true,
     "confusableWith": [
+      "bird",
       "forest",
       "park",
       "treehouse"
@@ -923,6 +1003,7 @@
     "simple": false,
     "confusableWith": [
       "house",
+      "park",
       "tree"
     ]
   },
@@ -930,6 +1011,8 @@
     "category": "shape",
     "simple": false,
     "confusableWith": [
+      "cone",
+      "diamond",
       "pyramid"
     ]
   },
@@ -956,24 +1039,30 @@
   "water tower": {
     "category": "place",
     "simple": false,
-    "confusableWith": []
+    "confusableWith": [
+      "tower"
+    ]
   },
   "watering flowers": {
     "category": "activity",
     "simple": false,
     "confusableWith": [
-      "flower"
+      "flower",
+      "park"
     ]
   },
   "well": {
     "category": "place",
     "simple": true,
-    "confusableWith": []
+    "confusableWith": [
+      "farm"
+    ]
   },
   "wind turbine": {
     "category": "place",
     "simple": false,
     "confusableWith": [
+      "tower",
       "windmill"
     ]
   },
