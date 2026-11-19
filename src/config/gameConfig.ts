@@ -406,7 +406,7 @@ export const POLICE = {
   offscreenMargin: 80,
   chaserRespawnCooldownSec: 4,
   sirenVolume: 0.22,         // AI cruisers chasing you (gentle)
-  playerSirenVolume: 0.55,   // your own siren while you drive a police cruiser (~8 dB louder)
+  playerSirenVolume: 1.4,    // your own siren while you drive a police cruiser; >= 1 also switches to the brighter, punchier tone
   spawnGraceSec: 6,          // freshly spawned (off-screen) cars are exempt from the off-screen despawn
 };
 

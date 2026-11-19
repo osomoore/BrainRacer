@@ -15,7 +15,9 @@ export type BodyOwner =
   | { kind: 'prop'; prop: Phaser.GameObjects.GameObject }
   | { kind: 'boundary' }
   | { kind: 'train' }
-  | { kind: 'dino' };
+  | { kind: 'dino' }
+  | { kind: 'animal'; animal: Phaser.GameObjects.GameObject }
+  | { kind: 'fence' };
 
 export function ownerOf(body: MatterJS.BodyType | undefined | null): BodyOwner | null {
   if (!body) return null;

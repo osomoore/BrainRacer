@@ -16,7 +16,7 @@ export type PlayerId = 0 | 1;
 /** easyPlus sits between easy and normal (sums into the teens). */
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
-export type RaceMap = 'city' | 'industrial';
+export type RaceMap = 'city' | 'industrial' | 'farm';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
 /**
  * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).
@@ -151,6 +151,8 @@ export enum Tile {
   Park = 5,
   Plaza = 6,
   Dirt = 7,
+  Corn = 8,       // farm: corn field; drivable but slow, stalks flatten under cars
+  Mud = 9,        // farm: mud puddle; drivable, slow, splashes
 }
 
 /** Road connectivity bitmask per tile (for picking road texture variants). */
@@ -215,8 +217,46 @@ export interface IndustrialLayout {
   rail: FreightRoute;
 }
 
+// ───────────────────────── farm ─────────────────────────
+export type FarmDecorationKind =
+  | 'barn' | 'silo' | 'farmhouse' | 'shed' | 'windmill' | 'windTurbine'
+  | 'hayBale' | 'orchardTree' | 'streamBridge' | 'pumpkinPatch' | 'cornMaze';
+/** Pixel center and footprint; width along local +x. `solid` = has a physics body (decorations over BuildingLots are drawn only). */
+export interface FarmDecoration extends Vec2 {
+  kind: FarmDecorationKind;
+  w: number;
+  h: number;
+  angle: number;
+  solid: boolean;
+  /** BuildingLot this decoration dresses (barn, farmhouse, silo … standing on a Tile.Building footprint). */
+  buildingId?: number;
+}
+
+/** Solid fence segment (pixel endpoints). Gates are simply gaps between segments. */
+export interface FarmFence { a: Vec2; b: Vec2 }
+
+export type FarmAnimalKind = 'cow' | 'sheep' | 'pig' | 'horse' | 'chicken' | 'duck';
+/** Pixel rectangle where a group of animals wanders (a fenced pasture, a farmyard, a pond edge). */
+export interface FarmAnimalZone {
+  kind: FarmAnimalKind;
+  x: number; y: number; w: number; h: number;
+  count: number;
+  fenced: boolean;
+}
+
+export interface FarmLayout {
+  decorations: FarmDecoration[];
+  fences: FarmFence[];
+  animalZones: FarmAnimalZone[];
+  /** Direction (rad, world space, 0 = +x) shadows fall; fixed low afternoon sun. */
+  shadowAngle: number;
+  /** Shadow length as a multiple of an object's nominal height. */
+  shadowLength: number;
+}
+
 export interface WorldData {
   industrial?: IndustrialLayout;
+  farm?: FarmLayout;
   seed: number;
   widthTiles: number;
   heightTiles: number;
@@ -251,9 +291,10 @@ export type SfxName =
   | 'correct' | 'wrong' | 'timeout' | 'turbo' | 'crash' | 'crashBig' | 'skid'
   | 'siren' | 'policeBump' | 'jump' | 'land' | 'goal' | 'goalArrive'
   | 'countdown' | 'go' | 'roar' | 'stomp' | 'squash' | 'shockwave' | 'pop'
-  | 'menuMove' | 'menuSelect' | 'join' | 'crossing';
+  | 'menuMove' | 'menuSelect' | 'join' | 'crossing'
+  | 'moo' | 'baa' | 'oink' | 'neigh' | 'cluck' | 'quack' | 'cornRustle' | 'mudSplash';
 
-export type MusicTrack = 'title' | 'race' | 'industrial' | 'dino' | 'results';
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'dino' | 'results';
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 export type CameraMode = 'single' | 'merged' | 'split';

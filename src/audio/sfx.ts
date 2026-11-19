@@ -100,6 +100,15 @@ function arpeggio(v: Voice, t: number, notes: number[], step: number, type: OscT
 }
 
 const RECIPES: Record<SfxName, Recipe> = {
+  // Farm placeholders (farm-audio package replaces these).
+  moo: (v, t) => RECIPES.pop(v, t),
+  baa: (v, t) => RECIPES.pop(v, t),
+  oink: (v, t) => RECIPES.pop(v, t),
+  neigh: (v, t) => RECIPES.pop(v, t),
+  cluck: (v, t) => RECIPES.pop(v, t),
+  quack: (v, t) => RECIPES.pop(v, t),
+  cornRustle: (v, t) => RECIPES.pop(v, t),
+  mudSplash: (v, t) => RECIPES.pop(v, t),
   crossing: (v, t) => {
     for (const offset of [0, 0.28]) {
       const strike = t + offset;
@@ -398,9 +407,11 @@ export class SfxEngine {
     const t = Tone.now() + 0.02;
     let timer = 0;
     if (name === 'siren') {
-      // gentle two-tone: sine, rounded by a lowpass, ~0.7 s per tone, slow fade in
-      const o = v.add(new Tone.Oscillator({ type: 'sine', frequency: 660 }));
-      const lp = v.add(new Tone.Filter({ type: 'lowpass', frequency: 900, Q: 0.4 }));
+      // gentle two-tone: sine, rounded by a lowpass, ~0.7 s per tone, slow fade in.
+      // volume >= 1 (player-driven cruiser): brighter triangle tone with an open filter so it cuts through.
+      const loud = (opts.volume ?? 1) >= 1;
+      const o = v.add(new Tone.Oscillator({ type: loud ? 'triangle' : 'sine', frequency: 660 }));
+      const lp = v.add(new Tone.Filter({ type: 'lowpass', frequency: loud ? 2600 : 900, Q: 0.4 }));
       o.connect(lp);
       lp.connect(out);
       o.start(t);
@@ -417,7 +428,7 @@ export class SfxEngine {
       schedule(20);
       timer = window.setInterval(() => schedule(20), 8000);
       out.gain.setValueAtTime(0, t);
-      out.gain.linearRampToValueAtTime(0.25, t + 1.2);
+      out.gain.linearRampToValueAtTime(loud ? 0.4 : 0.25, t + (loud ? 0.3 : 1.2));
     } else {
       const nz = v.add(new Tone.Noise('white'));
       const bp = v.add(new Tone.Filter({ type: 'bandpass', frequency: 2300, Q: 3 }));

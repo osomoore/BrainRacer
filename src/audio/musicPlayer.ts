@@ -22,6 +22,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   title: title as TrackData,
   race: race as TrackData,
   industrial: industrial as TrackData,
+  farm: race as TrackData, // placeholder until the farm track lands
   dino: dino as TrackData,
   results: results as TrackData,
 };
