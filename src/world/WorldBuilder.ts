@@ -135,8 +135,9 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     const grow = (k / L.shadowLayers) * 14, off = L.shadowOffset * (0.5 + 0.5 * (k / L.shadowLayers));
     shadowG.fillStyle(0x000000, L.shadowAlpha);
     for (const b of world.buildings) {
-      shadowG.fillRoundedRect(b.tx * ts + off - grow * 0.4, b.ty * ts + off - grow * 0.4,
-        b.tw * ts + grow * 0.8, b.th * ts + grow * 0.8, 10);
+      // Plain rects on purpose: rounded rects are re-triangulated (earcut) every frame per camera.
+      shadowG.fillRect(b.tx * ts + off - grow * 0.4, b.ty * ts + off - grow * 0.4,
+        b.tw * ts + grow * 0.8, b.th * ts + grow * 0.8);
     }
   }
   for (const b of world.buildings) {
@@ -212,10 +213,17 @@ function addSign(scene: Phaser.Scene, b: BuildingLot, rw: number, rh: number, ts
   const plateW = Math.min(rw - 8, txt.width * txt.scaleX + 36);
   const py = sy + S / 2 + 8;
   txt.setY(py + 6);
-  const plate = scene.add.graphics().setDepth(DEPTH.sign + 0.2);
-  plate.fillStyle(0x000000, 0.25).fillRoundedRect(cx - plateW / 2 + 3, py + 4, plateW, plateH, 14);
-  plate.fillStyle(0xfff4c2, 1).fillRoundedRect(cx - plateW / 2, py, plateW, plateH, 14);
-  plate.lineStyle(4, 0x1b2340, 1).strokeRoundedRect(cx - plateW / 2, py, plateW, plateH, 14);
+  // Baked once into a texture (rounded rects in a live Graphics are re-triangulated every frame).
+  const pw = Math.ceil(plateW), key = `sign_plate_${pw}x${plateH}`;
+  if (!scene.textures.exists(key)) {
+    const g = scene.make.graphics({}, false);
+    g.fillStyle(0x000000, 0.25).fillRoundedRect(5, 6, pw, plateH, 14);
+    g.fillStyle(0xfff4c2, 1).fillRoundedRect(2, 2, pw, plateH, 14);
+    g.lineStyle(4, 0x1b2340, 1).strokeRoundedRect(2, 2, pw, plateH, 14);
+    g.generateTexture(key, pw + 8, plateH + 10);
+    g.destroy();
+  }
+  const plate = scene.add.image(cx - pw / 2 - 2, py - 2, key).setOrigin(0, 0).setDepth(DEPTH.sign + 0.2);
   objs.push(frame, pic, txt, plate);
 }
 
