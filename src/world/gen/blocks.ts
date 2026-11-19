@@ -1,0 +1,124 @@
+import type { Rng } from '../../core/rng';
+import { WORLD } from '../../config/gameConfig';
+import { Tile, type BuildingLot } from '../../core/types';
+import { biomeAt } from './biome';
+import { DIRS, isRoad, type Grid } from './grid';
+
+export type BlockKind = 'building' | 'park' | 'plaza';
+
+export interface Block {
+  id: number;
+  tiles: number[];          // all non-road land tile indices (sidewalk + interior)
+  interior: number[];       // tile indices that are not sidewalk
+  kind: BlockKind;
+}
+
+export interface BlockInfo {
+  blocks: Block[];
+  /** Block id per tile (-1 = none). */
+  blockOf: Int32Array;
+  lots: BuildingLot[];
+  /** Block id of every lot, indexed by lot id. */
+  lotBlock: number[];
+}
+
+const NB8: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+/** Pass 2: flood-fill land between roads into blocks, add sidewalks, parks, plazas and building lots. */
+export function generateBlocks(rng: Rng, g: Grid, seed: number): BlockInfo {
+  const lo = WORLD.waterBorderTiles + 1;
+  const blockOf = new Int32Array(g.w * g.h).fill(-1);
+  const blocks: Block[] = [];
+
+  // Flood fill non-road tiles inside the ring road.
+  for (let y = lo + 1; y < g.h - lo - 1; y++) {
+    for (let x = lo + 1; x < g.w - lo - 1; x++) {
+      const i = y * g.w + x;
+      if (g.tiles[i] === Tile.Road || blockOf[i] >= 0) continue;
+      const id = blocks.length;
+      const tiles: number[] = [];
+      const stack = [i];
+      blockOf[i] = id;
+      while (stack.length) {
+        const t = stack.pop()!;
+        tiles.push(t);
+        const tx = t % g.w, ty = (t / g.w) | 0;
+        for (const d of DIRS) {
+          const ni = (ty + d.dy) * g.w + tx + d.dx;
+          if (g.tiles[ni] === Tile.Road || blockOf[ni] >= 0) continue;
+          blockOf[ni] = id;
+          stack.push(ni);
+        }
+      }
+      tiles.sort((a, b) => a - b);
+      blocks.push({ id, tiles, interior: [], kind: 'building' });
+    }
+  }
+
+  // Sidewalks: land tiles touching a road (incl. diagonally).
+  for (const b of blocks) {
+    for (const t of b.tiles) {
+      const tx = t % g.w, ty = (t / g.w) | 0;
+      const touches = NB8.some(([dx, dy]) => isRoad(g, tx + dx, ty + dy));
+      if (touches) g.tiles[t] = Tile.Sidewalk; else b.interior.push(t);
+    }
+  }
+
+  // Choose parks / plazas under a land budget so buildings stay dominant.
+  const totalInterior = blocks.reduce((s, b) => s + b.interior.length, 0);
+  let nonBuilding = 0;
+  for (const b of rng.shuffle(blocks.slice())) {
+    if (!isChunky(g, b) || biomeAt(b.tiles[0] % g.w, (b.tiles[0] / g.w) | 0, seed) !== 'city') continue;
+    if (nonBuilding + b.interior.length > (1 - WORLD.minBuildingFrac) * totalInterior) continue;
+    const r = rng.next();
+    if (r < WORLD.parkChance) b.kind = 'park';
+    else if (r < WORLD.parkChance + WORLD.plazaChance) b.kind = 'plaza';
+    else continue;
+    nonBuilding += b.interior.length;
+    const tile = b.kind === 'park' ? Tile.Park : Tile.Plaza;
+    for (const t of b.interior) g.tiles[t] = tile;
+    if (b.kind === 'park' && rng.chance(WORLD.pondChance)) makePond(rng, g, b);
+  }
+
+  // Pack building lots into the remaining interiors.
+  const lots: BuildingLot[] = [];
+  const lotBlock: number[] = [];
+  for (const b of blocks) {
+    if (b.kind !== 'building') continue;
+    for (const t of b.interior) {
+      if (g.tiles[t] === Tile.Building) continue;
+      const tx = t % g.w, ty = (t / g.w) | 0;
+      let w = Math.min(rng.weighted([1, 2, 3], [2, 4, 3]), WORLD.lotMaxSide);
+      let h = Math.min(rng.weighted([1, 2, 3], [2, 4, 3]), WORLD.lotMaxSide);
+      const free = (x: number, y: number) => {
+        const i = y * g.w + x;
+        return x < g.w && y < g.h && blockOf[i] === b.id && g.tiles[i] !== Tile.Building && g.tiles[i] !== Tile.Sidewalk;
+      };
+      const fits = () => {
+        for (let y = ty; y < ty + h; y++) for (let x = tx; x < tx + w; x++) if (!free(x, y)) return false;
+        return true;
+      };
+      while (!fits()) { if (w >= h && w > 1) w--; else h--; }
+      const lot: BuildingLot = { id: lots.length, tx, ty, tw: w, th: h, style: rng.int(0, 5) };
+      for (let y = ty; y < ty + h; y++) for (let x = tx; x < tx + w; x++) g.tiles[y * g.w + x] = Tile.Building;
+      lots.push(lot);
+      lotBlock.push(b.id);
+    }
+  }
+  return { blocks, blockOf, lots, lotBlock };
+}
+
+/** A single water tile in a park, only where all 8 neighbours are park (never touches roads). */
+function makePond(rng: Rng, g: Grid, b: Block): void {
+  const cands = b.interior.filter((t) => {
+    const tx = t % g.w, ty = (t / g.w) | 0;
+    return NB8.every(([dx, dy]) => g.tiles[(ty + dy) * g.w + tx + dx] === Tile.Park);
+  });
+  if (cands.length) g.tiles[rng.pick(cands)] = Tile.Water;
+}
+
+/** True if the block interior contains a 2x2 area (so a park/plaza reads as more than a strip). */
+function isChunky(g: Grid, b: Block): boolean {
+  const set = new Set(b.interior);
+  return b.interior.some((t) => set.has(t + 1) && set.has(t + g.w) && set.has(t + g.w + 1));
+}
