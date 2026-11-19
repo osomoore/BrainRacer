@@ -3,10 +3,11 @@ import { POLICE } from '../config/gameConfig';
 import { EventBus } from '../core/events';
 import type { INpcVehicle, RaceContext } from '../core/race';
 import { Rng } from '../core/rng';
+import { services } from '../core/services';
 import { Tile, type PlayerId } from '../core/types';
 import { PoliceCar } from '../entities/PoliceCar';
 import { newBrain } from '../entities/policeAI';
-import { PoliceSystem } from './PoliceSystem';
+import { isPoliceTexture, PoliceSystem } from './PoliceSystem';
 
 vi.mock('../entities/PoliceCar', () => ({
   PoliceCar: class {
@@ -89,5 +90,82 @@ describe('PoliceSystem pursuit slots', () => {
     expect(reserve.target).toBe(0);
     expect(chasers(1)).toHaveLength(2);
     police.destroy();
+  });
+});
+
+describe('isPoliceTexture', () => {
+  it('matches only the police light-bar chassis keys', () => {
+    expect(isPoliceTexture('police_0')).toBe(true);
+    expect(isPoliceTexture('police_1')).toBe(true);
+    expect(isPoliceTexture('traffic_0')).toBe(false);
+    expect(isPoliceTexture('')).toBe(false);
+    expect(isPoliceTexture(undefined)).toBe(false);
+  });
+});
+
+describe('PoliceSystem player siren', () => {
+  const setup = (texture: string) => {
+    vi.stubGlobal('location', { search: '' });
+    const bus = new EventBus();
+    const player = { player: 0, x: 0, y: 0, velocity: { x: 0, y: 0 }, chassis: { texture: { key: texture } } };
+    const ctx = {
+      bus, npcs: new Set<INpcVehicle>(), players: [player], rng: new Rng(3), elapsedSec: 1,
+      paused: false, questionBreak: false,
+      world: {
+        widthTiles: 1, heightTiles: 1, tileSize: 100, tiles: new Uint8Array([Tile.Road]),
+        laneGraph: { nodes: [] },
+      },
+      camera: { worldView: () => ({ x: 0, y: 0, w: 100, h: 100 }) },
+    } as unknown as RaceContext;
+    const stop = vi.fn();
+    const loop = vi.spyOn(services.audio, 'loop').mockReturnValue(stop);
+    const police = new PoliceSystem();
+    police.init(ctx);
+    return { ctx, bus, player, police, stop, loop };
+  };
+
+  it('loops louder while the player drives a cruiser, and stops when they leave it', () => {
+    const { player, police, stop, loop } = setup('police_0');
+    police.update(0.016);
+    expect(loop).toHaveBeenCalledWith('siren', { pan: 0, volume: POLICE.playerSirenVolume });
+    expect(POLICE.playerSirenVolume).toBeGreaterThan(POLICE.sirenVolume);
+    police.update(0.016);
+    expect(loop).toHaveBeenCalledTimes(1);
+
+    player.chassis.texture.key = 'traffic_0';
+    police.update(0.016);
+    expect(stop).toHaveBeenCalledTimes(1);
+    police.destroy();
+  });
+
+  it('is silenced by pause and question breaks, and resumes after them', () => {
+    const { ctx, bus, police, stop, loop } = setup('police_1');
+    police.update(0.016);
+    bus.emit('game:pause', { by: 0 });
+    expect(stop).toHaveBeenCalledTimes(1);
+
+    bus.emit('game:resume', {});
+    police.update(0.016);
+    expect(loop).toHaveBeenCalledTimes(2);
+
+    ctx.questionBreak = true;
+    bus.emit('challenge:shown', { challenge: {} as never });
+    expect(stop).toHaveBeenCalledTimes(2);
+    ctx.questionBreak = false;
+    police.update(0.016);
+    expect(loop).toHaveBeenCalledTimes(3);
+    police.destroy();
+  });
+
+  it('stops for good when the round ends and on destroy', () => {
+    const { bus, police, stop, loop } = setup('police_0');
+    police.update(0.016);
+    bus.emit('round:end', { results: {} as never });
+    expect(stop).toHaveBeenCalledTimes(1);
+    police.update(0.016);
+    expect(loop).toHaveBeenCalledTimes(1);
+    police.destroy();
+    expect(stop).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 });
