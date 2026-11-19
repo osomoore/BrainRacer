@@ -14,9 +14,9 @@ export function hoverSpot(car: Vec2, target: Vec2, hold: number, fallbackDir = 0
   return { x: car.x + dx * hold, y: car.y + dy * hold };
 }
 
-/** Goal mode with hysteresis: enter within nearGoal (or once arrived), leave beyond leaveGoal. */
+/** Goal mode with hysteresis: enter within nearGoal, leave beyond leaveGoal. Arriving keeps it on only while the car stays near (an arrived car may drive off while it waits for its teammate; the buddy must come with it). */
 export function nextGoalMode(inGoalMode: boolean, carToGoal: number, arrived: boolean, t: Pick<GuideTuning, 'nearGoal' | 'leaveGoal'>): boolean {
-  if (arrived) return true;
+  if (arrived) return carToGoal < t.leaveGoal;
   return carToGoal < (inGoalMode ? t.leaveGoal : t.nearGoal);
 }
 
