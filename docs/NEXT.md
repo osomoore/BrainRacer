@@ -45,13 +45,42 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Readability of question cards and destination cards from the back of the room.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
-- **New driving area (queued).** Wave 5 calls for Countryside and Industrial. The game currently generates a City map.
-  - **Countryside (recommended first).** Open fields, dirt lanes, tractors, and long straights for jumps. Use the barn, windmill, and lake as prominent destinations, with driveable field shortcuts between them.
-  - **Industrial.** Warehouses, factory loading yards, wide truck lanes, and a water tower. Use ramps and open yards for jumps.
-  - **Harbor (alternate).** Docks, a lighthouse, a broad waterfront road, and bridge crossings linking the driving loops.
-  - **First playtest.** Make the Countryside a separate map selectable before a race. Start with a seeded loop, a few recognizable destinations, and a mix of roads and field shortcuts. Playtest it with questions off in solo and split screen, checking that every goal is reachable and the animals are easy to follow without destination text. The choice between separate maps and connected biomes can follow that playtest.
+- **Industrial at Night is the next driving area.** See the kickoff plan below. Harbor is deferred until a layout can connect the docks without lots of dead ends.
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
 - Decide whether/when to merge `dev` → `main` and push to a remote.
+
+## Industrial at Night kickoff plan
+
+### First playable map
+
+- Select City or Industrial in Setup. Industrial is a separate seeded map with a freight-yard loop and a factory loop, joined by two lit bridges over a service canal. Main roads rejoin a loop and any short spur ends in a broad turnaround. Bridge decks use ordinary road tiles so traffic and jump landings work on them.
+- Drive through open factory bays with an entrance and exit, under gantry cranes, and along loading yards with truck traffic. Use a water tower and bridge approaches as landmarks. Give one yard a straight ramp approach and a clear landing.
+- Run a freight train on its own track. Add one clearly marked grade crossing with warning lights before the train arrives, plus a bridge route that stays open. Keep goal rings clear of the tracks and give drivers room to stop or turn around.
+- Keep every goal connected to the driving loops. Put goal rings at exits and open approaches where the buddy's direct bearing is easy to follow. Playtest both directions through factory bays and across the canal to catch goals that pull drivers toward walls or water.
+- Use deep-blue shadows, cool pavement, and warm factory and crossing lights. Both player cars have soft headlights that rotate with them in world space. Keep bridge rails, the train, guides, and goal rings readable outside the beams. Check both rotating split views with the HUD at full contrast.
+- Write an original looping industrial night-drive track with a steady bass line, a bright synth melody, and light metallic percussion. Leave room in the mix for the train warning and engine sounds. The track starts at GO, gives way to the dino cue, and resumes when the dino leaves or is defeated.
+
+### Work packets for kickoff
+
+The coordinator defines map selection, decoration placements, the rail route and crossing data, texture keys, and the music track ID before dispatch. Shared contracts, Setup and RaceScene wiring, and final integration stay with the coordinator. Lower-tier workers return their changed files, checks, and screenshots or audio notes.
+
+| Packet | Owns | Handoff |
+|---|---|---|
+| Map generation | Industrial generator and tests under `src/world/gen/` | Connected road loops, two bridges, through-bays, turnarounds, reachable goals, and the rail route. Check determinism across seeds and that the road network stays connected while the grade crossing is blocked. |
+| Industrial art | Industrial texture generators under `src/art/` | Factory bays, cranes, bridge rails, tracks, crossing lights, and a freight train. Provide a preview at driving zoom. |
+| Music | Industrial track JSON, audio registration, and validation under `src/audio/` | A validated loop using the existing volume controls, with a listening note on the loop seam and SFX balance. |
+| World rendering | Industrial decoration building under `src/world/` | Place industrial art and rail markings and keep bridge decks and factory bays passable. Clean up on race restart. |
+| Freight train | Train and crossing behavior in a dedicated system | Make the warning readable before the train arrives, keep the train on its rail route, and verify that a blocked crossing leaves the bridge route usable. |
+| Headlights and night look | Industrial-only lighting system and its beam assets | Use cached beam textures attached to car transforms. Verify the beams track turns and jumps in both camera views. |
+| Playtest coverage | Industrial browser scenarios under `tests/e2e/` | Exercise selection, seeded quick launch, factory pass-throughs, the crossing and bridge bypass, split-screen lighting, and restarting into City. Capture solo and split views. |
+
+Start map generation, art, and music in parallel after the contracts are set. Next dispatch world rendering, freight train, and headlights. Then have the coverage worker test the integrated map. The queued destination text, guide timing, and vehicle damage work can be scheduled independently.
+
+### Integration and playtest
+
+- Add a seeded quick launch such as `/?race=2&map=industrial&seed=3&questions=off`. Verify City is still the default for existing settings.
+- Run typecheck, unit tests, and the production Edge suite. Drive both bridge routes and factory bays in solo and split screen. Check that the train warning gives enough time to turn or stop, the bypass stays open, and the guide brings players to every type of goal.
+- Check nighttime contrast on a projector and listen through one complete music loop, a dino interruption, and the return to Industrial music.
 
 ## Small cleanups
 - Remove unused config keys `WORLD.bigAirSec`, `GOALS.arrowBandFrac`, `GOALS.arrowBandMaxH`; remove the HudTest "Nice jump!" popup.
