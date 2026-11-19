@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { generateTextures } from '../art';
 import { services } from '../core/services';
 import { createInput } from '../input';
+import { createAudio } from '../audio';
 import { loadSettings } from '../core/settings';
 import { SCENES } from '../data/scenes';
 import { REG, SCENE } from './keys';
@@ -19,6 +20,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     services.input = createInput();
+    services.audio = createAudio();
     generateTextures(this);
     this.registry.set(REG.settings, loadSettings());
     const dev = new URLSearchParams(location.search).get('dev');

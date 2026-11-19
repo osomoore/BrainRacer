@@ -11,6 +11,12 @@ import race from './music/tracks/race.json';
 import dino from './music/tracks/dino.json';
 import results from './music/tracks/results.json';
 
+/** Optional MIDI overrides: drop <track>.mid files into src/audio/music/midi/ (resolved at build time). */
+const MIDI_URLS: Record<string, string> = Object.fromEntries(
+  Object.entries(import.meta.glob<string>('./music/midi/*.mid', { query: '?url', import: 'default', eager: true }))
+    .map(([f, url]) => [f.replace(/^.*\/(.+)\.mid$/, '$1'), url]),
+);
+
 const BUILTIN: Record<MusicTrack, TrackData> = {
   title: title as TrackData,
   race: race as TrackData,
@@ -203,7 +209,7 @@ export class MusicPlayer {
     this.current = null;
   }
 
-  /** Optional `public/music/<track>.mid` override (fetched once; 404 / non-MIDI tolerated). */
+  /** Optional `src/audio/music/midi/<track>.mid` override (fetched once; 404 / non-MIDI tolerated). */
   private resolve(name: MusicTrack): Promise<TrackData> {
     let p = this.overrides.get(name);
     if (!p) {
@@ -214,8 +220,11 @@ export class MusicPlayer {
   }
 
   private async fetchMidi(name: MusicTrack): Promise<TrackData | null> {
+    // Only fetch files that existed at build time (avoids a console 404 per track).
+    const url = MIDI_URLS[name];
+    if (!url) return null;
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}music/${name}.mid`);
+      const res = await fetch(url);
       if (!res.ok) return null;
       const buf = await res.arrayBuffer();
       if (!looksLikeMidi(new Uint8Array(buf))) return null;
