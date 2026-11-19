@@ -121,6 +121,20 @@ export const WORLD = {
   rampCount: 10,
   rampMinSpeedFrac: 0.4,
   airSecPerSpeed: 1.1 / 620, // airtime = speed * this (≈1.1 s at dino top speed)
+  // --- package C (generator) ---
+  parkChance: 0.15,
+  plazaChance: 0.08,
+  /** Parks/plazas may never take more than (1 - this) of block interior land. */
+  minBuildingFrac: 0.6,
+  pondChance: 0.3,
+  lotMaxSide: 3,
+  rampSpacingTiles: 6,
+  rampW: 128,
+  rampH: 96,
+  lampEveryTiles: 3,
+  hydrantChance: 0.02,
+  parkedCarChance: 0.05,
+  coneClusters: 6,
 };
 
 // ───────────────────────── traffic & police (packages J/K) ─────────────────────────
