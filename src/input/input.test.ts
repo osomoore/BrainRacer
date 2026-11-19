@@ -61,6 +61,12 @@ describe('edges', () => {
     expect(run(pad({ down: [3] }), pad()).answer).toBe(1);
     expect(run(pad({ down: [1] }), pad()).answer).toBe(2);
   });
+  it('gamepad A answers slot 3 and still confirms', () => {
+    const i = run(pad({ down: [0] }), pad());
+    expect(i.answer).toBe(3);
+    expect(i.confirm).toBe(true);
+    expect(i.throttle).toBe(1);
+  });
   it('leftmost wins when several pressed', () => {
     expect(run(pad({ down: [3, 1] }), pad()).answer).toBe(1);
     expect(run(pad({ down: [2, 3, 1] }), pad()).answer).toBe(0);
@@ -141,6 +147,8 @@ describe('keyboard', () => {
     expect(kb('right', ['Slash']).answer).toBe(2);
     expect(kb('right', ['Slash'], ['Slash']).answer).toBeNull();
     expect(kb('left', ['Digit2', 'Digit1']).answer).toBe(0);
+    expect(kb('left', ['Digit4']).answer).toBe(3);
+    expect(kb('right', ['KeyM']).answer).toBe(3);
   });
   it('confirm keys are per layout; back/pause shared', () => {
     expect(kb('left', ['Space']).confirm).toBe(true);

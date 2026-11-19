@@ -6,18 +6,18 @@ export type KeyLayout = 'left' | 'right';
 
 export interface KeyTable {
   up: string; down: string; left: string; right: string;
-  answers: [string, string, string];
+  answers: [string, string, string, string];
   confirm: string; back: string; pause: string;
 }
 
 export const KEY_TABLES: Record<KeyLayout, KeyTable> = {
   left: {
     up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
-    answers: ['Digit1', 'Digit2', 'Digit3'], confirm: 'Space', back: 'Backspace', pause: 'Escape',
+    answers: ['Digit1', 'Digit2', 'Digit3', 'Digit4'], confirm: 'Space', back: 'Backspace', pause: 'Escape',
   },
   right: {
     up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
-    answers: ['Comma', 'Period', 'Slash'], confirm: 'Enter', back: 'Backspace', pause: 'Escape',
+    answers: ['Comma', 'Period', 'Slash', 'KeyM'], confirm: 'Enter', back: 'Backspace', pause: 'Escape',
   },
 };
 
@@ -41,7 +41,7 @@ export function mapKeyboard(
     steer: x,
     throttle: d(t.up) ? 1 : 0,
     brake: d(t.down) ? 1 : 0,
-    answer: pickAnswer([edge(t.answers[0]), edge(t.answers[1]), edge(t.answers[2])]),
+    answer: pickAnswer([edge(t.answers[0]), edge(t.answers[1]), edge(t.answers[2]), edge(t.answers[3])]),
     confirm: edge(t.confirm),
     back: edge(t.back),
     pause: edge(t.pause),

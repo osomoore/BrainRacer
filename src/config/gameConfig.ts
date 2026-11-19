@@ -89,7 +89,15 @@ export const CHALLENGE = {
   resultHoldSec: 0.7,          // show correct/wrong state before fading
   popInSec: 0.35,
   slideUpSec: 0.35,
-  firstChallengeDelaySec: 3,   // after GO
+  firstChallengeDelaySec: 3,   // after GO (drive style)
+  // pause style (question breaks)
+  firstBreakSec: 5,            // driving seconds after GO until the first break
+  breakGoSec: 0.6,             // GO beat after everyone answered correctly
+  wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
+  breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
+  breakMaxScale: 2.0,          // cap on the centered question panel scale
+  answerGuardSec: 0.25,        // ignore answers this long after a break question appears
+  pauseOptions: 4,             // answers per question in pause style (drive = 3)
   // package B additions
   placeWordToPicChance: 0.5,       // place challenge: word->pictures (else picture->words)
   hardForgotCarryChance: 0.7,      // hard math: chance the "forgot to carry" distractor is included

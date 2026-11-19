@@ -8,7 +8,6 @@ import type { PlayerId } from '../core/types';
 import { ParticlePool } from '../fx/ParticlePool';
 import { extendTurbo, pickFlavor, type Flavor } from './rewardPick';
 
-const POPUP: Record<Flavor, string> = { rainbow: '🌈', shockwave: '💥', ghost: '👻', magnet: '🧲' };
 const RAINBOW = [0xff3b30, 0xff9500, 0xffd60a, 0x34c759, 0x1e6fff, 0xa855f7];
 const STEP_HZ = 60;
 
@@ -37,6 +36,8 @@ export class RewardSystem implements GameSystem {
   private offs: (() => void)[] = [];
   private keyHandler?: (e: KeyboardEvent) => void;
   private clock = 0;
+  /** Correct answers made during a question break; rewarded on the first frame after the world resumes. */
+  private pendingGrants: PlayerId[] = [];
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
@@ -49,8 +50,10 @@ export class RewardSystem implements GameSystem {
       missLeft: 0, punchT: 0, restore: null, flameAcc: 0, lineAcc: 0, trailAcc: 0, ghostAcc: 0, swirlAcc: 0, swirl: 0,
     }));
     this.offs.push(ctx.bus.on('challenge:resolved', (e) => {
-      if (e.result === 'correct') this.grant(e.challenge.player);
-      else this.miss(e.challenge.player, e.result === 'timeout');
+      if (e.result === 'correct') {
+        if (this.ctx.questionBreak) this.pendingGrants.push(e.challenge.player);
+        else this.grant(e.challenge.player);
+      } else if (this.ctx.settings.questionStyle === 'drive') this.miss(e.challenge.player, e.result === 'timeout');
     }));
     this.offs.push(ctx.bus.on('vehicle:crash', (e) => { this.crashFx(e.x, e.y, e.impact); this.punch(e); }));
     this.offs.push(ctx.bus.on('jump:land', (e) => this.dustRing(e.x, e.y)));
@@ -81,7 +84,6 @@ export class RewardSystem implements GameSystem {
     services.audio.sfx('turbo');
     services.input.rumble(p, 0.9, 350);
     this.ctx.camera.shake(p, 0.008, 120);
-    bus.emit('ui:popup', { player: p, text: 'TURBO!', color: '#ffd60a' });
     bus.emit('reward:granted', { player: p, reward: 'turbo', durationSec: st.turboLeft });
     this.turboBurst(car, p);
     // boost jump: launch over whatever is ahead (ignored if already airborne)
@@ -94,7 +96,6 @@ export class RewardSystem implements GameSystem {
     const dur = flavor === 'magnet' ? REWARDS.magnetSec : REWARDS.flavorSec;
     st.flavor = flavor;
     st.flavorLeft = dur;
-    bus.emit('ui:popup', { player: p, text: POPUP[flavor] });
     bus.emit('reward:granted', { player: p, reward: flavor, durationSec: dur });
     switch (flavor) {
       case 'rainbow': this.starBurst(car.x, car.y, 28); break;
@@ -142,7 +143,6 @@ export class RewardSystem implements GameSystem {
     if (!hit) return;
     this.starBurst(e.x, e.y, 10, 0xffd60a);
     this.ring(e.x, e.y, 120, 0.25, 0xffffff);
-    this.ctx.bus.emit('ui:popup', { player: e.player, text: 'POW!', world: { x: e.x, y: e.y }, color: '#ffd60a' });
   }
 
   /** Wrong / timed-out answer: a gentle, short slowdown plus a grey sputter puff. One penalty at a time. */
@@ -174,6 +174,11 @@ export class RewardSystem implements GameSystem {
 
   update(dt: number, ctx: RaceContext): void {
     this.clock += dt;
+    if (this.pendingGrants.length > 0 && !ctx.questionBreak) {
+      const list = this.pendingGrants;
+      this.pendingGrants = [];
+      for (const p of list) this.grant(p);
+    }
     for (let i = 0; i < this.states.length; i++) {
       const p = i as PlayerId;
       const car = ctx.players[p];

@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
-import { ANSWER_COLORS } from '../../config/gameConfig';
+import { ANSWER_COLORS, CHALLENGE } from '../../config/gameConfig';
 import { sceneTex, TEX } from '../../core/assetKeys';
 import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
 } from '../../core/types';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
 import { challengeRegion, HUD } from './hudConfig';
-import { easeInOut, lerp } from './hudMath';
+import { easeInOut, easeOutBack, lerp } from './hudMath';
 
 const CARD_W = 270, CARD_H = 160;
+const D_CARD_W = 330, D_CARD_H = 150, D_GAP = 10;   // diamond (pause style) cards
 const PROMPT_H = 190;
 const QUESTION_FILL = 0xfff1b8;
 const BADGE_DY = CARD_H / 2 + 22;
@@ -31,6 +32,8 @@ export interface PanelHooks {
   /** Called with screen coords when a correct answer's "+1" should fly to the score. */
   onCorrect(x: number, y: number): void;
   depth: number;
+  /** Pause-style break: big, centered in the view, no timer; 4 options are laid out as a diamond. */
+  centered?: boolean;
 }
 
 function fitImage(img: Phaser.GameObjects.Image, size: number) {
@@ -51,6 +54,10 @@ export class ChallengePanel {
   private glow: Phaser.GameObjects.Graphics;
   private dockW = 0;
   private dockH = 0;
+  private readonly diamond: boolean;
+  private readonly centered: boolean;
+  private readonly cardW: number;
+  private readonly cardH: number;
 
   private phase: Phase = 'show';
   private age = 0;
@@ -69,6 +76,11 @@ export class ChallengePanel {
     view: Rect, private hooks: PanelHooks,
   ) {
     this.view = { ...view };
+    this.diamond = challenge.options.length >= 4;
+    this.centered = !!hooks.centered;
+    this.cardW = this.diamond ? D_CARD_W : CARD_W;
+    this.cardH = this.diamond ? D_CARD_H : CARD_H;
+    if (this.centered) this.phase = 'docked';
     this.root = scene.add.container(0, 0).setDepth(hooks.depth);
     this.glow = scene.add.graphics();
     this.bg = scene.add.graphics();
@@ -77,6 +89,7 @@ export class ChallengePanel {
     this.promptRoot = this.buildPrompt(challenge.prompt);
     this.root.add(this.promptRoot);
     challenge.options.forEach((o, i) => this.cells.push(this.buildCell(o, i)));
+    if (this.centered) this.slideT = 0;
     if (challenge.source === 'place') {
       this.header = bigText(scene, 0, 0, '\u{1F4CD} Look!', 56, '#ffd43b', { font: FONT_BODY, stroke: 9 });
       this.root.add(this.header);
@@ -140,25 +153,29 @@ export class ChallengePanel {
     const card = this.scene.add.graphics();
     const content = this.scene.add.container(0, 0);
     const hint = this.scene.add.graphics();
-    this.drawCard(card, CARD_W, CARD_H, HUD.colors.card, 0x9fb0d0, 5);
+    const cw = this.cardW, ch = this.cardH, dia = this.diamond;
+    this.drawCard(card, cw, ch, HUD.colors.card, 0x9fb0d0, 5);
+    const cx = dia ? 36 : 0;
+    content.setX(cx);
     inner.add([card, content]);
     if (o.kind === 'image') {
       if (this.scene.textures.exists(sceneTex(o.sceneId))) {
         const img = this.scene.add.image(0, 0, sceneTex(o.sceneId));
-        fitImage(img, 135);
+        fitImage(img, dia ? 124 : 135);
         content.add(img);
       }
     } else {
-      content.add(this.textFit(o.text, 56, CARD_W - 24, CARD_H - 20, 36));
+      content.add(this.textFit(o.text, 56, cw - 24 - (dia ? 84 : 0), ch - 20, 36));
     }
     inner.add(hint);
-    const badge = this.scene.add.image(0, BADGE_DY, TEX.buttonBadge[i]).setScale(0.9);
+    const bx = dia ? -cw / 2 + 52 : 0, by = dia ? 0 : BADGE_DY;
+    const badge = this.scene.add.image(bx, by, TEX.buttonBadge[i]).setScale(0.9);
     // Fallback when art is missing: colored dot.
     if (!this.scene.textures.exists(TEX.buttonBadge[i])) badge.setVisible(false);
     inner.add(badge);
     if (!badge.visible) {
       const g = this.scene.add.graphics();
-      g.fillStyle(hexNum(ANSWER_COLORS[i]), 1).fillCircle(0, BADGE_DY, 32);
+      g.fillStyle(hexNum(ANSWER_COLORS[i]), 1).fillCircle(bx, by, 32);
       inner.add(g);
     }
     this.root.add(root);
@@ -168,6 +185,20 @@ export class ChallengePanel {
   /** Stacked layout (local coords, panel center = 0,0): question on top, three answers below. */
   private layoutPoses() {
     const pad = 14, gap = 10, cg = 14;
+    if (this.diamond) {
+      const off = D_CARD_W / 2 + D_GAP / 2;
+      const rows = 3 * D_CARD_H + 2 * D_GAP;
+      this.dockW = Math.max(2 * D_CARD_W + D_GAP, this.promptW) + pad * 2;
+      this.dockH = pad + PROMPT_H + gap + rows + pad;
+      const top = -this.dockH / 2 + pad;
+      this.promptDock = { x: 0, y: top + PROMPT_H / 2, s: 1 };
+      const y0 = top + PROMPT_H + gap + D_CARD_H / 2;
+      const step = D_CARD_H + D_GAP;
+      // slots: 0 X left, 1 Y top, 2 B right, 3 A bottom
+      const pos = [{ x: -off, y: y0 + step }, { x: 0, y: y0 }, { x: off, y: y0 + step }, { x: 0, y: y0 + 2 * step }];
+      this.cells.forEach((c, k) => { c.dock = { ...pos[k], s: 1 }; });
+      return;
+    }
     const cellsW = 3 * CARD_W + 2 * cg;
     this.dockW = Math.max(cellsW, this.promptW) + pad * 2;
     this.dockH = pad + PROMPT_H + gap + CARD_H + 52 + 6;
@@ -191,6 +222,11 @@ export class ChallengePanel {
 
   /** Big fills the region (width- or height-limited); docked is slightly smaller, same top-center anchor. */
   private scales(): { big: number; dock: number } {
+    if (this.centered) {
+      const v = this.view;
+      const big = Math.max(0.3, Math.min(CHALLENGE.breakMaxScale, (v.w - 40) / this.dockW, (v.h - 270) / this.dockH));
+      return { big, dock: big };
+    }
     const z = this.zone();
     const big = Math.max(0.3, Math.min(HUD.panel.maxBigScale, (z.w - 2 * HUD.panel.shakePx) / this.dockW, z.h / this.dockH));
     const dock = Math.min(1, big * HUD.panel.dockFrac);
@@ -199,8 +235,12 @@ export class ChallengePanel {
 
   /** Root pose for slide progress t (0 big, 1 docked): top edge pinned below the car, centered on it. */
   private rootPose(t: number): { x: number; y: number; s: number } {
-    const z = this.zone();
     const sc = this.scales();
+    if (this.centered) {
+      const v = this.view;
+      return { x: v.x + v.w / 2, y: v.y + v.h / 2 + 60, s: sc.big };
+    }
+    const z = this.zone();
     const s = lerp(sc.big, sc.dock, easeInOut(t));
     return { x: z.x + z.w / 2, y: z.y + (this.dockH * s) / 2, s };
   }
@@ -217,7 +257,9 @@ export class ChallengePanel {
       rot = Math.sin(this.age * 41 + 1) * 0.025 * decay;
       alpha = Math.min(1, this.age * 12);
     }
-    this.root.setPosition(rp.x + offX, rp.y).setScale(rp.s).setRotation(rot);
+    const pop = this.centered ? 0.8 + 0.2 * easeOutBack(Math.min(1, this.age / 0.2)) : 1;
+    if (this.centered) alpha = Math.min(1, this.age * 10);
+    this.root.setPosition(rp.x + offX, rp.y).setScale(rp.s * pop).setRotation(rot);
     this.root.setAlpha(alpha * this.fadeAlpha);
 
     // attention glow: pulsing gold halo while shown, fading out as it shrinks
@@ -281,7 +323,7 @@ export class ChallengePanel {
   }
 
   private celebrate(cell: Cell) {
-    this.drawCard(cell.card, CARD_W, CARD_H, HUD.colors.green, 0xffffff, 10);
+    this.drawCard(cell.card, this.cardW, this.cardH, HUD.colors.green, 0xffffff, 10);
     const { x, y } = this.cellWorld(cell);
     const sc = this.scene;
     sc.tweens.add({ targets: cell.inner, scale: { from: 1, to: 1.22 }, duration: 160, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
@@ -309,7 +351,7 @@ export class ChallengePanel {
   }
 
   private markWrong(cell: Cell) {
-    this.drawCard(cell.card, CARD_W, CARD_H, HUD.colors.gray, 0x7b8494, 5);
+    this.drawCard(cell.card, this.cardW, this.cardH, HUD.colors.gray, 0x7b8494, 5);
     cell.content.setAlpha(0.45);
     const x = this.scene.add.graphics();
     x.lineStyle(18, 0xffffff, 1).beginPath().moveTo(-46, -46).lineTo(46, 46).moveTo(46, -46).lineTo(-46, 46).strokePath();
@@ -323,8 +365,8 @@ export class ChallengePanel {
   private showHint() {
     this.hintShown = true;
     const cell = this.cells[this.challenge.correct];
-    cell.hint.lineStyle(12, HUD.colors.green, 1).strokeRoundedRect(-CARD_W / 2 - 6, -CARD_H / 2 - 6, CARD_W + 12, CARD_H + 12, 30);
-    cell.hint.lineStyle(4, 0xffffff, 0.9).strokeRoundedRect(-CARD_W / 2 - 14, -CARD_H / 2 - 14, CARD_W + 28, CARD_H + 28, 36);
+    cell.hint.lineStyle(12, HUD.colors.green, 1).strokeRoundedRect(-this.cardW / 2 - 6, -this.cardH / 2 - 6, this.cardW + 12, this.cardH + 12, 30);
+    cell.hint.lineStyle(4, 0xffffff, 0.9).strokeRoundedRect(-this.cardW / 2 - 14, -this.cardH / 2 - 14, this.cardW + 28, this.cardH + 28, 36);
     this.scene.tweens.add({ targets: cell.hint, alpha: { from: 0, to: 1 }, duration: 250 });
   }
 

@@ -37,8 +37,8 @@ export function navEdge(dir: number, st: NavRepeat, now: number): -1 | 0 | 1 {
 }
 
 /** First pressed slot wins (X=0 leftmost, then Y=1, then B=2). */
-export function pickAnswer(pressed: readonly [boolean, boolean, boolean]): AnswerSlot | null {
-  for (let i = 0; i < 3; i++) if (pressed[i]) return i as AnswerSlot;
+export function pickAnswer(pressed: readonly boolean[]): AnswerSlot | null {
+  for (let i = 0; i < 4; i++) if (pressed[i]) return i as AnswerSlot;
   return null;
 }
 
@@ -68,7 +68,7 @@ export function mapGamepad(
     steer: dpadX !== 0 ? dpadX : sx,
     throttle: Math.max(analog(snap, m.rt), down(snap, m.a) ? 1 : 0),
     brake: analog(snap, m.lt),
-    answer: pickAnswer([edge(m.x), edge(m.y), edge(m.b)]),
+    answer: pickAnswer([edge(m.x), edge(m.y), edge(m.b), edge(m.a)]),
     confirm: edge(m.a),
     back: edge(m.b),
     pause: edge(m.start),
