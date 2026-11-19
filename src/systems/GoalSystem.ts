@@ -11,13 +11,11 @@ import { pickGoal } from './goalPick';
 
 const SPARKLES = 8;
 const CONFETTI_TINTS = [0xff4d4d, 0xffd43b, 0x4dabf7, 0x69db7c, 0xff922b, 0xe599f7];
-const FONT = 'Arial Black, Arial, sans-serif';
 
 interface Visuals {
   ring: Phaser.GameObjects.Image;
   beacon: Phaser.GameObjects.Image;
   sparkles: Phaser.GameObjects.Image[];
-  label: Phaser.GameObjects.Text;
 }
 
 export class GoalSystem implements GameSystem {
@@ -36,6 +34,8 @@ export class GoalSystem implements GameSystem {
   private t = 0;
   private flareUntil = -1;
   private flare = 0;
+  /** Time the goal was first on any player's screen (-1 = not yet): drives the big-to-normal shrink-in. */
+  private seenAt = -1;
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
@@ -142,10 +142,8 @@ export class GoalSystem implements GameSystem {
       .setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.worldUi).setTint(0xfff1a8);
     const sparkles = Array.from({ length: SPARKLES }, () =>
       s.add.image(goal.x, goal.y, TEX.fxSpark).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.fx).setTint(0xfff3b0));
-    const label = s.add.text(goal.x, goal.y - goal.radius - 90, (goal.placeWord ?? '').toUpperCase(), {
-      fontFamily: FONT, fontSize: '120px', color: '#ffffff', stroke: '#14213d', strokeThickness: 18, align: 'center',
-    }).setOrigin(0.5).setDepth(DEPTH.worldUi + 1).setShadow(0, 8, '#000000', 6, true, true);
-    this.vis = { ring, beacon, sparkles, label };
+    this.vis = { ring, beacon, sparkles };
+    this.seenAt = -1;
     this.animate(0);
   }
 
@@ -153,7 +151,7 @@ export class GoalSystem implements GameSystem {
     if (!this.vis) return;
     const v = this.vis;
     this.vis = null;
-    const fade = [v.ring, v.beacon, v.label, ...v.sparkles];
+    const fade = [v.ring, v.beacon, ...v.sparkles];
     this.ctx.scene.tweens.add({
       targets: fade, alpha: 0, duration: 350,
       onComplete: () => fade.forEach((o) => o.destroy()),
@@ -164,20 +162,33 @@ export class GoalSystem implements GameSystem {
     const v = this.vis, goal = this.ctx.goal;
     if (!v || !goal) return;
     const t = this.t;
+    if (this.seenAt < 0 && this.onAnyScreen(goal)) this.seenAt = t;
+    const u = this.seenAt < 0 ? 0 : Math.min(1, (t - this.seenAt) / GOALS.introSec);
+    const intro = 1 + (GOALS.introScale - 1) * (1 - easeOutBack(u));   // 2.5x -> 1 (slight undershoot)
+    const bright = this.seenAt < 0 ? 1 : 1 - u;
     const target = t < this.flareUntil ? 1 : 0;
     this.flare += (target - this.flare) * Math.min(1, dt * 6);
     const pulse = 1 + Math.sin(t * 3) * 0.06;
     const base = (goal.radius * 2) / 360;
-    v.ring.setScale(base * pulse * (1 + this.flare * 0.15)).setRotation(t * 0.5);
+    v.ring.setScale(base * intro * pulse * (1 + this.flare * 0.15)).setRotation(t * 0.5);
     const k = (GOALS.magnetFlareScale - 1) * this.flare;
-    v.beacon.setScale((4 + 4 * k) * (1 + Math.sin(t * 4) * 0.08), 16 + 16 * k)
-      .setAlpha(Math.min(1, 0.55 + Math.sin(t * 2.5) * 0.12 + this.flare * 0.35));
+    v.beacon.setScale((4 + 4 * k) * intro * (1 + Math.sin(t * 4) * 0.08), (16 + 16 * k) * intro)
+      .setAlpha(Math.min(1, 0.55 + Math.sin(t * 2.5) * 0.12 + this.flare * 0.35 + bright * 0.45));
     v.sparkles.forEach((sp, i) => {
       const a = t * 1.3 + (i / SPARKLES) * Math.PI * 2;
-      const r = goal.radius * (0.85 + 0.12 * Math.sin(t * 2 + i));
-      sp.setPosition(goal.x + Math.cos(a) * r, goal.y + Math.sin(a) * r).setScale(0.8 + 0.5 * Math.sin(t * 5 + i * 2) ** 2);
+      const r = goal.radius * intro * (0.85 + 0.12 * Math.sin(t * 2 + i));
+      sp.setPosition(goal.x + Math.cos(a) * r, goal.y + Math.sin(a) * r).setScale((0.8 + 0.5 * Math.sin(t * 5 + i * 2) ** 2) * (1 + bright * 0.6));
     });
-    v.label.y = goal.y - goal.radius - 90 + Math.sin(t * 2.2) * 10;
+  }
+
+  private onAnyScreen(goal: GoalState): boolean {
+    const cam = this.ctx.camera, views = cam.layout().playerViews;
+    return this.ctx.players.some((p) => {
+      const v = views[p.player] ?? views[0];
+      if (!v) return false;
+      const s = cam.worldToScreen(p.player, goal.x, goal.y);
+      return s.x >= v.x && s.x <= v.x + v.w && s.y >= v.y && s.y <= v.y + v.h;
+    });
   }
 
   private ringBurst(x: number, y: number, strength: number) {
@@ -196,4 +207,10 @@ export class GoalSystem implements GameSystem {
     em.explode(70);
     s.time.delayedCall(2000, () => em.destroy());
   }
+}
+
+/** Ease-out-back: 0 -> 1 with a small overshoot. */
+function easeOutBack(u: number): number {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
 }

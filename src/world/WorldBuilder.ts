@@ -1,14 +1,15 @@
 /**
  * Package G: turns WorldData into Phaser render objects + Matter bodies.
- * Ground = one Tilemap layer over a canvas tileset atlas; buildings = roofs with fake height;
+ * Ground = one Tilemap layer over a canvas tileset atlas; buildings = baked beveled blocks;
  * water/boundary/building/tree bodies are static; small props and parked cars are dynamic.
  */
 import Phaser from 'phaser';
 import { CAMERA, CAT, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { roadTex, sceneTex, TEX } from '../core/assetKeys';
 import type { BodyOwner } from '../core/race';
-import { Tile, type BuildingLot, type Prop, type Rect, type WorldData } from '../core/types';
+import { Tile, type Prop, type Rect, type WorldData } from '../core/types';
 import { signSceneFor } from '../data/places';
+import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
 
 export interface BuiltWorld {
@@ -23,14 +24,6 @@ export interface BuiltWorld {
 
 /** Tuning for the fake-3D building look and body setup (pixels). */
 export const BUILDING_LOOK = {
-  wallSouth: 24,        // visible south wall band height
-  wallEast: 10,         // visible east wall band width
-  shadowOffset: 22,
-  shadowAlpha: 0.1,
-  shadowLayers: 5,
-  outline: 0x1d2236,
-  wallSouthColor: 0x2c3148,
-  wallEastColor: 0x3f4562,
   treeRadius: 26,
   boundaryThickness: 600,
   bodyFriction: 0.02,   // low so cars slide along walls (frictionStatic is 0)
@@ -40,7 +33,6 @@ export const BUILDING_LOOK = {
   parkedFrictionAir: 0.15,
   signMax: 150,
   signMin: 90,
-  labelFont: 40,
 };
 
 const TILESET_KEY = 'world_tileset';
@@ -132,36 +124,19 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
     layer.setCullPadding(Math.ceil((r - hw) / ts) + 1, Math.ceil((r - hh) / ts) + 1);
   }
 
-  // ── building shadows, walls (graphics) and roofs
-  const shadowG = scene.add.graphics().setDepth(DEPTH.decal - 1);
-  const wallG = scene.add.graphics().setDepth(DEPTH.building - 1);
-  const trimG = scene.add.graphics().setDepth(DEPTH.building + 0.1);
-  objs.push(shadowG, wallG, trimG);
-  for (let k = L.shadowLayers; k >= 1; k--) {
-    const grow = (k / L.shadowLayers) * 14, off = L.shadowOffset * (0.5 + 0.5 * (k / L.shadowLayers));
-    shadowG.fillStyle(0x000000, L.shadowAlpha);
-    for (const b of world.buildings) {
-      // Plain rects on purpose: rounded rects are re-triangulated (earcut) every frame per camera.
-      shadowG.fillRect(b.tx * ts + off - grow * 0.4, b.ty * ts + off - grow * 0.4,
-        b.tw * ts + grow * 0.8, b.th * ts + grow * 0.8);
-    }
-  }
+  // ── buildings: baked beveled-block body + baked soft shadow (one image each, no live Graphics)
   for (const b of world.buildings) {
     const fx = b.tx * ts, fy = b.ty * ts, fw = b.tw * ts, fh = b.th * ts;
-    const rw = fw - L.wallEast, rh = fh - L.wallSouth;
-    wallG.fillStyle(L.wallSouthColor, 1).fillRect(fx, fy + rh, fw, L.wallSouth);
-    wallG.fillStyle(L.wallEastColor, 1).fillRect(fx + rw, fy, L.wallEast, rh);
-    wallG.fillStyle(0x000000, 0.25).fillRect(fx, fy + rh + L.wallSouth * 0.55, fw, L.wallSouth * 0.45);
-    // window dots on the south wall
-    wallG.fillStyle(0xbfd8ff, 0.55);
-    for (let wx = fx + 28; wx < fx + fw - 28; wx += 44) wallG.fillRect(wx, fy + rh + 8, 18, 8);
-    const roof = scene.add.tileSprite(fx + rw / 2, fy + rh / 2, rw, rh, TEX.roof[b.style % TEX.roof.length]).setDepth(DEPTH.building);
-    objs.push(roof);
-    trimG.lineStyle(5, L.outline, 1).strokeRect(fx + 2.5, fy + 2.5, rw - 5, rh - 5);
-    trimG.lineStyle(2, 0xffffff, 0.28).strokeRect(fx + 8, fy + 8, rw - 16, rh - 16);
-    trimG.lineStyle(4, L.outline, 1).strokeRect(fx, fy, fw, fh);
+    const sk = ensureShadowTexture(scene, fw, fh);
+    const m = BUILDING_3D.shadowMargin;
+    objs.push(scene.add.image(fx - m, fy - m, sk).setOrigin(0, 0).setDepth(DEPTH.decal - 1));
+    const bk = ensureBodyTexture(scene, fw, fh, b.style);
+    objs.push(scene.add.image(fx, fy, bk).setOrigin(0, 0).setDepth(DEPTH.building));
     addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
-    if (b.placeWord) addSign(scene, b, rw, rh, ts, objs);
+    if (b.placeWord) {
+      const bv = Math.min(bevelFor(b.style), Math.floor(Math.min(fw, fh) / 4));
+      addSign(scene, fx + fw / 2, fy + fh / 2, fw - bv * 2, fh - bv * 2, b.placeWord, objs);
+    }
   }
 
   // ── water + boundary bodies
@@ -198,39 +173,13 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData): BuiltWorld {
   };
 }
 
-function addSign(scene: Phaser.Scene, b: BuildingLot, rw: number, rh: number, ts: number, objs: Phaser.GameObjects.GameObject[]): void {
+function addSign(scene: Phaser.Scene, cx: number, cy: number, rw: number, rh: number, word: string, objs: Phaser.GameObjects.GameObject[]): void {
   const L = BUILDING_LOOK;
-  const word = b.placeWord!;
-  const label = word.toUpperCase().replace(' ', '\n');
-  const lines = label.split('\n').length;
-  const plateH = lines * (L.labelFont + 4) + 12;
-  const cx = b.tx * ts + rw / 2, top = b.ty * ts;
-  const S = Phaser.Math.Clamp(rh - plateH - 28, L.signMin, L.signMax);
-  const sy = top + 12 + S / 2;
-  const frame = scene.add.image(cx, sy, TEX.signFrame).setDisplaySize(S, S).setDepth(DEPTH.sign);
-  const pic = scene.add.image(cx, sy, sceneTex(signSceneFor(word)));
-  const fit = (S * 0.87) / Math.max(pic.width, pic.height);
-  pic.setScale(fit).setDepth(DEPTH.sign + 0.1);
-  const txt = scene.add.text(cx, 0, label, {
-    fontFamily: 'Arial Black, Arial, sans-serif', fontSize: `${L.labelFont}px`, fontStyle: 'bold',
-    color: '#1b2340', align: 'center',
-  }).setOrigin(0.5, 0).setDepth(DEPTH.sign + 0.3);
-  if (txt.width + 24 > rw - 8) txt.setScale((rw - 32) / txt.width);
-  const plateW = Math.min(rw - 8, txt.width * txt.scaleX + 36);
-  const py = sy + S / 2 + 8;
-  txt.setY(py + 6);
-  // Baked once into a texture (rounded rects in a live Graphics are re-triangulated every frame).
-  const pw = Math.ceil(plateW), key = `sign_plate_${pw}x${plateH}`;
-  if (!scene.textures.exists(key)) {
-    const g = scene.make.graphics({}, false);
-    g.fillStyle(0x000000, 0.25).fillRoundedRect(5, 6, pw, plateH, 14);
-    g.fillStyle(0xfff4c2, 1).fillRoundedRect(2, 2, pw, plateH, 14);
-    g.lineStyle(4, 0x1b2340, 1).strokeRoundedRect(2, 2, pw, plateH, 14);
-    g.generateTexture(key, pw + 8, plateH + 10);
-    g.destroy();
-  }
-  const plate = scene.add.image(cx - pw / 2 - 2, py - 2, key).setOrigin(0, 0).setDepth(DEPTH.sign + 0.2);
-  objs.push(frame, pic, txt, plate);
+  const S = Phaser.Math.Clamp(Math.min(rw, rh) - 24, L.signMin, L.signMax);
+  const frame = scene.add.image(cx, cy, TEX.signFrame).setDisplaySize(S, S).setDepth(DEPTH.sign);
+  const pic = scene.add.image(cx, cy, sceneTex(signSceneFor(word)));
+  pic.setScale((S * 0.87) / Math.max(pic.width, pic.height)).setDepth(DEPTH.sign + 0.1);
+  objs.push(frame, pic);
 }
 
 function addProp(
