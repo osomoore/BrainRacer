@@ -14,6 +14,7 @@ test('quick race runs: countdown, driving, challenges, no errors', async ({ page
   await page.keyboard.up('KeyW');
   const moved = await page.evaluate(([sx, sy]) => { const p = (window as any).__race.players[0]; return Math.hypot(p.x - sx, p.y - sy); }, [start.x, start.y]);
   expect(moved).toBeGreaterThan(100);
+  await page.waitForTimeout(4000);
   await page.screenshot({ path: 'test-results/race.png' });
   expect(errors).toEqual([]);
 });
