@@ -180,6 +180,15 @@ export const WORLD = {
   rampCount: 10,
   rampMinSpeedFrac: 0.4,
   airSecPerSpeed: 1.1 / 620, // airtime = speed * this (≈1.1 s at dino top speed)
+  // --- package N (jumps) ---
+  airMinSec: 0.5,
+  airMaxSec: 1.6,
+  rampDirCos: 0.5,           // min |cos(heading - ramp angle)| to launch
+  bigAirSec: 1.0,            // airtime above this shows "BIG AIR!"
+  spinSpeedFrac: 0.85,       // speed frac above which the car does a 360 spin
+  jumpPeakScale: 0.3,        // extra view scale at the peak of the arc
+  npcHopScale: 0.12,
+  npcHopSec: 0.4,
   // --- package C (generator) ---
   parkChance: 0.15,
   plazaChance: 0.08,
