@@ -1,7 +1,7 @@
 /** Guide buddies: one flying dino / star per player that leads the way to the goal and circles it on arrival. */
 import { GUIDE } from '../config/gameConfig';
 import { GuideBuddy } from '../entities/GuideBuddy';
-import { distToPath, hoverSpot, nextGoalMode, orbitPoint, pointAlongPath, trimPath } from '../entities/guideMath';
+import { distToPath, edgeHoldDist, hoverSpot, viewEdgeDist, nextGoalMode, orbitPoint, pointAlongPath, trimPath } from '../entities/guideMath';
 import { NodeIndex, findPath } from '../entities/policeAI';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { PlayerId, Vec2 } from '../core/types';
@@ -52,7 +52,8 @@ export class GuideSystem implements GameSystem {
       if (!goal) {
         g.goalMode = false;
         g.buddy.setHappy(false);
-        target = hoverSpot(pos, { x: car.x + Math.cos(car.angle), y: car.y + Math.sin(car.angle) }, GUIDE.holdDist);
+        const fwd = { x: car.x + Math.cos(car.angle), y: car.y + Math.sin(car.angle) };
+        target = hoverSpot(pos, fwd, this.holdFor(ctx, i, pos, fwd), car.angle);
       } else {
         const d = Math.hypot(goal.x - car.x, goal.y - car.y);
         g.goalMode = nextGoalMode(g.goalMode, d, g.arrived, GUIDE);
@@ -63,7 +64,7 @@ export class GuideSystem implements GameSystem {
           const c = { x: goal.x - Math.sin(rot) * GUIDE.orbitLift, y: goal.y - Math.cos(rot) * GUIDE.orbitLift };
           target = orbitPoint(c, g.orbit, GUIDE.orbitRadius);
         } else {
-          target = this.guideSpot(g, ctx, pos, goal, car.angle, dt);
+          target = this.guideSpot(g, ctx, i, pos, goal, car.angle, dt);
         }
       }
       g.buddy.update(dt, target, { x: car.x, y: car.y, vx: car.velocity.x, vy: car.velocity.y, angle: car.angle });
@@ -71,7 +72,7 @@ export class GuideSystem implements GameSystem {
   }
 
   /** Hover spot ahead of the car along the lane-graph route (straight line if there is none). */
-  private guideSpot(g: PlayerGuide, ctx: RaceContext, pos: Vec2, goal: { id: number; x: number; y: number }, carAngle: number, dt: number): Vec2 {
+  private guideSpot(g: PlayerGuide, ctx: RaceContext, idx: number, pos: Vec2, goal: { id: number; x: number; y: number }, carAngle: number, dt: number): Vec2 {
     const graph = ctx.world?.laneGraph;
     let ahead: Vec2 = { x: goal.x, y: goal.y };
     if (graph && this.index) {
@@ -93,7 +94,31 @@ export class GuideSystem implements GameSystem {
         if (g.path.length) ahead = pointAlongPath(graph, g.path, pos, GUIDE.lookAhead);
       }
     }
-    return hoverSpot(pos, ahead, GUIDE.holdDist, carAngle);
+    const toAhead = Math.hypot(ahead.x - pos.x, ahead.y - pos.y);
+    return hoverSpot(pos, ahead, Math.min(this.holdFor(ctx, idx, pos, ahead), Math.max(toAhead, GUIDE.holdDist)), carAngle);
+  }
+
+  /** Hover distance (world px): GUIDE.edgeFrac of the way from the car to the edge of its view, toward `toward`. */
+  private holdFor(ctx: RaceContext, idx: number, pos: Vec2, toward: Vec2): number {
+    const cam = ctx.camera;
+    const player = ctx.players[idx].player;
+    const layout = cam.layout();
+    const r = layout.mode === 'merged' ? { x: 0, y: 0, w: 1920, h: 1080 } : layout.playerViews[idx];
+    if (!r) return GUIDE.holdDist;
+    // keep clear of the centre HUD (scoreboard): inset the top, and the seam side in split screen
+    const seam = layout.mode === 'split' ? GUIDE.seamInset : 0;
+    const left = r.x + (idx === 1 ? seam : 0), right = r.x + r.w - (idx === 0 ? seam : 0);
+    const view = { x: left, y: r.y + GUIDE.topInset, w: right - left, h: r.h - GUIDE.topInset };
+    const dx = toward.x - pos.x, dy = toward.y - pos.y, l = Math.hypot(dx, dy);
+    if (l < 1e-3) return GUIDE.holdDist;
+    const u = { x: dx / l, y: dy / l };
+    const s0 = cam.worldToScreen(player, pos.x, pos.y);
+    const s1 = cam.worldToScreen(player, pos.x + u.x * 100, pos.y + u.y * 100);
+    const sx = s1.x - s0.x, sy = s1.y - s0.y, sl = Math.hypot(sx, sy);
+    if (sl < 1e-3) return GUIDE.holdDist;
+    const zoom = sl / 100;
+    const edge = viewEdgeDist(s0, { x: sx / sl, y: sy / sl }, view);
+    return edgeHoldDist(edge, GUIDE.edgeFrac, GUIDE.edgeMargin, zoom, GUIDE.holdDist, GUIDE.holdMax);
   }
 
   destroy(): void {

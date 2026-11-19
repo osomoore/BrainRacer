@@ -464,8 +464,13 @@ export const GUIDE = {
   repathSec: 0.4,            // recompute the lane-graph route this often
   offRouteDist: 220,         // px from the route polyline that forces an immediate repath
   noRouteNodeDist: 700,      // car farther than this from any lane node: fly straight at the goal
-  lookAhead: 310,            // px along the route the buddy looks ahead (260-360)
-  holdDist: 170,             // px the buddy sits from the car toward the look-ahead point (140-200)
+  lookAhead: 760,            // px along the route the buddy looks ahead (must exceed the max hover distance)
+  holdDist: 170,             // px fallback hover distance when the view rect is unknown; also the minimum
+  edgeFrac: 0.8,             // hover at this fraction of the car->view-edge distance (screen space) along the lead direction
+  edgeMargin: 80,            // screen px kept free between the buddy and the (inset) view edge
+  topInset: 150,             // screen px at the top treated as off-limits (scoreboard)
+  seamInset: 200,            // split screen: px at the centre seam treated as off-limits (scoreboard overlap)
+  holdMax: 700,              // world px cap on the hover distance
   spring: 42,                // spring stiffness toward the hover spot (1/s^2)
   damping: 11,               // damping on velocity relative to the car (1/s)
   maxSpeed: 1500,            // px/s; above car turbo (~990) so it never falls behind
