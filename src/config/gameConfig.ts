@@ -69,7 +69,6 @@ export const CAT = {
 
 export const DEFAULT_SETTINGS: Settings = {
   map: 'city',
-  nightDriving: false,            // DEPRECATED, unused (night is decided by the map); remove with the Settings field
   players: [
     { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' },
   ],

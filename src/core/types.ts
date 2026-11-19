@@ -115,7 +115,6 @@ export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
   map: RaceMap;
-  nightDriving: boolean;          // enable nighttime in City as well
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
   challengeMode: ChallengeMode | 'off';   // default 'words'
   questionStyle: QuestionStyle;   // default 'pause'
