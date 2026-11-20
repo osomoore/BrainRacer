@@ -13,6 +13,9 @@ import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
 import farm from './music/tracks/farm.json';
 import underground from './music/tracks/underground.json';
+import sky from './music/tracks/sky.json';
+import forest from './music/tracks/forest.json';
+import underwater from './music/tracks/underwater.json';
 import results from './music/tracks/results.json';
 
 /** Optional MIDI overrides: drop <track>.mid files into src/audio/music/midi/ (resolved at build time). */
@@ -27,6 +30,9 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   industrial: industrial as TrackData,
   farm: farm as TrackData,
   underground: underground as TrackData,
+  sky: sky as TrackData,
+  forest: forest as TrackData,
+  underwater: underwater as TrackData,
   dino: dino as TrackData,
   results: results as TrackData,
 };
@@ -41,7 +47,7 @@ const MAX_LEAD_SEC = 4.5;
 const ONESHOT_TAIL_SEC = 2.5;
 const SWAP_FADE_SEC = 0.3;
 /** Background render order: title first, then the race tracks. */
-export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results'];
+export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results', 'sky', 'forest', 'underwater'];
 const TICK_SEC = 0.1;
 
 type NoteFn = (note: { p: number; d: number; v: number }, time: number) => void;

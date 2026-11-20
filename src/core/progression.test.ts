@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../config/collectibles';
+import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_GUIDES, WORLD_VEHICLES } from '../config/collectibles';
 import { availableLoadouts, developerModeSettings, drawUnlock, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout } from './progression';
 import { Rng } from './rng';
 import type { PlayerSettings } from './types';
@@ -14,13 +14,21 @@ describe('map progression', () => {
   });
 
   it('keeps valid unlock IDs and draws items once from the catalog', () => {
-    expect(UNLOCK_VEHICLE_IDS).toHaveLength(20);
-    expect(UNLOCK_GUIDE_IDS).toHaveLength(5);
+    expect(UNLOCK_VEHICLE_IDS).toHaveLength(35);
+    expect(UNLOCK_GUIDE_IDS).toHaveLength(8);
     expect(parseUnlocks(['motorbike', null, 'motorbike', 'missing', 'owl'])).toEqual(['motorbike', 'owl']);
     const rng = new Rng(5);
     const locked = COLLECTIBLES.at(-1)!;
     expect(drawUnlock(COLLECTIBLES.slice(0, -1), rng)).toBe(locked);
     expect(drawUnlock(COLLECTIBLES, rng)).toBeUndefined();
+  });
+
+  it('adds five cars and a companion from each world to the shared reward pool', () => {
+    expect(Object.values(WORLD_VEHICLES).map(cars => cars.length)).toEqual([5, 5, 5]);
+    expect(WORLD_GUIDES).toHaveLength(3);
+    for (const item of [...Object.values(WORLD_VEHICLES).flat(), ...WORLD_GUIDES]) {
+      expect(drawUnlock(COLLECTIBLES.filter(id => id !== item), new Rng(2))).toBe(item);
+    }
   });
 
   it('uses a separate checkout of each loadout and restores the player-mode time', () => {

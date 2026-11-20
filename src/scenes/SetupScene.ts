@@ -24,7 +24,10 @@ const QUESTIONS: { type: QuestionType; label: string }[] = [
 ];
 const ROW_DIFF = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUEST = 3;
 const ROW_MAP = ROW_QUEST + QUESTIONS.length, ROW_START = ROW_MAP + 1;
-const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Factory', farm: 'Farm', harbor: 'Beach', underground: 'Mine' };
+const MAP_LABEL: Record<RaceMap, string> = {
+  city: 'City', industrial: 'Factory', farm: 'Farm', harbor: 'Beach', underground: 'Mine',
+  sky: 'Sky-city', forest: 'Dark Forest', underwater: 'Underwater',
+};
 
 const COL_W = 780;
 const COL_ROW_W = 740;

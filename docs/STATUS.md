@@ -1,15 +1,15 @@
 # BrainRacer — Status (as of 2026-11-20)
 
-**City (day), Factory (night), Beach (sunset into night), Mine, and Farm (golden hour) are playable.** Active development is on `dev`.
+**Eight maps are playable:** City, Factory, Beach & Harbor, Mine, Farm, Sky-city, Dark Forest, and Underwater. Active development is on `dev`.
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
 ## Map progression and bosses
 
 - Results defaults to **Next Map**, which picks a different random map and starts the next race on Confirm. **Setup** on Results returns to manual map and loadout selection.
-- Setup offers independent car and guide choices for each player. The catalog contains 20 vehicles and 5 guides. One collection is saved in this browser for everyone who plays, across solo and two-player races. It starts with one random item and gains one previously locked item for each completed map.
+- Setup offers independent car and guide choices for each player. The unlock catalog contains 35 vehicles and 8 companions. One collection is saved in this browser for everyone who plays, across solo and two-player races. It starts with one random item and gains one previously locked item for each completed map.
 - **Developer Mode** is in hidden Advanced settings (F9 or hold LT+RT and press Start). It makes every new vehicle and guide selectable, defaults rounds to 60 seconds, and grants no completion unlocks. Switching back restores the 300-second default and the regular loadouts and unlocks. Explicit launch overrides still apply.
-- **Bosses by map** are Dino in City, Rock Monster in Mine, Octopus in Beach & Harbor, Robot in Factory, and Giant Chicken on Farm. All use the same twin-laser, ram, and boarding rules. After three qualifying hits, press the right face button nearby to control the boss for 20 seconds of driving. A police swarm drives toward the ridden boss. Remaining cruisers drive away when the ride ends. Use `&dino=now&laser=now` to check any boss.
+- **Bosses by map** are Dino in City, Rock Monster in Mine, Octopus in Beach & Harbor, Robot in Factory, Giant Chicken on Farm, Thundercloud in Sky-city, Walking Tree in Dark Forest, and Landshark Underwater. All use the same twin-beam, ram, and boarding rules. After three qualifying hits, press the right face button nearby to control the boss for 20 seconds of driving. A police swarm drives toward the ridden boss. Remaining cruisers drive away when the ride ends. Use `&dino=now&laser=now` to check any boss.
 - The striped Harbor lighthouse stands beside the northeast waterfront road. The tower stays upright per camera and its stronger beam sweeps from the lantern. Factory headlights are aligned to the chassis, and the player cruiser siren plays at half its previous gain with the same bright tone.
 - The Mine track “Crystal Switchback” has a fuller and faster 132 BPM arrangement, with its new Opus file bundled in the game.
 
@@ -71,6 +71,14 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Ride the dino** (see Dinosaur above). Tunables `DINO.hitsToDefeat`, `DINO.teamHits`, `DINO_RIDE`. Events `dino:tamed`, `dino:ridden`, `dino:rideEnded`.
 - **Farm map** (see below).
 - Tests: 369 unit + 29 e2e; only the old "battered car smokes" e2e fails.
+
+## Sky-city, Dark Forest, and Underwater
+
+The original race tracks are “Cloudline Express” (Sky-city), “Lanternwood Waltz” (Dark Forest), and “Bubble Circuit” (Underwater). Each map has five boardable traffic vehicles. All 15 vehicles and the three companions are in the shared unlock collection.
+
+- **Sky-city** has four floating districts above drifting clouds, with pastel decks, safety rails, lift fans, and dirigibles. The center drawbridge raises for an airship after warning its approaches and waiting for the deck to clear. Two permanent bridges stay open. Sky Taxi, Cloud Coupe, Gale Roadster, Propeller Buggy, and Courier Pod share the streets. Cloud Puff joins the companion pool. Quick launch with `/?race=2&map=sky&seed=3&questions=off&sky=now`.
+- **Dark Forest** has lantern-lit streets, conifers, shrubs, fireflies, and a logging train with eight signaled crossings. Try Leaf Racer, Twig Buggy, Acorn Coupe, Moss Rover, and Bark Wagon. Firefly joins the companion pool. Quick launch with `/?race=2&map=forest&seed=3&questions=off&train=near`.
+- **Underwater** connects domed neighborhoods with glass tunnels. Whales, giant fish, and submarines swim past. The central tube retracts when clear so a submarine can cross, with permanent routes north and south. The cars are Manta Racer, Bubble Sub, Coral Buggy, Stingray GT, and Nautilus Van. Jelly joins the companion pool. Quick launch with `/?race=2&map=underwater&seed=3&questions=off&underwater=now`.
 
 ## Farm
 

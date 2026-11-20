@@ -22,7 +22,7 @@ export class NightLightingSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     const industrial = ctx.settings.map === 'industrial';
-    if (!industrial) return;
+    if (!industrial && ctx.settings.map !== 'forest') return;
     const L = INDUSTRIAL_LIGHTING;
     const glow = ensureNightGlow(ctx.scene);
     if (industrial) {
@@ -44,7 +44,7 @@ export class NightLightingSystem implements GameSystem {
     }
     for (const car of ctx.players) {
       const image = ctx.scene.add.image(0, 0, TEX.industrial.headlight)
-        .setName(`${industrial ? 'industrial' : 'city'}-headlight-${car.player}`)
+        .setName(`${ctx.settings.map}-headlight-${car.player}`)
         .setOrigin(0, 0.5)
         .setDepth(L.nightDepth + 1)
         .setBlendMode(Phaser.BlendModes.ADD);

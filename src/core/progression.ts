@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC } from '../config/gameConfig';
 import { Rng, randomSeed } from './rng';
 import type { CarKind, GuideKind, PlayerSettings, RaceMap, Settings, StarterCar } from './types';
 
-export const RACE_MAPS: readonly RaceMap[] = ['city', 'industrial', 'farm', 'harbor', 'underground'];
+export const RACE_MAPS: readonly RaceMap[] = ['city', 'industrial', 'farm', 'harbor', 'underground', 'sky', 'forest', 'underwater'];
 
 const PROGRESS_KEY = 'brainracer.unlocks.v1';
 const STARTER_CARS: readonly StarterCar[] = ['dino', 'kart'];

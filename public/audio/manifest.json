@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "eac60842b93b4beb",
+ "sourceHash": "530f96d6886e0406",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -370,6 +370,39 @@
    "bpm": 140,
    "lengthBeats": 16,
    "loopSeconds": 6.857142857142857
+  },
+  "sky": {
+   "file": "music/sky.ogg",
+   "sampleRate": 32000,
+   "length": 1335652,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 138,
+   "lengthBeats": 96,
+   "loopSeconds": 41.73913043478261
+  },
+  "forest": {
+   "file": "music/forest.ogg",
+   "sampleRate": 32000,
+   "length": 1462857,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 126,
+   "lengthBeats": 96,
+   "loopSeconds": 45.714285714285715
+  },
+  "underwater": {
+   "file": "music/underwater.ogg",
+   "sampleRate": 32000,
+   "length": 529655,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 116,
+   "lengthBeats": 32,
+   "loopSeconds": 16.551724137931036
   }
  }
 }

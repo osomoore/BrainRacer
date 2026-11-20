@@ -48,7 +48,7 @@ test('both players can use the same collection after a solo map and a reload', a
     const key = 'brainracer.unlocks.v1';
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(['owl']));
   });
-  await page.goto('/?race=1&seed=3&questions=off');
+  await page.goto('/?race=1&seed=50&questions=off');
   await waitScene(page, 'Race');
   await finishRound(page);
   await expect.poll(() => unlocks(page)).toEqual(['owl', 'towTruck']);
@@ -64,7 +64,7 @@ test('both players can use the same collection after a solo map and a reload', a
   await waitScene(page, 'Race');
   expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }]);
 
-  await page.goto('/?questions=off');
+  await page.goto('/?seed=4&questions=off');
   await waitScene(page, 'Title');
   await tapPad(page, 0, 0);
   await tapPad(page, 1, 0);

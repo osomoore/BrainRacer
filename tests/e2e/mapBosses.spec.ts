@@ -11,6 +11,9 @@ for (const [map, bossName, beamKey] of [
   ['harbor', 'octopus', 'octopus_beam'],
   ['industrial', 'factory-robot', 'factory_robot_beam'],
   ['farm', 'giant-chicken', 'giant_chicken_beam'],
+  ['sky', 'thundercloud', 'thundercloud_beam'],
+  ['forest', 'walking-tree', 'walking_tree_beam'],
+  ['underwater', 'landshark', 'landshark_beam'],
 ] as const) {
   test(`${bossName} fires twin lasers and can be ridden for 20 seconds`, async ({ page }) => {
     await page.goto(`/?race=1&map=${map}&seed=3&questions=off&dino=now&laser=now`);

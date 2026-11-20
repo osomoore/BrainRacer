@@ -18,6 +18,12 @@ export const MAP_BOSSES = {
     rig: { ...ROBOT_RIG, tex: TEX.factoryRobot }, tint: 0xffcf62, color: '#ffdc7f' },
   farm: { name: 'Giant Chicken', objectName: 'giant-chicken', head: TEX.giantChicken.head,
     rig: { ...CHICKEN_RIG, tex: TEX.giantChicken }, tint: 0xff9375, color: '#ffbd86' },
+  sky: { name: 'Thundercloud', objectName: 'thundercloud', head: TEX.thundercloud.head,
+    rig: { ...ROCK_MONSTER_RIG, headX: 105, eyeFwd: 150, tex: TEX.thundercloud }, tint: 0xc2a4ff, color: '#e3cfff' },
+  forest: { name: 'Walking Tree', objectName: 'walking-tree', head: TEX.walkingTree.head,
+    rig: { ...ROCK_MONSTER_RIG, headX: 112, eyeFwd: 157, tex: TEX.walkingTree }, tint: 0xb8f37a, color: '#d7f991' },
+  underwater: { name: 'Landshark', objectName: 'landshark', head: TEX.landshark.head,
+    rig: { ...ROCK_MONSTER_RIG, headX: 116, eyeFwd: 161, armY: 72, footX: -104, tex: TEX.landshark }, tint: 0x7ff5fa, color: '#a6fcff' },
 } satisfies Record<RaceMap, { name: string; objectName: string; head: string;
   rig: (Record<keyof typeof ROCK_MONSTER_RIG, number> & { tex: Record<keyof typeof TEX.rockMonster, string> }) | null;
   tint: number; color: string }>;

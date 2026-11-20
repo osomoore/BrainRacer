@@ -940,3 +940,50 @@ export const HOMING_BOMB = {
   slowSec: 1.2,
   particleLimit: 48,
 };
+
+/** Dark Forest street scenery and logging railway (world tiles and game seconds). */
+export const FOREST = {
+  size: 48,
+  treeRadius: 22,
+  treeCount: 195,
+  shrubCount: 120,
+  streetLampStep: 4,
+  fireflyCount: 44,
+  fireflyDrift: 25,
+  railClearanceTiles: 0.58,
+  trainSpeed: 192,
+  trainGap: 10,
+  trainInitialLeadSec: 8,
+  trainWarningSec: 3.2,
+} as const;
+
+/** Sky-city traffic control and scenery. Bridge timing uses seconds of driving. */
+export const SKY_CROSSINGS = [8, 16, 30] as const;
+export const SKY_DRAWBRIDGE = { left: 21, right: 27, row: SKY_CROSSINGS[1], height: 2 } as const;
+export const SKY = {
+  bridgeCycleSec: 39,
+  bridgeWarningSec: 3,
+  bridgeOpenSec: 12,
+  bridgeLiftSec: 2.4,
+  bridgeTestLeadSec: 2,
+  bridgeClearance: 36,
+  bridgeSoundRadius: 1200,
+  cloudBands: 8,
+  cloudsPerBand: 9,
+  cloudSpeed: 17,
+  airshipCount: 5,
+  airshipSpeed: 112,
+} as const;
+
+/** Central underwater tube uses seconds of active racing. */
+export const UNDERWATER_CROSSING = { left: 21, right: 27, top: 20, bottom: 22 } as const;
+export const UNDERWATER_TUNNEL = {
+  cycleSec: 32,
+  warningSec: 3,
+  openSec: 8,
+  retractSec: 1.25,
+  blinkHz: 4,
+  clearancePx: 24,
+  testLeadSec: 1.5,
+  soundRadius: 1050,
+} as const;

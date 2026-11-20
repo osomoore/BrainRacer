@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { COMBINE_SPEC, FREIGHT_TRUCK_SPEC, PICKUP_SPEC, TRACTOR_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
+import { UNLOCK_VEHICLES, WORLD_VEHICLE_IDS, type WorldVehicle } from '../config/collectibles';
 import { TEX } from '../core/assetKeys';
 import type { RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -11,12 +12,14 @@ import { NpcVehicle } from './NpcVehicle';
 import { UNDERGROUND_VEHICLES, type UndergroundVehicleKind } from './undergroundVehicles';
 
 export type TrafficState = 'drive' | 'knocked' | 'reverse';
-export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine' | 'convertible' | UndergroundVehicleKind;
+export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine' | 'convertible' | UndergroundVehicleKind | WorldVehicle;
 
 /** Spawn role used by TrafficSystem to cap special vehicles; null for ordinary traffic. */
 export type TrafficRole = 'freight' | 'tractor' | 'combine' | null;
 
 function kindLook(kind: TrafficKind, rng: Rng): { npc: 'traffic' | 'truck'; tex: string; spec: VehicleSpec } {
+  const themed = WORLD_VEHICLE_IDS.find(id => id === kind);
+  if (themed) return { npc: 'traffic', tex: TEX.unlockVehicles[themed], spec: UNLOCK_VEHICLES[themed].spec };
   switch (kind) {
     case 'freight': return { npc: 'truck', tex: TEX.freightTruck, spec: FREIGHT_TRUCK_SPEC };
     case 'truck': return { npc: 'truck', tex: TEX.truck, spec: TRUCK_SPEC };

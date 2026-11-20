@@ -384,8 +384,17 @@ export class Dino {
     if (rig && this.arms) {
       const stride = Math.sin(this.phase * Math.PI / 2);
       const sway = Math.sin(this.t * 2.6);
-      this.legL.setX(rig.footX + stride * 28).setRotation(stride * 0.12);
-      this.legR.setX(rig.footX - stride * 28).setRotation(stride * 0.12);
+      if (this.boss.objectName === 'landshark') {
+        // The rear wheels are fixed to the chassis. The fins sway as the shark rolls.
+        this.legL.setRotation(0);
+        this.legR.setRotation(0);
+      } else if (this.boss.objectName === 'thundercloud') {
+        this.legL.setX(rig.footX + sway * 12).setRotation(sway * 0.08);
+        this.legR.setX(rig.footX - sway * 12).setRotation(-sway * 0.08);
+      } else {
+        this.legL.setX(rig.footX + stride * 28).setRotation(stride * 0.12);
+        this.legR.setX(rig.footX - stride * 28).setRotation(stride * 0.12);
+      }
       this.arms[0].setX(rig.armX - stride * 19 + stomp * 20).setRotation(-0.12 + sway * 0.03 + stride * 0.1);
       this.arms[1].setX(rig.armX + stride * 19 + stomp * 20).setRotation(0.12 - sway * 0.03 + stride * 0.1);
     } else {

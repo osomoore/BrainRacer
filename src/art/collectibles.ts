@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, UNLOCK_VEHICLES, type UnlockGuide, type UnlockVehicle } from '../config/collectibles';
+import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, UNLOCK_VEHICLES, WORLD_GUIDES, WORLD_VEHICLE_IDS, type UnlockGuide, type UnlockVehicle, type WorldVehicle } from '../config/collectibles';
 import { TEX } from '../core/assetKeys';
 import { bodyGrad, ellipse, fillStroke, glossHighlight, lin, makeCanvas, OUTLINE, poly, rr, star, type Ctx } from './draw';
 
@@ -223,6 +223,10 @@ function drawGuide(scene: Phaser.Scene, id: UnlockGuide) {
 }
 
 export function drawCollectibles(scene: Phaser.Scene) {
-  for (const id of UNLOCK_VEHICLE_IDS) drawVehicle(scene, id);
-  for (const id of UNLOCK_GUIDE_IDS) drawGuide(scene, id);
+  for (const id of UNLOCK_VEHICLE_IDS) {
+    if (!WORLD_VEHICLE_IDS.includes(id as WorldVehicle)) drawVehicle(scene, id);
+  }
+  for (const id of UNLOCK_GUIDE_IDS) {
+    if (!WORLD_GUIDES.includes(id)) drawGuide(scene, id);
+  }
 }

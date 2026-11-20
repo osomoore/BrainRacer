@@ -1,10 +1,11 @@
 /** Guide buddies lead each player to the goal and circle it on arrival. */
-import { GAME_HEIGHT, GAME_WIDTH, GUIDE } from '../config/gameConfig';
+import { GAME_HEIGHT, GAME_WIDTH, GUIDE, SKY_DRAWBRIDGE, UNDERWATER_CROSSING } from '../config/gameConfig';
 import { GuideBuddy } from '../entities/GuideBuddy';
 import { edgeHoldDist, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, viewEdgeDist } from '../entities/guideMath';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { PlayerId, Rect, Vec2 } from '../core/types';
 import { scoreboardRect } from '../ui/hud/hudConfig';
+import { guideRoute } from '../world/guideRoute';
 
 const FULL_VIEW = { x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT };
 
@@ -21,8 +22,15 @@ export class GuideSystem implements GameSystem {
   static order = 160;   // after cars have moved this frame
   private guides: PlayerGuide[] = [];
   private offs: (() => void)[] = [];
+  private spanTile?: number;
+  private spanSurface?: number;
+  private routedGoal?: Vec2;
+  private towardGoal?: (car: Vec2) => Vec2;
 
   init(ctx: RaceContext): void {
+    const w = ctx.world.widthTiles;
+    if (ctx.settings.map === 'sky') this.spanTile = SKY_DRAWBRIDGE.row * w + SKY_DRAWBRIDGE.left;
+    if (ctx.settings.map === 'underwater') this.spanTile = UNDERWATER_CROSSING.top * w + UNDERWATER_CROSSING.left;
     this.guides = ctx.players.map((car, i) => ({
       buddy: new GuideBuddy(ctx, car.player, ctx.settings.players[i]?.guide ?? (car.kind === 'dino' ? 'dino' : 'star')),
       goalMode: false, arrived: false, orbit: i * Math.PI, redirect: false,
@@ -46,6 +54,14 @@ export class GuideSystem implements GameSystem {
 
   update(dt: number, ctx: RaceContext): void {
     const goal = ctx.goal;
+    if (goal && this.spanTile !== undefined) {
+      const surface = ctx.world.tiles[this.spanTile];
+      if (this.routedGoal !== goal || this.spanSurface !== surface) {
+        this.routedGoal = goal;
+        this.spanSurface = surface;
+        this.towardGoal = guideRoute(ctx.world, goal);
+      }
+    }
     const layout = ctx.camera.layout();
     ctx.players.forEach((car, i) => {
       const g = this.guides[i];
@@ -61,7 +77,8 @@ export class GuideSystem implements GameSystem {
         target = hoverSpot(pos, fwd, holdFor(fwd), car.angle);
       } else {
         const d = Math.hypot(goal.x - car.x, goal.y - car.y);
-        g.goalMode = nextGoalMode(g.goalMode, d, g.arrived, GUIDE);
+        const toward = this.towardGoal?.(pos) ?? goal;
+        g.goalMode = toward === goal && nextGoalMode(g.goalMode, d, g.arrived, GUIDE);
         g.buddy.setHappy(g.goalMode);
         if (g.goalMode) {
           g.orbit += GUIDE.orbitSpeed * dt;
@@ -69,7 +86,7 @@ export class GuideSystem implements GameSystem {
           const c = { x: goal.x - Math.sin(rot) * GUIDE.orbitLift, y: goal.y - Math.cos(rot) * GUIDE.orbitLift };
           target = orbitPoint(c, g.orbit, GUIDE.orbitRadius);
         } else {
-          target = hoverSpot(pos, goal, Math.min(holdFor(goal), d), car.angle);
+          target = hoverSpot(pos, toward, Math.min(holdFor(toward), Math.hypot(toward.x - car.x, toward.y - car.y)), car.angle);
         }
       }
       if (g.redirect) {

@@ -49,6 +49,18 @@ export const TEX = {
     body: 'giant_chicken_body', head: 'giant_chicken_head', arm: 'giant_chicken_wing', foot: 'giant_chicken_foot',
     beam: 'giant_chicken_beam', glow: 'giant_chicken_glow',
   },
+  thundercloud: {
+    body: 'thundercloud_body', head: 'thundercloud_head', arm: 'thundercloud_arm', foot: 'thundercloud_foot',
+    beam: 'thundercloud_beam', glow: 'thundercloud_glow',
+  },
+  walkingTree: {
+    body: 'walking_tree_body', head: 'walking_tree_head', arm: 'walking_tree_arm', foot: 'walking_tree_foot',
+    beam: 'walking_tree_beam', glow: 'walking_tree_glow',
+  },
+  landshark: {
+    body: 'landshark_body', head: 'landshark_head', arm: 'landshark_arm', foot: 'landshark_foot',
+    beam: 'landshark_beam', glow: 'landshark_glow',
+  },
 
   // world tiles: 128x128 each. Road variants chosen by roadMask (ROAD_N|E|S|W) → `road_${mask}`
   tileWater: 'tile_water',

@@ -8,6 +8,7 @@ import { ownerOf } from '../core/race';
 import type { PlayerId, Vec2 } from '../core/types';
 import { STEP_HZ } from '../entities/Vehicle';
 import { addUndergroundRail } from '../world/undergroundRail';
+import { addForestRail } from '../world/forestRail';
 import { canReform, debrisVelocity, detachedFrom, shouldSmash } from './freightSmash';
 import { carriagePose, crossingFrame, freightFrontAt, measureCircuit, type MeasuredCrossing, type RailCircuit } from './freightTiming';
 
@@ -80,7 +81,8 @@ export class FreightTrainSystem implements GameSystem {
   init(ctx: RaceContext): void {
     const rail = ctx.world.industrial?.rail;
     const mine = ctx.settings.map === 'underground';
-    if (!rail && !mine) return;
+    const forest = ctx.settings.map === 'forest';
+    if (!rail && !mine && !forest) return;
     this.ctx = ctx;
     this.pool = new ParticlePool(ctx.scene, 120);
     this.rng = ctx.rng.fork(0xf7e16);
@@ -93,8 +95,9 @@ export class FreightTrainSystem implements GameSystem {
       services.audio.sfx('crashBig', { volume: 0.75 });
       ctx.camera.shakeAt(image.x, image.y, 900, 0.012, 260);
     }));
-    if (mine) {
-      this.mineRail = addUndergroundRail(ctx.scene, ctx.world.tileSize);
+    if (mine || forest) {
+      if (forest) bakeCrate(ctx.scene);
+      this.mineRail = forest ? addForestRail(ctx.scene, ctx.world) : addUndergroundRail(ctx.scene, ctx.world.tileSize);
       for (const { cars, poseAt } of this.mineRail.trains) this.addTrain(cars, poseAt);
       this.mineRail.update(0);
       this.offs.push(ctx.bus.on('round:end', () => { this.finished = true; }));
@@ -312,7 +315,7 @@ export class FreightTrainSystem implements GameSystem {
       for (let k = 0; k < FREIGHT.cratesPerCar; k++) {
         const a = this.rng.range(0, Math.PI * 2), sp = this.rng.range(250, 600);
         this.pool.spawn({
-          key: this.mineRail ? TEX.underground.oreChip : FREIGHT.crateKey,
+          key: this.ctx.settings.map === 'underground' ? TEX.underground.oreChip : FREIGHT.crateKey,
           x: c.image.x, y: c.image.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
           life: this.rng.range(1.0, 1.6), s0: 1, s1: 0.8, a0: 1, a1: 0, spin: this.rng.range(-10, 10), drag: 1.8, depth: DEPTH.vehicle + 2,
         });

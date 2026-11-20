@@ -1,5 +1,6 @@
 import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC, UNDERGROUND_TRAFFIC } from '../config/gameConfig';
 import { getTuning, scaledCount } from '../config/deviceTuning';
+import { WORLD_VEHICLES, type WorldVehicle } from '../config/collectibles';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -30,6 +31,7 @@ export class TrafficSystem implements GameSystem {
   private combineLimit = 0;
   private spawnT = 0;
   private undergroundOrder: UndergroundVehicleKind[] = [];
+  private worldVehicleOrder: WorldVehicle[] = [];
   private scratch: number[] = [];
   private occupied: { x: number; y: number }[] = [];
   private playerPts: { x: number; y: number }[] = [];
@@ -40,6 +42,11 @@ export class TrafficSystem implements GameSystem {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x7aff1c);
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
+    const map = ctx.settings.map;
+    if (map === 'sky' || map === 'forest' || map === 'underwater') {
+      this.worldVehicleOrder = [...WORLD_VEHICLES[map]];
+      this.rng.shuffle(this.worldVehicleOrder);
+    }
     if (ctx.settings.map === 'underground') {
       this.regularLimit = UNDERGROUND_TRAFFIC.maxVehicles;
       this.undergroundOrder = [...UNDERGROUND_VEHICLE_KINDS];
@@ -230,7 +237,8 @@ export class TrafficSystem implements GameSystem {
     const nn = graph.nodes[nextId];
     const angle = Math.atan2(nn.y - n.y, nn.x - n.x);
     let kind: TrafficKind = 'car';
-    if (this.undergroundOrder.length) kind = this.undergroundKind();
+    if (this.worldVehicleOrder.length) kind = this.leastCommonKind(this.worldVehicleOrder)!;
+    else if (this.undergroundOrder.length) kind = this.leastCommonKind(this.undergroundOrder)!;
     else if (ctx.world.farm) kind = 'pickup';
     else if (this.rng.chance(TRAFFIC.truckFraction)) kind = 'truck';
     else if (ctx.settings.map === 'harbor' && this.rng.chance(TRAFFIC.harborConvertibleFraction)) kind = 'convertible';
@@ -238,9 +246,9 @@ export class TrafficSystem implements GameSystem {
   }
 
   /** Fill missing variants first and distribute replacements without letting crushers dominate. */
-  private undergroundKind(): UndergroundVehicleKind {
-    let best = this.undergroundOrder[0], least = Infinity;
-    for (const kind of this.undergroundOrder) {
+  private leastCommonKind<T extends TrafficKind>(order: readonly T[]): T | undefined {
+    let best = order[0], least = Infinity;
+    for (const kind of order) {
       const count = this.cars.reduce((n, car) => n + Number(!car.destroyed && car.kind === kind), 0);
       if (kind === 'rockCrusher' && count >= UNDERGROUND_TRAFFIC.crusherQuota) continue;
       if (count < least) { best = kind; least = count; }

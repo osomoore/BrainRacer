@@ -26,6 +26,7 @@ export class DinoSystem implements GameSystem {
 
   private ctx!: RaceContext;
   private rockMonster = false;
+  private guardsOnRoad = false;
   private dino: Dino | null = null;
   private walk: DinoWalk = { x: 0, y: 0, angle: 0, pauseLeft: 0 };
   private target: Vec2 = { x: 0, y: 0 };
@@ -64,6 +65,7 @@ export class DinoSystem implements GameSystem {
   init(ctx: RaceContext): void {
     this.ctx = ctx;
     this.rockMonster = ctx.settings.map === 'underground';
+    this.guardsOnRoad = this.rockMonster || ctx.settings.map === 'sky' || ctx.settings.map === 'underwater';
     const q = new URLSearchParams(location.search);
     this.devNow = q.get('dino') === 'now';
     this.laserDev = q.get('laser') === 'now';
@@ -126,7 +128,7 @@ export class DinoSystem implements GameSystem {
         break;
       case 'leaving': {
         if (this.modeT < DINO.leaveSec) break;
-        if (this.rockMonster) {
+        if (this.guardsOnRoad) {
           const sink = Math.min(1, (this.modeT - DINO.leaveSec) / DINO.shrinkSec);
           d.setMult(1 - sink * 0.9);
           if (sink >= 1) { this.poofOut(ctx, d); return; }
@@ -210,15 +212,15 @@ export class DinoSystem implements GameSystem {
     const car = ctx.players[waiting];
     this.phase = car && dist(car, goal) >= 20 ? Math.atan2(goal.y - car.y, goal.x - car.x) : ctx.rng.range(0, Math.PI * 2);
     let pos = this.orbitPosition(this.phase);
-    if (this.rockMonster && !this.rockHasGround(pos)) {
+    if (this.guardsOnRoad && !this.hasGuardGround(pos)) {
       for (let i = 1; i <= 12; i++) {
         const phase = this.phase + Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 6;
         const candidate = this.orbitPosition(phase);
-        if (!this.rockHasGround(candidate)) continue;
+        if (!this.hasGuardGround(candidate)) continue;
         pos = candidate; this.phase = phase;
         break;
       }
-      if (!this.rockHasGround(pos)) pos = nearestRoadPoint(ctx.world, goal.x, goal.y) ?? this.center;
+      if (!this.hasGuardGround(pos)) pos = nearestRoadPoint(ctx.world, goal.x, goal.y) ?? this.center;
     }
     const angle = this.phase + Math.PI / 2;
     this.walk = { x: pos.x, y: pos.y, angle, pauseLeft: 0 };
@@ -246,7 +248,8 @@ export class DinoSystem implements GameSystem {
     return { x: this.center.x + Math.cos(phase) * this.guardR, y: this.center.y + Math.sin(phase) * this.guardR };
   }
 
-  private rockHasGround({ x, y }: Vec2): boolean {
+  private hasGuardGround({ x, y }: Vec2): boolean {
+    if (!this.rockMonster) return isDrivable(this.ctx.world, x, y);
     const world = this.ctx.world, pad = DINO.capsuleRadius;
     return isDrivable(world, x, y) && isDrivable(world, x - pad, y) && isDrivable(world, x + pad, y)
       && isDrivable(world, x, y - pad) && isDrivable(world, x, y + pad);
@@ -292,7 +295,7 @@ export class DinoSystem implements GameSystem {
       speed: DINO.guardSpeed, turnRate: DINO.turnRate, radius: this.guardR, breathe: DINO.orbitBreathe,
       breatheW: DINO.orbitBreatheW, lookahead: DINO.orbitLookahead, returnTol: DINO.orbitReturnTol,
     });
-    if (this.rockMonster && !this.rockHasGround(this.walk)) {
+    if (this.guardsOnRoad && !this.hasGuardGround(this.walk)) {
       this.walk.x = x; this.walk.y = y;
       return false;
     }
@@ -482,7 +485,7 @@ export class DinoSystem implements GameSystem {
     const bounce = Math.min(DINO.ramBounceMax, closing * 1.3 + DINO.ramBounceBase);
     car.applyImpulse(nx * bounce, ny * bounce, DINO.ramSpin * (id === 0 ? 1 : -1));
     const stagger = { x: this.walk.x - nx * DINO.flinchStagger, y: this.walk.y - ny * DINO.flinchStagger };
-    if (!this.rockMonster || this.rockHasGround(stagger)) {
+    if (!this.guardsOnRoad || this.hasGuardGround(stagger)) {
       this.walk.x = stagger.x; this.walk.y = stagger.y;
     }
     d.flinch();

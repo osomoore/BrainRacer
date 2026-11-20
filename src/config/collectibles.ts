@@ -31,10 +31,34 @@ export const UNLOCK_VEHICLES = {
   snowcat: vehicle('Snowcat', 'tracked', ['#ffa563', '#be441e', '#f7f2d2'], 81, 50, heavy),
   dragster: vehicle('Dragster', 'racer', ['#bca1ff', '#5d3ac5', '#fbee6d'], 90, 40, standard),
   towTruck: vehicle('Tow Truck', 'utility', ['#a1d4ff', '#315ea7', '#ffb83d'], 86, 45, heavy),
+  skyTaxi: vehicle('Sky Taxi', 'closed', ['#ffd46d', '#d08736', '#eafcff'], 76, 42, standard),
+  cloudCoupe: vehicle('Cloud Coupe', 'closed', ['#f7fbff', '#8fa8d9', '#a5e9ff'], 74, 42, flyweight),
+  galeRoadster: vehicle('Gale Roadster', 'open', ['#8af2eb', '#238ba8', '#fff1a0'], 78, 40, standard),
+  propellerBuggy: vehicle('Propeller Buggy', 'open', ['#ff9167', '#a94053', '#ffde91'], 74, 46, flyweight),
+  courierPod: vehicle('Courier Pod', 'van', ['#baabfc', '#6250ae', '#e1fcff'], 80, 44, heavy),
+  leafRacer: vehicle('Leaf Racer', 'racer', ['#cdf887', '#42883d', '#ecffbf'], 77, 39, flyweight),
+  twigBuggy: vehicle('Twig Buggy', 'open', ['#d7aa6a', '#795036', '#ffcd72'], 72, 45, flyweight),
+  acornCoupe: vehicle('Acorn Coupe', 'closed', ['#f3bc77', '#a45036', '#ffe5a5'], 71, 41, standard),
+  mossRover: vehicle('Moss Rover', 'utility', ['#90d899', '#326951', '#c6f999'], 79, 47, standard),
+  barkWagon: vehicle('Bark Wagon', 'van', ['#c79163', '#613d48', '#ffc75e'], 86, 46, heavy),
+  mantaRacer: vehicle('Manta Racer', 'racer', ['#9e9bff', '#514aa2', '#98ffff'], 80, 46, flyweight),
+  bubbleSub: vehicle('Bubble Sub', 'closed', ['#ffe078', '#cb823c', '#c4fcff'], 74, 42, standard),
+  coralBuggy: vehicle('Coral Buggy', 'open', ['#ff9c9a', '#be496e', '#ffe2a7'], 72, 45, flyweight),
+  stingrayGT: vehicle('Stingray GT', 'racer', ['#79e4e7', '#276b96', '#fbf78f'], 81, 41, standard),
+  nautilusVan: vehicle('Nautilus Van', 'van', ['#f1c4aa', '#a75a72', '#a1f6ff'], 85, 46, heavy),
 } as const;
 
 export type UnlockVehicle = keyof typeof UNLOCK_VEHICLES;
 export const UNLOCK_VEHICLE_IDS = Object.keys(UNLOCK_VEHICLES) as UnlockVehicle[];
+
+export const WORLD_VEHICLES = {
+  sky: ['skyTaxi', 'cloudCoupe', 'galeRoadster', 'propellerBuggy', 'courierPod'],
+  forest: ['leafRacer', 'twigBuggy', 'acornCoupe', 'mossRover', 'barkWagon'],
+  underwater: ['mantaRacer', 'bubbleSub', 'coralBuggy', 'stingrayGT', 'nautilusVan'],
+} as const satisfies Record<string, readonly UnlockVehicle[]>;
+
+export type WorldVehicle = (typeof WORLD_VEHICLES)[keyof typeof WORLD_VEHICLES][number];
+export const WORLD_VEHICLE_IDS: readonly WorldVehicle[] = Object.values(WORLD_VEHICLES).flat();
 
 export const UNLOCK_GUIDES = {
   fairy: { name: 'Fairy', glow: 0xff8bed },
@@ -42,10 +66,14 @@ export const UNLOCK_GUIDES = {
   owl: { name: 'Night Owl', glow: 0xe2b0ff },
   rocket: { name: 'Rocket', glow: 0xff9259 },
   comet: { name: 'Comet', glow: 0x70e5ff },
+  cloudPuff: { name: 'Cloud Puff', glow: 0xb7eaff },
+  firefly: { name: 'Firefly', glow: 0xe8ff83 },
+  jelly: { name: 'Jelly', glow: 0x96f4ff },
 } as const;
 
 export type UnlockGuide = keyof typeof UNLOCK_GUIDES;
 export const UNLOCK_GUIDE_IDS = Object.keys(UNLOCK_GUIDES) as UnlockGuide[];
+export const WORLD_GUIDES: readonly UnlockGuide[] = ['cloudPuff', 'firefly', 'jelly'];
 
 export type Collectible = UnlockVehicle | UnlockGuide;
 export const COLLECTIBLES: readonly Collectible[] = [...UNLOCK_VEHICLE_IDS, ...UNLOCK_GUIDE_IDS];

@@ -8,7 +8,7 @@ import type { GameSystem, RaceContext } from '../core/race';
 import { availableLoadouts, awardMapCompletion, loadUnlocks, selectedLoadout } from '../core/progression';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
-import type { MusicTrack, PlayerId, RoundResults, Settings } from '../core/types';
+import type { MusicTrack, PlayerId, RaceMap, RoundResults, Settings, WorldData } from '../core/types';
 import { PlayerCar } from '../entities/PlayerCar';
 import { SkidMarks } from '../fx/SkidMarks';
 import { createSystems } from '../systems';
@@ -16,10 +16,23 @@ import { cityGen, generateFarm } from '../world/gen';
 import { generateIndustrial } from '../world/gen/industrial';
 import { generateHarbor } from '../world/gen/harbor';
 import { generateUnderground } from '../world/gen/underground';
+import { generateSky } from '../world/gen/sky';
+import { generateForest } from '../world/gen/forest';
+import { generateUnderwater } from '../world/gen/underwater';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
 const COUNTDOWN_SEC = 3;
+const RACE_WORLDS: Record<RaceMap, { generate: (seed: number) => WorldData; music: MusicTrack }> = {
+  city: { generate: cityGen, music: 'race' },
+  industrial: { generate: generateIndustrial, music: 'industrial' },
+  farm: { generate: generateFarm, music: 'farm' },
+  harbor: { generate: generateHarbor, music: 'race' },
+  underground: { generate: generateUnderground, music: 'underground' },
+  sky: { generate: generateSky, music: 'sky' },
+  forest: { generate: generateForest, music: 'forest' },
+  underwater: { generate: generateUnderwater, music: 'underwater' },
+};
 
 /**
  * Integration point (orchestrator-owned). Builds the world, cars, camera rig and all systems
@@ -64,14 +77,10 @@ export class RaceScene extends Phaser.Scene {
     engine.velocityIterations = VEHICLE_MODEL.velocityIterations;
     if (params.get('debug') === '1') this.matter.world.createDebugGraphic();
 
-    const industrial = settings.map === 'industrial';
-    const farm = settings.map === 'farm';
-    const harbor = settings.map === 'harbor';
-    const underground = settings.map === 'underground';
-    this.raceMusic = industrial ? 'industrial' : farm ? 'farm' : underground ? 'underground' : 'race';
-    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : harbor ? generateHarbor(seed)
-      : underground ? generateUnderground(seed) : cityGen(seed);
-    this.built = buildWorld(this, world, industrial, harbor, underground);
+    const { generate, music } = RACE_WORLDS[settings.map];
+    this.raceMusic = music;
+    const world = generate(seed);
+    this.built = buildWorld(this, world, settings.map);
     this.skids = new SkidMarks(this);
 
     this.players = settings.players.map((p, i) => {
