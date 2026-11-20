@@ -1,14 +1,16 @@
 import Phaser from 'phaser';
-import type { CarKind, InputDevice } from '../../core/types';
-import { aBadge, bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum } from './style';
+import type { CarKind, ControllerFamily, InputDevice } from '../../core/types';
+import { ConfirmPrompt } from './FaceButtonBadge';
+import { bigText, carName, carPreview, deviceLabel, FONT_HEAD, hexNum } from './style';
 
-/** Title-screen player card: "Press A to join" until a device joins, then device label + Ready!. */
+/** Title-screen player card with a join hint and the joined device's label. */
 export class JoinCard extends Phaser.GameObjects.Container {
   readonly cardW = 660;
   readonly cardH = 440;
   private bg: Phaser.GameObjects.Graphics;
   private car: Phaser.GameObjects.Container;
   private joinGroup: Phaser.GameObjects.Container;
+  private joinPrompt: ConfirmPrompt;
   private readyGroup: Phaser.GameObjects.Container;
   private deviceText: Phaser.GameObjects.Text;
   private color: number;
@@ -25,15 +27,9 @@ export class JoinCard extends Phaser.GameObjects.Container {
 
     // not joined
     const pressY = 105;
-    const p1 = bigText(scene, 0, pressY, 'Press', 52);
-    const badge = aBadge(scene, 0, pressY, 62);
-    const p2 = bigText(scene, 0, pressY, 'to join', 52);
-    const widthTotal = p1.width + 62 + p2.width + 40;
-    p1.setX(-widthTotal / 2 + p1.width / 2);
-    badge.setX(-widthTotal / 2 + p1.width + 20 + 31);
-    p2.setX(widthTotal / 2 - p2.width / 2);
+    this.joinPrompt = new ConfirmPrompt(scene, 0, pressY, 'to join');
     const kb = bigText(scene, 0, pressY + 72, 'Space / Enter', 40, '#c9d6ff');
-    this.joinGroup = scene.add.container(0, 0, [p1, badge, p2, kb]);
+    this.joinGroup = scene.add.container(0, 0, [this.joinPrompt, kb]);
     scene.tweens.add({ targets: this.joinGroup, scale: { from: 1, to: 1.07 }, alpha: { from: 0.75, to: 1 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     // joined
@@ -56,12 +52,14 @@ export class JoinCard extends Phaser.GameObjects.Container {
     this.bg.lineStyle(j ? 12 : 8, this.color, j ? 1 : 0.7).strokeRoundedRect(-w / 2, -h / 2, w, h, 44);
   }
 
-  setJoined(device: InputDevice | null) {
+  setPromptFamily(family: ControllerFamily) { this.joinPrompt.setFamily(family); }
+
+  setJoined(device: InputDevice | null, family?: ControllerFamily) {
     const was = this.joined;
     this.joined = !!device;
     this.joinGroup.setVisible(!device);
     this.readyGroup.setVisible(!!device);
-    if (device) this.deviceText.setText(deviceLabel(device));
+    if (device) this.deviceText.setText(deviceLabel(device, family));
     this.draw();
     if (this.joined !== was) this.scene.tweens.add({ targets: this, scale: { from: this.joined ? 1.12 : 0.92, to: 1 }, duration: 320, ease: 'Back.Out' });
   }

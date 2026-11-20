@@ -113,3 +113,42 @@ test('single gamepad: A, A, A reaches the race', async ({ page }) => {
   expect((await settingsOf(page)).players).toHaveLength(1);
   expect(errors).toEqual([]);
 });
+
+test('Setup wraps upward and Advanced applies answer mode from its first row', async ({ page }) => {
+  const errors = watchErrors(page);
+  await installGamepadMock(page, 0);
+  await page.goto('/');
+  await waitScene(page, 'Title');
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(800);
+  await page.keyboard.press('Space');
+  await waitScene(page, 'Setup');
+  expect((await settingsOf(page)).questionStyle).toBe('pause');
+
+  const tap = async (key: string) => {
+    await page.keyboard.press(key, { delay: 55 });
+    await page.waitForTimeout(55);
+  };
+  await tap('KeyW'); // Difficulty wraps to Start.
+  await tap('KeyW'); // Advanced settings.
+  await tap('KeyW'); // Map.
+  await tap('KeyD'); // City → Factory.
+  await tap('KeyS'); // Advanced settings.
+  await tap('Space');
+  await page.waitForFunction(() => window.__game.scene.isPaused('Setup'));
+
+  await tap('KeyW'); // Answer mode wraps to Close.
+  await tap('KeyS'); // Close wraps to Answer mode.
+  await tap('KeyD'); // Stop & Answer → While Driving.
+  expect((await settingsOf(page)).questionStyle).toBe('drive');
+  await tap('Space'); // Accepting from Answer mode closes the menu.
+  await waitScene(page, 'Setup');
+
+  await tap('Space');
+  await waitScene(page, 'Race');
+  expect(await page.evaluate(() => {
+    const { map, questionStyle } = window.__race.settings;
+    return { map, questionStyle };
+  })).toEqual({ map: 'industrial', questionStyle: 'drive' });
+  expect(errors).toEqual([]);
+});

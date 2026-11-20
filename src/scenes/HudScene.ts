@@ -118,6 +118,7 @@ export class HudScene extends Phaser.Scene {
       this.panels[p] = new ChallengePanel(this, PLAYER_COLORS[p], challenge, this.curViews[p], {
         depth: D.panel,
         centered: this.pauseStyle,
+        controllerDevice: this.ctx.settings.players[p]?.device,
         onCorrect: (x, y) => this.flyPlusOne(x, y),
       });
       this.waiting[p] = false;

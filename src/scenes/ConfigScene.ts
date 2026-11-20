@@ -6,22 +6,26 @@ import { BUILD_ID } from '../buildInfo';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { Settings } from '../core/types';
+import { faceButton } from '../input/buttonPrompts';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/style';
 import { REG, SCENE } from './keys';
 
 /**
- * Hidden settings menu. Always running (started at boot from main.ts), invisible until opened with
- * LT+RT+Start on a gamepad or F9 on the keyboard. While open it pauses every other running scene.
+ * Advanced settings. Open from Setup, with LT+RT+Start on a gamepad, or with F9 on a keyboard.
+ * While open it pauses every other running scene.
  * Also hosts the optional always-on-top debug readout.
  */
 
 const COMBO_THRESHOLD = 0.7;
 const DEBOUNCE_MS = 450;
 const DEPTH = 100000;
-const ROW_W = 880;
-const COL_X = [525, 1435];
+const ROW_W = 820;
+const ROW_H = 58;
+const COL_X = [525, 1430];
+const FIRST_ROW = 221;
+const ROW_STEP = 71;
 
 const ENGINE: readonly DeviceTuning['engineSound'][] = ['full', 'lite', 'sample', 'off'];
 const ENGINE_LABEL = { full: 'Full', lite: 'Lite', sample: 'Sample', off: 'Off' } as const;
@@ -34,7 +38,7 @@ const FPS: readonly DeviceTuning['fpsCap'][] = [60, 30];
 const TRAFFIC_LEVELS: readonly DeviceTuning['traffic'][] = ['normal', 'reduced', 'minimal'];
 const TRAFFIC_LABEL = { normal: 'Normal', reduced: 'Reduced', minimal: 'Minimal' } as const;
 const GAS_MODES: readonly GasMode[] = ['a', 'trigger', 'auto'];
-const GAS_LABEL = { a: 'A button', trigger: 'Trigger', auto: 'Auto' } as const;
+const GAS_LABEL = { a: 'Bottom button', trigger: 'Trigger', auto: 'Auto' } as const;
 const KEY_HISTORY = 3;
 const ROUND_SEC = [60, 120, 180, 300, 480, 600];
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
@@ -92,11 +96,11 @@ export class ConfigScene extends Phaser.Scene {
   private buildPanel(): void {
     const c = this.add.container(0, 0).setDepth(DEPTH);
     this.panel = c;
-    c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x050a1c, 0.93));
-    c.add(bigText(this, GAME_WIDTH / 2, 62, 'SETTINGS', 80, MENU.yellow, { font: FONT_HEAD, stroke: 12 }));
+    c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
+    c.add(bigText(this, GAME_WIDTH / 2, 72, 'ADVANCED SETTINGS', 72, MENU.yellow, { font: FONT_HEAD, stroke: 10 }));
     c.add(bigText(this, 30, 30, `Build ${BUILD_ID}`, 32, MENU.dim, { origin: [0, 0], bold: false, shadow: false, stroke: 4 }));
     const color = hexNum(PLAYER_COLORS[0]);
-    const opts = { width: ROW_W, height: 66, fontSize: 40, valueX: 300, arrowSpan: 135 };
+    const opts = { width: ROW_W, height: ROW_H, fontSize: 40, valueX: 205, arrowSpan: 169 };
 
     const header = (col: number, y: number, text: string): void => {
       c.add(bigText(this, COL_X[col] - ROW_W / 2 + 8, y, text, 44, MENU.dim, { origin: [0, 0.5], stroke: 6, shadow: false }));
@@ -109,7 +113,7 @@ export class ConfigScene extends Phaser.Scene {
       this.rows.push({ selectable: r, change, refresh, bump: (d) => r.bump(d) });
     };
     const action = (col: number, y: number, label: string, fn: () => void): void => {
-      const b = new MenuButton(this, COL_X[col], y, ROW_W, 66, label, color, 44, false);
+      const b = new MenuButton(this, COL_X[col], y, ROW_W, ROW_H, label, color, 44, false);
       c.add(b);
       this.rows.push({ selectable: b, activate: fn });
     };
@@ -125,47 +129,57 @@ export class ConfigScene extends Phaser.Scene {
       this.patchSettings({ [key]: v });
     };
 
-    const y0 = 245, step = 82;
-    header(0, 175, 'AUDIO');
-    option(0, y0, 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
-    option(0, y0 + step, 'Sound FX volume', () => `${Math.round(this.settings().sfxVolume * 100)}%`, vol('sfxVolume'));
-    option(0, y0 + step * 2, 'Audio mode', () => AUDIO_MODE_LABEL[getTuning().audioMode],
-      (d) => setTuning({ audioMode: cycle(AUDIO_MODE, getTuning().audioMode, d) }));
-    option(0, y0 + step * 3, 'Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
-      (d) => setTuning({ engineSound: cycle(ENGINE, getTuning().engineSound, d) }));
-    option(0, y0 + step * 4, 'Audio buffer (after reload)', () => LATENCY_LABEL[getTuning().audioLatency],
-      (d) => setTuning({ audioLatency: cycle(LATENCY, getTuning().audioLatency, d) }));
-    option(0, y0 + step * 5, 'Schedule ahead', () => `${getTuning().lookAheadSec} s`,
-      (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
-    option(0, y0 + step * 6, 'Compressor', () => onOff(getTuning().compressor),
-      () => setTuning({ compressor: !getTuning().compressor }));
-    header(0, 815, 'DISPLAY');
-    option(0, 885, 'Frame rate (after reload)', () => `${getTuning().fpsCap} fps`,
-      (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
-    option(0, 885 + step, 'Debug readout', () => onOff(getTuning().debugReadout),
-      () => setTuning({ debugReadout: !getTuning().debugReadout }));
-
-    header(1, 175, 'GAME (next race)');
-    option(1, y0, 'Round length', () => `${Math.round(this.settings().roundLengthSec / 60)} min`,
+    const rowY = (i: number) => FIRST_ROW + i * ROW_STEP;
+    header(0, 155, 'NEXT RACE');
+    option(0, rowY(0), 'Answer mode', () => this.settings().questionStyle === 'drive' ? 'While Driving' : 'Stop & Answer',
+      () => this.patchSettings({ questionStyle: this.settings().questionStyle === 'drive' ? 'pause' : 'drive' }));
+    option(0, rowY(1), 'Round length', () => `${Math.round(this.settings().roundLengthSec / 60)} min`,
       (d) => this.patchSettings({ roundLengthSec: cycleNum(ROUND_SEC, this.settings().roundLengthSec, d) }));
-    option(1, y0 + step, 'Time between questions', () => `${this.settings().challengeIntervalSec} s`,
+    option(0, rowY(2), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
-    option(1, y0 + step * 2, 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
+    option(0, rowY(3), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
       (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
-    header(1, 505, 'CONTROLS (gamepad)');
+
+    header(0, 500, 'GAMEPAD');
     for (const p of [0, 1] as const) {
-      option(1, 575 + step * p, `P${p + 1} gas`, () => GAS_LABEL[getTuning().gas[p]], (d) => {
+      option(0, rowY(5 + p), `P${p + 1} gas`, () => {
+        const mode = getTuning().gas[p];
+        const device = this.settings().players[p]?.device;
+        const family = device ? services.input.controllerFamily?.(device) : undefined;
+        const label = family && faceButton(family, 'bottom').label;
+        return mode === 'a' && label ? `${label} button` : GAS_LABEL[mode];
+      }, (d) => {
         const gas: DeviceTuning['gas'] = [...getTuning().gas];
         gas[p] = cycle(GAS_MODES, gas[p], d);
         setTuning({ gas });
       });
     }
-    header(1, 755, 'ACTIONS');
-    action(1, 825, 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
-    action(1, 825 + step, 'Reset to defaults', () => this.resetAll());
-    action(1, 825 + step * 2, 'Close', () => this.close());
+    header(0, 710, 'DISPLAY');
+    option(0, rowY(8), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
+      (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
+    option(0, rowY(9), 'Debug readout', () => onOff(getTuning().debugReadout),
+      () => setTuning({ debugReadout: !getTuning().debugReadout }));
 
-    c.add(bigText(this, GAME_WIDTH / 2, 1056, 'D-pad: move / change     A: select     B or Start: close', 40, MENU.dim, { stroke: 6, shadow: false }));
+    header(1, 155, 'AUDIO');
+    option(1, rowY(0), 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
+    option(1, rowY(1), 'Sound FX volume', () => `${Math.round(this.settings().sfxVolume * 100)}%`, vol('sfxVolume'));
+    option(1, rowY(2), 'Audio mode', () => AUDIO_MODE_LABEL[getTuning().audioMode],
+      (d) => setTuning({ audioMode: cycle(AUDIO_MODE, getTuning().audioMode, d) }));
+    option(1, rowY(3), 'Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
+      (d) => setTuning({ engineSound: cycle(ENGINE, getTuning().engineSound, d) }));
+    option(1, rowY(4), 'Audio buffer*', () => LATENCY_LABEL[getTuning().audioLatency],
+      (d) => setTuning({ audioLatency: cycle(LATENCY, getTuning().audioLatency, d) }));
+    option(1, rowY(5), 'Schedule ahead', () => `${getTuning().lookAheadSec} s`,
+      (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
+    option(1, rowY(6), 'Compressor', () => onOff(getTuning().compressor),
+      () => setTuning({ compressor: !getTuning().compressor }));
+    header(1, 710, 'ACTIONS');
+    action(1, rowY(8), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
+    action(1, rowY(9), 'Reset to defaults', () => this.resetAll());
+    action(1, rowY(10), 'Close', () => this.close());
+
+    c.add(bigText(this, COL_X[0] - ROW_W / 2 + 8, rowY(10), '* Takes effect after reload', 40, MENU.dim, { origin: [0, 0.5], shadow: false }));
+    c.add(bigText(this, GAME_WIDTH / 2, 1024, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
   }
 
   // ───────────────────────── settings helpers ─────────────────────────
@@ -186,6 +200,7 @@ export class ConfigScene extends Phaser.Scene {
     this.patchSettings({
       musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
       roundLengthSec: d.roundLengthSec, challengeIntervalSec: d.challengeIntervalSec,
+      questionStyle: d.questionStyle,
     });
     services.audio.sfx('menuSelect');
     this.refreshRows();
@@ -200,6 +215,12 @@ export class ConfigScene extends Phaser.Scene {
   }
 
   // ───────────────────────── open / close ─────────────────────────
+  openFromSetup(): void {
+    if (this.isOpen) return;
+    this.lastToggle = performance.now();
+    this.open();
+  }
+
   private toggle(): void {
     const now = performance.now();
     if (now - this.lastToggle < DEBOUNCE_MS) return;
@@ -254,7 +275,7 @@ export class ConfigScene extends Phaser.Scene {
     const inp = services.input.any();
     if (inp.pause || inp.back) { this.toggle(); return; }
     if (inp.navY) {
-      const n = Phaser.Math.Clamp(this.cursor + inp.navY, 0, this.rows.length - 1);
+      const n = Phaser.Math.Wrap(this.cursor + inp.navY, 0, this.rows.length);
       if (n !== this.cursor) { this.cursor = n; services.audio.sfx('menuMove'); this.refreshRows(); }
     }
     const row = this.rows[this.cursor];
@@ -266,7 +287,7 @@ export class ConfigScene extends Phaser.Scene {
     }
     if (inp.confirm && row) {
       if (row.activate) row.activate();
-      else if (row.change) { row.change(1); services.audio.sfx('menuMove'); this.refreshRows(); }
+      else if (row.change) { services.audio.sfx('menuSelect'); this.close(); }
     }
   }
 

@@ -4,14 +4,16 @@
  * `services.input = ...` / `services.audio = ...` in BootScene. Until then the stubs below
  * keep everything runnable (keyboard-less input, silent audio).
  */
-import type { InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName } from './types';
+import type { ControllerFamily, InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName } from './types';
 
 export interface IInput {
   /** Call exactly once per frame (the active scene does this in update()). */
   poll(): void;
   /** Devices currently connected/usable (keyboard layouts are always present). */
   devices(): InputDevice[];
-  /** Device (not already in `taken`) that pressed confirm (A / Enter) this frame, if any. */
+  /** The device's face-button layout, or the common layout of all connected pads. */
+  controllerFamily?(device?: InputDevice): ControllerFamily;
+  /** Device (not already in `taken`) that pressed the bottom face button or keyboard confirm. */
   pollJoin(taken: InputDevice[]): InputDevice | null;
   /** Bind a device to a player slot. */
   assign(player: PlayerId, device: InputDevice): void;

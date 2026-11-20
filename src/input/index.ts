@@ -1,6 +1,7 @@
 import { resolvePadMap } from './padMaps';
+import { identifyController } from './buttonPrompts';
 import { bus } from '../core/events';
-import type { InputDevice, PlayerId, PlayerInput } from '../core/types';
+import type { ControllerFamily, InputDevice, PlayerId, PlayerInput } from '../core/types';
 import { ZERO_INPUT, type IInput } from '../core/services';
 import { HANDLED_CODES, mapKeyboard, type KeyLayout } from './keyboardMap';
 import { getTuning } from '../config/deviceTuning';
@@ -111,6 +112,18 @@ class InputManager implements IInput {
 
   isConnected(device: InputDevice): boolean {
     return device.type === 'keyboard' || this.connected.has(device.index);
+  }
+
+  controllerFamily(device?: InputDevice): ControllerFamily {
+    if (device?.type === 'keyboard') return 'other';
+    if (device) return identifyController(this.pads.get(device.index)?.id ?? '');
+    let family: ControllerFamily | undefined;
+    for (const pad of this.pads.values()) {
+      const next = identifyController(pad.id);
+      if (next === 'other' || (family !== undefined && family !== next)) return 'other';
+      family = next;
+    }
+    return family ?? 'other';
   }
 
   pollJoin(taken: InputDevice[]): InputDevice | null {

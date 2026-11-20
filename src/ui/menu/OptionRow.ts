@@ -52,7 +52,9 @@ export class OptionRow extends Phaser.GameObjects.Container implements Selectabl
     const a = dir < 0 ? this.left : this.right;
     const sign = dir < 0 ? -1 : 1;
     this.scene.tweens.add({ targets: a, scaleX: { from: 1.7 * sign, to: sign }, scaleY: { from: 1.7, to: 1 }, duration: 160 });
-    this.scene.tweens.add({ targets: this.value, scale: { from: 1.18, to: 1 }, duration: 160 });
+    const room = 2 * (this.opts.arrowSpan - 24);
+    const scale = Phaser.Math.Clamp(room / this.value.width, 1, 1.18);
+    this.scene.tweens.add({ targets: this.value, scale: { from: scale, to: 1 }, duration: 160 });
   }
 
   setSelected(selected: boolean, color?: number): void {

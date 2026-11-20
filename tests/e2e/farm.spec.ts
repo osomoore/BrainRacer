@@ -93,8 +93,8 @@ test('Setup can select Farm', async ({ page }) => {
   await page.waitForTimeout(800); // Title allows time for a second player to join.
   await page.keyboard.press('Space');
   await waitScene(page, 'Setup');
-  // Player one's cursor opens on Difficulty. Map is four rows below it; City -> Industrial -> Farm.
-  for (let row = 0; row < 4; row++) {
+  // Player one's cursor opens on Difficulty. Map is three rows below it: City → Factory → Farm.
+  for (let row = 0; row < 3; row++) {
     await page.keyboard.press('KeyS', { delay: 55 });
     await page.waitForTimeout(55);
   }

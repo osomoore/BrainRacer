@@ -17,11 +17,10 @@ export type PlayerId = 0 | 1;
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
 export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor' | 'underground';
-/** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
+export type ControllerFamily = 'xbox' | 'nintendo' | 'other';
 /**
- * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).
- * Drive-style challenges use slots 0-2 (A is the gas pedal); pause-style breaks use all 4
- * laid out as the controller's face-button diamond.
+ * 0 = left, 1 = top, 2 = right, 3 = bottom. The display letters depend on controller layout.
+ * Drive-style challenges omit the bottom slot, which is also the gas button.
  */
 export type AnswerSlot = 0 | 1 | 2 | 3;
 
@@ -67,7 +66,7 @@ export interface Challenge {
   player: PlayerId;
   kind: ChallengeKind;
   prompt: ChallengePrompt;
-  /** 3 options (drive style: X/Y/B) or 4 (pause style: X/Y/B/A diamond); index = AnswerSlot. */
+  /** 3 options in drive style or 4 in the stop-and-answer diamond; index = AnswerSlot. */
   options: ChallengeOption[];
   correct: AnswerSlot;
   /** Seconds the challenge stays up (= period for this player's difficulty). */

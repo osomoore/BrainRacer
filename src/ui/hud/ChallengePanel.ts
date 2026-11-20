@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
-import { ANSWER_COLORS, CHALLENGE } from '../../config/gameConfig';
+import { CHALLENGE } from '../../config/gameConfig';
 import { sceneTex, TEX } from '../../core/assetKeys';
+import { services } from '../../core/services';
 import type {
-  AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
+  AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, ControllerFamily, InputDevice, Rect,
 } from '../../core/types';
+import { ANSWER_POSITIONS, keyboardAnswerLabel } from '../../input/buttonPrompts';
+import { FaceButtonBadge } from '../menu/FaceButtonBadge';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
 import { bakedImage, circle, glowRect, resizeRR, rrectImage, type RRectSpec } from './bake';
 import { breakSplitRegion, challengeRegion, HUD } from './hudConfig';
@@ -35,6 +38,7 @@ export interface PanelHooks {
   depth: number;
   /** Pause-style break: big, centered in the view, no timer; 4 options are laid out as a diamond. */
   centered?: boolean;
+  controllerDevice?: InputDevice;
 }
 
 function fitImage(img: Phaser.GameObjects.Image, size: number) {
@@ -59,6 +63,7 @@ export class ChallengePanel {
   private readonly centered: boolean;
   private readonly cardW: number;
   private readonly cardH: number;
+  private readonly controllerFamily: ControllerFamily;
 
   private phase: Phase = 'show';
   private age = 0;
@@ -81,6 +86,9 @@ export class ChallengePanel {
     this.centered = !!hooks.centered;
     this.cardW = this.diamond ? D_CARD_W : CARD_W;
     this.cardH = this.diamond ? D_CARD_H : CARD_H;
+    this.controllerFamily = hooks.controllerDevice
+      ? services.input.controllerFamily?.(hooks.controllerDevice) ?? 'other'
+      : 'xbox';
     if (this.centered) this.phase = 'docked';
     this.root = scene.add.container(0, 0).setDepth(hooks.depth);
     this.glow = glowRect(scene, HUD.colors.gold, 0.16, 4, 10, 36, 0, 0, 100, 100).setVisible(false);
@@ -88,7 +96,7 @@ export class ChallengePanel {
 
     this.promptRoot = this.buildPrompt(challenge.prompt);
     this.root.add(this.promptRoot);
-    challenge.options.forEach((o, i) => this.cells.push(this.buildCell(o, i)));
+    challenge.options.forEach((o, i) => this.cells.push(this.buildCell(o, i as AnswerSlot)));
     if (this.centered) this.slideT = 0;
     if (challenge.source === 'place') {
       this.header = bigText(scene, 0, 0, '\u{1F4CD} Look!', 56, '#ffd43b', { font: FONT_BODY, stroke: 9 });
@@ -156,7 +164,7 @@ export class ChallengePanel {
     return c;
   }
 
-  private buildCell(o: ChallengeOption, i: number): Cell {
+  private buildCell(o: ChallengeOption, i: AnswerSlot): Cell {
     const root = this.scene.add.container(0, 0);
     const inner = this.scene.add.container(0, 0);
     root.add(inner);
@@ -178,12 +186,12 @@ export class ChallengePanel {
     }
     inner.add(hint);
     const bx = dia ? -cw / 2 + 52 : 0, by = dia ? 0 : BADGE_DY;
-    const badge = this.scene.add.image(bx, by, TEX.buttonBadge[i]).setScale(0.9);
-    // Fallback when art is missing: colored dot.
-    if (!this.scene.textures.exists(TEX.buttonBadge[i])) badge.setVisible(false);
-    inner.add(badge);
-    if (!badge.visible) {
-      inner.add(circle(this.scene, { r: 32, fill: hexNum(ANSWER_COLORS[i]) }, bx, by));
+    if (this.controllerFamily === 'xbox' && this.scene.textures.exists(TEX.buttonBadge[i])) {
+      inner.add(this.scene.add.image(bx, by, TEX.buttonBadge[i]).setScale(0.9));
+    } else {
+      const device = this.hooks.controllerDevice;
+      const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
+      inner.add(new FaceButtonBadge(this.scene, bx, by, 60, ANSWER_POSITIONS[i], this.controllerFamily, key));
     }
     this.root.add(root);
     return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
@@ -201,7 +209,7 @@ export class ChallengePanel {
       this.promptDock = { x: 0, y: top + PROMPT_H / 2, s: 1 };
       const y0 = top + PROMPT_H + gap + D_CARD_H / 2;
       const step = D_CARD_H + D_GAP;
-      // slots: 0 X left, 1 Y top, 2 B right, 3 A bottom
+      // slots: 0 left, 1 top, 2 right, 3 bottom
       const pos = [{ x: -off, y: y0 + step }, { x: 0, y: y0 }, { x: off, y: y0 + step }, { x: 0, y: y0 + 2 * step }];
       this.cells.forEach((c, k) => { c.dock = { ...pos[k], s: 1 }; });
       return;

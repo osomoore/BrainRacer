@@ -79,8 +79,9 @@ export class ResultsScene extends Phaser.Scene {
     services.input.poll();
     if (this.leaving || this.time.now < this.readyAt) return;
     const inp = services.input.any();
-    if (inp.navX !== 0 || inp.navY !== 0) {
-      this.sel = (this.sel + 1) % this.buttons.length;
+    const dir = inp.navX || inp.navY;
+    if (dir) {
+      this.sel = Phaser.Math.Wrap(this.sel + dir, 0, this.buttons.length);
       this.refreshButtons();
       services.audio.sfx('menuMove');
     }
@@ -159,7 +160,8 @@ export class ResultsScene extends Phaser.Scene {
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (i === 0) {
-        this.registry.set(REG.settings, { ...this.settings, seed: randomSeed() });
+        const latest = (this.registry.get(REG.settings) as Settings | undefined) ?? this.settings;
+        this.registry.set(REG.settings, { ...latest, seed: randomSeed() });
         this.scene.start(SCENE.race);
       } else {
         this.scene.start(SCENE.title);

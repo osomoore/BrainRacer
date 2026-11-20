@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TEX } from '../../core/assetKeys';
-import type { CarKind, InputDevice } from '../../core/types';
+import type { CarKind, ControllerFamily, InputDevice } from '../../core/types';
 
 export const FONT_HEAD = 'Arial Black, Arial, sans-serif';
 export const FONT_BODY = 'Arial, "Segoe UI Emoji", "Segoe UI Symbol", sans-serif';
@@ -62,20 +62,13 @@ export function carPreview(scene: Phaser.Scene, kind: CarKind, x: number, y: num
 
 export function carName(kind: CarKind): string { return kind === 'dino' ? 'Dino-Car' : 'Red Kart'; }
 
-export function deviceLabel(d: InputDevice): string {
-  if (d.type === 'gamepad') return `\u{1F3AE} Controller ${d.index + 1}`;
+export function deviceLabel(d: InputDevice, family?: ControllerFamily): string {
+  if (d.type === 'gamepad') {
+    if (family === 'nintendo') return 'Switch Pro Controller';
+    if (family === 'xbox') return 'Xbox Controller';
+    return `\u{1F3AE} Controller ${d.index + 1}`;
+  }
   return d.layout === 'left' ? '⌨ WASD' : '⌨ Arrows';
-}
-
-/** Round green "A" button badge (drawn, no font symbol needed). */
-export function aBadge(scene: Phaser.Scene, x: number, y: number, size = 56): Phaser.GameObjects.Container {
-  const c = scene.add.container(x, y);
-  const g = scene.add.graphics();
-  g.fillStyle(0x2ecc40, 1).fillCircle(0, 0, size / 2);
-  g.lineStyle(5, 0xffffff, 1).strokeCircle(0, 0, size / 2);
-  c.add(g);
-  c.add(bigText(scene, 0, 1, 'A', Math.max(MIN_TEXT, size * 0.75), '#ffffff', { stroke: 4, shadow: false }));
-  return c;
 }
 
 /** Triangle pointing +x, in the given color, with an outline. */

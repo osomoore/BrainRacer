@@ -4,6 +4,7 @@ import { TEX } from '../core/assetKeys';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { CarKind, InputDevice, PlayerSettings, Settings } from '../core/types';
+import { ConfirmPrompt } from '../ui/menu/FaceButtonBadge';
 import { JoinCard } from '../ui/menu/JoinCard';
 import { bigText, FONT_HEAD } from '../ui/menu/style';
 import { buildLabel } from '../buildInfo';
@@ -11,7 +12,7 @@ import { REG, SCENE } from './keys';
 
 const LOGO_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#ff922b'];
 const ROAD_TOP = 905;
-/** After someone joins, A-to-continue is ignored this long so the other player can still join. */
+/** After someone joins, confirm is ignored this long so the other player can still join. */
 const JOIN_GRACE_MS = 600;
 
 interface Driver { obj: Phaser.GameObjects.Container; speed: number; dir: 1 | -1 }
@@ -24,8 +25,7 @@ export class TitleScene extends Phaser.Scene {
   private drivers: Driver[] = [];
   private dashes!: Phaser.GameObjects.Graphics;
   private dashOffset = 0;
-  private continueHint!: Phaser.GameObjects.Container;
-  private base!: Settings;
+  private continueHint!: ConfirmPrompt;
   private audioStarted = false;
   private leaving = false;
   private lastJoinAt = -1e9;
@@ -34,7 +34,6 @@ export class TitleScene extends Phaser.Scene {
 
   create() {
     this.joined = []; this.cards = []; this.letters = []; this.drivers = []; this.leaving = false; this.lastJoinAt = -1e9;
-    this.base = loadSettings();
     this.audioStarted = services.audio.unlocked;
     if (this.audioStarted) services.audio.music('title');
     services.input.reset();
@@ -44,8 +43,8 @@ export class TitleScene extends Phaser.Scene {
     const carFor = (i: number): CarKind => (i === 0 ? 'dino' : 'kart');
     this.cards = [0, 1].map((i) => new JoinCard(this, 520 + i * 880, 600, i as 0 | 1, PLAYER_COLORS[i], carFor(i)));
 
-    const press = bigText(this, 0, 0, 'Press  A  again to continue', 56, '#ffffff', { font: FONT_HEAD });
-    this.continueHint = this.add.container(GAME_WIDTH / 2, 868, [press]).setVisible(false);
+    this.continueHint = new ConfirmPrompt(this, GAME_WIDTH / 2, 868, 'again to continue', 56);
+    this.continueHint.setVisible(false);
     this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     bigText(this, GAME_WIDTH - 24, 20, buildLabel(), 32, '#ffffff', { origin: [1, 0], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
@@ -146,6 +145,8 @@ export class TitleScene extends Phaser.Scene {
 
     const input = services.input;
     input.poll();
+    const connectedFamily = input.controllerFamily?.() ?? 'other';
+    this.cards.forEach((card) => card.setPromptFamily(connectedFamily));
     if (this.leaving) return;
     const any = input.any();
     if (any.confirm || any.back || any.pause || any.navX || any.navY) this.startAudio();
@@ -185,14 +186,23 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private refreshCards() {
-    this.cards.forEach((c, i) => c.setJoined(this.joined[i] ?? null));
+    const input = services.input;
+    this.cards.forEach((card, i) => {
+      const device = this.joined[i];
+      card.setJoined(device ?? null, device ? input.controllerFamily?.(device) : undefined);
+    });
+    const pads = this.joined.filter((device) => device.type === 'gamepad');
+    const family = pads[0] && input.controllerFamily?.(pads[0]);
+    const commonFamily = family && pads.every((pad) => input.controllerFamily?.(pad) === family) ? family : 'other';
+    this.continueHint.setFamily(commonFamily);
     this.continueHint.setVisible(this.joined.length > 0);
   }
 
   private goSetup() {
     this.leaving = true;
     services.audio.sfx('menuSelect');
-    const saved = this.base.players;
+    const current = loadSettings();
+    const saved = current.players;
     const players: PlayerSettings[] = this.joined.map((device, i) => {
       const prev = saved[i];
       const p0car: CarKind = saved[0]?.car ?? 'dino';
@@ -202,7 +212,7 @@ export class TitleScene extends Phaser.Scene {
         car: prev?.car ?? (i === 0 ? 'dino' : p0car === 'dino' ? 'kart' : 'dino'),
       };
     });
-    const settings: Settings = { ...this.base, players };
+    const settings: Settings = { ...current, players };
     saveSettings(settings);
     this.registry.set(REG.settings, settings);
     this.scene.start(SCENE.setup);
