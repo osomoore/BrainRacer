@@ -3,7 +3,7 @@ param(
     [string]$Device
 )
 $ErrorActionPreference = 'Stop'
-Set-Location $PSScriptRoot
+Push-Location $PSScriptRoot
 
 if (-not $env:JAVA_HOME) { $env:JAVA_HOME = 'C:\Users\osomo\AndroidDev\jdk17' }
 if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = 'C:\Users\osomo\AndroidDev\sdk' }
@@ -34,8 +34,11 @@ if (-not $env:BRAINRACER_KEYSTORE_PROPS -and -not (Test-Path $ksProps)) {
     Write-Host "Created keystore $ksFile (BACK IT UP, with $ksProps)"
 }
 
+# Native tools print notes to stderr; with 'Stop' Windows PowerShell would treat those as fatal.
+# Rely on exit codes instead.
+$ErrorActionPreference = 'Continue'
 & .\gradlew.bat assembleRelease
-if ($LASTEXITCODE -ne 0) { throw 'gradle build failed' }
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'gradle build failed' }
 
 $out = Join-Path $PSScriptRoot 'out'
 New-Item -ItemType Directory -Force $out | Out-Null
@@ -48,4 +51,6 @@ if ($Install) {
     $adb = Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe'
     if ($Device) { & $adb connect $Device }
     & $adb install -r $dest
+    if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'adb install failed (is the box connected? try: adb devices)' }
 }
+Pop-Location
