@@ -8,7 +8,7 @@ import { challengeScenesFor } from '../data/places';
 import { ALL_WORDS, scenesForWord } from '../data/scenes';
 import { WORD_META } from '../data/wordMeta';
 import { wordsConflict } from './conflicts';
-import { generateMath } from './mathGen';
+import { generateMath, generateMultiplication } from './mathGen';
 
 export interface GenerateOpts {
   placeWord?: string;
@@ -57,18 +57,19 @@ export class ChallengeGenerator {
       const k: ChallengeKind = this.rng.chance(CHALLENGE.placeWordToPicChance) ? 'wordToPic' : 'picToWord';
       return this.generateWord(k, difficulty, place, opts.recentWords, count);
     }
-    if (kind === 'math') return this.generateMathChallenge(difficulty, count);
+    if (kind === 'math' || kind === 'multiplication') return this.generateMathChallenge(kind, difficulty, count);
     return this.generateWord(kind, difficulty, undefined, opts.recentWords, count);
   }
 
-  private generateMathChallenge(difficulty: Difficulty, count: number): GeneratedChallenge {
-    const m = generateMath(this.rng, difficulty, count);
+  private generateMathChallenge(kind: 'math' | 'multiplication', difficulty: Difficulty, count: 3 | 4): GeneratedChallenge {
+    const generate = kind === 'math' ? generateMath : generateMultiplication;
+    const m = generate(this.rng, difficulty, count);
     const correct = this.rng.int(0, count - 1) as AnswerSlot;
     const rest = [...m.distractors];
     const options = Array.from({ length: count }, (_, i): ChallengeOption =>
       ({ kind: 'text', text: String(i === correct ? m.answer : rest.shift()) }));
     return {
-      kind: 'math',
+      kind,
       prompt: { kind: 'text', text: m.text },
       options,
       correct,

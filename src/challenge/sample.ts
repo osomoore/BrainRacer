@@ -20,7 +20,7 @@ function line(c: GeneratedChallenge): string {
 const seed = Number(process.argv[2] ?? 1) || 1;
 const pickRng = new Rng(seed + 7);
 const gen = new ChallengeGenerator(new Rng(seed));
-const kinds: ChallengeKind[] = ['picToWord', 'wordToPic', 'math'];
+const kinds: ChallengeKind[] = ['picToWord', 'wordToPic', 'math', 'multiplication'];
 const levels: Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 
 for (const kind of kinds) {

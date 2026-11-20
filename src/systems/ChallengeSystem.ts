@@ -49,7 +49,7 @@ export class ChallengeSystem implements GameSystem {
     if (this.pause) {
       const factories = players.map((p, i) => new ChallengeFactory({
         player: i as PlayerId, difficulty: p.difficulty, generator: new ChallengeGenerator(rng.fork(i * 2 + 1)),
-        rng: rng.fork(i * 2 + 2), mode, optionCount: CHALLENGE.pauseOptions as 3 | 4,
+        rng: rng.fork(i * 2 + 2), mode, questionTypes: p.questionTypes, optionCount: CHALLENGE.pauseOptions as 3 | 4,
       }));
       this.breaks = new BreakScheduler({
         players: players.length,
@@ -69,6 +69,7 @@ export class ChallengeSystem implements GameSystem {
         rng: rng.fork(i * 2 + 2),
         startDelaySec: CHALLENGE.firstChallengeDelaySec,
         mode,
+        questionTypes: p.questionTypes,
       }));
     }
     this.near = players.map(() => new Set<number>());

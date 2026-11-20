@@ -1,4 +1,4 @@
-/** Math challenge body generation (addition only). Pure. */
+/** Seeded addition and multiplication question generation. */
 import { CHALLENGE, DIFFICULTY } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
 import type { Difficulty } from '../core/types';
@@ -72,17 +72,33 @@ function distractorPool(d: Difficulty, answer: number, rng: Rng): number[] {
 }
 
 export function generateMath(rng: Rng, d: Difficulty, optionCount = 3): MathBody {
-  const need = optionCount - 1;
   const [a, b] = pickPair(rng, d);
   const answer = a + b;
+  const distractors = pickDistractors(distractorPool(d, answer, rng), answer, optionCount);
+  return { text: `${a} + ${b}`, answer, distractors };
+}
+
+export function generateMultiplication(rng: Rng, d: Difficulty, optionCount: 3 | 4 = 3): MathBody {
+  const max = DIFFICULTY[d].multiplication.maxFactor;
+  const a = rng.int(1, max);
+  const b = rng.int(1, max);
+  const answer = a * b;
+  // One more or one fewer group of either factor is a plausible miscount.
+  const nearbyProducts = rng.shuffle([answer - a, answer + a, answer - b, answer + b]);
+  const distractors = pickDistractors(nearbyProducts, answer, optionCount, max * max);
+  return { text: `${a} × ${b}`, answer, distractors };
+}
+
+function pickDistractors(pool: number[], answer: number, optionCount: number, max = Infinity): number[] {
+  const need = optionCount - 1;
   const chosen: number[] = [];
-  const ok = (n: number) => n >= 1 && n !== answer && !chosen.includes(n);
-  for (const c of distractorPool(d, answer, rng)) {
+  const ok = (n: number) => n >= 1 && n <= max && n !== answer && !chosen.includes(n);
+  for (const c of pool) {
     if (chosen.length === need) break;
     if (ok(c)) chosen.push(c);
   }
   for (let k = 1; chosen.length < need; k++) {
     for (const c of [answer + k, answer - k]) if (chosen.length < need && ok(c)) chosen.push(c);
   }
-  return { text: `${a} + ${b}`, answer, distractors: chosen };
+  return chosen;
 }

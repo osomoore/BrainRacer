@@ -87,15 +87,15 @@ test('Setup can select Farm', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off', map: 'city' }));
   });
-  await page.goto('/');
+  await page.goto('/?questions=off');
   await waitScene(page, 'Title');
   await page.keyboard.press('Space');
   await page.waitForTimeout(800); // Title allows time for a second player to join.
   await page.keyboard.press('Space');
   await waitScene(page, 'Setup');
-  // Player one's cursor opens on Difficulty. Map is four rows below it: City → Factory → Farm.
-  for (let row = 0; row < 4; row++) {
-    await page.keyboard.press('KeyS', { delay: 55 });
+  // From Difficulty, go up to Start and then Map. City → Factory → Farm.
+  for (let row = 0; row < 2; row++) {
+    await page.keyboard.press('KeyW', { delay: 55 });
     await page.waitForTimeout(55);
   }
   await page.keyboard.press('KeyD');

@@ -1,8 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
+import type { Challenge, QuestionTypes, Settings } from '../../src/core/types';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 const BTN_A = 0;
+const PAD_UP = 12, PAD_DOWN = 13, PAD_LEFT = 14, PAD_RIGHT = 15;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -15,9 +17,9 @@ async function waitScene(page: Page, key: string) {
   await page.waitForFunction((k) => (window as any).__game?.scene.isActive(k), key, { timeout: 30_000 });
 }
 
-const settingsOf = (page: Page) => page.evaluate(() => (window as any).__game.registry.get('settings'));
+const settingsOf = (page: Page) => page.evaluate(() => window.__game.registry.get('settings') as Settings);
 
-test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
+test('gamepads: two players customize and receive different questions', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 2);
   await page.goto('/');
@@ -33,30 +35,38 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
-  await tapPad(page, 0, 13); // Car.
-  await tapPad(page, 0, 13); // Guide.
-  await tapPad(page, 0, 13); // Questions.
-  await tapPad(page, 1, 13); // Select P2's Car row while P1 changes the question type.
-  for (const [button, mode] of [[15, 'math'], [15, 'mixed'], [14, 'math'], [14, 'words']] as const) {
-    await tapPad(page, 0, button);
-    const layout = await page.evaluate(() => {
-      type Column = { diff: Phaser.GameObjects.Container; car: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
-      const setup = window.__game.scene.getScene('Setup') as unknown as { cols: Column[]; cfg: { challengeMode: string } };
-      return {
-        mode: setup.cfg.challengeMode,
-        previews: setup.cols.map(({ diff, car, hint }) => ({
-          text: hint.text,
-          fits: diff.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
-        })),
-      };
-    });
-    expect(layout.mode).toBe(mode);
-    for (const preview of layout.previews) {
-      expect(preview.fits).toBe(true);
-      expect(preview.text.includes('Sums like')).toBe(mode !== 'words');
-    }
+  await tapPad(page, 0, PAD_RIGHT); // Normal to Hard.
+  for (const player of [0, 1]) {
+    await tapPad(page, player, PAD_DOWN); // Car.
+    await tapPad(page, player, PAD_DOWN); // Guide.
+    await tapPad(page, player, PAD_DOWN); // Addition.
   }
-  await tapPad(page, 0, BTN_A); // Confirm from the Questions row starts the race.
+  await tapPad(page, 1, PAD_RIGHT); // Turn on Addition for P2.
+  await tapPad(page, 0, PAD_DOWN); // Multiplication.
+  await tapPad(page, 0, PAD_RIGHT); // Turn on Multiplication for P1.
+  await tapPad(page, 0, PAD_DOWN); // Spelling.
+  await tapPad(page, 0, PAD_LEFT); // Turn off Spelling for P1.
+  await tapPad(page, 1, PAD_DOWN); // Multiplication stays off for P2.
+  await tapPad(page, 1, PAD_DOWN); // Spelling.
+  await tapPad(page, 1, PAD_LEFT); // Turn off Spelling for P2.
+  await tapPad(page, 0, PAD_UP); // Multiplication.
+  await tapPad(page, 0, PAD_LEFT); // The last type stays on.
+
+  const previews = await page.evaluate(() => {
+    type Column = { diff: Phaser.GameObjects.Container; car: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
+    const setup = window.__game.scene.getScene('Setup') as unknown as { cols: Column[] };
+    return setup.cols.map(({ diff, car, hint }) => ({
+      text: hint.text,
+      fits: diff.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
+    }));
+  });
+  expect(previews[0].text).toContain('Tables up to 12');
+  expect(previews[0].text).not.toContain('Sums like');
+  expect(previews[1].text).toContain('Sums like');
+  expect(previews[1].text).not.toContain('Tables up to');
+  expect(previews.every((preview) => preview.fits)).toBe(true);
+
+  await tapPad(page, 0, BTN_A); // Confirm from a question type row starts the race.
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
@@ -64,15 +74,25 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   expect(s.players[0].device).toEqual({ type: 'gamepad', index: 0 });
   expect(s.players[1].device).toEqual({ type: 'gamepad', index: 1 });
   expect(s.players[0].car).not.toEqual(s.players[1].car);
+  const questionTypes: QuestionTypes[] = [
+    { addition: false, multiplication: true, spelling: false },
+    { addition: true, multiplication: false, spelling: false },
+  ];
+  expect(s.players.map((p) => p.questionTypes)).toEqual(questionTypes);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
+  expect(saved.players.map((p) => p.questionTypes)).toEqual(questionTypes);
   expect(s.challengeMode).toBe('words');
   expect(s.questionStyle).toBe('pause');
+  await page.waitForFunction(() => [0, 1].every((p) => (window as any).__challenge?.current(p)));
+  const kinds = await page.evaluate(() => [0, 1].map((p) => ((window as any).__challenge.current(p) as Challenge).kind));
+  expect(kinds).toEqual(['multiplication', 'math']);
   expect(errors).toEqual([]);
 });
 
-test('keyboard only: join, select Questions Off, and start the race', async ({ page }) => {
+test('keyboard only: a launch override skips questions without changing Setup preferences', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 0);
-  await page.goto('/');
+  await page.goto('/?questions=off');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
 
@@ -81,22 +101,17 @@ test('keyboard only: join, select Questions Off, and start the race', async ({ p
   await page.keyboard.press('Space');   // continue
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  await page.keyboard.press('KeyS');   // Car
+  await page.keyboard.press('KeyW', { delay: 55 });   // Start
   await page.waitForTimeout(150);
-  await page.keyboard.press('KeyS');   // Guide
-  await page.waitForTimeout(150);
-  await page.keyboard.press('KeyS');   // Questions
-  await page.waitForTimeout(150);
-  await page.keyboard.press('KeyA');   // Words wraps left to Off
-  await page.waitForTimeout(150);
-  await page.keyboard.press('Space');   // start immediately
+  await page.keyboard.press('Space');
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
   expect(s.players).toHaveLength(1);
   expect(s.players[0].device).toEqual({ type: 'keyboard', layout: 'left' });
-  expect(s.challengeMode).toBe('off');
-  expect((await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!))).challengeMode).toBe('off');
+  expect(s.challengeMode).toBe('words');
+  expect(s.players[0].questionTypes).toEqual({ addition: false, multiplication: false, spelling: true });
+  expect(await page.evaluate(() => window.__race.settings.challengeMode)).toBe('off');
   await waitPastFirstQuestion(page);
   expect(errors).toEqual([]);
 });

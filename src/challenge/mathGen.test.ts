@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../core/rng';
 import type { Difficulty } from '../core/types';
-import { generateMath } from './mathGen';
+import { generateMath, generateMultiplication } from './mathGen';
 
 const sortedDigits = (n: number) => String(n).split('').sort().join('');
 
@@ -76,5 +76,41 @@ describe('generateMath easyPlus', () => {
     expect(teens / N).toBeLessThan(0.65);
     const a = generateMath(new Rng(5), 'easyPlus');
     expect(generateMath(new Rng(5), 'easyPlus')).toEqual(a);
+  });
+});
+
+describe('generateMultiplication', () => {
+  const tables = [['easy', 3], ['easyPlus', 5], ['normal', 9], ['hard', 12]] as const;
+
+  it.each(tables)('%s covers every factor pair from 1 through %i with distinct options', (difficulty, max) => {
+    const rng = new Rng(19);
+    const pairs = new Set<string>();
+    for (let i = 0; i < 2000; i++) {
+      const count = i % 2 === 0 ? 3 : 4;
+      const m = generateMultiplication(rng, difficulty, count);
+      const [a, b] = m.text.split(' × ').map(Number);
+      expect(a).toBeGreaterThanOrEqual(1);
+      expect(a).toBeLessThanOrEqual(max);
+      expect(b).toBeGreaterThanOrEqual(1);
+      expect(b).toBeLessThanOrEqual(max);
+      expect(m.answer).toBe(a * b);
+      expect(m.distractors).toHaveLength(count - 1);
+      expect(new Set([m.answer, ...m.distractors]).size).toBe(count);
+      for (const distractor of m.distractors) {
+        expect(distractor).toBeGreaterThanOrEqual(1);
+        expect(distractor).toBeLessThanOrEqual(max * max);
+        expect(Math.abs(m.answer - distractor)).toBeLessThanOrEqual(max);
+      }
+      pairs.add(m.text);
+    }
+    expect(pairs.size).toBe(max * max);
+  });
+
+  it('is deterministic per seed', () => {
+    const run = () => {
+      const rng = new Rng(4);
+      return Array.from({ length: 12 }, () => generateMultiplication(rng, 'hard', 4));
+    };
+    expect(run()).toEqual(run());
   });
 });

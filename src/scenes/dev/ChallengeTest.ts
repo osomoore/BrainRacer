@@ -5,7 +5,7 @@ import { ChallengeGenerator, type GeneratedChallenge } from '../../challenge/Cha
 import { Rng, randomSeed } from '../../core/rng';
 import type { ChallengeKind, ChallengeOption, Difficulty } from '../../core/types';
 
-const KINDS: ChallengeKind[] = ['picToWord', 'wordToPic', 'math'];
+const KINDS: ChallengeKind[] = ['picToWord', 'wordToPic', 'math', 'multiplication'];
 const LEVELS: Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const FONT = 'Arial Black, Arial';
 const IMG = 320;

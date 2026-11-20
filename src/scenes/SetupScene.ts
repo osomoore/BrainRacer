@@ -1,11 +1,11 @@
-import { questionsOffAllowed } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { normalizeQuestionTypes } from '../config/questionsPolicy';
 import { services } from '../core/services';
 import { availableLoadouts, loadUnlocks, selectedLoadout } from '../core/progression';
 import { isRaceMap, loadSettings, RACE_MAPS, saveSettings } from '../core/settings';
-import type { CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, RaceMap, Settings } from '../core/types';
+import type { CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, QuestionType, QuestionTypes, RaceMap, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
@@ -17,13 +17,14 @@ const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Ea
 const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
 const DIFF_BLURB: Record<Difficulty, string> = { easy: 'Nice and relaxed', easyPlus: 'A little bigger', normal: 'Just right', hard: 'Super speedy' };
 
-// P1 cursor rows
-const ROW_DIFF = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUEST = 3, ROW_MAP = 4, ROW_START = 5;
+const QUESTIONS: { type: QuestionType; label: string }[] = [
+  { type: 'addition', label: 'Addition' },
+  { type: 'multiplication', label: 'Multiplication' },
+  { type: 'spelling', label: 'Spelling' },
+];
+const ROW_DIFF = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUEST = 3;
+const ROW_MAP = ROW_QUEST + QUESTIONS.length, ROW_START = ROW_MAP + 1;
 const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Factory', farm: 'Farm', harbor: 'Beach', underground: 'Mine' };
-const MODES: Settings['challengeMode'][] = questionsOffAllowed() ? ['words', 'math', 'mixed', 'off'] : ['words', 'math', 'mixed'];
-const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
-const P1_LAST = ROW_START;
-const P2_LAST = ROW_GUIDE;
 
 const COL_W = 780;
 const COL_ROW_W = 740;
@@ -33,17 +34,20 @@ interface Column {
   diff: OptionRow;
   car: OptionRow;
   guide: OptionRow;
+  questions: OptionRow[];
   hint: Phaser.GameObjects.Text;
   carKind: CarKind;
   carObj: Phaser.GameObjects.Container;
   guideObj: Phaser.GameObjects.Image;
 }
 
+type SetupPlayer = PlayerSettings & { questionTypes: QuestionTypes };
+
 export class SetupScene extends Phaser.Scene {
-  private cfg!: Settings;
+  private cfg!: Settings & { players: SetupPlayer[] };
   private cursors: number[] = [0, 0];
   private cols: Column[] = [];
-  private globals: OptionRow[] = [];
+  private mapRow!: OptionRow;
   private available!: ReturnType<typeof availableLoadouts>;
   private modeLabel!: Phaser.GameObjects.Text;
   private startBtn!: MenuButton;
@@ -53,20 +57,21 @@ export class SetupScene extends Phaser.Scene {
 
   create() {
     this.leaving = false;
-    this.cols = []; this.globals = []; this.cursors = [0, 0];
+    this.cols = []; this.cursors = [0, 0];
     const reg = this.registry.get(REG.settings) as Settings | undefined;
     const saved = loadSettings();
     const base = reg && reg.players?.length ? reg : saved;
-    const players: PlayerSettings[] = base.players.slice(0, 2).map((p, i) => ({
+    const players: SetupPlayer[] = base.players.slice(0, 2).map((p, i) => ({
       ...p,
       difficulty: p.difficulty ?? saved.players[i]?.difficulty ?? 'normal',
       car: p.car ?? (i === 0 ? 'dino' : 'kart'),
+      questionTypes: normalizeQuestionTypes(p.questionTypes, base.challengeMode),
     }));
     this.cfg = {
       ...base,
       players,
       map: isRaceMap(base.map) ? base.map : 'city',
-      challengeMode: MODES.includes(base.challengeMode) ? base.challengeMode : 'words',
+      challengeMode: 'words',
       questionStyle: base.questionStyle === 'drive' ? 'drive' : DEFAULT_SETTINGS.questionStyle,
     };
     this.refreshAvailability();
@@ -102,38 +107,37 @@ export class SetupScene extends Phaser.Scene {
 
   private buildColumn(i: number, cx: number): Column {
     const color = hexNum(PLAYER_COLORS[i]);
-    const top = 130, h = 528;
+    const top = 130, h = 636;
     const g = this.add.graphics();
     g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
     g.lineStyle(10, color, 1).strokeRoundedRect(cx - COL_W / 2, top, COL_W, h, 40);
-    bigText(this, cx - 350, top + 55, `PLAYER ${i + 1}`, 52, PLAYER_COLORS[i], { font: FONT_HEAD, stroke: 10, origin: [0, 0.5] });
+    bigText(this, cx - 350, top + 33, `PLAYER ${i + 1}`, 52, PLAYER_COLORS[i], { font: FONT_HEAD, stroke: 10, origin: [0, 0.5] });
     const device = this.cfg.players[i].device;
     const family = services.input.controllerFamily?.(device);
     const label = family === 'nintendo' ? 'Switch Pro' : deviceLabel(device, family);
-    bigText(this, cx + 350, top + 55, label, 40, '#ffffff', { origin: [1, 0.5] });
-    const opts = { width: COL_ROW_W, valueX: 155, arrowSpan: 175, height: 62 };
-    const diff = new OptionRow(this, cx, top + 146, 'Difficulty', opts);
-    // Reserve two lines between the option rows so the sample can appear without moving the controls.
-    const hint = bigText(this, cx, top + 238, '', 40, MENU.dim, { bold: false, shadow: false, stroke: 4 });
-    const car = new OptionRow(this, cx, top + 333, 'Car', opts);
-    const guide = new OptionRow(this, cx, top + 405, 'Guide', opts);
+    bigText(this, cx + 350, top + 33, label, 40, '#ffffff', { origin: [1, 0.5] });
+    const opts = { width: COL_ROW_W, valueX: 155, arrowSpan: 175, height: 56 };
+    const diff = new OptionRow(this, cx, top + 100, 'Difficulty', opts);
+    const hint = bigText(this, cx, top + 183, '', 40, MENU.dim, { bold: false, shadow: false, stroke: 4 });
+    const car = new OptionRow(this, cx, top + 266, 'Car', opts);
+    const guide = new OptionRow(this, cx, top + 331, 'Guide', opts);
     const { car: carKind, guide: guideKind } = this.loadout(i);
-    const carObj = carPreview(this, carKind, cx - 68, top + 480, CAR_PREVIEW_SCALE);
-    const guideObj = this.add.image(cx + 74, top + 480, guideArt(guideKind));
-    return { diff, car, guide, hint, carKind, carObj, guideObj };
+    const carObj = carPreview(this, carKind, cx - 68, top + 396, CAR_PREVIEW_SCALE);
+    const guideObj = this.add.image(cx + 74, top + 396, guideArt(guideKind));
+    const toggleOpts = { ...opts, valueX: 224, arrowSpan: 90 };
+    const questions = QUESTIONS.map(({ label }, j) => new OptionRow(this, cx, top + 462 + j * 63, label, toggleOpts));
+    return { diff, car, guide, questions, hint, carKind, carObj, guideObj };
   }
 
   private buildGlobals() {
     const cx = GAME_WIDTH / 2;
     const g = this.add.graphics();
-    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 683, 1120, 174, 36);
-    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 683, 1120, 174, 36);
-    const opts = { width: 1040, height: 56, fontSize: 48, valueX: 230, arrowSpan: 200 };
-    ['Questions', 'Map'].forEach((l, i) => {
-      this.globals.push(new OptionRow(this, cx, 731 + i * 78, l, opts));
-    });
+    g.fillStyle(0x0d1840, 0.88).fillRoundedRect(cx - 560, 790, 1120, 84, 36);
+    g.lineStyle(8, hexNum(PLAYER_COLORS[0]), 1).strokeRoundedRect(cx - 560, 790, 1120, 84, 36);
+    this.mapRow = new OptionRow(this, cx, 832, 'Map', { width: 1040, height: 56, fontSize: 48, valueX: 230, arrowSpan: 200 });
     const color = hexNum(PLAYER_COLORS[0]);
     this.startBtn = new MenuButton(this, cx, 944, 900, 86, 'START RACE!', color, 64);
+    bigText(this, cx, 1024, 'Keep at least one question type on per player', 40, MENU.dim);
     const padPlayers = this.cfg.players.filter((p) => p.device.type === 'gamepad');
     if (padPlayers.length) {
       const families = padPlayers.map((p) => services.input.controllerFamily?.(p.device) ?? 'other');
@@ -143,9 +147,11 @@ export class SetupScene extends Phaser.Scene {
   }
 
   // ───────────────────────── view ─────────────────────────
-  private hintText(d: Difficulty): string {
-    if (this.cfg.challengeMode === 'off') return '';
-    const extra = this.cfg.challengeMode === 'words' ? '' : `\nSums like ${DIFF_EXAMPLE[d]}`;
+  private hintText({ difficulty: d, questionTypes }: SetupPlayer): string {
+    const examples: string[] = [];
+    if (questionTypes.addition) examples.push(`Sums like ${DIFF_EXAMPLE[d]}`);
+    if (questionTypes.multiplication) examples.push(`Tables up to ${DIFFICULTY[d].multiplication.maxFactor}`);
+    const extra = examples.length ? `\n${examples.join(' · ')}` : '';
     if (this.cfg.questionStyle === 'pause') return `${DIFF_BLURB[d]}${extra}`;
     const secs = Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1));
     return `${DIFF_BLURB[d]}: ${secs} s per question${extra}`;
@@ -158,9 +164,10 @@ export class SetupScene extends Phaser.Scene {
       const p = c.players[i];
       const { car, guide } = this.loadout(i);
       col.diff.setValue(DIFF_LABEL[p.difficulty]);
-      col.hint.setText(this.hintText(p.difficulty));
+      col.hint.setText(this.hintText(p));
       col.car.setValue(carName(car));
       col.guide.setValue(guideName(guide));
+      QUESTIONS.forEach(({ type }, j) => col.questions[j].setValue(p.questionTypes[type] ? 'On' : 'Off'));
       col.guideObj.setTexture(guideArt(guide));
       if (col.carKind !== car) {
         const { x, y } = col.carObj;
@@ -169,8 +176,7 @@ export class SetupScene extends Phaser.Scene {
         col.carKind = car;
       }
     });
-    this.globals[0].setValue(MODE_LABEL[c.challengeMode]);
-    this.globals[1].setValue(MAP_LABEL[c.map]);
+    this.mapRow.setValue(MAP_LABEL[c.map]);
     this.refreshCursors();
   }
 
@@ -203,9 +209,10 @@ export class SetupScene extends Phaser.Scene {
       col.diff.setSelected(cur === ROW_DIFF, color);
       col.car.setSelected(cur === ROW_CAR, color);
       col.guide.setSelected(cur === ROW_GUIDE, color);
+      col.questions.forEach((r, j) => r.setSelected(cur === ROW_QUEST + j, color));
     });
     const c1 = this.cursors[0];
-    this.globals.forEach((r, i) => r.setSelected(c1 === ROW_QUEST + i, p1));
+    this.mapRow.setSelected(c1 === ROW_MAP, p1);
     this.startBtn.setSelected(c1 === ROW_START, p1);
   }
 
@@ -221,7 +228,7 @@ export class SetupScene extends Phaser.Scene {
   /** Returns true if the scene is being left. */
   private handle(p: PlayerId): boolean {
     const inp = services.input.get(p);
-    const last = p === 0 ? P1_LAST : P2_LAST;
+    const last = p === 0 ? ROW_START : ROW_MAP - 1;
     let cur = this.cursors[p];
     if (inp.navY) {
       const n = Phaser.Math.Wrap(cur + inp.navY, 0, last + 1);
@@ -258,9 +265,13 @@ export class SetupScene extends Phaser.Scene {
       const value = cycle(this.available.guides, this.loadout(p).guide);
       if (c.developerMode) ps.devGuide = value; else ps.guide = value;
       target = this.cols[p].guide;
-    }
-    else if (p === 0 && row === ROW_QUEST) { c.challengeMode = cycle(MODES, c.challengeMode); target = this.globals[0]; }
-    else if (p === 0 && row === ROW_MAP) { c.map = cycle(RACE_MAPS, c.map); target = this.globals[1]; }
+    } else if (row >= ROW_QUEST && row < ROW_MAP) {
+      const { type } = QUESTIONS[row - ROW_QUEST];
+      const enabled = !ps.questionTypes[type];
+      if (!enabled && !QUESTIONS.some((q) => q.type !== type && ps.questionTypes[q.type])) return;
+      ps.questionTypes[type] = enabled;
+      target = this.cols[p].questions[row - ROW_QUEST];
+    } else if (p === 0 && row === ROW_MAP) { c.map = cycle(RACE_MAPS, c.map); target = this.mapRow; }
     if (!target) return;
     services.audio.sfx('menuMove');
     this.refreshAll();

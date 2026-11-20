@@ -88,6 +88,7 @@ export const DEVELOPER_ROUND_SEC = 60;
 export interface DifficultyProfile {
   periodMultiplier: number;           // period = challengeIntervalSec * this
   typeWeights: Record<ChallengeKind, number>;
+  multiplication: { maxFactor: number };
   math: {
     minA: number; maxA: number; minB: number; maxB: number; maxSum: number; requireCarry: boolean;
     /** Optional: chance a question uses a teen sum (>= 11) when both small and teen pairs exist. */
@@ -105,26 +106,30 @@ export interface DifficultyProfile {
 export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   easy: {
     periodMultiplier: 1.5,
-    typeWeights: { picToWord: 30, math: 30, wordToPic: 40 },
+    typeWeights: { picToWord: 30, math: 30, wordToPic: 40, multiplication: 30 },
+    multiplication: { maxFactor: 3 },
     math: { minA: 1, maxA: 9, minB: 1, maxB: 9, maxSum: 10, requireCarry: false },
     words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
   },
   // Easy+: sums 2..19 (about half are teen sums); mostly simple single words, some harder ones.
   easyPlus: {
     periodMultiplier: 1.25,
-    typeWeights: { picToWord: 32, math: 32, wordToPic: 36 },
+    typeWeights: { picToWord: 32, math: 32, wordToPic: 36, multiplication: 32 },
+    multiplication: { maxFactor: 5 },
     math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false, teenChance: 0.5, offByOneFirst: true },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: false, simpleTargetChance: 0.65 },
   },
   normal: {
     periodMultiplier: 1.0,
-    typeWeights: { picToWord: 34, math: 33, wordToPic: 33 },
+    typeWeights: { picToWord: 34, math: 33, wordToPic: 33, multiplication: 33 },
+    multiplication: { maxFactor: 9 },
     math: { minA: 10, maxA: 25, minB: 1, maxB: 9, maxSum: 30, requireCarry: false },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: true },
   },
   hard: {
     periodMultiplier: 0.7,
-    typeWeights: { picToWord: 40, math: 35, wordToPic: 25 },
+    typeWeights: { picToWord: 40, math: 35, wordToPic: 25, multiplication: 35 },
+    multiplication: { maxFactor: 12 },
     math: { minA: 12, maxA: 89, minB: 12, maxB: 89, maxSum: 150, requireCarry: true },
     words: { simpleOnly: false, allowMultiWord: true, sameCategoryDistractors: true },
   },

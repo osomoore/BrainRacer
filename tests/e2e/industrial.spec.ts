@@ -34,9 +34,9 @@ async function openSetup(page: Page) {
 }
 
 async function chooseNextMap(page: Page, key: 'KeyD' | 'KeyA' = 'KeyD') {
-  // Player one's cursor opens on Difficulty. Map is four rows below it.
-  for (let row = 0; row < 4; row++) {
-    await page.keyboard.press('KeyS', { delay: 55 });
+  // From Difficulty, go up to Start and then Map.
+  for (let row = 0; row < 2; row++) {
+    await page.keyboard.press('KeyW', { delay: 55 });
     await page.waitForTimeout(55);
   }
   await page.keyboard.press(key);
@@ -64,7 +64,7 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off' }));
   });
-  await page.goto('/');
+  await page.goto('/?questions=off');
   await openSetup(page);
   await page.keyboard.press('Space');
   await assertMap(page, 'city');

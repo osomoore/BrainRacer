@@ -55,7 +55,7 @@ export interface WordMeta {
 export type WordMetaTable = Record<string, WordMeta>;
 
 // ───────────────────────── challenges ─────────────────────────
-export type ChallengeKind = 'picToWord' | 'math' | 'wordToPic';
+export type ChallengeKind = 'picToWord' | 'math' | 'multiplication' | 'wordToPic';
 
 export type ChallengePrompt =
   | { kind: 'image'; sceneId: string }
@@ -107,13 +107,17 @@ export interface PlayerInput {
 export interface PlayerSettings {
   device: InputDevice;
   difficulty: Difficulty;
+  questionTypes?: QuestionTypes;
   car: CarKind;
   guide?: GuideKind;
   devCar?: CarKind;
   devGuide?: GuideKind;
 }
 
-/** Which challenge kinds appear: words = picToWord + wordToPic (default), math = addition only, mixed = all. */
+export type QuestionType = 'addition' | 'multiplication' | 'spelling';
+export type QuestionTypes = Record<QuestionType, boolean>;
+
+/** Legacy question presets, also accepted as launch overrides. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';
 
 /** pause = world freezes for questions until answered right (default); drive = answer while driving. */
@@ -122,7 +126,7 @@ export type QuestionStyle = 'pause' | 'drive';
 export interface Settings {
   map: RaceMap;
   players: PlayerSettings[];      // length 1 or 2; index = PlayerId
-  challengeMode: ChallengeMode | 'off';   // default 'words'
+  challengeMode: ChallengeMode | 'off';   // legacy fallback and race-wide dev off switch
   questionStyle: QuestionStyle;   // default 'pause'
   challengeIntervalSec: number;   // pause style: seconds of driving between question breaks (default 10); drive style: base period
   roundLengthSec: number;         // default 300

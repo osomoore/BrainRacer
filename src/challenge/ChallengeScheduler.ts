@@ -1,7 +1,8 @@
 /** Per-player challenge timeline (pure; time is injected in seconds). */
 import { CHALLENGE, DIFFICULTY } from '../config/gameConfig';
+import { normalizeQuestionTypes } from '../config/questionsPolicy';
 import type { Rng } from '../core/rng';
-import type { AnswerSlot, Challenge, ChallengeKind, ChallengeMode, ChallengeResult, Difficulty, PlayerId } from '../core/types';
+import type { AnswerSlot, Challenge, ChallengeKind, ChallengeMode, ChallengeResult, Difficulty, PlayerId, QuestionTypes } from '../core/types';
 import type { ChallengeGenerator } from './ChallengeGenerator';
 
 export type SchedulerEvent =
@@ -17,17 +18,20 @@ export interface SchedulerOptions {
   generator: ChallengeGenerator;
   rng: Rng;
   startDelaySec: number;
-  /** Which question types may appear (missing = 'words'). */
+  questionTypes?: QuestionTypes;
+  /** Legacy fallback when questionTypes is absent (missing = 'words'). */
   mode?: ChallengeMode;
 }
 
-const KINDS: ChallengeKind[] = ['picToWord', 'math', 'wordToPic'];
-
-/** Kinds allowed by a mode. */
-export function kindsForMode(mode: ChallengeMode | undefined): ChallengeKind[] {
-  if (mode === 'math') return ['math'];
-  if (mode === 'mixed') return [...KINDS];
-  return ['picToWord', 'wordToPic'];
+/** Kinds allowed by the player's selections or by their legacy mode. */
+export function kindsForMode(mode?: ChallengeMode, questionTypes?: QuestionTypes): ChallengeKind[] {
+  const types = normalizeQuestionTypes(questionTypes, mode);
+  const kinds: ChallengeKind[] = [];
+  if (types.spelling) kinds.push('picToWord');
+  if (types.addition) kinds.push('math');
+  if (types.spelling) kinds.push('wordToPic');
+  if (types.multiplication) kinds.push('multiplication');
+  return kinds;
 }
 
 export class ChallengeScheduler {
@@ -52,7 +56,7 @@ export class ChallengeScheduler {
     this.difficulty = o.difficulty;
     this.generator = o.generator;
     this.rng = o.rng;
-    this.kinds = kindsForMode(o.mode);
+    this.kinds = kindsForMode(o.mode, o.questionTypes);
     this.periodSec = o.intervalSec * DIFFICULTY[o.difficulty].periodMultiplier;
     this.startAt = o.startDelaySec;
   }

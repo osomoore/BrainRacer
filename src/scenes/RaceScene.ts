@@ -1,4 +1,4 @@
-import { questionsOffAllowed, resolveChallengeMode } from '../config/questionsPolicy';
+import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
@@ -48,8 +48,8 @@ export class RaceScene extends Phaser.Scene {
     const params = new URLSearchParams(location.search);
     const settings: Settings = structuredClone(this.registry.get(REG.settings) ?? DEFAULT_SETTINGS);
     // Questions are mandatory unless the app was started with the questions-off option (see questionsPolicy.ts).
-    settings.challengeMode = resolveChallengeMode(
-      settings.challengeMode, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed());
+    Object.assign(settings, resolveRaceQuestions(
+      settings, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed()));
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
     Object.assign(settings, currentLaunchOverrides());

@@ -1,7 +1,7 @@
 /** Builds one player's challenges on demand (pure; used by the pause-style break scheduler). */
 import { DIFFICULTY } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
-import type { Challenge, ChallengeKind, ChallengeMode, Difficulty, PlayerId } from '../core/types';
+import type { Challenge, ChallengeKind, ChallengeMode, Difficulty, PlayerId, QuestionTypes } from '../core/types';
 import type { ChallengeGenerator } from './ChallengeGenerator';
 import { kindsForMode } from './ChallengeScheduler';
 
@@ -11,6 +11,7 @@ export interface FactoryOptions {
   generator: ChallengeGenerator;
   rng: Rng;
   mode?: ChallengeMode;
+  questionTypes?: QuestionTypes;
   optionCount?: 3 | 4;
 }
 
@@ -20,7 +21,7 @@ export class ChallengeFactory {
   private readonly used = new Set<string>();
 
   constructor(private readonly o: FactoryOptions) {
-    this.kinds = kindsForMode(o.mode);
+    this.kinds = kindsForMode(o.mode, o.questionTypes);
   }
 
   make(placeWord: string | null = null): Challenge {
