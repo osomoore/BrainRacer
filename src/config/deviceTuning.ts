@@ -3,8 +3,8 @@
  * Pure: no Phaser, no Tone. Persisted in localStorage (failure-tolerant). Defaults == original behaviour.
  */
 export type EngineSoundMode = 'full' | 'lite' | 'sample' | 'off';
-/** live: every sound is synthesised in real time; prerendered: rendered once into AudioBuffers and replayed. */
-export type AudioMode = 'live' | 'prerendered';
+/** live: every sound is synthesised in real time; prerendered: rendered once into AudioBuffers and replayed; files: decoded from the Ogg files shipped in public/audio. */
+export type AudioMode = 'live' | 'prerendered' | 'files';
 export type AudioLatency = 'interactive' | 'balanced' | 'playback';
 
 /** Ambient NPC traffic density (applies to the next race). */
@@ -53,7 +53,7 @@ export function sanitizeTuning(raw: unknown): DeviceTuning {
   const gasArr: unknown[] = Array.isArray(r.gas) ? r.gas : [];
   return {
     engineSound: pick(r.engineSound, ['full', 'lite', 'sample', 'off'] as const, d.engineSound),
-    audioMode: pick(r.audioMode, ['live', 'prerendered'] as const, d.audioMode),
+    audioMode: pick(r.audioMode, ['live', 'prerendered', 'files'] as const, d.audioMode),
     audioLatency: pick(r.audioLatency, ['interactive', 'balanced', 'playback'] as const, d.audioLatency),
     lookAheadSec: pick(r.lookAheadSec, [0.1, 0.2, 0.3] as const, d.lookAheadSec),
     compressor: typeof r.compressor === 'boolean' ? r.compressor : d.compressor,

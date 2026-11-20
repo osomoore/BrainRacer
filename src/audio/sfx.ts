@@ -449,15 +449,17 @@ const clampRate = (r: number | undefined): number => Math.min(4, Math.max(0.25, 
 export interface PlayOpts { pan?: number; volume?: number; rate?: number }
 
 // ───────────────────────── pre-rendering ─────────────────────────
-const SFX_SR = 44100;
+export const SFX_SR = 44100;
 /** Offline render length per sound (s); longer than the recipe so tails ring out, trimmed afterwards. */
 const RENDER_SEC: Partial<Record<SfxName, number>> = { roar: 2.8, goal: 2.1, wrong: 1.8, moo: 1.5, siren: 1.7 };
 const DEFAULT_RENDER_SEC = 1.6;
 /** Rendered first (needed earliest). */
 const RENDER_FIRST: SfxName[] = ['menuMove', 'menuSelect', 'correct', 'wrong', 'countdown', 'go', 'crash', 'pop', 'turbo'];
 export const SFX_NAMES = Object.keys(RECIPES) as SfxName[];
-const LOOP_KEYS = ['siren-loud', 'siren-soft', 'skid'] as const;
-type LoopKey = typeof LOOP_KEYS[number];
+export const SFX_LOOP_KEYS = ['siren-loud', 'siren-soft', 'skid'] as const;
+const LOOP_KEYS = SFX_LOOP_KEYS;
+export type SfxLoopKey = typeof SFX_LOOP_KEYS[number];
+type LoopKey = SfxLoopKey;
 /** One-shot buffers plus continuous-loop buffers. */
 export const SFX_BUFFER_TOTAL = SFX_NAMES.length + LOOP_KEYS.length;
 
@@ -467,7 +469,7 @@ function monoBuffer(data: Float32Array, len = data.length): AudioBuffer {
   return b;
 }
 
-async function renderOneShot(name: SfxName): Promise<AudioBuffer> {
+export async function renderOneShot(name: SfxName): Promise<AudioBuffer> {
   const sec = RENDER_SEC[name] ?? DEFAULT_RENDER_SEC;
   const rendered = await Tone.Offline(() => {
     const v = new Voice(Tone.getDestination(), null, 1, 1);
@@ -482,7 +484,7 @@ async function renderOneShot(name: SfxName): Promise<AudioBuffer> {
 const LOOP_LEN_SEC: Record<LoopKey, number> = { 'siren-loud': 1.4, 'siren-soft': 1.4, skid: 1.0 };
 const LOOP_XFADE_SEC = 0.08;
 
-async function renderLoop(key: LoopKey): Promise<AudioBuffer> {
+export async function renderLoop(key: LoopKey): Promise<AudioBuffer> {
   const loopSec = LOOP_LEN_SEC[key];
   const total = loopSec + LOOP_XFADE_SEC + 0.05;
   const rendered = await Tone.Offline(() => {
@@ -533,10 +535,14 @@ export class SfxEngine {
   get readyCount(): number { return this.buffers.size + this.loopBuffers.size; }
 
   /** Switch pre-rendered playback on/off. On: render every buffer in the background (sounds fall back to live until ready). */
-  setPrerendered(on: boolean): void {
+  setPrerendered(on: boolean, render = true): void {
     this.prerendered = on;
-    if (on) void this.renderAll();
+    if (on && render) void this.renderAll();
   }
+
+  /** Buffers decoded from the shipped audio files ('files' mode). Missing ones keep falling back to live synthesis. */
+  installOneShot(name: SfxName, buf: AudioBuffer): void { this.buffers.set(name, buf); }
+  installLoop(key: SfxLoopKey, buf: AudioBuffer): void { this.loopBuffers.set(key, buf); }
 
   /** Renders every missing buffer sequentially (idempotent; resumes after being switched off and on). */
   renderAll(): Promise<void> {
