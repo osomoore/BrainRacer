@@ -1,6 +1,7 @@
 import * as Tone from 'tone';
 import type { SfxName } from '../core/types';
 import type { Mixer } from './mixer';
+import { makeSeamlessLoop, renderQueue, trimSilenceLength } from './bufferUtils';
 
 type OscType = 'sine' | 'square' | 'triangle' | 'sawtooth';
 const FLOOR = 0.0001;
@@ -30,12 +31,18 @@ interface NoiseSpec {
 class Voice {
   readonly nodes: Tone.ToneAudioNode[] = [];
   readonly input: Tone.Gain;
-  constructor(bus: Tone.Gain, pan: number, volume: number, readonly rate: number) {
-    const panner = new Tone.Panner(Math.max(-1, Math.min(1, pan)));
+  /** pan === null: no panner (offline pre-render renders mono and pans at play time). */
+  constructor(bus: Tone.InputNode, pan: number | null, volume: number, readonly rate: number) {
     this.input = new Tone.Gain(volume);
-    this.input.connect(panner);
-    panner.connect(bus);
-    this.nodes.push(this.input, panner);
+    this.nodes.push(this.input);
+    if (pan === null) {
+      this.input.connect(bus);
+    } else {
+      const panner = new Tone.Panner(Math.max(-1, Math.min(1, pan)));
+      this.input.connect(panner);
+      panner.connect(bus);
+      this.nodes.push(panner);
+    }
   }
   add<T extends Tone.ToneAudioNode>(n: T): T {
     this.nodes.push(n);
@@ -441,15 +448,127 @@ const clampRate = (r: number | undefined): number => Math.min(4, Math.max(0.25, 
 
 export interface PlayOpts { pan?: number; volume?: number; rate?: number }
 
+// ───────────────────────── pre-rendering ─────────────────────────
+const SFX_SR = 44100;
+/** Offline render length per sound (s); longer than the recipe so tails ring out, trimmed afterwards. */
+const RENDER_SEC: Partial<Record<SfxName, number>> = { roar: 2.8, goal: 2.1, wrong: 1.8, moo: 1.5, siren: 1.7 };
+const DEFAULT_RENDER_SEC = 1.6;
+/** Rendered first (needed earliest). */
+const RENDER_FIRST: SfxName[] = ['menuMove', 'menuSelect', 'correct', 'wrong', 'countdown', 'go', 'crash', 'pop', 'turbo'];
+export const SFX_NAMES = Object.keys(RECIPES) as SfxName[];
+const LOOP_KEYS = ['siren-loud', 'siren-soft', 'skid'] as const;
+type LoopKey = typeof LOOP_KEYS[number];
+/** One-shot buffers plus continuous-loop buffers. */
+export const SFX_BUFFER_TOTAL = SFX_NAMES.length + LOOP_KEYS.length;
+
+function monoBuffer(data: Float32Array, len = data.length): AudioBuffer {
+  const b = Tone.getContext().createBuffer(1, Math.max(1, len), SFX_SR);
+  b.getChannelData(0).set(data.subarray(0, len));
+  return b;
+}
+
+async function renderOneShot(name: SfxName): Promise<AudioBuffer> {
+  const sec = RENDER_SEC[name] ?? DEFAULT_RENDER_SEC;
+  const rendered = await Tone.Offline(() => {
+    const v = new Voice(Tone.getDestination(), null, 1, 1);
+    RECIPES[name](v, 0);
+  }, sec, 1, SFX_SR);
+  const ch = rendered.getChannelData(0);
+  const keep = trimSilenceLength([ch], 0.0005, Math.round(0.02 * SFX_SR));
+  if (keep >= ch.length) console.warn('[audio] pre-rendered sfx may be cut off:', name);
+  return monoBuffer(ch, keep);
+}
+
+const LOOP_LEN_SEC: Record<LoopKey, number> = { 'siren-loud': 1.4, 'siren-soft': 1.4, skid: 1.0 };
+const LOOP_XFADE_SEC = 0.08;
+
+async function renderLoop(key: LoopKey): Promise<AudioBuffer> {
+  const loopSec = LOOP_LEN_SEC[key];
+  const total = loopSec + LOOP_XFADE_SEC + 0.05;
+  const rendered = await Tone.Offline(() => {
+    const out = new Tone.Gain(1).toDestination();
+    if (key === 'skid') {
+      // same graph as the live skid: white noise -> bandpass swept by a 7 Hz triangle LFO (1 s = 7 whole cycles)
+      const nz = new Tone.Noise('white');
+      const bp = new Tone.Filter({ type: 'bandpass', frequency: 2300, Q: 3 });
+      const lfo = new Tone.LFO({ frequency: 7, min: 1800, max: 2700, type: 'triangle' });
+      lfo.connect(bp.frequency);
+      nz.connect(bp);
+      bp.connect(out);
+      lfo.start(0);
+      nz.start(0);
+    } else {
+      // one full 660 -> 784 two-tone cycle; starts as if coming from the 784 tone so the loop joins smoothly
+      const loud = key === 'siren-loud';
+      const o = new Tone.Oscillator({ type: loud ? 'triangle' : 'sine', frequency: 784 });
+      const lp = new Tone.Filter({ type: 'lowpass', frequency: loud ? 2600 : 900, Q: 0.4 });
+      o.connect(lp);
+      lp.connect(out);
+      o.start(0);
+      for (let i = 0, t = 0; t < total; i++, t += 0.7) {
+        o.frequency.setTargetAtTime(i % 2 === 0 ? 660 : 784, t, 0.05);
+      }
+    }
+  }, total, 1, SFX_SR);
+  const loop = makeSeamlessLoop(rendered.getChannelData(0), Math.round(loopSec * SFX_SR), Math.round(LOOP_XFADE_SEC * SFX_SR));
+  return monoBuffer(loop);
+}
+
 export class SfxEngine {
   private readonly active = new Map<SfxName, number>();
   private readonly lastStart = new Map<SfxName, number>();
   private total = 0;
+  private prerendered = false;
+  private readonly buffers = new Map<SfxName, AudioBuffer>();
+  private readonly loopBuffers = new Map<LoopKey, AudioBuffer>();
+  private renderingAll: Promise<void> | null = null;
+  private renderMs = 0;
+  private logged = false;
 
   constructor(private readonly mixer: Mixer) {}
 
   /** Live one-shot voices (diagnostics). */
   get activeVoices(): number { return this.total; }
+  /** Rendered buffers ready (one-shots + loops). */
+  get readyCount(): number { return this.buffers.size + this.loopBuffers.size; }
+
+  /** Switch pre-rendered playback on/off. On: render every buffer in the background (sounds fall back to live until ready). */
+  setPrerendered(on: boolean): void {
+    this.prerendered = on;
+    if (on) void this.renderAll();
+  }
+
+  /** Renders every missing buffer sequentially (idempotent; resumes after being switched off and on). */
+  renderAll(): Promise<void> {
+    this.renderingAll ??= (async () => {
+      const t0 = performance.now();
+      const jobs: { has: () => boolean; run: () => Promise<void> }[] = [];
+      for (const key of LOOP_KEYS) {
+        jobs.push({
+          has: () => this.loopBuffers.has(key),
+          run: async () => { this.loopBuffers.set(key, await renderQueue.add(3, () => renderLoop(key))); },
+        });
+      }
+      for (const name of [...RENDER_FIRST, ...SFX_NAMES.filter((n) => !RENDER_FIRST.includes(n))]) {
+        jobs.push({
+          has: () => this.buffers.has(name),
+          run: async () => { this.buffers.set(name, await renderQueue.add(3, () => renderOneShot(name))); },
+        });
+      }
+      for (const job of jobs) {
+        if (!this.prerendered) break;
+        if (job.has()) continue;
+        try { await job.run(); } catch { /* keep the live fallback for this sound */ }
+      }
+      this.renderMs += performance.now() - t0;
+      if (!this.logged && this.readyCount >= SFX_BUFFER_TOTAL) {
+        this.logged = true;
+        console.info(`[audio] pre-rendered sfx: ${this.readyCount} buffers in ${Math.round(this.renderMs)} ms`);
+      }
+      this.renderingAll = null;
+    })();
+    return this.renderingAll;
+  }
 
   play(name: SfxName, opts: PlayOpts = {}): void {
     const recipe = RECIPES[name];
@@ -463,18 +582,57 @@ export class SfxEngine {
     this.active.set(name, n + 1);
     this.total++;
     let voice: Voice | null = null;
+    let native: { dispose: () => void } | null = null;
     let dur = 0.5;
+    let finished = false;
+    const finish = (): void => {
+      if (finished) return;
+      finished = true;
+      voice?.dispose();
+      native?.dispose();
+      this.active.set(name, Math.max(0, (this.active.get(name) ?? 1) - 1));
+      this.total = Math.max(0, this.total - 1);
+    };
     try {
-      voice = new Voice(this.mixer.sfxBus, opts.pan ?? 0, Math.max(0, opts.volume ?? 1) * (TRIM[name] ?? 1), clampRate(opts.rate));
-      dur = recipe(voice, now + 0.02);
+      const buf = this.prerendered ? this.buffers.get(name) : undefined;
+      if (buf) {
+        const rate = clampRate(opts.rate);
+        native = this.playBuffer(name, buf, opts, rate, finish);
+        dur = buf.duration / rate;
+      } else {
+        voice = new Voice(this.mixer.sfxBus, opts.pan ?? 0, Math.max(0, opts.volume ?? 1) * (TRIM[name] ?? 1), clampRate(opts.rate));
+        dur = recipe(voice, now + 0.02);
+      }
     } catch {
       /* never let a sound break the game */
     }
-    window.setTimeout(() => {
-      voice?.dispose();
-      this.active.set(name, Math.max(0, (this.active.get(name) ?? 1) - 1));
-      this.total = Math.max(0, this.total - 1);
-    }, (dur + 0.4) * 1000);
+    window.setTimeout(finish, (dur + 0.4) * 1000);
+  }
+
+  /** Buffer -> StereoPanner -> Gain -> sfx bus. `done` fires when the source ends. */
+  private playBuffer(name: SfxName, buf: AudioBuffer, opts: PlayOpts, rate: number, done: () => void): { dispose: () => void } {
+    const c = Tone.getContext();
+    const src = c.createBufferSource();
+    const pan = c.createStereoPanner();
+    const gain = c.createGain();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    pan.pan.value = Math.max(-1, Math.min(1, opts.pan ?? 0));
+    gain.gain.value = Math.max(0, opts.volume ?? 1) * (TRIM[name] ?? 1);
+    src.connect(pan);
+    pan.connect(gain);
+    Tone.connect(gain, this.mixer.sfxBus);
+    const handle = {
+      dispose: (): void => {
+        src.onended = null;
+        for (const n of [src, pan, gain]) {
+          try { n.disconnect(); } catch { /* ignore */ }
+        }
+      },
+    };
+    src.onended = () => { done(); };
+    src.start();
+    return handle;
   }
 
   /** Start a continuous sound; returns a stop function (fades out, then disposes). */
@@ -499,7 +657,51 @@ export class SfxEngine {
     };
   }
 
+  /** Looping buffer source with the same fade-in / fade-out as the live version. */
+  private continuousBuffered(buf: AudioBuffer, opts: { pan?: number; volume?: number }, target: number, fadeIn: number, fadeOut: number): () => void {
+    const c = Tone.getContext();
+    const src = c.createBufferSource();
+    const env = c.createGain();
+    const pan = c.createStereoPanner();
+    const vol = c.createGain();
+    src.buffer = buf;
+    src.loop = true;
+    pan.pan.value = Math.max(-1, Math.min(1, opts.pan ?? 0));
+    vol.gain.value = Math.max(0, opts.volume ?? 1);
+    src.connect(env);
+    env.connect(pan);
+    pan.connect(vol);
+    Tone.connect(vol, this.mixer.sfxBus);
+    const t = c.currentTime + 0.02;
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(target, t + fadeIn);
+    src.start(t);
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      const now = c.currentTime;
+      env.gain.cancelScheduledValues(now);
+      env.gain.setValueAtTime(env.gain.value, now);
+      env.gain.linearRampToValueAtTime(0, now + fadeOut);
+      try { src.stop(now + fadeOut + 0.05); } catch { /* ignore */ }
+      window.setTimeout(() => {
+        for (const n of [src, env, pan, vol]) {
+          try { n.disconnect(); } catch { /* ignore */ }
+        }
+      }, (fadeOut + 0.25) * 1000);
+    };
+  }
+
   private continuous(name: 'siren' | 'skid', opts: { pan?: number; volume?: number }): () => void {
+    if (this.prerendered) {
+      const loud = (opts.volume ?? 1) >= 1;
+      const buf = this.loopBuffers.get(name === 'skid' ? 'skid' : loud ? 'siren-loud' : 'siren-soft');
+      if (buf) {
+        if (name === 'skid') return this.continuousBuffered(buf, opts, 0.2, 0.05, 0.12);
+        return this.continuousBuffered(buf, opts, loud ? 0.4 : 0.25, loud ? 0.3 : 1.2, 0.8);
+      }
+    }
     const v = new Voice(this.mixer.sfxBus, opts.pan ?? 0, Math.max(0, opts.volume ?? 1), 1);
     const out = v.add(new Tone.Gain(0));
     out.connect(v.input);

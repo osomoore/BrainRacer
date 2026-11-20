@@ -22,8 +22,10 @@ const DEPTH = 100000;
 const ROW_W = 880;
 const COL_X = [525, 1435];
 
-const ENGINE: readonly DeviceTuning['engineSound'][] = ['full', 'lite', 'off'];
-const ENGINE_LABEL = { full: 'Full', lite: 'Lite', off: 'Off' } as const;
+const ENGINE: readonly DeviceTuning['engineSound'][] = ['full', 'lite', 'sample', 'off'];
+const ENGINE_LABEL = { full: 'Full', lite: 'Lite', sample: 'Sample', off: 'Off' } as const;
+const AUDIO_MODE: readonly DeviceTuning['audioMode'][] = ['live', 'prerendered'];
+const AUDIO_MODE_LABEL = { live: 'Live', prerendered: 'Pre-render' } as const;
 const LATENCY: readonly DeviceTuning['audioLatency'][] = ['interactive', 'balanced', 'playback'];
 const LATENCY_LABEL = { interactive: 'Fast', balanced: 'Balanced', playback: 'Safe' } as const;
 const AHEAD: readonly DeviceTuning['lookAheadSec'][] = [0.1, 0.2, 0.3];
@@ -107,15 +109,17 @@ export class ConfigScene extends Phaser.Scene {
     header(0, 175, 'AUDIO');
     option(0, y0, 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
     option(0, y0 + step, 'Sound FX volume', () => `${Math.round(this.settings().sfxVolume * 100)}%`, vol('sfxVolume'));
-    option(0, y0 + step * 2, 'Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
+    option(0, y0 + step * 2, 'Audio mode', () => AUDIO_MODE_LABEL[getTuning().audioMode],
+      (d) => setTuning({ audioMode: cycle(AUDIO_MODE, getTuning().audioMode, d) }));
+    option(0, y0 + step * 3, 'Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
       (d) => setTuning({ engineSound: cycle(ENGINE, getTuning().engineSound, d) }));
-    option(0, y0 + step * 3, 'Audio buffer (after reload)', () => LATENCY_LABEL[getTuning().audioLatency],
+    option(0, y0 + step * 4, 'Audio buffer (after reload)', () => LATENCY_LABEL[getTuning().audioLatency],
       (d) => setTuning({ audioLatency: cycle(LATENCY, getTuning().audioLatency, d) }));
-    option(0, y0 + step * 4, 'Schedule ahead', () => `${getTuning().lookAheadSec} s`,
+    option(0, y0 + step * 5, 'Schedule ahead', () => `${getTuning().lookAheadSec} s`,
       (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
-    option(0, y0 + step * 5, 'Compressor', () => onOff(getTuning().compressor),
+    option(0, y0 + step * 6, 'Compressor', () => onOff(getTuning().compressor),
       () => setTuning({ compressor: !getTuning().compressor }));
-    option(0, y0 + step * 6, 'Debug readout', () => onOff(getTuning().debugReadout),
+    option(0, y0 + step * 7, 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
 
     header(1, 175, 'DISPLAY');
@@ -244,6 +248,7 @@ export class ConfigScene extends Phaser.Scene {
     this.readout.setText([
       `FPS ${this.game.loop.actualFps.toFixed(0)}  audio ${a.state}  clock ${a.clockRatio.toFixed(2)}x  stalls ${a.stalls}`,
       `lat ${ms(a.baseLatency)}/${ms(a.outputLatency)}ms  ahead ${a.lookAhead}s  sfx ${a.activeSfx}  eng ${a.engineMode}`,
+      `mode ${a.audioMode === 'prerendered' ? 'pre' : 'live'}  sfxReady ${a.sfxReady}/${a.sfxTotal}  music cached ${a.musicCached}/${a.musicTotal}${a.rendering ? '  RENDERING' : ''}`,
     ]);
   }
 }

@@ -2,11 +2,14 @@
  * Per-device audio/performance knobs, edited from the hidden settings menu (ConfigScene).
  * Pure: no Phaser, no Tone. Persisted in localStorage (failure-tolerant). Defaults == original behaviour.
  */
-export type EngineSoundMode = 'full' | 'lite' | 'off';
+export type EngineSoundMode = 'full' | 'lite' | 'sample' | 'off';
+/** live: every sound is synthesised in real time; prerendered: rendered once into AudioBuffers and replayed. */
+export type AudioMode = 'live' | 'prerendered';
 export type AudioLatency = 'interactive' | 'balanced' | 'playback';
 
 export interface DeviceTuning {
   engineSound: EngineSoundMode;
+  audioMode: AudioMode;
   /** Applies after reload. */
   audioLatency: AudioLatency;
   lookAheadSec: 0.1 | 0.2 | 0.3;
@@ -20,6 +23,7 @@ export const TUNING_KEY = 'brainracer.tuning.v1';
 
 export const DEFAULT_TUNING: Readonly<DeviceTuning> = Object.freeze({
   engineSound: 'full',
+  audioMode: 'live',
   audioLatency: 'interactive',
   lookAheadSec: 0.1,
   compressor: true,
@@ -35,7 +39,8 @@ export function sanitizeTuning(raw: unknown): DeviceTuning {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_TUNING;
   return {
-    engineSound: pick(r.engineSound, ['full', 'lite', 'off'] as const, d.engineSound),
+    engineSound: pick(r.engineSound, ['full', 'lite', 'sample', 'off'] as const, d.engineSound),
+    audioMode: pick(r.audioMode, ['live', 'prerendered'] as const, d.audioMode),
     audioLatency: pick(r.audioLatency, ['interactive', 'balanced', 'playback'] as const, d.audioLatency),
     lookAheadSec: pick(r.lookAheadSec, [0.1, 0.2, 0.3] as const, d.lookAheadSec),
     compressor: typeof r.compressor === 'boolean' ? r.compressor : d.compressor,

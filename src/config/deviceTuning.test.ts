@@ -15,7 +15,7 @@ describe('deviceTuning', () => {
   });
 
   it('defaults reproduce current behaviour', () => {
-    expect(getTuning()).toEqual({ engineSound: 'full', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60 });
+    expect(getTuning()).toEqual({ engineSound: 'full', audioMode: 'live', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60 });
   });
   it('invalid stored values fall back per field', () => {
     store.m.set(TUNING_KEY, JSON.stringify({ engineSound: 'loud', lookAheadSec: 0.2, compressor: 'yes', fpsCap: 45, debugReadout: true }));
@@ -24,6 +24,10 @@ describe('deviceTuning', () => {
     store.m.set(TUNING_KEY, '{not json');
     _clearTuningCache();
     expect(getTuning()).toEqual(DEFAULT_TUNING);
+  });
+  it('audioMode and sample engine validate', () => {
+    expect(sanitizeTuning({ audioMode: 'prerendered', engineSound: 'sample' })).toEqual({ ...DEFAULT_TUNING, audioMode: 'prerendered', engineSound: 'sample' });
+    expect(sanitizeTuning({ audioMode: 'turbo' }).audioMode).toBe('live');
   });
   it('patch saves and notifies; unsubscribe works', () => {
     const fn = vi.fn();

@@ -2,10 +2,11 @@ import * as Tone from 'tone';
 import type { IAudio, IEngineSound } from '../core/services';
 import type { MusicTrack, PlayerId, SfxName } from '../core/types';
 import { getTuning, onTuningChange } from '../config/deviceTuning';
-import { EngineSound, LiteEngineSound } from './engineSound';
+import { renderQueue } from './bufferUtils';
+import { EngineSound, LiteEngineSound, SampleEngineSound } from './engineSound';
 import { Mixer } from './mixer';
 import { MusicPlayer } from './musicPlayer';
-import { SfxEngine } from './sfx';
+import { SFX_BUFFER_TOTAL, SfxEngine } from './sfx';
 
 const NOOP_STOP = (): void => {};
 
@@ -58,6 +59,15 @@ export interface AudioDiagnostics {
   stalls: number;
   activeSfx: number;
   engineMode: string;
+  audioMode: string;
+  /** Pre-rendered sfx buffers ready / total (one-shots + loops). */
+  sfxReady: number;
+  sfxTotal: number;
+  /** Pre-rendered music tracks cached / total. */
+  musicCached: number;
+  musicTotal: number;
+  /** An offline render job is queued or running. */
+  rendering: boolean;
 }
 
 let activeImpl: AudioImpl | null = null;
@@ -67,6 +77,7 @@ export function audioDiagnostics(): AudioDiagnostics {
   return activeImpl?.diagnostics() ?? {
     state: 'locked', sampleRate: 0, baseLatency: 0, outputLatency: 0,
     lookAhead: getTuning().lookAheadSec, clockRatio: 1, stalls: 0, activeSfx: 0, engineMode: getTuning().engineSound,
+    audioMode: getTuning().audioMode, sfxReady: 0, sfxTotal: SFX_BUFFER_TOTAL, musicCached: 0, musicTotal: MusicPlayer.TRACK_COUNT, rendering: false,
   };
 }
 
@@ -91,6 +102,10 @@ class AudioImpl implements IAudio {
         this.mixer?.setDynamics(t.compressor);
         if (this.unlocked) Tone.getContext().lookAhead = t.lookAheadSec;
       } catch { /* ignore */ }
+      if (this.unlocked && t.audioMode !== this.audioMode) {
+        this.audioMode = t.audioMode;
+        this.applyAudioMode();
+      }
       if (t.engineSound !== this.engineMode) {
         this.engineMode = t.engineSound;
         for (const e of this.engines.values()) e.reset();
@@ -105,6 +120,16 @@ class AudioImpl implements IAudio {
   }
 
   private engineMode = getTuning().engineSound;
+  private audioMode = getTuning().audioMode;
+
+  /** Pre-rendered mode: title music first, then sfx, then the other tracks, one render at a time. Live: stop using buffers. */
+  private applyAudioMode(): void {
+    const on = this.audioMode === 'prerendered';
+    try {
+      this.musicPlayer?.setPrerendered(on);
+      this.sfxEngine?.setPrerendered(on);
+    } catch { /* never throw */ }
+  }
 
   private raw(): AudioContext | null {
     try { return Tone.getContext().rawContext as unknown as AudioContext; } catch { return null; }
@@ -152,6 +177,12 @@ class AudioImpl implements IAudio {
       stalls: this.stalls,
       activeSfx: this.sfxEngine?.activeVoices ?? 0,
       engineMode: this.engineMode,
+      audioMode: getTuning().audioMode,
+      sfxReady: this.sfxEngine?.readyCount ?? 0,
+      sfxTotal: SFX_BUFFER_TOTAL,
+      musicCached: this.musicPlayer?.cachedCount ?? 0,
+      musicTotal: MusicPlayer.TRACK_COUNT,
+      rendering: renderQueue.pending > 0,
     };
   }
 
@@ -172,6 +203,8 @@ class AudioImpl implements IAudio {
         this.sfxEngine = new SfxEngine(this.mixer);
         this.musicPlayer = new MusicPlayer(this.mixer);
         this.unlocked = true;
+        this.audioMode = tuning.audioMode;
+        if (tuning.audioMode === 'prerendered') this.applyAudioMode();
         this.startMonitor();
         for (const e of this.engines.values()) e.refresh();
         if (this.pendingMusic) {
@@ -205,6 +238,7 @@ class AudioImpl implements IAudio {
         const mode = getTuning().engineSound;
         if (mode === 'off') return null;
         try {
+          if (mode === 'sample') return new SampleEngineSound(this.mixer, pan, () => {});
           return mode === 'lite' ? new LiteEngineSound(this.mixer, pan, () => {}) : new EngineSound(this.mixer, pan, () => {});
         } catch { return null; }
       },
