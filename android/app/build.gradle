@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+def ksPath = System.getenv('BRAINRACER_KEYSTORE_PROPS') ?: 'C:\\Users\\osomo\\AndroidDev\\brainracer-keystore.properties'
+def ksFile = new File(ksPath)
+def ksProps = new Properties()
+if (ksFile.exists()) {
+    ksFile.withInputStream { ksProps.load(it) }
+} else {
+    logger.warn("WARNING: keystore properties not found at ${ksPath}; release build will use debug signing.")
+}
+
+android {
+    namespace 'com.osomoore.brainracer.tv'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.osomoore.brainracer.tv'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        if (ksFile.exists()) {
+            release {
+                storeFile file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig ksFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
