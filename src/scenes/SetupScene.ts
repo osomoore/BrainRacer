@@ -17,8 +17,8 @@ const CARS: CarKind[] = ['dino', 'kart'];
 
 // P1 cursor rows
 const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_MAP = 4, ROW_START = 5;
-const MAPS: RaceMap[] = ['city', 'industrial', 'farm'];
-const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial', farm: 'Farm' };
+const MAPS: RaceMap[] = ['city', 'industrial', 'farm', 'harbor'];
+const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial', farm: 'Farm', harbor: 'Beach & Harbor' };
 const MODES: Settings['challengeMode'][] = questionsOffAllowed() ? ['words', 'math', 'mixed', 'off'] : ['words', 'math', 'mixed'];
 const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
 const STYLES: QuestionStyle[] = ['pause', 'drive'];

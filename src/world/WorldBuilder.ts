@@ -11,6 +11,7 @@ import { Tile, type Prop, type Rect, type WorldData } from '../core/types';
 import { signSceneFor } from '../data/places';
 import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
+import { addHarborWorld, harborRoadTile, harborSandTile } from './harborWorld';
 import {
   FARM_TILESET_COUNT, FARM_TILESET_KEY, addFarmBuilding, addFarmWorld, farmTileIndices, farmWorldTileSource,
   type FarmBlade, type FarmWorldHandle,
@@ -44,6 +45,7 @@ export const BUILDING_LOOK = {
 
 const TILESET_KEY = 'world_tileset';
 const NIGHT_TILESET_KEY = 'world_tileset_night';
+const HARBOR_TILESET_KEY = 'world_tileset_harbor';
 const TS = 128, EXT = 2, CELL = TS + EXT * 2, COLS = 8;
 /** Tileset index: 0 water, 1 grass, 2 sidewalk, 3 park, 4 plaza, 5 dirt, 6.. road masks. */
 const TILE_KEYS: string[] = [
@@ -52,8 +54,8 @@ const TILE_KEYS: string[] = [
 ];
 const ROAD_BASE = 6;
 
-function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm = false): string {
-  const key = farm ? FARM_TILESET_KEY : industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
+function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm: boolean, harbor: boolean): string {
+  const key = harbor ? HARBOR_TILESET_KEY : farm ? FARM_TILESET_KEY : industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
   if (scene.textures.exists(key)) return key;
   const tileCount = farm ? FARM_TILESET_COUNT : TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
   const rows = Math.ceil(tileCount / COLS);
@@ -62,7 +64,9 @@ function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean,
   const ctx = tex.getContext();
   const drawTile = farm ? farmWorldTileSource(TS) : industrial ? industrialTileSource(TS) : undefined;
   for (let i = 0; i < tileCount; i++) {
-    const src = drawTile ? drawTile(i) : scene.textures.get(TILE_KEYS[i]).getSourceImage() as CanvasImageSource;
+    const src = harbor && i === 5 ? harborSandTile(TS)
+      : harbor && i >= ROAD_BASE ? harborRoadTile(TS, i - ROAD_BASE)
+      : drawTile ? drawTile(i) : scene.textures.get(TILE_KEYS[i]).getSourceImage() as CanvasImageSource;
     const cx = (i % COLS) * CELL, cy = Math.floor(i / COLS) * CELL;
     ctx.drawImage(src, cx + EXT, cy + EXT, TS, TS);
     // extrude edges to avoid seams at fractional zoom
@@ -109,7 +113,7 @@ function hashPos(x: number, y: number): number {
 
 type BodyCfg = Phaser.Types.Physics.Matter.MatterBodyConfig;
 
-export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false): BuiltWorld {
+export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false, harbor = false): BuiltWorld {
   const ts = world.tileSize;
   const W = world.widthTiles * ts, H = world.heightTiles * ts;
   const L = BUILDING_LOOK;
@@ -132,7 +136,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
   };
 
   // ── ground
-  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night, world.farm !== undefined);
+  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night, world.farm !== undefined, harbor);
   const farmTiles = world.farm ? farmTileIndices(world) : undefined;
   const data: number[][] = [];
   for (let y = 0; y < world.heightTiles; y++) {
@@ -201,6 +205,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false)
       (x, y, w, h, owner, angle = 0) => addStaticRect(x, y, w, h, owner, angle),
       (x, y, radius, owner) => rememberStaticBody(M.add.circle(x, y, radius, staticOpts(owner)) as unknown as MatterJS.BodyType, owner));
   }
+  if (harbor) addHarborWorld(scene, world, objs);
   addStaticRect(W / 2, -T / 2, W + 2 * T, T, bnd);
   addStaticRect(W / 2, H + T / 2, W + 2 * T, T, bnd);
   addStaticRect(-T / 2, H / 2, T, H, bnd);

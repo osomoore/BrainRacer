@@ -46,6 +46,34 @@ export function drawTraffic(scene: Phaser.Scene): void {
   });
 }
 
+export function drawConvertibles(scene: Phaser.Scene): void {
+  const palettes = [['#ff957c', '#d2373c'], ['#77f0e1', '#047a8a']];
+  TEX.convertible.forEach((key, i) => {
+    const { ctx, done } = makeCanvas(scene, key, 64, 36);
+    const [light, dark] = palettes[i];
+    for (const x of [9, 43]) {
+      tire(ctx, x, 1, 12, 6);
+      tire(ctx, x, 29, 12, 6);
+    }
+    poly(ctx, [3, 8, 12, 4, 51, 5, 62, 12, 63, 18, 62, 24, 51, 31, 12, 32, 3, 28]);
+    fillStroke(ctx, bodyGrad(ctx, 3, 4, 60, 28, light, dark), OUTLINE, 2.5);
+    rr(ctx, 18, 8, 22, 20, 7);
+    fillStroke(ctx, '#252e3a', OUTLINE, 1.5);
+    for (const y of [11, 19]) {
+      rr(ctx, 20, y, 12, 6, 2);
+      fillStroke(ctx, '#e5b787', '#5e4137', 1);
+    }
+    ellipse(ctx, 35, 14, 3, 3);
+    fillStroke(ctx, '#1c222c', '#a08a80', 1);
+    poly(ctx, [38, 8, 44, 10, 46, 18, 44, 26, 38, 28, 41, 18]);
+    fillStroke(ctx, '#9ee2f6', '#274657', 1.5);
+    glossHighlight(ctx, 53, 14, 5, 1.4);
+    headlights(ctx, 58, 11, 25);
+    taillights(ctx, 5, 10, 26);
+    done();
+  });
+}
+
 export function drawTruck(scene: Phaser.Scene): void {
   drawTruckBody(scene, TEX.truck, { cargo: '#ffffff', cargoShade: '#b9c2d0', stripe: '#ff8a1f',
     cab: '#ff6a5c', cabShade: '#c4160e', roof: '#e0403a' });

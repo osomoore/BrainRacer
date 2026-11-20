@@ -2,7 +2,7 @@ import { BOARDING_DRIVE, FARM_TRAFFIC, INDUSTRIAL_TRAFFIC, TRAFFIC } from '../co
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { pickSpawnNode, type SpawnQuery } from '../entities/laneFollow';
-import { TrafficCar } from '../entities/TrafficCar';
+import { TrafficCar, type TrafficKind } from '../entities/TrafficCar';
 import { findFarmStarts, pickFarmStart, isFarmLaneNode, type FarmStarts } from './farmTraffic';
 import { findFreightStarts, pickFreightStart, type FreightSpawn } from './industrialTraffic';
 
@@ -179,7 +179,10 @@ export class TrafficSystem implements GameSystem {
     const nextId = n.next[Math.floor(this.rng.next() * n.next.length)];
     const nn = graph.nodes[nextId];
     const angle = Math.atan2(nn.y - n.y, nn.x - n.x);
-    const kind = ctx.world.farm ? 'pickup' : this.rng.chance(TRAFFIC.truckFraction) ? 'truck' : 'car';
+    let kind: TrafficKind = 'car';
+    if (ctx.world.farm) kind = 'pickup';
+    else if (this.rng.chance(TRAFFIC.truckFraction)) kind = 'truck';
+    else if (ctx.settings.map === 'harbor' && this.rng.chance(TRAFFIC.harborConvertibleFraction)) kind = 'convertible';
     this.add(new TrafficCar(ctx.scene, this.rng, kind, n.x, n.y, angle, nextId));
   }
 

@@ -16,7 +16,7 @@ export type PlayerId = 0 | 1;
 /** easyPlus sits between easy and normal (sums into the teens). */
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
-export type RaceMap = 'city' | 'industrial' | 'farm';
+export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
 /**
  * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).

@@ -1,6 +1,6 @@
 # BrainRacer — Status (as of 2026-11-19)
 
-**City (day), Industrial (night) and Farm (golden hour) are playable.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
+**City (day), Industrial (night), Farm (golden hour), and Beach & Harbor (sunset into night) are playable.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
@@ -10,9 +10,11 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Launch options** (not in the Setup menu; URL params, also work with `npm run dev`, e.g. `http://localhost:5173/?round=240&every=12&music=0.5&sfx=0.7`): `round` = round length in seconds (default 300, accepted 10..3600), `every` = seconds of driving between question breaks (default 10, accepted 1..120), `music` / `sfx` = volume 0..1 (defaults 0.6 / 0.8; clamped). Invalid values fall back to the defaults; saved settings never override them. `play.bat --round 240 --every 12 --music 0.5 --sfx 0.7` (alongside `--questions-off`) turns the flags into these params. Logic + tests: `src/config/launchOptions.ts`.
 - **Questions are mandatory in normal play** (no "Off" in the setup menu; `?questions=off` is ignored). The ability to turn them off exists only when started with `VITE_ALLOW_QUESTIONS_OFF=1`: `npm run dev` does this automatically (`.env.development`) and also defaults questions to off (`VITE_QUESTIONS=off`); `npm run dev:questions` has the ability but questions stay on; `play.bat --questions-off` enables it for a built game; Playwright's webServer sets it. For a manual `npm run build && npm run preview` set `VITE_ALLOW_QUESTIONS_OFF=1` first. Logic: `src/config/questionsPolicy.ts`.
 - Map quick launch: `/?race=2&map=industrial&seed=3&questions=off` or `&map=farm`. Use `race=1` for solo or `map=city` to select City explicitly. Free farm camera: `?dev=FarmView&seed=7&zoom=0.3` (WASD pan, Q/E zoom, R/T rotate).
+- Beach & Harbor quick launch: `/?race=2&map=harbor&seed=3&questions=off`. Add `&harbor=now` to see the first tide and drawbridge cycle sooner, or `&bomb=now` to spawn the homing bomb after two seconds of driving on any map.
 - Test hooks: `&dino=now` (dino appears next to players in 2 s), `&laser=now` (dino fires lasers soon and often), `&train=near` (Industrial: a wagon passes P1's nearest rail point), `&dinohits=N` / `&dinoride=N` (dino hits to defeat / ride seconds; console `__dinoDefeat()`), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
 - Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.
 - F2 anywhere: raw controller input overlay. `window.__race` = live RaceContext; `window.__challenge` = challenge state hook (used by e2e).
+- E2e starts a fresh production preview. If port 4173 is occupied, set `BRAINRACER_E2E_PORT` to a free port before running `npm run e2e -- --workers=2`.
 
 ## How the game plays now
 - **Menus:** A joins (up to 2 players: pad or keyboard WASD / arrows); A again → Setup; A on any Setup row starts.
@@ -23,7 +25,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Right answer reward:** turbo (1.6× speed, flames), a **boost jump** over traffic/buildings (lands on drivable ground), **punch-through** (traffic/props thrown aside, speed kept), plus a random bonus (rainbow/shockwave/ghost/magnet).
 - **Guide buddies:** a pink flying dino (dino-car) or a twinkling star (kart) leads directly toward the destination, including when it is off-screen. It circles the goal when near or waiting. Each player sees only their own buddy. There is no on-screen destination text: players follow their buddy, and the goal ring marks the place. The team score and timer sit at the top left in single player and at the top center in split screen.
 - **Goals:** shared place destinations (bakery, school, …). Both players must arrive (20 s teammate wait). Jumping through counts. +3 points per arriving car.
-- **Dinosaur:** when one player reaches the goal early (2P), the dino drops in and slowly circles the goal until the teammate arrives, sometimes sweeping laser eyes. Ram it: **3 hits** defeat it (a TEAM hit, both players within 1.5 s, counts 2); defeat = 2 points each, then it is dizzy for 8 s and can be **ridden**: tap B twice next to it. The ridden dino is slow, walks over buildings, tosses traffic, and lasts 20 s of driving (question time not counted, countdown card at the bottom of the rider's view); then you hop back into your car (or your starting car respawns nearby) and it poofs. Nobody boards → it poofs. 1P: appears at half time at the current goal.
+- **Dinosaur:** when one player reaches the goal early (2P), the dino drops in and slowly circles the goal until the teammate arrives, sometimes sweeping laser eyes. Three qualifying hits defeat it, with a team hit counting twice when both players ram it within 1.5 s. Each player gets 2 points. The dizzy dino is boardable for 8 s. **Press B once within 435 px of its center** to board it ahead of other vehicles. The ridden dino walks over buildings and tosses traffic. The rider stays on for the full 20 s of driving, then returns to a car and the dino poofs. The ride timer pauses during questions. In solo it appears at half time at the current goal.
 - **World:** seeded 48×48 city, beveled 3D buildings, picture signs on place buildings, ramps, ~25 light traffic cars/trucks, police with a gentle siren (bump only, despawn off-screen).
 - **Words:** `manifest.csv` labels → `src/data/wordAliases.json` (single simple words) → `src/data/wordMeta.json` (category, `simple`, `confusableWith`). Multi-word labels are Hard only. After edits: `npm run assets`.
 - **Audio:** all synthesized (Tone.js). Music = JSON note tracks in `src/audio/music/tracks/` (optional `.mid` overrides in `src/audio/music/midi/`).
@@ -63,10 +65,19 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 
 - Pick **Farm** in Setup's Map row or `?map=farm`. Fixed golden late-afternoon sun: long soft shadows toward `world.farm.shadowAngle` (0.35 rad) for every building, tree, hay bale, fence and turbine/windmill (blades cast spinning shadows); warm grade layer (`FARM_LOOK`). Bouncy country music track `farm`.
 - Generator `src/world/gen/farm.ts` + `farmBuild.ts` (`FARM_GEN`): paved county loop, village crossroads (houses/shops/bakery/school), 2-wide dirt farm lanes (`Tile.Dirt` with roadMask ≠ 0), a stream with 4 bridges, 3–4 farmsteads (barn, farmhouse, silo, shed), a corn maze plus corn fields, fenced pastures (2-tile gates), duck pond, windmill hill, orchard, woods, pumpkin patch, wind-turbine row, mud on lanes, a hay-bale ramp and hill crests. 13 place words (`FARM_PLACE_WORDS`). Layout mirrored per seed.
-- Renderer `src/world/farmWorld.ts` / `farmGround.ts`, light `FarmLightSystem`. Fences are static bodies (owner `fence`).
+- Renderer `src/world/farmWorld.ts` / `farmGround.ts`, light `FarmLightSystem`. Players can drive through fence sections, which scatter and reassemble outside all player views.
 - **Corn & mud** (`CornSystem`, `FARM_CORN`): corn caps speed at 60%, mud at 50% with a wobble; corn flattens into a stamped track that springs back as soon as it is off every player's view (or after 30 s). Rustle and splash sounds.
 - **Animals** (`AnimalSystem`, `animalAI.ts`, `ANIMALS`): cows, sheep, pigs, horses in pastures, chickens in farmyards, ducks by the pond. They wander and scurry from fast cars; a hit sends them flying cartoon-style (star-eye tumble, spin, bounce, dazed, walk home). Never hurt, never damage cars (`CollisionSystem` skips animal contacts). Dino roar scatters them.
-- **Farm traffic** (`farmTraffic.ts`, `FARM_TRAFFIC`): 25 pickups, 4 slow tractors with hay wagons (`HayWagon.ts`), 2 combines. All boardable and dino-tossable.
+- **Farm traffic** (`farmTraffic.ts`, `FARM_TRAFFIC`): 25 pickups, 4 slow tractors with hay wagons (`HayWagon.ts`), 2 combines. All boardable and dino-tossable. Pickups drive like normal player cars when boarded. Tractors and combines use the player truck handling.
+
+## Player speed, bomb, and Beach & Harbor
+
+- Starter cars top out at 310 px/s (dino car) or 285 px/s (kart). Acceleration, reverse, turbo, punch-through, and boost-jump distance use the half-speed balance. Steering rates stay the same. Dino lasers, ride speed, guide lead, crash impacts, freight smash threshold, and police pursuit have been retuned.
+- A large homing bomb first appears after 25 s of driving. Its fuse throws sparks and a fiery orange glow. It moves at half its target's top speed, then knocks the target into a spin on contact. A later bomb can spawn 35 s after it explodes. Tune in `HOMING_BOMB`.
+- Pick **Beach & Harbor** in Setup. Tire tracks fade in the sand. Passing cars scatter umbrellas and beach balls, and beachgoers jump clear. The channel has animated surfers, sailboats, decorative docks, and a ship. A suspension bridge, timed drawbridge, and south crossing connect the two sides.
+- The waterfront has a red-and-white lighthouse with a sweeping beam, ice cream cart, market stalls, and convertible sports car traffic. Sunset fades to night over the round. A brief tidal surge pushes cars and loose beach props inland. Time features are tuned in `HARBOR`.
+- **Easy word pool:** dam remains eligible. Church and city now appear at higher levels.
+- Verification: typecheck, 376 unit tests, and 32 Edge e2e tests passed with a fresh production build. The new scenarios cover split-screen fence restoration, single-press dino boarding, the harbor tide and drawbridge, sand tracks, and bomb knockback.
 
 ## Industrial at Night
 

@@ -20,19 +20,14 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 ## Queued playtest changes
 
-### Queued (session 4, start when the user says so)
-- **Players move too fast: halve every player speed except turning.** That covers top speed, acceleration, reverse, turbo/boost speed, punch-through speed and boost-jump distance. Turn rates stay as they are. Retune anything that was balanced against car speed:
-  - Dino laser sweep: `DINO_LASER` tip speed is about 610 px/s, set just under today's ~620 px/s top speed, so halved cars could never outrun it.
-  - Dino-ride speed: about 60% of a starter car.
-  - Ram and smash thresholds: `DINO.ramMinSpeed`, `FREIGHT.smashImpactSpeed` 760.
-  - Crash and damage impact thresholds, jump landing distances, the guide buddy's lead, police chase speed relative to players, and taken-over sedan/cruiser/truck speeds.
+The latest queue is implemented on `dev`. See STATUS for half-speed handling, Farm fences and boarded vehicles, single-press dino boarding, the Easy words update, homing bomb, and Beach & Harbor.
 
 Session 3 finished the queued playtest list and the map/gameplay ideas (destination text, round clock during breaks, launch options, day/night by map, darker Industrial, Easy+, player siren, freight smash, dino lasers, building gaps). See STATUS "Session 3 changes".
 
 ## Backlog
 
 ### Session 4 follow-ups
-- Farm: a boarded tractor/combine drives at normal truck speed (`VehicleConditionSystem` overrides 'truck' NPCs with `BOARDING_DRIVE.truck`); add tractor/combine entries if they should stay slow. Tractors sometimes wander onto paved roads. Ramming a hay wagon never moves it; a wagon left alone after a dino toss freezes.
+- Farm: tractors sometimes wander onto paved roads. Ramming a hay wagon never moves it; a wagon left alone after a dino toss freezes.
 - Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.
 - Farm look: lane mud is a square tile with no lane edges, square inner road corners, overlapping shadows stack darker, flower placement repeats, east turbine shadows run off the map. Golden-grade strength is `FARM_LOOK.gradeAlpha`/`gradeColor`.
 - Corn slowdown shares `car.slow()` with the police-bump slow (a bump in corn can be cut short); a `surfaceMult` on IPlayerCar would separate them.
@@ -49,13 +44,12 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 - Goal ring floor sprite sits under the Industrial darkness overlay (the glow/beacon compensate). Consider drawing it above `INDUSTRIAL_LIGHTING.nightDepth`.
 - "Waiting…" pill still sits at `HUD.hint.y` 112, which was set below the old destination card; check it on screen. `hudMath.isOnScreen` is now only used by its test. `GUIDE.topInset` comment in GuideSystem still mentions destination cards.
 - Easy+ blurb could read "Bigger sums, more words" instead of "A little bigger".
-- e2e: "a battered car smokes…" fails (already failed before session 3). Industrial/dino specs can time out at startup under full-suite parallel load; consider `workers: 2`.
+- Industrial and dino browser specs are sensitive to load. Run them with two Playwright workers for full-suite checks.
 - **Never use `git stash` in agent worktrees:** the stash is shared by all worktrees, and two session-3 agents swapped each other's work that way (recovered).
 
 ### Session 2 follow-ups
 
 Session 2 finished items 1–6 (Easy place words, reward delay, held-button arming, break panels vs scoreboard, goal banner → card pulse, guide buddy distance). See STATUS. Open follow-ups from that work:
-- Words flagged `simple` but borderline for age 5: church, city, dam (`src/data/wordMeta.json`). User to decide.
 - `CHALLENGE.rewardPanelClearSec` (1.05) mirrors HUD `panel.resultHoldSec + fadeSec` by hand; keep them in sync if the HUD fade changes.
 - Guide buddy: `GUIDE.topInset`/`seamInset` keep it off the split-screen scoreboard. In single player it uses the full view and avoids the top-left scoreboard. Check the hand-off to the goal orbit (hover ~500 px vs `nearGoal` 450).
 - Sub-agents writing files from PowerShell can produce Windows-1252 bytes (a "…" broke `vite build` in session 2). Tests and typecheck don't catch it; `npm run e2e` does (it builds).
@@ -73,9 +67,10 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Readability of question cards from the back of the room.
 - Session 4 by eye/ear: Farm golden hour and long shadows on a projector in both split views, corn slowdown/track/spring-back, animal launches (fun, not scary), tractors and combines, dino ride (3 hits, 20 s, speed, stomp shake), Industrial clutter and new bridges, guide buddy in 2P.
 - Session 3 by eye/ear: Industrial darkness on a projector (`INDUSTRIAL_LIGHTING.nightAlpha`), player siren loudness (`POLICE.playerSirenVolume`), dino laser fairness for 5-year-olds (`DINO_LASER.chargeSec`/`fireSec`), freight smash threshold and re-form time, whether the building alleys look intentional (`WORLD.maxBuildingRun`), Easy+ feel.
+- Latest changes: half-speed handling and boost jumps, one-press dino boarding range, fence restoration in split-screen, bomb readability and knockback, and Beach & Harbor lighting, drawbridge, and tidal surge.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
-- **Industrial at Night is playable in Setup.** The kickoff plan below records its scope. The projector, real-controller, and by-ear checks remain on the playtest checklist. Harbor is deferred until a layout can connect the docks without lots of dead ends.
+- Industrial at Night and Beach & Harbor are playable in Setup. The projector, real-controller, and by-ear checks remain on the playtest checklist.
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
 - Decide whether/when to merge `dev` → `main` and push to a remote.
 

@@ -13,6 +13,7 @@ import { SkidMarks } from '../fx/SkidMarks';
 import { createSystems } from '../systems';
 import { cityGen, generateFarm } from '../world/gen';
 import { generateIndustrial } from '../world/gen/industrial';
+import { generateHarbor } from '../world/gen/harbor';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
@@ -61,8 +62,9 @@ export class RaceScene extends Phaser.Scene {
     const industrial = settings.map === 'industrial';
     const farm = settings.map === 'farm';
     this.raceMusic = industrial ? 'industrial' : farm ? 'farm' : 'race';
-    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : cityGen(seed);
-    this.built = buildWorld(this, world, industrial);
+    const harbor = settings.map === 'harbor';
+    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : harbor ? generateHarbor(seed) : cityGen(seed);
+    this.built = buildWorld(this, world, industrial, harbor);
     this.skids = new SkidMarks(this);
 
     this.players = settings.players.map((p, i) => {

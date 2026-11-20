@@ -10,7 +10,7 @@ import { HayWagon } from './HayWagon';
 import { NpcVehicle } from './NpcVehicle';
 
 export type TrafficState = 'drive' | 'knocked' | 'reverse';
-export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine';
+export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine' | 'convertible';
 
 /** Spawn role used by TrafficSystem to cap special vehicles; null for ordinary traffic. */
 export type TrafficRole = 'freight' | 'tractor' | 'combine' | null;
@@ -22,6 +22,7 @@ function kindLook(kind: TrafficKind, rng: Rng): { npc: 'traffic' | 'truck'; tex:
     case 'pickup': return { npc: 'traffic', tex: TEX.farm.pickup[rng.int(0, TEX.farm.pickup.length - 1)], spec: PICKUP_SPEC };
     case 'tractor': return { npc: 'truck', tex: TEX.farm.tractor, spec: TRACTOR_SPEC };
     case 'combine': return { npc: 'truck', tex: TEX.farm.combine, spec: COMBINE_SPEC };
+    case 'convertible': return { npc: 'traffic', tex: rng.pick(TEX.convertible)!, spec: TRAFFIC_SPEC };
     default: return { npc: 'traffic', tex: TEX.traffic[rng.int(0, TEX.traffic.length - 1)], spec: TRAFFIC_SPEC };
   }
 }

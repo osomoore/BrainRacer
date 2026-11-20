@@ -319,6 +319,7 @@ export const WORLD = {
 
 // ───────────────────────── traffic & police (packages J/K) ─────────────────────────
 export const TRAFFIC = {
+  harborConvertibleFraction: 0.55,
   maxVehicles: 25,
   truckFraction: 0.2,
   spawnRadiusMin: 1300,
@@ -846,3 +847,36 @@ export const ANIMALS = {
 } as const;
 
 export const FARM_FENCE = { segmentLength: 128, hitRadius: 48, scatterDistance: 110, scatterSec: 0.5, viewMargin: 160 };
+
+export const HARBOR = {
+  bridgeCycleSec: 48,
+  bridgeOpenSec: 12,
+  bridgeLiftSec: 2,
+  tidePeriodSec: 38,
+  tideDurationSec: 2.6,
+  tideImpulse: 120,
+  beachgoerClearance: 245,
+  beachgoerJumpSec: 0.52,
+  beachgoerJumpDistance: 185,
+  sandTrackGap: 18,
+  sandTrackLife: 14,
+};
+
+/** Homing bomb: comic hazard, speeds in pixels per second. */
+export const HOMING_BOMB = {
+  diameter: 280,
+  speedFraction: 0.5,
+  firstSpawnSec: 25,
+  respawnSec: 35,
+  debugSpawnSec: 2,
+  spawnMinDist: 650,
+  spawnMaxDist: 1200,
+  debugSpawnDist: 350,
+  repathSec: 0.8,
+  contactRadius: 112,
+  impulse: 430,
+  spin: 4,
+  slowMult: 0.45,
+  slowSec: 1.2,
+  particleLimit: 48,
+};

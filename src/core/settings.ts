@@ -10,7 +10,7 @@ export function loadSettings(): Settings {
     const raw = globalThis.localStorage?.getItem(KEY);
     if (raw) {
       const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) };
-      settings.map = settings.map === 'industrial' || settings.map === 'farm' ? settings.map : 'city';
+      settings.map = settings.map === 'industrial' || settings.map === 'farm' || settings.map === 'harbor' ? settings.map : 'city';
       return { ...settings, ...currentLaunchOptions() };
     }
   } catch { /* ignore */ }

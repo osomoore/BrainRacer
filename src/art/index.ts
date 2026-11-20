@@ -5,12 +5,13 @@ import { drawFarm } from './farm';
 import { drawFx } from './fx';
 import { drawIndustrial } from './industrial';
 import { genIndustrialHeadlight } from './industrialHeadlight';
-import { drawPolice, drawTraffic, drawTruck } from './npc';
+import { drawConvertibles, drawPolice, drawTraffic, drawTruck } from './npc';
 import { drawBench, drawBush, drawCone, drawGoal, drawHydrant, drawLamp, drawRamp, drawSignFrame, drawTree } from './props';
 import { drawRoads } from './roads';
 import { drawDirt, drawGrass, drawPark, drawPlaza, drawRoofs, drawSidewalk, drawWater } from './tiles';
 import { drawUi } from './ui';
 import { drawBuddies } from './buddies';
+import { ensureBombArt } from './homingBombArt';
 
 export { allTextureKeys } from './keys';
 export { DINO_RIG } from './dinoRig';
@@ -21,11 +22,11 @@ export { DINO_RIG } from './dinoRig';
  */
 export function generateTextures(scene: Phaser.Scene): void {
   drawCarDino(scene); drawCarKart(scene); drawCarShadow(scene);
-  drawTraffic(scene); drawTruck(scene); drawPolice(scene);
+  drawTraffic(scene); drawConvertibles(scene); drawTruck(scene); drawPolice(scene);
   drawDinoBody(scene); drawDinoHead(scene); drawDinoTail(scene); drawDinoLegs(scene); drawDinoShadow(scene);
   drawWater(scene); drawGrass(scene); drawSidewalk(scene); drawPark(scene); drawPlaza(scene); drawDirt(scene);
   drawRoads(scene); drawRoofs(scene); drawIndustrial(scene); genIndustrialHeadlight(scene); drawFarm(scene);
   drawSignFrame(scene); drawRamp(scene);
   drawTree(scene); drawBush(scene); drawLamp(scene); drawHydrant(scene); drawBench(scene); drawCone(scene);
-  drawGoal(scene); drawFx(scene); drawUi(scene); drawBuddies(scene);
+  drawGoal(scene); drawFx(scene); drawUi(scene); drawBuddies(scene); ensureBombArt(scene);
 }
