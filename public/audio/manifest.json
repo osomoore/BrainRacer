@@ -1,0 +1,375 @@
+{
+ "version": 1,
+ "sourceHash": "bb363a40ad9af6e7",
+ "sfx": {
+  "moo": {
+   "file": "sfx/moo.ogg",
+   "sampleRate": 44100,
+   "length": 39475,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "baa": {
+   "file": "sfx/baa.ogg",
+   "sampleRate": 44100,
+   "length": 20091,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "oink": {
+   "file": "sfx/oink.ogg",
+   "sampleRate": 44100,
+   "length": 13159,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "neigh": {
+   "file": "sfx/neigh.ogg",
+   "sampleRate": 44100,
+   "length": 29511,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "cluck": {
+   "file": "sfx/cluck.ogg",
+   "sampleRate": 44100,
+   "length": 13057,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "quack": {
+   "file": "sfx/quack.ogg",
+   "sampleRate": 44100,
+   "length": 14828,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "cornRustle": {
+   "file": "sfx/cornRustle.ogg",
+   "sampleRate": 44100,
+   "length": 10364,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "mudSplash": {
+   "file": "sfx/mudSplash.ogg",
+   "sampleRate": 44100,
+   "length": 12364,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "crossing": {
+   "file": "sfx/crossing.ogg",
+   "sampleRate": 44100,
+   "length": 21571,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "correct": {
+   "file": "sfx/correct.ogg",
+   "sampleRate": 44100,
+   "length": 19272,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "wrong": {
+   "file": "sfx/wrong.ogg",
+   "sampleRate": 44100,
+   "length": 60365,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "timeout": {
+   "file": "sfx/timeout.ogg",
+   "sampleRate": 44100,
+   "length": 3025,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "turbo": {
+   "file": "sfx/turbo.ogg",
+   "sampleRate": 44100,
+   "length": 46746,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "crash": {
+   "file": "sfx/crash.ogg",
+   "sampleRate": 44100,
+   "length": 11255,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "crashBig": {
+   "file": "sfx/crashBig.ogg",
+   "sampleRate": 44100,
+   "length": 21674,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "skid": {
+   "file": "sfx/skid.ogg",
+   "sampleRate": 44100,
+   "length": 12444,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "siren": {
+   "file": "sfx/siren.ogg",
+   "sampleRate": 44100,
+   "length": 59831,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "policeBump": {
+   "file": "sfx/policeBump.ogg",
+   "sampleRate": 44100,
+   "length": 16666,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "jump": {
+   "file": "sfx/jump.ogg",
+   "sampleRate": 44100,
+   "length": 10479,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "land": {
+   "file": "sfx/land.ogg",
+   "sampleRate": 44100,
+   "length": 8158,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "goal": {
+   "file": "sfx/goal.ogg",
+   "sampleRate": 44100,
+   "length": 68355,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "goalArrive": {
+   "file": "sfx/goalArrive.ogg",
+   "sampleRate": 44100,
+   "length": 21243,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "countdown": {
+   "file": "sfx/countdown.ogg",
+   "sampleRate": 44100,
+   "length": 7900,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "go": {
+   "file": "sfx/go.ogg",
+   "sampleRate": 44100,
+   "length": 25683,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "roar": {
+   "file": "sfx/roar.ogg",
+   "sampleRate": 44100,
+   "length": 92356,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "stomp": {
+   "file": "sfx/stomp.ogg",
+   "sampleRate": 44100,
+   "length": 16887,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "squash": {
+   "file": "sfx/squash.ogg",
+   "sampleRate": 44100,
+   "length": 14062,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "shockwave": {
+   "file": "sfx/shockwave.ogg",
+   "sampleRate": 44100,
+   "length": 33706,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "pop": {
+   "file": "sfx/pop.ogg",
+   "sampleRate": 44100,
+   "length": 3792,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "menuMove": {
+   "file": "sfx/menuMove.ogg",
+   "sampleRate": 44100,
+   "length": 2657,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "menuSelect": {
+   "file": "sfx/menuSelect.ogg",
+   "sampleRate": 44100,
+   "length": 9328,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  },
+  "join": {
+   "file": "sfx/join.ogg",
+   "sampleRate": 44100,
+   "length": 15702,
+   "channels": 1,
+   "copies": 1,
+   "loop": false
+  }
+ },
+ "loops": {
+  "siren-loud": {
+   "file": "sfx/loop-siren-loud.ogg",
+   "sampleRate": 44100,
+   "length": 61740,
+   "channels": 1,
+   "copies": 3,
+   "loop": true
+  },
+  "siren-soft": {
+   "file": "sfx/loop-siren-soft.ogg",
+   "sampleRate": 44100,
+   "length": 61740,
+   "channels": 1,
+   "copies": 3,
+   "loop": true
+  },
+  "skid": {
+   "file": "sfx/loop-skid.ogg",
+   "sampleRate": 44100,
+   "length": 44100,
+   "channels": 1,
+   "copies": 3,
+   "loop": true
+  }
+ },
+ "engine": {
+  "file": "sfx/loop-engine.ogg",
+  "sampleRate": 44100,
+  "length": 88200,
+  "channels": 1,
+  "copies": 3,
+  "loop": true
+ },
+ "music": {
+  "title": {
+   "file": "music/title.ogg",
+   "sampleRate": 32000,
+   "length": 945231,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 130,
+   "lengthBeats": 64,
+   "loopSeconds": 29.53846153846154
+  },
+  "race": {
+   "file": "music/race.ogg",
+   "sampleRate": 32000,
+   "length": 1575385,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 156,
+   "lengthBeats": 128,
+   "loopSeconds": 49.23076923076923
+  },
+  "farm": {
+   "file": "music/farm.ogg",
+   "sampleRate": 32000,
+   "length": 1861818,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 132,
+   "lengthBeats": 128,
+   "loopSeconds": 58.18181818181818
+  },
+  "industrial": {
+   "file": "music/industrial.ogg",
+   "sampleRate": 32000,
+   "length": 1097143,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 112,
+   "lengthBeats": 64,
+   "loopSeconds": 34.285714285714285
+  },
+  "dino": {
+   "file": "music/dino.ogg",
+   "sampleRate": 32000,
+   "length": 1575385,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 156,
+   "lengthBeats": 128,
+   "loopSeconds": 49.23076923076923
+  },
+  "underground": {
+   "file": "music/underground.ogg",
+   "sampleRate": 32000,
+   "length": 264828,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 116,
+   "lengthBeats": 16,
+   "loopSeconds": 8.275862068965518
+  },
+  "results": {
+   "file": "music/results.ogg",
+   "sampleRate": 32000,
+   "length": 299429,
+   "channels": 2,
+   "copies": 1,
+   "loop": false,
+   "bpm": 140,
+   "lengthBeats": 16,
+   "loopSeconds": 6.857142857142857
+  }
+ }
+}

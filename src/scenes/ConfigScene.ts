@@ -25,8 +25,8 @@ const COL_X = [525, 1435];
 
 const ENGINE: readonly DeviceTuning['engineSound'][] = ['full', 'lite', 'sample', 'off'];
 const ENGINE_LABEL = { full: 'Full', lite: 'Lite', sample: 'Sample', off: 'Off' } as const;
-const AUDIO_MODE: readonly DeviceTuning['audioMode'][] = ['live', 'prerendered'];
-const AUDIO_MODE_LABEL = { live: 'Live', prerendered: 'Pre-render' } as const;
+const AUDIO_MODE: readonly DeviceTuning['audioMode'][] = ['live', 'prerendered', 'files'];
+const AUDIO_MODE_LABEL = { live: 'Live', prerendered: 'Pre-render', files: 'Files' } as const;
 const LATENCY: readonly DeviceTuning['audioLatency'][] = ['interactive', 'balanced', 'playback'];
 const LATENCY_LABEL = { interactive: 'Fast', balanced: 'Balanced', playback: 'Safe' } as const;
 const AHEAD: readonly DeviceTuning['lookAheadSec'][] = [0.1, 0.2, 0.3];
@@ -250,7 +250,9 @@ export class ConfigScene extends Phaser.Scene {
     this.readout.setText([
       `FPS ${this.game.loop.actualFps.toFixed(0)}  audio ${a.state}  clock ${a.clockRatio.toFixed(2)}x  stalls ${a.stalls}`,
       `lat ${ms(a.baseLatency)}/${ms(a.outputLatency)}ms  ahead ${a.lookAhead}s  sfx ${a.activeSfx}  eng ${a.engineMode}`,
-      `mode ${a.audioMode === 'prerendered' ? 'pre' : 'live'}  sfxReady ${a.sfxReady}/${a.sfxTotal}  music cached ${a.musicCached}/${a.musicTotal}${a.rendering ? '  RENDERING' : ''}`,
+      a.audioMode === 'files'
+        ? `mode files  sfx ${a.filesSfx}/${a.filesSfxTotal}  music ${a.filesMusic}/${a.filesMusicTotal}${a.rendering ? '  RENDERING' : ''}`
+        : `mode ${a.audioMode === 'prerendered' ? 'pre' : 'live'}  sfxReady ${a.sfxReady}/${a.sfxTotal}  music cached ${a.musicCached}/${a.musicTotal}${a.rendering ? '  RENDERING' : ''}`,
     ]);
   }
 }

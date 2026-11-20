@@ -162,9 +162,27 @@ const ENGINE_LOOP_SEC = 2;
 const ENGINE_XFADE_SEC = 0.1;
 
 let engineLoop: Promise<AudioBuffer | null> | null = null;
+let engineFile: (() => Promise<AudioBuffer | null>) | null = null;
+
+/** 'files' mode: supply the engine loop from the shipped audio file (null = render it as in 'prerendered' mode). */
+export function setEngineLoopFile(provider: (() => Promise<AudioBuffer | null>) | null): void {
+  engineFile = provider;
+}
+
+/** Looped-buffer length and rate of the engine loop (shared with the offline file renderer). */
+export const ENGINE_LOOP = { sampleRate: ENGINE_SR, seconds: ENGINE_LOOP_SEC };
 
 /** Idle-pitch engine tone (saw + half-pitch square -> lowpass, as in EngineSound), rendered once. */
 export function getEngineLoop(): Promise<AudioBuffer | null> {
+  if (engineFile) {
+    const fromFile = engineFile;
+    return fromFile().then((b) => b ?? renderEngineLoop());
+  }
+  return renderEngineLoop();
+}
+
+/** Renders the loop (cached). */
+export function renderEngineLoop(): Promise<AudioBuffer | null> {
   engineLoop ??= renderQueue.add(0, async () => {
     const total = ENGINE_LOOP_SEC + ENGINE_XFADE_SEC + 0.05;
     const rendered = await Tone.Offline(() => {

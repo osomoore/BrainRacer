@@ -27,6 +27,7 @@ describe('deviceTuning', () => {
   });
   it('audioMode and sample engine validate', () => {
     expect(sanitizeTuning({ audioMode: 'prerendered', engineSound: 'sample' })).toEqual({ ...DEFAULT_TUNING, audioMode: 'prerendered', engineSound: 'sample' });
+    expect(sanitizeTuning({ audioMode: 'files' }).audioMode).toBe('files');
     expect(sanitizeTuning({ audioMode: 'turbo' }).audioMode).toBe('live');
   });
   it('patch saves and notifies; unsubscribe works', () => {

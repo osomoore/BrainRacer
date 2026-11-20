@@ -33,7 +33,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
 
 const LOOKAHEAD_SEC = 0.25;
 /** Pre-rendered music: rate, and the ring-out rendered past the loop end (folded back onto the start). */
-const MUSIC_SR = 32000;
+export const MUSIC_SR = 32000;
 const LOOP_TAIL_SEC = 1;
 /** Offline render window and the longest lead-in rendered before it. */
 const CHUNK_SEC = 4;
@@ -41,7 +41,7 @@ const MAX_LEAD_SEC = 4.5;
 const ONESHOT_TAIL_SEC = 2.5;
 const SWAP_FADE_SEC = 0.3;
 /** Background render order: title first, then the race tracks. */
-const RENDER_ORDER: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results'];
+export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results'];
 const TICK_SEC = 0.1;
 
 type NoteFn = (note: { p: number; d: number; v: number }, time: number) => void;
@@ -239,7 +239,7 @@ function maxNoteSec(data: TrackData): number {
  * Done in short windows (each with a lead-in so notes that started earlier are still ringing): one long
  * OfflineAudioContext with every note scheduled up front is several times slower.
  */
-async function renderTrackBuffer(data: TrackData, chunkSec = CHUNK_SEC): Promise<AudioBuffer> {
+export async function renderTrackBuffer(data: TrackData, chunkSec = CHUNK_SEC): Promise<AudioBuffer> {
   const sec = beatsToSeconds(data.lengthBeats, data.bpm);
   const total = Math.ceil((sec + (data.loop ? LOOP_TAIL_SEC : ONESHOT_TAIL_SEC)) * MUSIC_SR);
   const left = new Float32Array(total);
@@ -337,12 +337,45 @@ class BufferPlayback implements Running {
   }
 }
 
+const overrideCache = new Map<MusicTrack, Promise<TrackData | null>>();
+
+/** The track's data: `src/audio/music/midi/<track>.mid` override when present, else the built-in JSON. */
+export function resolveTrack(name: MusicTrack): Promise<TrackData> {
+  let p = overrideCache.get(name);
+  if (!p) {
+    p = fetchMidi(name);
+    overrideCache.set(name, p);
+  }
+  return p.then((d) => d ?? BUILTIN[name]);
+}
+
+/** Optional MIDI override (fetched once; 404 / non-MIDI tolerated). */
+async function fetchMidi(name: MusicTrack): Promise<TrackData | null> {
+  // Only fetch files that existed at build time (avoids a console 404 per track).
+  const url = MIDI_URLS[name];
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    if (!looksLikeMidi(new Uint8Array(buf))) return null;
+    const data = midiToTrack(new Midi(buf), name, name !== 'results');
+    return validateTrack(data).length === 0 ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where 'files' mode gets its decoded music buffers (null = file missing/failed). */
+export interface MusicFileSource { loadMusic(name: MusicTrack): Promise<AudioBuffer | null> }
+
 export class MusicPlayer {
   private current: Running | null = null;
   private currentName: MusicTrack | null = null;
   private industrialPhase = 0;
   private token = 0;
-  private readonly overrides = new Map<MusicTrack, Promise<TrackData | null>>();
+  private files: MusicFileSource | null = null;
+  private fileLoads = new Map<MusicTrack, Promise<void>>();
   private prerendered = false;
   private readonly cache = new Map<MusicTrack, AudioBuffer>();
   private readonly inflight = new Map<MusicTrack, Promise<AudioBuffer | null>>();
@@ -352,20 +385,60 @@ export class MusicPlayer {
 
   /** Tracks with a rendered buffer / total tracks (diagnostics). */
   get cachedCount(): number { return this.cache.size; }
-  static readonly TRACK_COUNT = RENDER_ORDER.length;
+  static readonly TRACK_COUNT = MUSIC_TRACKS.length;
 
   /** Pre-rendered mode on/off. On: render every track in the background and swap the current one when ready. Off: back to live synths. */
-  setPrerendered(on: boolean): void {
-    if (on === this.prerendered) return;
+  setPrerendered(on: boolean, files: MusicFileSource | null = null): void {
+    const filesChanged = files !== this.files;
+    if (on === this.prerendered && !filesChanged) return;
     this.prerendered = on;
-    if (on) void this.renderBackground();
+    this.files = on ? files : null;
+    if (on && files) void this.loadFilesBackground(files);
+    else if (on) void this.renderBackground();
     this.swapCurrent();
+  }
+
+  /** Decodes the shipped files one after another (title first). A missing file falls back to an offline render. */
+  private async loadFilesBackground(files: MusicFileSource): Promise<void> {
+    for (const name of MUSIC_TRACKS) {
+      if (this.files !== files) return;
+      await this.loadFile(name);
+    }
+  }
+
+  private loadFile(name: MusicTrack): Promise<void> {
+    if (this.cache.has(name)) return Promise.resolve();
+    let p = this.fileLoads.get(name);
+    if (!p) {
+      const files = this.files;
+      if (!files) return Promise.resolve();
+      p = files.loadMusic(name).then(async (buf) => {
+        if (buf) {
+          this.cache.set(name, buf);
+          this.onBufferReady(name);
+        } else if (this.files === files && this.prerendered) {
+          await this.render(name, 1); // file unavailable: offline render instead
+        }
+      }).catch(() => {}).then(() => { this.fileLoads.delete(name); });
+      this.fileLoads.set(name, p);
+    }
+    return p;
+  }
+
+  /** A buffer for `name` just became available: swap a live track to it, or start a track that was waiting for it. */
+  private onBufferReady(name: MusicTrack): void {
+    if (!this.prerendered || this.currentName !== name) return;
+    if (this.current) { this.swapCurrent(); return; }
+    void this.resolve(name).then((data) => {
+      if (this.current || this.currentName !== name || !this.prerendered) return;
+      this.current = this.make(name, data, 0, 0.3);
+    });
   }
 
   /** Renders the whole track list sequentially (title first). Idempotent. */
   renderBackground(): Promise<void> {
     this.background ??= (async () => {
-      for (const name of RENDER_ORDER) {
+      for (const name of MUSIC_TRACKS) {
         if (!this.prerendered) break;
         await this.render(name, 5);
       }
@@ -389,7 +462,7 @@ export class MusicPlayer {
     }).catch(() => null).then((buf) => {
       this.inflight.delete(name);
       if (buf) {
-        if (this.prerendered && this.currentName === name) this.swapCurrent();
+        this.onBufferReady(name);
         this.logTimes();
       }
       return buf;
@@ -399,7 +472,7 @@ export class MusicPlayer {
   }
 
   private logTimes(): void {
-    if (this.logged || this.cache.size < RENDER_ORDER.length) return;
+    if (this.logged || this.cache.size < MUSIC_TRACKS.length) return;
     this.logged = true;
     const total = [...this.renderMs.values()].reduce((a, b) => a + b, 0);
     console.info(`[audio] pre-rendered music (ms): ${[...this.renderMs].map(([k, v]) => `${k} ${v}`).join(', ')}; total ${total}`);
@@ -456,6 +529,14 @@ export class MusicPlayer {
     this.industrialPhase = name === 'dino' && this.currentName === 'industrial' && old
       ? oldPhase(old)
       : 0;
+    if (this.files && !toBuffer) {
+      // 'files' mode: stay silent until the decoded file arrives (live synthesis is what starves weak boxes)
+      this.current = null;
+      this.currentName = name;
+      void this.loadFile(name);
+      if (old) old.fadeOutAndDispose(fade);
+      return;
+    }
     this.current = this.make(name, data, phase, old ? fade : Math.min(fade, 0.3));
     this.currentName = name;
     if (this.prerendered && !toBuffer) void this.render(name, 0); // live now, swaps to the buffer when it is ready
@@ -467,29 +548,6 @@ export class MusicPlayer {
     this.current = null;
   }
 
-  /** Optional `src/audio/music/midi/<track>.mid` override (fetched once; 404 / non-MIDI tolerated). */
-  private resolve(name: MusicTrack): Promise<TrackData> {
-    let p = this.overrides.get(name);
-    if (!p) {
-      p = this.fetchMidi(name);
-      this.overrides.set(name, p);
-    }
-    return p.then((d) => d ?? BUILTIN[name]);
-  }
+  private resolve(name: MusicTrack): Promise<TrackData> { return resolveTrack(name); }
 
-  private async fetchMidi(name: MusicTrack): Promise<TrackData | null> {
-    // Only fetch files that existed at build time (avoids a console 404 per track).
-    const url = MIDI_URLS[name];
-    if (!url) return null;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const buf = await res.arrayBuffer();
-      if (!looksLikeMidi(new Uint8Array(buf))) return null;
-      const data = midiToTrack(new Midi(buf), name, name !== 'results');
-      return validateTrack(data).length === 0 ? data : null;
-    } catch {
-      return null;
-    }
-  }
 }

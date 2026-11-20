@@ -10,6 +10,7 @@ TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest
 
 ## Commands
 - `npm run dev` — dev server (http://localhost:5173). Dev scenes: `?dev=<FileName>` for any `src/scenes/dev/<FileName>.ts`.
+- `npm run audio:render` — re-render `public/audio` (Ogg Opus sfx/music + manifest) after changing sounds/music (needs ffmpeg + Edge; a Vitest guard fails when the audio sources changed and the files are stale).
 - `npm run typecheck` · `npm test` (unit) · `npm run e2e` (Playwright, builds first) · `npm run assets` (regenerate `src/data/scenes.json` + copy PNGs to `public/scenes/`; run once after cloning).
 - Use `npm test`, not `npx vitest` directly: the wrapper fixes a Windows drive-letter-case bug.
 - Quick race without menus: `?race=1` / `?race=2` (+ `&seed=N&round=60&dino=now&heat=100&rewards=1&debug=1`). `window.__race` = RaceContext, `window.__challenge` = challenge hook.

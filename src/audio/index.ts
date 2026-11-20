@@ -3,7 +3,8 @@ import type { IAudio, IEngineSound } from '../core/services';
 import type { MusicTrack, PlayerId, SfxName } from '../core/types';
 import { getTuning, onTuningChange } from '../config/deviceTuning';
 import { renderQueue } from './bufferUtils';
-import { EngineSound, LiteEngineSound, SampleEngineSound } from './engineSound';
+import { AudioFiles } from './audioFiles';
+import { EngineSound, LiteEngineSound, SampleEngineSound, setEngineLoopFile } from './engineSound';
 import { Mixer } from './mixer';
 import { MusicPlayer } from './musicPlayer';
 import { SFX_BUFFER_TOTAL, SfxEngine } from './sfx';
@@ -68,6 +69,11 @@ export interface AudioDiagnostics {
   musicTotal: number;
   /** An offline render job is queued or running. */
   rendering: boolean;
+  /** 'files' mode: decoded sfx files / total and music files / total. */
+  filesSfx: number;
+  filesSfxTotal: number;
+  filesMusic: number;
+  filesMusicTotal: number;
 }
 
 let activeImpl: AudioImpl | null = null;
@@ -78,6 +84,7 @@ export function audioDiagnostics(): AudioDiagnostics {
     state: 'locked', sampleRate: 0, baseLatency: 0, outputLatency: 0,
     lookAhead: getTuning().lookAheadSec, clockRatio: 1, stalls: 0, activeSfx: 0, engineMode: getTuning().engineSound,
     audioMode: getTuning().audioMode, sfxReady: 0, sfxTotal: SFX_BUFFER_TOTAL, musicCached: 0, musicTotal: MusicPlayer.TRACK_COUNT, rendering: false,
+    filesSfx: 0, filesSfxTotal: 0, filesMusic: 0, filesMusicTotal: 0,
   };
 }
 
@@ -124,12 +131,26 @@ class AudioImpl implements IAudio {
 
   /** Pre-rendered mode: title music first, then sfx, then the other tracks, one render at a time. Live: stop using buffers. */
   private applyAudioMode(): void {
-    const on = this.audioMode === 'prerendered';
+    const mode = this.audioMode;
     try {
-      this.musicPlayer?.setPrerendered(on);
-      this.sfxEngine?.setPrerendered(on);
+      if (mode === 'files') {
+        const files = (this.files ??= new AudioFiles());
+        setEngineLoopFile(() => files.loadEngine());
+        this.musicPlayer?.setPrerendered(true, files);
+        const sfx = this.sfxEngine;
+        if (sfx) {
+          sfx.setPrerendered(true, false);
+          // no manifest (files not shipped / fetch failed): render the sfx offline instead
+          void files.loadSfx(sfx).then((ok) => { if (!ok && this.audioMode === 'files') sfx.setPrerendered(true); });
+        }
+      } else {
+        setEngineLoopFile(null);
+        this.musicPlayer?.setPrerendered(mode === 'prerendered');
+        this.sfxEngine?.setPrerendered(mode === 'prerendered');
+      }
     } catch { /* never throw */ }
   }
+  private files: AudioFiles | null = null;
 
   private raw(): AudioContext | null {
     try { return Tone.getContext().rawContext as unknown as AudioContext; } catch { return null; }
@@ -183,6 +204,10 @@ class AudioImpl implements IAudio {
       musicCached: this.musicPlayer?.cachedCount ?? 0,
       musicTotal: MusicPlayer.TRACK_COUNT,
       rendering: renderQueue.pending > 0,
+      filesSfx: this.files?.progress.sfx ?? 0,
+      filesSfxTotal: this.files?.progress.sfxTotal ?? 0,
+      filesMusic: this.files?.progress.music ?? 0,
+      filesMusicTotal: this.files?.progress.musicTotal ?? 0,
     };
   }
 
@@ -204,7 +229,7 @@ class AudioImpl implements IAudio {
         this.musicPlayer = new MusicPlayer(this.mixer);
         this.unlocked = true;
         this.audioMode = tuning.audioMode;
-        if (tuning.audioMode === 'prerendered') this.applyAudioMode();
+        if (tuning.audioMode !== 'live') this.applyAudioMode();
         this.startMonitor();
         for (const e of this.engines.values()) e.refresh();
         if (this.pendingMusic) {

@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/vitest.mjs",
     "e2e": "playwright test",
-    "assets": "tsx scripts/build-assets.ts"
+    "assets": "tsx scripts/build-assets.ts",
+    "audio:render": "tsx scripts/renderAudio.ts"
   },
   "dependencies": {
     "@tonejs/midi": "2.0.28",
