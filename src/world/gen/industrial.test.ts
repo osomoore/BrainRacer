@@ -214,5 +214,5 @@ describe('generateIndustrial props and bridges', () => {
         seen.add(key);
       }
     }
-  });
+  }, 30_000); // 25 seeds of generation + checks; exceeds the 5s default when the suite runs in parallel
 });

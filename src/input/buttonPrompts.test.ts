@@ -8,7 +8,15 @@ describe('controller prompts', () => {
     expect(identifyController('Nintendo Switch Pro Controller')).toBe('nintendo');
     expect(identifyController('Xbox Wireless Controller')).toBe('xbox');
     expect(identifyController('Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)')).toBe('xbox');
+    // Android WebView: bare InputDevice names, "<manufacturer> <product>".
+    expect(identifyController('Nintendo Co., Ltd. Pro Controller')).toBe('nintendo');
+    expect(identifyController('Microsoft Controller')).toBe('xbox');
+    expect(identifyController('Microsoft X-Box One S pad')).toBe('xbox');
+    // Even a truncated name prefix, as seen on the Onn box debug overlay.
+    expect(identifyController('Ninten')).toBe('nintendo');
+    expect(identifyController('Micros')).toBe('xbox');
     expect(identifyController('Unknown USB Gamepad')).toBe('other');
+    expect(identifyController('Onn Remote')).toBe('other');
   });
 
   it('changes the letters and colors while keeping the answer slot positions', () => {

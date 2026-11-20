@@ -313,7 +313,7 @@ export class ConfigScene extends Phaser.Scene {
       for (const g of Array.from(navigator.getGamepads?.() ?? [])) {
         if (!g || !g.connected) continue;
         const pressed = g.buttons.flatMap((b, i) => (b.pressed ? [i] : []));
-        const id = g.id.replace(/\(.*$/, '').trim().slice(0, 6);
+        const id = g.id.replace(/\(.*$/, '').trim().slice(0, 24);
         lines.push(`p${g.index} ${id} b[${pressed.join(',')}] L${f(g.buttons[6]?.value ?? 0)} R${f(g.buttons[7]?.value ?? 0)} x${f(g.axes[0] ?? 0)} y${f(g.axes[1] ?? 0)}`);
       }
     } catch { /* ignore */ }

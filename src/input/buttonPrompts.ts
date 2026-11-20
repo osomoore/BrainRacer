@@ -8,10 +8,14 @@ export const ANSWER_POSITIONS = ['left', 'top', 'right', 'bottom'] as const sati
 const SWITCH_LABELS = ['Y', 'X', 'A', 'B'] as const;
 const KEY_SYMBOLS: Readonly<Record<string, string>> = { Comma: ',', Period: '.', Slash: '/' };
 
-/** Gamepad.id generally has a product name and, on Chromium, vendor and product IDs. */
+/**
+ * Gamepad.id generally has a product name and, on desktop Chromium, vendor and product IDs.
+ * Android WebView gives only InputDevice.getName(), often "<USB manufacturer> <product>",
+ * e.g. "Nintendo Co., Ltd. Pro Controller" or "Microsoft Controller".
+ */
 export function identifyController(id: string): ControllerFamily {
-  if (/\b(?:switch pro|nintendo (?:switch )?pro)\b|^pro controller(?:\s+\(|$)|\b057e(?:\s+product:\s*|[:-])2009\b/i.test(id)) return 'nintendo';
-  if (/\bx-?box\b|\bvendor:\s*045e\b|\b045e[:-][\da-f]{4}\b/i.test(id)) return 'xbox';
+  if (/\bninten|\bswitch pro\b|^pro controller(?:\s+\(|$)|\bvendor:\s*057e\b|\b057e[:-][\da-f]{4}\b/i.test(id)) return 'nintendo';
+  if (/\bx-?box\b|\bmicros|\bvendor:\s*045e\b|\b045e[:-][\da-f]{4}\b/i.test(id)) return 'xbox';
   return 'other';
 }
 
