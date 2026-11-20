@@ -1,17 +1,11 @@
 ﻿import Phaser from 'phaser';
+import { addHarborScenery } from './harborScenery';
 import { DEPTH } from '../config/gameConfig';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, type WorldData } from '../core/types';
 
-/** Make reusable canvas sprites once; no live Graphics paths in the two cameras. */
-export function harborTexture(scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): string {
-  const name = `harbor_${key}`;
-  if (!scene.textures.exists(name)) {
-    const t = scene.textures.createCanvas(name, w, h);
-    if (!t) throw new Error('Harbor texture allocation failed');
-    draw(t.getContext()); t.refresh();
-  }
-  return name;
-}
+import { addHarborSuspension } from './harborBridges';
+import { harborTexture } from './harborTexture';
+
 const rect = (c: CanvasRenderingContext2D, color: string, x: number, y: number, w: number, h: number) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
 
 /** Static harbor dressing. All features outside roads are decorative and have no road collisions. */
@@ -29,14 +23,7 @@ export function addHarborWorld(scene: Phaser.Scene, world: WorldData, objs: Phas
   };
   for (const y of [9, 21, 38]) for (const [start, end] of [[7, 17], [19, 30], [32, 40]]) stripe(start, end, y, false);
   for (const x of [6, 18, 31, 41]) for (const [start, end] of [[10, 20], [22, 37]]) stripe(start, end, x, true);
-  const bridge = harborTexture(scene, 'suspension', 1024, 300, c => {
-    rect(c, '#b95342', 0, 80, 1024, 18); rect(c, '#b95342', 0, 208, 1024, 18);
-    for (const x of [75, 900]) { rect(c, '#f4c8a1', x, 12, 48, 276); rect(c, '#873d36', x + 8, 0, 32, 300); }
-    c.strokeStyle = '#f9d3aa'; c.lineWidth = 7;
-    for (const y of [68, 232]) { c.beginPath(); c.moveTo(99, y); c.quadraticCurveTo(512, y === 68 ? 170 : 130, 924, y); c.stroke(); }
-    c.lineWidth = 3; for (let x = 150; x < 900; x += 55) { c.beginPath(); c.moveTo(x, 90); c.lineTo(x, 210); c.stroke(); }
-  });
-  add(bridge, 24, 9, DEPTH.decal + 1);
+  addHarborSuspension(scene, ts, objs);
   const dock = harborTexture(scene, 'dock', 330, 100, c => {
     rect(c, '#795142', 0, 12, 330, 76); for (let x = 4; x < 330; x += 24) rect(c, '#c59060', x, 16, 20, 68);
     rect(c, '#613c33', 0, 10, 330, 7); rect(c, '#613c33', 0, 83, 330, 7);
@@ -58,6 +45,7 @@ export function addHarborWorld(scene: Phaser.Scene, world: WorldData, objs: Phas
     for (let x = 20; x < 120; x += 20) { c.fillStyle = x % 40 ? '#efb841' : '#67a752'; c.beginPath(); c.arc(x, 76, 7, 0, 7); c.fill(); }
   });
   for (const x of [8, 9.5, 11, 12.5]) add(stall, x, 18);
+  for (const x of [8, 11, 13.5]) add(stall, x, 16.5);
   add(stall, 34, 16);
   const iceCream = harborTexture(scene, 'icecream', 150, 105, c => {
     rect(c, '#fbe7bf', 10, 20, 130, 65); rect(c, '#dc786b', 5, 13, 140, 20);
@@ -88,6 +76,7 @@ export function addHarborWorld(scene: Phaser.Scene, world: WorldData, objs: Phas
     for (let i = 0; i < 3; i++) rect(c, '#c19674', 49, 93 + i * 7, 40, 5);
   });
   add(lookout, 39, 16, DEPTH.prop + 1);
+  addHarborScenery(scene, world, objs, harborTexture);
 }
 
 /** Sand tile source for WorldBuilder's normal atlas index 5 (Dirt). */

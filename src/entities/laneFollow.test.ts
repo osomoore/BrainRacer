@@ -126,6 +126,12 @@ describe('spawn ring', () => {
     expect(spawnOk(p.x, p.y + 1500, { ...q, views: [{ x: p.x - 100, y: p.y + 1400, w: 200, h: 200 }] })).toBe(false);
   });
 
+  it('keeps starts out of a movable bridge span', () => {
+    const query = { ...q, excluded: { x: p.x + 1400, y: p.y - 100, w: 200, h: 200 } };
+    expect(spawnOk(p.x + 1500, p.y, query)).toBe(false);
+    expect(spawnOk(p.x + 1650, p.y, query)).toBe(true);
+  });
+
   it('pickSpawnNode returns valid off-screen nodes in the ring', () => {
     const rng = new Rng(2);
     let found = 0;

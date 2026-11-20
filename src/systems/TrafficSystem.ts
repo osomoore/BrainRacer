@@ -1,4 +1,4 @@
-import { BOARDING_DRIVE, FARM_TRAFFIC, INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
+import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { pickSpawnNode, type SpawnQuery } from '../entities/laneFollow';
@@ -33,6 +33,14 @@ export class TrafficSystem implements GameSystem {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x7aff1c);
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
+    if (ctx.settings.map === 'harbor') {
+      const { centerX, centerY, gateWidth, gateHeight } = HARBOR.drawbridge;
+      const size = ctx.world.tileSize;
+      this.query.excluded = {
+        x: (centerX - gateWidth / 2) * size, y: (centerY - gateHeight / 2) * size,
+        w: gateWidth * size, h: gateHeight * size,
+      };
+    }
     if (ctx.world.industrial) {
       this.freightStarts = findFreightStarts(ctx.world);
       this.freightLimit = this.freightStarts.length ? INDUSTRIAL_TRAFFIC.freightTrucks : 0;

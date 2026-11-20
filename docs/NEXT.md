@@ -20,7 +20,7 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 ## Queued playtest changes
 
-The latest queue is implemented on `dev`. See STATUS for half-speed handling, Farm fences and boarded vehicles, single-press dino boarding, the Easy words update, homing bomb, and Beach & Harbor.
+The latest queue is implemented on `dev`. See STATUS for the Beach & Harbor scenery and bridge update, including full night at two minutes remaining in a five-minute race.
 
 Session 3 finished the queued playtest list and the map/gameplay ideas (destination text, round clock during breaks, launch options, day/night by map, darker Industrial, Easy+, player siren, freight smash, dino lasers, building gaps). See STATUS "Session 3 changes".
 
@@ -67,7 +67,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Readability of question cards from the back of the room.
 - Session 4 by eye/ear: Farm golden hour and long shadows on a projector in both split views, corn slowdown/track/spring-back, animal launches (fun, not scary), tractors and combines, dino ride (3 hits, 20 s, speed, stomp shake), Industrial clutter and new bridges, guide buddy in 2P.
 - Session 3 by eye/ear: Industrial darkness on a projector (`INDUSTRIAL_LIGHTING.nightAlpha`), player siren loudness (`POLICE.playerSirenVolume`), dino laser fairness for 5-year-olds (`DINO_LASER.chargeSec`/`fireSec`), freight smash threshold and re-form time, whether the building alleys look intentional (`WORLD.maxBuildingRun`), Easy+ feel.
-- Latest changes: half-speed handling and boost jumps, one-press dino boarding range, fence restoration in split-screen, bomb readability and knockback, and Beach & Harbor lighting, drawbridge, and tidal surge.
+- Latest changes: Beach & Harbor scenery density, ramp approaches, market shortcuts, beachgoer readability, bridge detail, and night visibility. Also check half-speed handling, one-press dino boarding, split-screen fence restoration, and bomb knockback.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
 - Industrial at Night and Beach & Harbor are playable in Setup. The projector, real-controller, and by-ear checks remain on the playtest checklist.

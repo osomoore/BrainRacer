@@ -74,10 +74,11 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 
 - Starter cars top out at 310 px/s (dino car) or 285 px/s (kart). Acceleration, reverse, turbo, punch-through, and boost-jump distance use the half-speed balance. Steering rates stay the same. Dino lasers, ride speed, guide lead, crash impacts, freight smash threshold, and police pursuit have been retuned.
 - A large homing bomb first appears after 25 s of driving. Its fuse throws sparks and a fiery orange glow. It moves at half its target's top speed, then knocks the target into a spin on contact. A later bomb can spawn 35 s after it explodes. Tune in `HOMING_BOMB`.
-- Pick **Beach & Harbor** in Setup. Tire tracks fade in the sand. Passing cars scatter umbrellas and beach balls, and beachgoers jump clear. The channel has animated surfers, sailboats, decorative docks, and a ship. A suspension bridge, timed drawbridge, and south crossing connect the two sides.
-- The waterfront has a red-and-white lighthouse with a sweeping beam, ice cream cart, market stalls, and convertible sports car traffic. Sunset fades to night over the round. A brief tidal surge pushes cars and loose beach props inland. Time features are tuned in `HARBOR`.
+- Pick **Beach & Harbor** in Setup. Tire tracks fade in the sand. Seeded beach groups include umbrellas, towels, coolers, beach balls and sandcastles. Use the beach ramps for jumps and drive through the pennant-marked market gaps. Cars can flatten sandcastles and scatter fruit crates, fish crates, barrels and buoys. Disturbed props return after they leave both players' views.
+- The waterfront has a red-and-white lighthouse, ice cream cart, market stalls, and convertible sports cars. Two beachgoer designs with varying colors jump clear. Surfers, sailboats and gulls move around the channel. The suspension bridge has towers and cables, and the drawbridge shows a water gap, flashing lights and striped barriers when the ship passes.
+- On the default five-minute round, sunset begins fading at four minutes remaining and reaches full night when two minutes remain. Wind gusts roll beach balls and the tidal surge pushes cars and loose shore props inland. Timing and strength are tuned in `HARBOR`.
 - **Easy word pool:** dam remains eligible. Church and city now appear at higher levels.
-- Verification: typecheck, 376 unit tests, and 32 Edge e2e tests passed with a fresh production build. The new scenarios cover split-screen fence restoration, single-press dino boarding, the harbor tide and drawbridge, sand tracks, and bomb knockback.
+- Harbor update verification: the 33-test Edge suite passed. After fixing traffic spawns on the drawbridge, typecheck, all 377 unit tests, and the three focused Harbor and Bomb browser tests passed.
 
 ## Industrial at Night
 

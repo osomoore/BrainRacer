@@ -162,11 +162,14 @@ export interface SpawnQuery {
   players: readonly { x: number; y: number }[];
   views: readonly { x: number; y: number; w: number; h: number }[];
   occupied: readonly { x: number; y: number }[];
+  excluded?: { x: number; y: number; w: number; h: number };
   minR: number; maxR: number; margin: number; gap: number;
 }
 
 /** Whether a spawn at (x, y) satisfies the ring, off-screen and spacing rules. */
 export function spawnOk(x: number, y: number, q: SpawnQuery): boolean {
+  const excluded = q.excluded;
+  if (excluded && x >= excluded.x && x <= excluded.x + excluded.w && y >= excluded.y && y <= excluded.y + excluded.h) return false;
   let nearest = Infinity;
   for (const p of q.players) nearest = Math.min(nearest, Math.hypot(p.x - x, p.y - y));
   if (nearest < q.minR || nearest > q.maxR) return false;

@@ -43,6 +43,9 @@ export function generateHarbor(seed: number): WorldData {
     places.push({ word, buildingId: id, sign: { x: (x + 1) * ts, y: (y + 1) * ts }, front: { x: (x + 1) * ts, y: (y - 2) * ts } });
   }
   return { seed, widthTiles: w, heightTiles: h, tileSize: ts, tiles: g.tiles, roadMask: g.mask,
-    buildings, places, ramps: [], props: [], laneGraph,
+    buildings, places, ramps: [
+      { x: 35 * ts, y: 29 * ts, angle: 0, w: WORLD.rampW, h: WORLD.rampH },
+      { x: 33 * ts, y: 35 * ts, angle: 0, w: WORLD.rampW, h: WORLD.rampH },
+    ], props: [], laneGraph,
     playerSpawns: [{ x: 28.8 * ts, y: 8.7 * ts, angle: 0 }, { x: 27.8 * ts, y: 9.35 * ts, angle: 0 }] };
 }

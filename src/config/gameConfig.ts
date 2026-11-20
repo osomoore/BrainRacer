@@ -849,9 +849,12 @@ export const ANIMALS = {
 export const FARM_FENCE = { segmentLength: 128, hitRadius: 48, scatterDistance: 110, scatterSec: 0.5, viewMargin: 160 };
 
 export const HARBOR = {
+  sunsetFadeStartFrac: 0.2,
+  fullNightFrac: 0.6,
   bridgeCycleSec: 48,
   bridgeOpenSec: 12,
   bridgeLiftSec: 2,
+  drawbridge: { centerX: 24, centerY: 21, gateWidth: 6.4, gateHeight: 2 }, // tile units
   tidePeriodSec: 38,
   tideDurationSec: 2.6,
   tideImpulse: 120,
@@ -860,6 +863,11 @@ export const HARBOR = {
   beachgoerJumpDistance: 185,
   sandTrackGap: 18,
   sandTrackLife: 14,
+  propResetMargin: 160,
+  sandcastleSpeed: 65,
+  gustMinSec: 21,
+  gustMaxSec: 34,
+  gustSpeed: 360,
 };
 
 /** Homing bomb: comic hazard, speeds in pixels per second. */
