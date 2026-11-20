@@ -6,6 +6,7 @@ import { loadSettings, saveSettings } from '../core/settings';
 import type { CarKind, InputDevice, PlayerSettings, Settings } from '../core/types';
 import { JoinCard } from '../ui/menu/JoinCard';
 import { bigText, FONT_HEAD } from '../ui/menu/style';
+import { buildLabel } from '../buildInfo';
 import { REG, SCENE } from './keys';
 
 const LOGO_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#ff922b'];
@@ -46,6 +47,8 @@ export class TitleScene extends Phaser.Scene {
     const press = bigText(this, 0, 0, 'Press  A  again to continue', 56, '#ffffff', { font: FONT_HEAD });
     this.continueHint = this.add.container(GAME_WIDTH / 2, 868, [press]).setVisible(false);
     this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+
+    bigText(this, GAME_WIDTH - 24, 20, buildLabel(), 32, '#ffffff', { origin: [1, 0], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
 
     this.input.keyboard?.on('keydown', () => this.startAudio());
     this.input.on('pointerdown', () => this.startAudio());

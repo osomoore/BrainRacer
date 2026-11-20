@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { getTuning, resetTuning, setTuning, type DeviceTuning } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
+import { BUILD_ID } from '../buildInfo';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { Settings } from '../core/types';
@@ -75,6 +76,7 @@ export class ConfigScene extends Phaser.Scene {
     this.panel = c;
     c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x050a1c, 0.93));
     c.add(bigText(this, GAME_WIDTH / 2, 62, 'SETTINGS', 80, MENU.yellow, { font: FONT_HEAD, stroke: 12 }));
+    c.add(bigText(this, 30, 30, `Build ${BUILD_ID}`, 32, MENU.dim, { origin: [0, 0], bold: false, shadow: false, stroke: 4 }));
     const color = hexNum(PLAYER_COLORS[0]);
     const opts = { width: ROW_W, height: 66, fontSize: 40, valueX: 300, arrowSpan: 135 };
 
