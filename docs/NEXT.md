@@ -32,12 +32,12 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 ### Low-end device (ONN Android TV box, TV Bro browser)
 Done 2026-11-20 (see STATUS "Hidden settings menu"): hidden settings menu (LT+RT+Start / F9) with debug + input readouts; build stamp on title and menu; Files audio (Ogg Opus in `public/audio/`, `npm run audio:render`) + Sample engine, now the defaults (ONN audio clock went from about 0.6x to 0.9-1.1x); Traffic Normal/Reduced/Minimal; per-player gas A/Trigger/Auto; HUD baked to textures (6x-throttled 2P city: about 19 to 48 fps).
 Open:
-- Test on the ONN: race fps with the baked HUD, whether Trigger gas avoids TV Bro's controller-as-mouse mode on the second pad, and whether Auto gas feels right.
+- Test on the ONN: race fps with the baked HUD, and whether Auto gas feels right.
+- TV Bro's controller-as-mouse mode turned out to be a long press of B (Android maps B to Back) on either pad, so Trigger gas doesn't help. Fix: the Android TV WebView wrapper in `android/` (2026-11-20, see `android/README.md`). It loads the GitHub Pages URL, so game updates need no reinstall. Toolchain (JDK 17, SDK 35, Gradle 8.9) and the signing key live in `C:\Users\osomo\AndroidDev`. Not yet tried on the box. Check: long-press B no longer gives a cursor, the input readout still shows B (button 1) pressed, and audio and fps match TV Bro.
 - Baked HUD, never visually checked: wrong-answer X, the 2P "Waiting..." card, the dino / rock monster alert frame, and the "Look!" and place banners. The question-panel glow came out slightly fainter. The panel textures are baked at 2x, up to about 30 MB of GPU memory; bake them at 1x if the box stutters or crashes when a panel first appears.
 - Listen: loop seams in the title, race, farm and dino music, and in the siren and engine loops.
 - Music: the Underground track is too sparse (too few notes). Give it more drive and action, then re-run `npm run audio:render`.
 - Next performance work (from the 6x-throttle profile): enable Matter sleeping plus off-screen NPC update skipping (about +10-15%, needs wake-on-contact checks); a render-resolution option (unmeasured, depends on the box GPU); trim the display list per camera. Matter iteration counts gave no gain.
-- Fallback if TV Bro keeps fighting us: a small Android TV WebView app wrapper.
 
 ### Session 4 follow-ups
 - Farm: tractors sometimes wander onto paved roads.
