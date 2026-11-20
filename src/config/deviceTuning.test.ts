@@ -15,7 +15,7 @@ describe('deviceTuning', () => {
   });
 
   it('defaults reproduce current behaviour', () => {
-    expect(getTuning()).toEqual({ engineSound: 'full', audioMode: 'live', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60, traffic: 'normal', gas: ['a', 'a'] });
+    expect(getTuning()).toEqual({ engineSound: 'sample', audioMode: 'files', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60, traffic: 'normal', gas: ['a', 'a'] });
   });
   it('invalid stored values fall back per field', () => {
     store.m.set(TUNING_KEY, JSON.stringify({ engineSound: 'loud', lookAheadSec: 0.2, compressor: 'yes', fpsCap: 45, debugReadout: true }));
@@ -28,7 +28,7 @@ describe('deviceTuning', () => {
   it('audioMode and sample engine validate', () => {
     expect(sanitizeTuning({ audioMode: 'prerendered', engineSound: 'sample' })).toEqual({ ...DEFAULT_TUNING, audioMode: 'prerendered', engineSound: 'sample' });
     expect(sanitizeTuning({ audioMode: 'files' }).audioMode).toBe('files');
-    expect(sanitizeTuning({ audioMode: 'turbo' }).audioMode).toBe('live');
+    expect(sanitizeTuning({ audioMode: 'turbo' }).audioMode).toBe('files');
   });
   it('patch saves and notifies; unsubscribe works', () => {
     const fn = vi.fn();

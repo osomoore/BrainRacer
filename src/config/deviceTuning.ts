@@ -32,8 +32,8 @@ export interface DeviceTuning {
 export const TUNING_KEY = 'brainracer.tuning.v1';
 
 export const DEFAULT_TUNING: Readonly<DeviceTuning> = Object.freeze({
-  engineSound: 'full',
-  audioMode: 'live',
+  engineSound: 'sample',
+  audioMode: 'files',
   audioLatency: 'interactive',
   lookAheadSec: 0.1,
   compressor: true,
