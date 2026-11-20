@@ -1,5 +1,6 @@
 /** Pure (DOM-free) input mapping logic. */
 import type { AnswerSlot, PlayerInput } from '../core/types';
+import type { GasMode } from '../config/deviceTuning';
 import { INPUT_CFG } from './config';
 import { resolvePadMap, type PadMap } from './padMaps';
 
@@ -49,8 +50,19 @@ const analog = (s: PadSnapshot, i: number) => {
   return b ? Math.max(0, Math.min(1, b.value || (b.pressed ? 1 : 0))) : 0;
 };
 
+/** Brake above this cancels automatic gas. */
+export const AUTO_GAS_BRAKE = 0.1;
+
+/** Throttle for a pad under a gas mode: 'a' = max(RT, A), 'trigger' = RT only, 'auto' = full unless braking. */
+export function gasThrottle(snap: PadSnapshot, m: PadMap, mode: GasMode): number {
+  const rt = analog(snap, m.rt);
+  if (mode === 'trigger') return rt;
+  if (mode === 'auto') return analog(snap, m.lt) > AUTO_GAS_BRAKE ? 0 : 1;
+  return Math.max(rt, down(snap, m.a) ? 1 : 0);
+}
+
 export function mapGamepad(
-  snap: PadSnapshot, prev: PadSnapshot | null, repeat: RepeatState, now: number, map?: PadMap,
+  snap: PadSnapshot, prev: PadSnapshot | null, repeat: RepeatState, now: number, map?: PadMap, gas: GasMode = 'a',
 ): PlayerInput {
   const m = map ?? resolvePadMap(snap.id, snap.mapping);
   const edge = (i: number) => down(snap, i) && !down(prev, i);
@@ -67,7 +79,7 @@ export function mapGamepad(
 
   return {
     steer: dpadX !== 0 ? dpadX : sx,
-    throttle: Math.max(analog(snap, m.rt), down(snap, m.a) ? 1 : 0),
+    throttle: gasThrottle(snap, m, gas),
     brake: analog(snap, m.lt),
     answer: pickAnswer([edge(m.x), edge(m.y), edge(m.b), edge(m.a)]),
     answerDirection: directionAnswer(edge(m.dLeft), edge(m.dUp), edge(m.dRight), edge(m.dDown)),

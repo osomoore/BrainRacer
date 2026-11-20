@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { getTuning, resetTuning, setTuning, type DeviceTuning } from '../config/deviceTuning';
+import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
@@ -31,6 +31,11 @@ const LATENCY: readonly DeviceTuning['audioLatency'][] = ['interactive', 'balanc
 const LATENCY_LABEL = { interactive: 'Fast', balanced: 'Balanced', playback: 'Safe' } as const;
 const AHEAD: readonly DeviceTuning['lookAheadSec'][] = [0.1, 0.2, 0.3];
 const FPS: readonly DeviceTuning['fpsCap'][] = [60, 30];
+const TRAFFIC_LEVELS: readonly DeviceTuning['traffic'][] = ['normal', 'reduced', 'minimal'];
+const TRAFFIC_LABEL = { normal: 'Normal', reduced: 'Reduced', minimal: 'Minimal' } as const;
+const GAS_MODES: readonly GasMode[] = ['a', 'trigger', 'auto'];
+const GAS_LABEL = { a: 'A button', trigger: 'Trigger', auto: 'Auto' } as const;
+const KEY_HISTORY = 3;
 const ROUND_SEC = [60, 120, 180, 300, 480, 600];
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
 
@@ -50,6 +55,8 @@ export class ConfigScene extends Phaser.Scene {
   private cursor = 0;
   private panel!: Phaser.GameObjects.Container;
   private readout!: Phaser.GameObjects.Text;
+  private inputReadout!: Phaser.GameObjects.Text;
+  private recentKeys: { code: string; at: number }[] = [];
   private readoutAt = 0;
   private frame = 0;
 
@@ -66,6 +73,17 @@ export class ConfigScene extends Phaser.Scene {
       fontFamily: 'Consolas, "Courier New", monospace', fontSize: '36px', color: '#ffffff',
       backgroundColor: 'rgba(0,0,0,0.72)', padding: { x: 10, y: 6 }, lineSpacing: 4,
     }).setOrigin(0, 1).setDepth(DEPTH).setVisible(false);
+    // Top-right so it clears the bottom timer bar and the centered 2-player scoreboard.
+    this.inputReadout = this.add.text(GAME_WIDTH - 12, 8, '', {
+      fontFamily: 'Consolas, "Courier New", monospace', fontSize: '36px', color: '#9be7ff',
+      backgroundColor: 'rgba(0,0,0,0.72)', padding: { x: 10, y: 6 }, lineSpacing: 4,
+    }).setOrigin(1, 0).setDepth(DEPTH).setVisible(false);
+    // Diagnostic exception to rule 8: raw keyboard/gamepad reads, to see what a TV browser actually reports.
+    const onKey = (e: KeyboardEvent): void => {
+      this.recentKeys = [{ code: e.code || e.key, at: performance.now() }, ...this.recentKeys].slice(0, KEY_HISTORY);
+    };
+    window.addEventListener('keydown', onKey);
+    this.events.once('shutdown', () => window.removeEventListener('keydown', onKey));
     this.input.keyboard?.on('keydown-F9', () => this.toggle());
     this.scene.bringToTop();
   }
@@ -121,23 +139,33 @@ export class ConfigScene extends Phaser.Scene {
       (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
     option(0, y0 + step * 6, 'Compressor', () => onOff(getTuning().compressor),
       () => setTuning({ compressor: !getTuning().compressor }));
-    option(0, y0 + step * 7, 'Debug readout', () => onOff(getTuning().debugReadout),
+    header(0, 815, 'DISPLAY');
+    option(0, 885, 'Frame rate (after reload)', () => `${getTuning().fpsCap} fps`,
+      (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
+    option(0, 885 + step, 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
 
-    header(1, 175, 'DISPLAY');
-    option(1, y0, 'Frame rate (after reload)', () => `${getTuning().fpsCap} fps`,
-      (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
-    header(1, 380, 'GAME (next race)');
-    option(1, 450, 'Round length', () => `${Math.round(this.settings().roundLengthSec / 60)} min`,
+    header(1, 175, 'GAME (next race)');
+    option(1, y0, 'Round length', () => `${Math.round(this.settings().roundLengthSec / 60)} min`,
       (d) => this.patchSettings({ roundLengthSec: cycleNum(ROUND_SEC, this.settings().roundLengthSec, d) }));
-    option(1, 450 + step, 'Time between questions', () => `${this.settings().challengeIntervalSec} s`,
+    option(1, y0 + step, 'Time between questions', () => `${this.settings().challengeIntervalSec} s`,
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
-    header(1, 655, 'ACTIONS');
-    action(1, 725, 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
-    action(1, 725 + step, 'Reset to defaults', () => this.resetAll());
-    action(1, 725 + step * 2, 'Close', () => this.close());
+    option(1, y0 + step * 2, 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
+      (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
+    header(1, 505, 'CONTROLS (gamepad)');
+    for (const p of [0, 1] as const) {
+      option(1, 575 + step * p, `P${p + 1} gas`, () => GAS_LABEL[getTuning().gas[p]], (d) => {
+        const gas: DeviceTuning['gas'] = [...getTuning().gas];
+        gas[p] = cycle(GAS_MODES, gas[p], d);
+        setTuning({ gas });
+      });
+    }
+    header(1, 755, 'ACTIONS');
+    action(1, 825, 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
+    action(1, 825 + step, 'Reset to defaults', () => this.resetAll());
+    action(1, 825 + step * 2, 'Close', () => this.close());
 
-    c.add(bigText(this, GAME_WIDTH / 2, 1040, 'D-pad: move / change     A: select     B or Start: close', 40, MENU.dim, { stroke: 6, shadow: false }));
+    c.add(bigText(this, GAME_WIDTH / 2, 1056, 'D-pad: move / change     A: select     B or Start: close', 40, MENU.dim, { stroke: 6, shadow: false }));
   }
 
   // ───────────────────────── settings helpers ─────────────────────────
@@ -191,6 +219,7 @@ export class ConfigScene extends Phaser.Scene {
     this.cursor = 0;
     this.panel.setVisible(true);
     this.readout.setVisible(false);
+    this.inputReadout.setVisible(false);
     this.scene.bringToTop();
     this.refreshRows();
   }
@@ -216,7 +245,7 @@ export class ConfigScene extends Phaser.Scene {
       const inp = services.input.any();
       if (inp.pause && inp.brake >= COMBO_THRESHOLD && inp.throttle >= COMBO_THRESHOLD) this.toggle();
       if (getTuning().debugReadout) this.updateReadout(time);
-      else if (this.readout.visible) this.readout.setVisible(false);
+      else if (this.readout.visible) { this.readout.setVisible(false); this.inputReadout.setVisible(false); }
     }
     if (this.frame % 30 === 0) this.scene.bringToTop();
   }
@@ -242,7 +271,7 @@ export class ConfigScene extends Phaser.Scene {
   }
 
   private updateReadout(time: number): void {
-    if (!this.readout.visible) this.readout.setVisible(true);
+    if (!this.readout.visible) { this.readout.setVisible(true); this.inputReadout.setVisible(true); }
     if (time - this.readoutAt < 250) return;
     this.readoutAt = time;
     const a = audioDiagnostics();
@@ -252,5 +281,25 @@ export class ConfigScene extends Phaser.Scene {
       `lat ${ms(a.baseLatency)}/${ms(a.outputLatency)}ms  ahead ${a.lookAhead}s  sfx ${a.activeSfx}  eng ${a.engineMode}`,
       `mode ${a.audioMode === 'prerendered' ? 'pre' : 'live'}  sfxReady ${a.sfxReady}/${a.sfxTotal}  music cached ${a.musicCached}/${a.musicTotal}${a.rendering ? '  RENDERING' : ''}`,
     ]);
+    this.inputReadout.setText(this.inputLines());
+  }
+
+  /** Raw pad buttons/axes and last keys, e.g. `p0 Xbox b[0,7] L.00 R.85 x.00 y.00`. */
+  private inputLines(): string[] {
+    const f = (v: number): string => (v < 0 ? '-' : '') + Math.abs(v).toFixed(2).replace(/^0/, '');
+    const lines: string[] = [];
+    try {
+      for (const g of Array.from(navigator.getGamepads?.() ?? [])) {
+        if (!g || !g.connected) continue;
+        const pressed = g.buttons.flatMap((b, i) => (b.pressed ? [i] : []));
+        const id = g.id.replace(/\(.*$/, '').trim().slice(0, 6);
+        lines.push(`p${g.index} ${id} b[${pressed.join(',')}] L${f(g.buttons[6]?.value ?? 0)} R${f(g.buttons[7]?.value ?? 0)} x${f(g.axes[0] ?? 0)} y${f(g.axes[1] ?? 0)}`);
+      }
+    } catch { /* ignore */ }
+    if (!lines.length) lines.push('no gamepads');
+    const now = performance.now();
+    const keys = this.recentKeys.map((k) => `${k.code} ${Math.min(99, (now - k.at) / 1000).toFixed(1)}s`);
+    lines.push(keys.length ? `keys ${keys.join(' | ')}` : 'keys -');
+    return lines;
   }
 }

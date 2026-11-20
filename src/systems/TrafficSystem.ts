@@ -1,4 +1,5 @@
 import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC, UNDERGROUND_TRAFFIC } from '../config/gameConfig';
+import { getTuning, scaledCount } from '../config/deviceTuning';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -63,6 +64,12 @@ export class TrafficSystem implements GameSystem {
       this.tractorLimit = this.farmStarts.tractor.length ? FARM_TRAFFIC.tractors : 0;
       this.combineLimit = this.farmStarts.combine.length ? FARM_TRAFFIC.combines : 0;
     }
+    // Low-end traffic setting, read once at race start (ambient traffic only).
+    const level = getTuning().traffic;
+    this.regularLimit = scaledCount(this.regularLimit, level);
+    this.freightLimit = scaledCount(this.freightLimit, level);
+    this.tractorLimit = scaledCount(this.tractorLimit, level);
+    this.combineLimit = scaledCount(this.combineLimit, level);
     // Initial fill: a nearer ring is allowed, still off-screen.
     const limit = this.totalLimit();
     for (let i = 0; i < limit * 3 && this.cars.length < limit; i++) {

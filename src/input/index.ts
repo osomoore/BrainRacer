@@ -1,8 +1,10 @@
+import { resolvePadMap } from './padMaps';
 import { bus } from '../core/events';
 import type { InputDevice, PlayerId, PlayerInput } from '../core/types';
 import { ZERO_INPUT, type IInput } from '../core/services';
 import { HANDLED_CODES, mapKeyboard, type KeyLayout } from './keyboardMap';
-import { mapGamepad, mergeInputs, newRepeatState, type PadSnapshot, type RepeatState } from './mapping';
+import { getTuning } from '../config/deviceTuning';
+import { gasThrottle, mapGamepad, mergeInputs, newRepeatState, type PadSnapshot, type RepeatState } from './mapping';
 import { DebugOverlay, formatDebug } from './overlay';
 
 const KB_LAYOUTS: KeyLayout[] = ['left', 'right'];
@@ -125,7 +127,12 @@ class InputManager implements IInput {
   get(player: PlayerId): PlayerInput {
     const d = this.assigned[player];
     if (!d || !this.isConnected(d)) return ZERO_INPUT;
-    return this.results.get(devKey(d)) ?? ZERO_INPUT;
+    const res = this.results.get(devKey(d)) ?? ZERO_INPUT;
+    // Gas mode applies to gamepads only, and only here (races); any() stays raw so the settings combo and menus work.
+    const mode = getTuning().gas[player];
+    const snap = d.type === 'gamepad' ? this.pads.get(d.index) : undefined;
+    if (!snap || mode === 'a') return res;
+    return { ...res, throttle: gasThrottle(snap, resolvePadMap(snap.id, snap.mapping), mode) };
   }
 
   any(): PlayerInput { return mergeInputs([...this.results.values()]); }

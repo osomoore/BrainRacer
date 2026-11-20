@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { _clearTuningCache, DEFAULT_TUNING, getTuning, onTuningChange, resetTuning, sanitizeTuning, setTuning, TUNING_KEY } from './deviceTuning';
+import { _clearTuningCache, DEFAULT_TUNING, getTuning, onTuningChange, resetTuning, scaledCount, sanitizeTuning, setTuning, TUNING_KEY } from './deviceTuning';
 
 function fakeStorage() {
   const m = new Map<string, string>();
@@ -15,7 +15,7 @@ describe('deviceTuning', () => {
   });
 
   it('defaults reproduce current behaviour', () => {
-    expect(getTuning()).toEqual({ engineSound: 'full', audioMode: 'live', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60 });
+    expect(getTuning()).toEqual({ engineSound: 'full', audioMode: 'live', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60, traffic: 'normal', gas: ['a', 'a'] });
   });
   it('invalid stored values fall back per field', () => {
     store.m.set(TUNING_KEY, JSON.stringify({ engineSound: 'loud', lookAheadSec: 0.2, compressor: 'yes', fpsCap: 45, debugReadout: true }));
@@ -44,5 +44,21 @@ describe('deviceTuning', () => {
     setTuning({ engineSound: 'off', audioLatency: 'playback' });
     expect(resetTuning()).toEqual(DEFAULT_TUNING);
     expect(getTuning()).toEqual(DEFAULT_TUNING);
+  });
+});
+
+describe('traffic and gas', () => {
+  it('scaledCount rounds up, never below 1 for positive counts', () => {
+    expect(scaledCount(40, 'normal')).toBe(40);
+    expect(scaledCount(25, 'reduced')).toBe(13);
+    expect(scaledCount(40, 'minimal')).toBe(10);
+    expect(scaledCount(2, 'minimal')).toBe(1);
+    expect(scaledCount(1, 'minimal')).toBe(1);
+    expect(scaledCount(0, 'minimal')).toBe(0);
+  });
+  it('validates traffic and per-player gas', () => {
+    expect(sanitizeTuning({ traffic: 'minimal', gas: ['auto', 'trigger'] })).toMatchObject({ traffic: 'minimal', gas: ['auto', 'trigger'] });
+    expect(sanitizeTuning({ traffic: 'lots', gas: ['x', 'auto'] })).toMatchObject({ traffic: 'normal', gas: ['a', 'auto'] });
+    expect(sanitizeTuning({ gas: 'auto' }).gas).toEqual(['a', 'a']);
   });
 });

@@ -7,6 +7,12 @@ export type EngineSoundMode = 'full' | 'lite' | 'sample' | 'off';
 export type AudioMode = 'live' | 'prerendered';
 export type AudioLatency = 'interactive' | 'balanced' | 'playback';
 
+/** Ambient NPC traffic density (applies to the next race). */
+export type TrafficLevel = 'normal' | 'reduced' | 'minimal';
+/** How a gamepad produces throttle: A button (or trigger), trigger only, or automatic. */
+export type GasMode = 'a' | 'trigger' | 'auto';
+const GAS_MODES: readonly GasMode[] = ['a', 'trigger', 'auto'];
+
 export interface DeviceTuning {
   engineSound: EngineSoundMode;
   audioMode: AudioMode;
@@ -17,6 +23,10 @@ export interface DeviceTuning {
   debugReadout: boolean;
   /** Applies after reload. */
   fpsCap: 60 | 30;
+  /** Applies to the next race. */
+  traffic: TrafficLevel;
+  /** Per player slot (P1, P2); gamepads only. */
+  gas: [GasMode, GasMode];
 }
 
 export const TUNING_KEY = 'brainracer.tuning.v1';
@@ -29,6 +39,8 @@ export const DEFAULT_TUNING: Readonly<DeviceTuning> = Object.freeze({
   compressor: true,
   debugReadout: false,
   fpsCap: 60,
+  traffic: 'normal',
+  gas: ['a', 'a'] as [GasMode, GasMode],
 });
 
 const pick = <T>(v: unknown, allowed: readonly T[], fallback: T): T =>
@@ -38,6 +50,7 @@ const pick = <T>(v: unknown, allowed: readonly T[], fallback: T): T =>
 export function sanitizeTuning(raw: unknown): DeviceTuning {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_TUNING;
+  const gasArr: unknown[] = Array.isArray(r.gas) ? r.gas : [];
   return {
     engineSound: pick(r.engineSound, ['full', 'lite', 'sample', 'off'] as const, d.engineSound),
     audioMode: pick(r.audioMode, ['live', 'prerendered'] as const, d.audioMode),
@@ -46,7 +59,17 @@ export function sanitizeTuning(raw: unknown): DeviceTuning {
     compressor: typeof r.compressor === 'boolean' ? r.compressor : d.compressor,
     debugReadout: typeof r.debugReadout === 'boolean' ? r.debugReadout : d.debugReadout,
     fpsCap: pick(r.fpsCap, [60, 30] as const, d.fpsCap),
+    traffic: pick(r.traffic, ['normal', 'reduced', 'minimal'] as const, d.traffic),
+    gas: [pick(gasArr[0], GAS_MODES, d.gas[0]), pick(gasArr[1], GAS_MODES, d.gas[1])],
   };
+}
+
+const TRAFFIC_SCALE: Record<TrafficLevel, number> = { normal: 1, reduced: 0.5, minimal: 0.25 };
+
+/** Scale an ambient NPC count by the traffic level (rounds up; a positive count never drops below 1). */
+export function scaledCount(n: number, traffic: TrafficLevel): number {
+  if (n <= 0) return 0;
+  return Math.max(1, Math.ceil(n * TRAFFIC_SCALE[traffic] - 1e-9));
 }
 
 function load(): DeviceTuning {

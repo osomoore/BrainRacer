@@ -44,6 +44,27 @@ describe('triggers', () => {
   });
 });
 
+describe('gas modes', () => {
+  const gas = (s: PadSnapshot, mode: 'a' | 'trigger' | 'auto') => mapGamepad(s, null, newRepeatState(), 0, undefined, mode);
+  it("'a' is the default: RT or A", () => {
+    expect(gas(pad({ down: [0] }), 'a').throttle).toBe(1);
+    expect(gas(pad({ values: { 7: 0.5 } }), 'a').throttle).toBeCloseTo(0.5);
+  });
+  it("'trigger' ignores A but keeps its confirm/answer roles", () => {
+    const held = pad({ down: [0] });
+    expect(gas(held, 'trigger').throttle).toBe(0);
+    expect(mapGamepad(held, pad(), newRepeatState(), 0, undefined, 'trigger')).toMatchObject({ confirm: true, answer: 3 });
+    expect(gas(pad({ values: { 7: 0.8 } }), 'trigger').throttle).toBeCloseTo(0.8);
+  });
+  it("'auto' is full throttle unless braking", () => {
+    expect(gas(pad(), 'auto').throttle).toBe(1);
+    expect(gas(pad({ values: { 6: 0.05 } }), 'auto').throttle).toBe(1);
+    const braking = gas(pad({ values: { 6: 0.6 } }), 'auto');
+    expect(braking.throttle).toBe(0);
+    expect(braking.brake).toBeCloseTo(0.6);
+  });
+});
+
 describe('edges', () => {
   it('confirm/back/pause fire only on the pressing frame', () => {
     const up = pad();
