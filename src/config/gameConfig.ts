@@ -288,7 +288,6 @@ export const WORLD = {
   airMinSec: 0.5,
   airMaxSec: 1.6,
   rampDirCos: 0.5,           // min |cos(heading - ramp angle)| to launch
-  bigAirSec: 1.0,           
   spinSpeedFrac: 0.85,       // speed frac above which the car does a 360 spin
   boostLandSearchPx: 350,    // how far ahead a boost jump looks for drivable ground when it lands on a building
   boostJumpMinSpeed: 210,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
@@ -711,11 +710,11 @@ export const FARM_LOOK = {
   /** Warm tint on sprites standing above the grade layer (roofs, props). */
   decorTint: 0xfff0d8,
   /** Seconds per blade revolution. */
-  windmillSecPerTurn: 14,
+  windmillSecPerTurn: 8,
   turbineSecPerTurn: 6,
   turbineScale: 1.25,       // tower top + blade sprite scale over the art size
   windmillBladeScale: 1.5,  // over the 256-px sail sprite
-  windmillBodyPx: 150,
+  windmillBodyPx: 196,
   /** Corn rows go ripe on every Nth plain corn field. */
   ripeEvery: 2,
   pumpkinsPerTile: 3,
@@ -798,6 +797,11 @@ export const FARM_TRAFFIC = {
   /** Straight run (px) of drivable ground required behind a tractor/combine spawn for its trailer. */
   trailerRunPx: 150,
   wagonGapPx: 4,
+  wagonHitchStiffness: 0.45,
+  wagonHitchDamping: 0.18,
+  wagonLateralDrag: 6,
+  wagonRollDrag: 1.8,
+  wagonDinoGraceSec: 0.7,
 };
 /** Slow tractor: desired speed is 70-100% of maxSpeed (about 35-45% of normal traffic speed). */
 export const TRACTOR_SPEC: VehicleSpec = { length: 80, width: 56, mass: 28, maxSpeed: 110, reverseSpeed: 60, accel: 120, brake: 500, turnRate: 1.5, grip: 0.97, drag: 0.8 };
@@ -847,6 +851,29 @@ export const ANIMALS = {
 } as const;
 
 export const FARM_FENCE = { segmentLength: 128, hitRadius: 48, scatterDistance: 110, scatterSec: 0.5, viewMargin: 160 };
+
+export const UNDERGROUND = { mineCartSpeed: 170, emberSpeed: 34 } as const;
+
+export const UNDERGROUND_VEHICLE_SPECS = {
+  caveBuggy: { length: 65, width: 40, mass: 10, maxSpeed: 268, reverseSpeed: 105, accel: 230, brake: 950, turnRate: 3.15, grip: 0.9, drag: 0.66 },
+  crystalRunner: { length: 75, width: 38, mass: 9, maxSpeed: 320, reverseSpeed: 92, accel: 230, brake: 1000, turnRate: 2.7, grip: 0.8, drag: 0.65 },
+  surveyRover: { length: 83, width: 48, mass: 15, maxSpeed: 221, reverseSpeed: 110, accel: 190, brake: 1020, turnRate: 3.0, grip: 0.98, drag: 0.75 },
+  oreHauler: { length: 116, width: 54, mass: 30, maxSpeed: 197, reverseSpeed: 80, accel: 175, brake: 950, turnRate: 1.85, grip: 0.97, drag: 0.8 },
+  rockCrusher: { length: 148, width: 68, mass: 60, maxSpeed: 156, reverseSpeed: 62, accel: 170, brake: 950, turnRate: 1.75, grip: 0.98, drag: 0.8 },
+} satisfies Record<string, VehicleSpec>;
+
+export const UNDERGROUND_TRAFFIC = {
+  maxVehicles: 19,
+  spawnGap: 162,
+  crusherQuota: 3,
+  crusherForwardMin: 38,
+  crusherImpactMin: 52,
+  crusherSideImpulse: 240,
+  crusherSpin: 4.4,
+  crusherKeepSpeed: 0.75,
+  oreCrateSize: 38,
+  oreCrateMass: 2.8,
+} as const;
 
 export const HARBOR = {
   sunsetFadeStartFrac: 0.2,

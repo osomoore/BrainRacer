@@ -12,6 +12,8 @@ import { drawDirt, drawGrass, drawPark, drawPlaza, drawRoofs, drawSidewalk, draw
 import { drawUi } from './ui';
 import { drawBuddies } from './buddies';
 import { ensureBombArt } from './homingBombArt';
+import { ensureRockMonsterArt } from './rockMonster';
+import { ensureUndergroundOreArt, ensureUndergroundVehicleArt } from './undergroundVehicles';
 
 export { allTextureKeys } from './keys';
 export { DINO_RIG } from './dinoRig';
@@ -29,4 +31,5 @@ export function generateTextures(scene: Phaser.Scene): void {
   drawSignFrame(scene); drawRamp(scene);
   drawTree(scene); drawBush(scene); drawLamp(scene); drawHydrant(scene); drawBench(scene); drawCone(scene);
   drawGoal(scene); drawFx(scene); drawUi(scene); drawBuddies(scene); ensureBombArt(scene);
+  ensureRockMonsterArt(scene); ensureUndergroundVehicleArt(scene); ensureUndergroundOreArt(scene);
 }

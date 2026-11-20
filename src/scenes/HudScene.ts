@@ -132,7 +132,8 @@ export class HudScene extends Phaser.Scene {
       this.kindBanner('goal', `GOAL! +${pts}`, '#7dff8a');
     });
     this.on('round:half', () => this.kindBanner('half', 'Halfway!', '#ffd43b'));
-    this.on('dino:spawned', () => this.kindBanner('dino', '⚠ DINO ALERT ⚠'));
+    this.on('dino:spawned', () => this.kindBanner('dino',
+      this.ctx.settings.map === 'underground' ? '⚠ ROCK MONSTER ALERT ⚠' : '⚠ DINO ALERT ⚠'));
     this.on('ui:banner', (e) => {
       const kind = KIND_RE.find(([, re]) => re.test(e.text))?.[0];
       if (kind) this.kindBanner(kind, e.text, e.color, e.durationSec);
@@ -175,7 +176,12 @@ export class HudScene extends Phaser.Scene {
     g.fillStyle(HUD.colors.navy, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 34)
       .lineStyle(8, hexNum(color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 34);
     const parts: Phaser.GameObjects.GameObject[] = [g];
-    if (this.textures.exists(TEX.dinoHead)) parts.push(this.add.image(-w / 2 + 72, 0, TEX.dinoHead).setScale(0.85));
+    const head = this.ctx.settings.map === 'underground' ? TEX.rockMonster.head : TEX.dinoHead;
+    if (this.textures.exists(head)) {
+      const icon = this.add.image(-w / 2 + 72, 0, head);
+      icon.setScale(119 / icon.width);
+      parts.push(icon);
+    }
     const num = bigText(this, -w / 2 + 182, 2, '20', 76, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
     const bx = w / 2 - barW - 30;
     const back = this.add.rectangle(bx + barW / 2, 0, barW, barH, 0x2b3557).setStrokeStyle(5, 0xffffff);

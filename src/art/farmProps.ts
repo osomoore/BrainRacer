@@ -112,14 +112,28 @@ function drawWindmill(scene: Phaser.Scene): void {
     }
     ctx.closePath();
   };
-  oct(60); fillStroke(ctx, '#ebdcb8', OUTLINE, 4);
-  oct(48); fillStroke(ctx, radial(ctx, 52, 50, 2, 56, [[0, '#d9593f'], [1, '#9c2f27']]), OUTLINE, 3);
+  oct(62); fillStroke(ctx, '#d7bf91', OUTLINE, 3);
+  for (let i = 0; i < 16; i++) {
+    const a = i * Math.PI / 8;
+    line(ctx, 64 + Math.cos(a) * 52, 64 + Math.sin(a) * 52,
+      64 + Math.cos(a) * 59, 64 + Math.sin(a) * 59, 2, '#987858');
+  }
+  oct(48); fillStroke(ctx, radial(ctx, 52, 50, 2, 56, [[0, '#cd6748'], [1, '#843629']]), OUTLINE, 3);
+  ctx.save();
+  oct(48); ctx.clip();
+  for (let y = 23; y < 111; y += 8) {
+    line(ctx, 17, y, 111, y, 1.5, '#6b291b88');
+    for (let x = 22 + (y % 16 === 7 ? 6 : 0); x < 112; x += 12) line(ctx, x, y, x, y + 8, 1.2, '#6b291b88');
+  }
+  ctx.restore();
   for (let i = 0; i < 8; i++) {
     const a = (i * Math.PI) / 4 + Math.PI / 8;
     line(ctx, 64, 64, 64 + Math.cos(a) * 48, 64 + Math.sin(a) * 48, 2, '#00000040');
   }
   disc(ctx, 64, 64, 11, '#f5e7c4', OUTLINE, 3);
   disc(ctx, 61, 61, 3.5, '#ffffffaa', null);
+  rr(ctx, 54, 102, 20, 20, 7); fillStroke(ctx, '#65422e', OUTLINE, 2);
+  for (const x of [59, 64, 69]) line(ctx, x, 108, x, 119, 1, '#b58251');
   done();
 }
 
@@ -130,9 +144,11 @@ function drawWindmillBlade(scene: Phaser.Scene): void {
     ctx.save();
     ctx.rotate((i * Math.PI) / 2 + 0.2);
     rect(ctx, 10, -3, 112, 6, WOOD_D);
-    rr(ctx, 30, -2, 90, 36, 3); fillStroke(ctx, '#f6efd9', OUTLINE, 3);
-    for (let x = 42; x < 120; x += 16) line(ctx, x, -1, x, 33, 1.5, WOOD);
-    for (let y = 10; y < 32; y += 11) line(ctx, 31, y, 119, y, 1.5, WOOD);
+    rr(ctx, 26, -2, 93, 40, 3); fillStroke(ctx, '#efd6a8', OUTLINE, 3);
+    rr(ctx, 32, 2, 82, 17, 3); fillStroke(ctx, '#fff4d9', null, 0);
+    rect(ctx, 106, 3, 8, 14, '#bd5040');
+    for (let x = 36; x < 119; x += 12) line(ctx, x, 0, x, 36, 2.5, WOOD);
+    for (const y of [0, 20, 36]) line(ctx, 28, y, 117, y, 2.5, WOOD_D);
     ctx.restore();
   }
   disc(ctx, 0, 0, 15, radial(ctx, -4, -4, 1, 15, [[0, '#f27a62'], [1, '#a82a24']]), OUTLINE, 3);

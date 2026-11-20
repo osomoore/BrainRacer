@@ -16,6 +16,11 @@ export const TEX = {
   homingBombGlow: 'homing_bomb_glow',
   truck: 'truck',               // 120 x 48 box truck
   freightTruck: 'vehicle_freight_truck', // 160 x 58 heavy freight truck
+  underground: {
+    caveBuggy: 'underground_cave_buggy', crystalRunner: 'underground_crystal_runner',
+    surveyRover: 'underground_survey_rover', oreHauler: 'underground_ore_hauler',
+    rockCrusher: 'underground_rock_crusher', oreCrate: 'underground_ore_crate', oreChip: 'underground_ore_chip',
+  },
   police: ['police_0', 'police_1'] as const, // 66 x 38, light bar frames (red-left / blue-left) for flashing
 
   // dino (top-down T-rex, facing +x)
@@ -24,6 +29,10 @@ export const TEX = {
   dinoTail: 'dino_tail',        // ~180 x 60, pivot at RIGHT edge (attaches to body rear, trails toward -x); see DINO_RIG
   dinoLeg: ['dino_leg_0', 'dino_leg_1', 'dino_leg_2', 'dino_leg_3'] as const, // walk cycle, ~70 x 40
   dinoShadow: 'dino_shadow',    // 460 x 220 soft ellipse
+  rockMonster: {
+    body: 'rock_monster_body', head: 'rock_monster_head', arm: 'rock_monster_arm', foot: 'rock_monster_foot',
+    beam: 'rock_monster_beam', glow: 'rock_monster_glow',
+  },
 
   // world tiles: 128x128 each. Road variants chosen by roadMask (ROAD_N|E|S|W) → `road_${mask}`
   tileWater: 'tile_water',

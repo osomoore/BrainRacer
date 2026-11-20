@@ -13,6 +13,7 @@ export interface SpawnOpts {
   add?: boolean;                  // additive blend
   drag?: number;                  // per-second velocity decay (0..)
   depth?: number;
+  cameraFilter?: number;
   sx?: number;                    // extra x-stretch multiplier
 }
 
@@ -55,6 +56,7 @@ export class ParticlePool {
     p.img.setTexture(o.key).setPosition(o.x, o.y).setRotation(o.rot ?? 0)
       .setDepth(o.depth ?? DEPTH.fx).setBlendMode(o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL)
       .setVisible(true);
+    p.img.cameraFilter = o.cameraFilter ?? 0;
     if (o.tint !== undefined) p.img.setTint(o.tint); else p.img.clearTint();
     p.img.setScale(p.s0 * p.sx, p.s0).setAlpha(p.a0);
   }

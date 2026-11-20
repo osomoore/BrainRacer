@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
+import { CAT, DEPTH, DINO, FARM_TRAFFIC, TRACTOR_SPEC } from '../../src/config/gameConfig';
+import { TEX } from '../../src/core/assetKeys';
 import type { RaceContext } from '../../src/core/race';
+import type { HayWagon } from '../../src/entities/HayWagon';
 import { installGamepadMock } from './gamepadMock';
 
 declare global {
@@ -38,6 +41,7 @@ async function farmState(page: Page) {
       grade: !!scene.children.getByName('farm-golden-hour'),
       barn: textures.has('farm_lot_barn'),
       blades: textures.has('farm_turbine_blade') && textures.has('farm_windmill_blade'),
+      grainWindmill: !!scene.children.getByName('farm-grain-windmill'),
       farmTileset: scene.textures.exists('world_tileset_farm'),
     };
   });
@@ -55,7 +59,7 @@ for (const count of [1, 2] as const) {
     expect(state.farm).toBe(true);
     expect(state.fences).toBeGreaterThan(0);
     expect(state.fenceBodies).toBe(0);
-    expect(state).toMatchObject({ grade: true, barn: true, blades: true, farmTileset: true });
+    expect(state).toMatchObject({ grade: true, barn: true, blades: true, grainWindmill: true, farmTileset: true });
     expect(await page.evaluate(() => window.__race.camera.layout().mode)).toBe(count === 1 ? 'single' : 'split');
 
     await page.waitForFunction(() => window.__race.elapsedSec > 1.2, undefined, WAIT);
@@ -106,6 +110,76 @@ test('Setup can select Farm', async ({ page }) => {
   expect(state.grade).toBe(true);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!).map)).toBe('farm');
   expect(errors).toEqual([]);
+});
+
+test('a hay wagon keeps its body and can roll again after a dino toss', async ({ page }) => {
+  await page.goto('/?race=1&map=farm&seed=3&questions=off&dino=now');
+  await page.waitForFunction(({ ready, key }) => {
+    const race = window.__race;
+    return race?.dino.active && race.elapsedSec > ready
+      && [...race.npcs].some(npc => npc.appearanceKey === key && (npc as HayWagon).hitched);
+  }, { ready: DINO.devSpawnDelaySec + DINO.dropSec + DINO.graceSec + 0.25, key: TEX.farm.hayWagon }, WAIT);
+
+  const id = await page.evaluate((key) => {
+    const { scene, dino, npcs } = window.__race;
+    const wagon = [...npcs].find(npc => npc.appearanceKey === key && (npc as HayWagon).hitched)!;
+    const hitch = scene.matter.world.getAllConstraints().find(c => c.bodyB === wagon.body)!;
+    const x = dino.x - Math.sin(dino.angle) * 55, y = dino.y + Math.cos(dino.angle) * 55;
+    const dx = x - wagon.x, dy = y - wagon.y;
+    const tractor = hitch.bodyA!;
+    scene.matter.body.setPosition(tractor, { x: tractor.position.x + dx, y: tractor.position.y + dy });
+    scene.matter.body.setPosition(wagon.body, { x, y });
+    return wagon.body.id;
+  }, TEX.farm.hayWagon);
+
+  await page.waitForFunction(({ id, depth }) => {
+    const wagon = [...window.__race.npcs].find(npc => npc.body.id === id) as HayWagon | undefined;
+    return wagon && !wagon.hitched && wagon.view.depth === depth && wagon.sprite.displayWidth > wagon.spec.length;
+  }, { id, depth: DEPTH.fx }, WAIT);
+
+  await page.waitForFunction(({ id, player }) => {
+    const wagon = [...window.__race.npcs].find(npc => npc.body.id === id);
+    return wagon && !wagon.destroyed && !!(wagon.body.collisionFilter.mask! & player);
+  }, { id, player: CAT.player }, WAIT);
+});
+
+test('a player ramming a hitched wagon pushes it sideways', async ({ page }) => {
+  await page.goto('/?race=1&map=farm&seed=3&questions=off');
+  await waitForGo(page);
+  await page.waitForFunction(key => [...window.__race.npcs].some(npc => npc.appearanceKey === key), TEX.farm.hayWagon, WAIT);
+
+  const start = await page.evaluate(({ key, tractorLength, gap }) => {
+    const { scene, players, world, npcs } = window.__race;
+    const car = players[0];
+    const wagon = [...npcs].find(npc => npc.appearanceKey === key) as HayWagon;
+    const hitch = scene.matter.world.getAllConstraints().find(c => c.bodyB === wagon.body)!;
+    const tractor = hitch.bodyA!;
+    const bodies = scene.matter.world.getAllBodies();
+    const lane = world.laneGraph.nodes.find(({ x, y }) => !scene.matter.query.region(bodies, {
+      min: { x: x - 158, y: y - 158 }, max: { x: x + 158, y: y + 158 },
+    }).length)!;
+    const { x, y } = lane;
+    // Put the tractor and its real hitch on a clear patch, with the player facing the wagon side.
+    const { angle } = tractor;
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    const distance = (car.spec.length + wagon.spec.width) / 2 + 10;
+    const hitchDistance = (tractorLength + wagon.spec.length) / 2 + gap;
+    scene.matter.body.setPosition(tractor, { x: x + hitchDistance * cos, y: y + hitchDistance * sin });
+    scene.matter.body.setStatic(tractor, true);
+    wagon.setPose(x, y, angle);
+    scene.matter.body.setPosition(car.body, { x: x - 30 * cos - distance * sin, y: y - 30 * sin + distance * cos });
+    scene.matter.body.setAngle(car.body, angle - Math.PI / 2);
+    scene.matter.body.setVelocity(car.body, { x: 0, y: 0 });
+    return { id: wagon.body.id, x, y, cos, sin };
+  }, { key: TEX.farm.hayWagon, tractorLength: TRACTOR_SPEC.length, gap: FARM_TRAFFIC.wagonGapPx });
+
+  await page.keyboard.down('KeyW');
+  try {
+    await page.waitForFunction(({ id, x, y, cos, sin }) => {
+      const wagon = [...window.__race.npcs].find(npc => npc.body.id === id) as HayWagon | undefined;
+      return wagon?.hitched && (wagon.y - y) * cos - (wagon.x - x) * sin < -12;
+    }, start, WAIT);
+  } finally { await page.keyboard.up('KeyW'); }
 });
 
 test('a driven-through Farm fence restores after both players leave', async ({ page }) => {

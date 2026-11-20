@@ -2,7 +2,7 @@
  * Dev scene (?dev=HudTest): exercises HudScene with a fake RaceContext (no gameplay).
  * Keys: L layout (single / merged / split)   1 2 3 = P1 answers X Y B   8 9 0 = P2 answers
  *       G new goal   N goal near P1   D dino banner   P pause   S score bump   T round tick to 0:25
- *       A goal:arrived (wait)   H halfway   B countdown banner   U popup   C goal complete   F freeze auto-challenges
+ *       A goal:arrived (wait)   H halfway   B countdown banner   C goal complete   F freeze auto-challenges
  */
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../../config/gameConfig';
@@ -56,7 +56,7 @@ export default class HudTest extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#2b3a4a');
     this.grid = this.add.graphics().setDepth(-10);
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 8, 'L layout | 1 2 3 / 8 9 0 answer | G goal | M magnet | D dino | P pause | S score | T 0:25 | A wait | H half | B 3 | U popup | C goal done | F freeze',
+    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 8, 'L layout | 1 2 3 / 8 9 0 answer | G goal | M magnet | D dino | P pause | S score | T 0:25 | A wait | H half | B 3 | C goal done | F freeze',
       { fontFamily: 'Arial', fontSize: '22px', color: '#6f8197' }).setOrigin(0.5, 1).setDepth(-5);
 
     this.layout = this.makeLayout();
@@ -142,7 +142,6 @@ export default class HudTest extends Phaser.Scene {
       case 'KeyA': if (this.ctx.goal) b.emit('goal:arrived', { goal: this.ctx.goal, player: 0, waitSec: 20 }); break;
       case 'KeyH': b.emit('round:half', {}); break;
       case 'KeyB': b.emit('ui:banner', { text: '3', durationSec: 0.9 }); break;
-      case 'KeyU': b.emit('ui:popup', { player: 0, text: 'Nice jump!', color: '#ffd43b' }); break;
       case 'KeyC': if (this.ctx.goal) b.emit('goal:completed', { goal: this.ctx.goal, arrived: [0, 1].slice(0, this.nPlayers) as PlayerId[] }); break;
       case 'KeyF': this.frozen = !this.frozen; break;
       default: break;

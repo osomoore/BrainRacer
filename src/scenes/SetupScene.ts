@@ -2,7 +2,7 @@ import { questionsOffAllowed } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { services } from '../core/services';
-import { loadSettings, saveSettings } from '../core/settings';
+import { isRaceMap, loadSettings, RACE_MAPS, saveSettings } from '../core/settings';
 import type { CarKind, Difficulty, PlayerId, PlayerSettings, QuestionStyle, RaceMap, Settings } from '../core/types';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
@@ -17,8 +17,7 @@ const CARS: CarKind[] = ['dino', 'kart'];
 
 // P1 cursor rows
 const ROW_DIFF = 0, ROW_CAR = 1, ROW_QUEST = 2, ROW_STYLE = 3, ROW_MAP = 4, ROW_START = 5;
-const MAPS: RaceMap[] = ['city', 'industrial', 'farm', 'harbor'];
-const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial', farm: 'Farm', harbor: 'Beach & Harbor' };
+const MAP_LABEL: Record<RaceMap, string> = { city: 'City', industrial: 'Industrial', farm: 'Farm', harbor: 'Beach & Harbor', underground: 'Underground' };
 const MODES: Settings['challengeMode'][] = questionsOffAllowed() ? ['words', 'math', 'mixed', 'off'] : ['words', 'math', 'mixed'];
 const MODE_LABEL: Record<Settings['challengeMode'], string> = { words: 'Words', math: 'Math', mixed: 'Mix', off: 'Off' };
 const STYLES: QuestionStyle[] = ['pause', 'drive'];
@@ -60,7 +59,7 @@ export class SetupScene extends Phaser.Scene {
     this.cfg = {
       ...base,
       players,
-      map: MAPS.includes(base.map) ? base.map : 'city',
+      map: isRaceMap(base.map) ? base.map : 'city',
       challengeMode: MODES.includes(base.challengeMode) ? base.challengeMode : 'words',
       questionStyle: STYLES.includes(base.questionStyle) ? base.questionStyle : 'pause',
     };
@@ -194,13 +193,13 @@ export class SetupScene extends Phaser.Scene {
   private change(p: PlayerId, row: number, dir: 1 | -1) {
     const c = this.cfg;
     const ps = c.players[p];
-    const cycle = <T,>(list: T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
+    const cycle = <T,>(list: readonly T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
     let target: OptionRow | undefined;
     if (row === ROW_DIFF) { ps.difficulty = cycle(DIFFS, ps.difficulty); target = this.cols[p].diff; }
     else if (row === ROW_CAR) { ps.car = cycle(CARS, ps.car); target = this.cols[p].car; }
     else if (p === 0 && row === ROW_QUEST) { c.challengeMode = cycle(MODES, c.challengeMode); target = this.globals[0]; }
     else if (p === 0 && row === ROW_STYLE) { c.questionStyle = cycle(STYLES, c.questionStyle); target = this.globals[1]; }
-    else if (p === 0 && row === ROW_MAP) { c.map = cycle(MAPS, c.map); target = this.globals[2]; }
+    else if (p === 0 && row === ROW_MAP) { c.map = cycle(RACE_MAPS, c.map); target = this.globals[2]; }
     if (!target) return;
     services.audio.sfx('menuMove');
     this.refreshAll();

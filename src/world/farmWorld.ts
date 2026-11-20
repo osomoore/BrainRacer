@@ -337,9 +337,10 @@ export function addFarmBuilding(scene: Phaser.Scene, world: WorldData, lot: Buil
       return;
     }
     case 'windmill': {
-      img(K.windmillBase, cx, cy, fw, fh, 0, DEPTH.building - 0.3);
+      const rot = faceFront(world, lot, cx, cy);
+      img(K.windmillBase, cx, cy, fw, fh, rot, DEPTH.building - 0.3);
       const body = FARM_LOOK.windmillBodyPx;
-      img(K.windmill, cx, cy, body, body, 0);
+      img(K.windmill, cx, cy, body, body, rot).setName('farm-grain-windmill');
       box(H.windmill, body * 0.8, body * 0.8, 'ellipse');
       addBlade(scene, world, objs, blades, cx, cy, K.windmillBlade, 256 * FARM_LOOK.windmillBladeScale, H.windmill, FARM_LOOK.windmillSecPerTurn);
       return;

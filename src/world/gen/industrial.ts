@@ -13,6 +13,7 @@ const SOUTH_BRIDGE = 36;
 // Two extra bridges join the canal-side road to the factory cross streets.
 const NORTH_MID_BRIDGE = 17;
 const SOUTH_MID_BRIDGE = 31;
+const LOADING_BRIDGE = 42;
 const CROSSING_X = 8;
 const ROAD_WIDTH = 2;
 
@@ -27,12 +28,12 @@ const HORIZONTAL: readonly Strip[] = [
   [18, NORTH_MID_BRIDGE, 24, ROAD_WIDTH], // cross streets that span the canal and run on through the factory district
   [18, SOUTH_MID_BRIDGE, 24, ROAD_WIDTH],
   [8, SOUTH_BRIDGE, 34, ROAD_WIDTH],
-  [8, 42, 12, ROAD_WIDTH], // loading loop, south edge
+  [8, LOADING_BRIDGE, 22, ROAD_WIDTH], // loading loop crosses to the eastern factory road
 ];
 const VERTICAL: readonly Strip[] = [
   [CROSSING_X, 5, ROAD_WIDTH, 39],
   [18, 5, ROAD_WIDTH, 39], // canal-side road bypasses both grade crossings
-  [28, NORTH_BRIDGE, ROAD_WIDTH, 28],
+  [28, NORTH_BRIDGE, ROAD_WIDTH, LOADING_BRIDGE + ROAD_WIDTH - NORTH_BRIDGE],
   [37, NORTH_BRIDGE, ROAD_WIDTH, 28],
   [40, NORTH_BRIDGE, ROAD_WIDTH, 28],
 ];
@@ -210,7 +211,7 @@ export function generateIndustrial(seed: number): WorldData {
   wall([42, 13, 3, rng.int(5, 8)]);
   wall([42, 27, 3, rng.int(5, 8)]);
   wall([27, 3, rng.int(4, 6), 3]);
-  wall([27, 42, rng.int(4, 6), 3]);
+  wall([30, LOADING_BRIDGE, rng.int(4, 6), 3]);
 
   const bridge = (y: number) => decoration('bridge', (CANAL_WEST + CANAL_EAST) / 2, y + 1, CANAL_EAST - CANAL_WEST, ROAD_WIDTH);
   const decorations = [
@@ -219,6 +220,7 @@ export function generateIndustrial(seed: number): WorldData {
     bridge(CENTRAL_BRIDGE),
     bridge(NORTH_MID_BRIDGE),
     bridge(SOUTH_MID_BRIDGE),
+    bridge(LOADING_BRIDGE),
     decoration('factoryBay', 32, NORTH_BRIDGE + 1, 6, 3.25),
     decoration('factoryBay', 32, SOUTH_BRIDGE + 1, 6, 3.25),
     decoration('gantry', 12, NORTH_BRIDGE + 1, 1.5, 3.25),

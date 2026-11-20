@@ -12,6 +12,8 @@ import { signSceneFor } from '../data/places';
 import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
 import { addHarborWorld, harborRoadTile, harborSandTile } from './harborWorld';
+import { addUndergroundWorld } from './undergroundWorld';
+import { undergroundTileIndex, undergroundTileSource } from './undergroundTiles';
 import {
   FARM_TILESET_COUNT, FARM_TILESET_KEY, addFarmBuilding, addFarmWorld, farmTileIndices, farmWorldTileSource,
   type FarmBlade, type FarmWorldHandle,
@@ -27,6 +29,7 @@ export interface BuiltWorld {
   dynamicProps: Phaser.GameObjects.GameObject[];
   /** Static + dynamic Matter bodies created by the builder. */
   bodies: MatterJS.BodyType[];
+  update?(dt: number): void;
   destroy(): void;
 }
 
@@ -46,6 +49,7 @@ export const BUILDING_LOOK = {
 const TILESET_KEY = 'world_tileset';
 const NIGHT_TILESET_KEY = 'world_tileset_night';
 const HARBOR_TILESET_KEY = 'world_tileset_harbor';
+const UNDERGROUND_TILESET_KEY = 'world_tileset_underground';
 const TS = 128, EXT = 2, CELL = TS + EXT * 2, COLS = 8;
 /** Tileset index: 0 water, 1 grass, 2 sidewalk, 3 park, 4 plaza, 5 dirt, 6.. road masks. */
 const TILE_KEYS: string[] = [
@@ -54,15 +58,15 @@ const TILE_KEYS: string[] = [
 ];
 const ROAD_BASE = 6;
 
-function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm: boolean, harbor: boolean): string {
-  const key = harbor ? HARBOR_TILESET_KEY : farm ? FARM_TILESET_KEY : industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
+function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm: boolean, harbor: boolean, underground: boolean): string {
+  const key = underground ? UNDERGROUND_TILESET_KEY : harbor ? HARBOR_TILESET_KEY : farm ? FARM_TILESET_KEY : industrial ? INDUSTRIAL_TILESET_KEY : night ? NIGHT_TILESET_KEY : TILESET_KEY;
   if (scene.textures.exists(key)) return key;
   const tileCount = farm ? FARM_TILESET_COUNT : TILE_KEYS.length + (industrial ? INDUSTRIAL_SLAB_VARIANTS : 0);
   const rows = Math.ceil(tileCount / COLS);
   const tex = scene.textures.createCanvas(key, COLS * CELL, rows * CELL);
   if (!tex) throw new Error('tileset canvas failed');
   const ctx = tex.getContext();
-  const drawTile = farm ? farmWorldTileSource(TS) : industrial ? industrialTileSource(TS) : undefined;
+  const drawTile = underground ? undergroundTileSource(TS) : farm ? farmWorldTileSource(TS) : industrial ? industrialTileSource(TS) : undefined;
   for (let i = 0; i < tileCount; i++) {
     const src = harbor && i === 5 ? harborSandTile(TS)
       : harbor && i >= ROAD_BASE ? harborRoadTile(TS, i - ROAD_BASE)
@@ -113,7 +117,7 @@ function hashPos(x: number, y: number): number {
 
 type BodyCfg = Phaser.Types.Physics.Matter.MatterBodyConfig;
 
-export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false, harbor = false): BuiltWorld {
+export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false, harbor = false, underground = false): BuiltWorld {
   const ts = world.tileSize;
   const W = world.widthTiles * ts, H = world.heightTiles * ts;
   const L = BUILDING_LOOK;
@@ -136,14 +140,14 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false,
   };
 
   // ── ground
-  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night, world.farm !== undefined, harbor);
+  const tilesetKey = ensureTileset(scene, world.industrial !== undefined, night, world.farm !== undefined, harbor, underground);
   const farmTiles = world.farm ? farmTileIndices(world) : undefined;
   const data: number[][] = [];
   for (let y = 0; y < world.heightTiles; y++) {
     const row: number[] = [];
     for (let x = 0; x < world.widthTiles; x++) {
       const i = y * world.widthTiles + x;
-      row.push(farmTiles ? farmTiles[i] : tileIndex(world, i));
+      row.push(farmTiles ? farmTiles[i] : underground ? undergroundTileIndex(world, i) : tileIndex(world, i));
     }
     data.push(row);
   }
@@ -177,6 +181,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false,
     const bk = ensureBodyTexture(scene, fw, fh, b.style);
     const building = scene.add.image(fx, fy, bk).setOrigin(0, 0).setDepth(DEPTH.building);
     if (world.industrial) building.setTint(INDUSTRIAL_BUILDING_TINT);
+    else if (underground) building.setTint(0x9393bd);
     else if (night) building.setTint(CITY_NIGHT_LIGHTING.buildingTint);
     objs.push(building);
     addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
@@ -206,6 +211,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false,
       (x, y, radius, owner) => rememberStaticBody(M.add.circle(x, y, radius, staticOpts(owner)) as unknown as MatterJS.BodyType, owner));
   }
   if (harbor) addHarborWorld(scene, world, objs);
+  const undergroundHandle = underground ? addUndergroundWorld(scene, world, objs) : undefined;
   addStaticRect(W / 2, -T / 2, W + 2 * T, T, bnd);
   addStaticRect(W / 2, H + T / 2, W + 2 * T, T, bnd);
   addStaticRect(-T / 2, H / 2, T, H, bnd);
@@ -222,6 +228,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, night = false,
   return {
     bounds: { x: 0, y: 0, w: W, h: H },
     dynamicProps, bodies,
+    update: undergroundHandle ? dt => undergroundHandle.update(dt) : undefined,
     destroy() {
       farmHandle?.destroy();
       if (M.world) for (const b of bodies) M.world.remove(b);

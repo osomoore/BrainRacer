@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { LASER_TEX, ensureLaserTextures } from '../art/dino';
 import { DINO_RIG, type RigPart } from '../art/dinoRig';
+import { ROCK_MONSTER_RIG } from '../art/rockMonster';
 import { DEPTH, DINO, DINO_LASER, DINO_RIDE, DINO_SMASH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { INpcVehicle } from '../core/race';
@@ -31,12 +32,13 @@ interface VehicleToss {
   elapsed: number;
 }
 
-/** Visual-only giant dino. Position/heading are driven by DinoSystem; no physics body. */
+/** Animated encounter avatar. Position and heading are driven by DinoSystem. */
 export class Dino {
   readonly root: Phaser.GameObjects.Container;
   private legL: Phaser.GameObjects.Image;
   private legR: Phaser.GameObjects.Image;
-  private tail: Phaser.GameObjects.Image;
+  private tail?: Phaser.GameObjects.Image;
+  private arms?: [Phaser.GameObjects.Image, Phaser.GameObjects.Image];
   private body: Phaser.GameObjects.Image;
   private head: Phaser.GameObjects.Image;
   readonly scale: number;
@@ -57,34 +59,47 @@ export class Dino {
   private barFill: Phaser.GameObjects.Rectangle;
   private laserFx: { glow: Phaser.GameObjects.Image[]; beam: Phaser.GameObjects.Image[]; tip: Phaser.GameObjects.Image[] } | null = null;
 
-  constructor(private scene: Phaser.Scene, x: number, y: number, angle: number) {
+  constructor(private scene: Phaser.Scene, x: number, y: number, angle: number, private readonly rockMonster = false) {
     this.scale = DINO.length / DINO_RIG.length;
-    this.root = scene.add.container(x, y).setScale(this.scale).setRotation(angle).setDepth(DEPTH.dino);
+    this.root = scene.add.container(x, y).setScale(this.scale).setRotation(angle).setDepth(DEPTH.dino)
+      .setName(rockMonster ? 'rock-monster' : 'dino-encounter');
     const sh = DINO_RIG.shadow;
     this.root.add(scene.add.image(sh.x, sh.y + 20, sh.key).setOrigin(sh.originX, sh.originY).setScale(1.25, 1.35).setAlpha(0.8));
 
-    const made: Record<string, Phaser.GameObjects.Image> = {};
-    const parts = Object.entries(DINO_RIG.parts) as [string, RigPart][];
-    parts.sort((a, b) => a[1].depth - b[1].depth);
-    for (const [name, p] of parts) {
-      const img = scene.add.image(p.x, p.y, p.key).setOrigin(p.originX, p.originY).setFlipY(!!p.flipY);
-      this.root.add(img);
-      made[name] = img;
+    if (rockMonster) {
+      const rig = ROCK_MONSTER_RIG, tex = TEX.rockMonster;
+      this.legL = scene.add.image(rig.footX, -rig.footY, tex.foot);
+      this.legR = scene.add.image(rig.footX, rig.footY, tex.foot).setFlipY(true);
+      this.arms = [scene.add.image(rig.armX, -rig.armY, tex.arm), scene.add.image(rig.armX, rig.armY, tex.arm).setFlipY(true)];
+      for (const arm of this.arms) arm.setOrigin(0.3, 0.5).setScale(0.9);
+      this.body = scene.add.image(0, 0, tex.body);
+      this.head = scene.add.image(rig.headX, 0, tex.head).setOrigin(0.25, 0.5);
+      this.parts = [this.legL, this.legR, ...this.arms, this.body, this.head];
+      this.root.add(this.parts);
+    } else {
+      const made: Record<string, Phaser.GameObjects.Image> = {};
+      const parts = Object.entries(DINO_RIG.parts) as [string, RigPart][];
+      parts.sort((a, b) => a[1].depth - b[1].depth);
+      for (const [name, p] of parts) {
+        const img = scene.add.image(p.x, p.y, p.key).setOrigin(p.originX, p.originY).setFlipY(!!p.flipY);
+        this.root.add(img);
+        made[name] = img;
+      }
+      this.legL = made.legL; this.legR = made.legR; this.tail = made.tail; this.body = made.body; this.head = made.head;
+      this.legL.setScale(LOOK.legScale).setY(-LOOK.legY);
+      this.legR.setScale(LOOK.legScale).setY(LOOK.legY);
+      this.legL.setFlipY(true);
+      this.body.setScale(LOOK.bodyScaleX, LOOK.bodyScaleY);
+      this.tail.setScale(LOOK.tailScaleX, LOOK.tailScaleY);
+      this.head.setScale(LOOK.headScale).setX(LOOK.headX);
+      this.parts = [this.legL, this.legR, this.tail, this.body, this.head];
+      ensureLaserTextures(scene);
     }
-    this.legL = made.legL; this.legR = made.legR; this.tail = made.tail; this.body = made.body; this.head = made.head;
-    this.legL.setScale(LOOK.legScale).setY(-LOOK.legY);
-    this.legR.setScale(LOOK.legScale).setY(LOOK.legY);
-    this.legL.setFlipY(true);
-    this.body.setScale(LOOK.bodyScaleX, LOOK.bodyScaleY);
-    this.tail.setScale(LOOK.tailScaleX, LOOK.tailScaleY);
-    this.head.setScale(LOOK.headScale).setX(LOOK.headX);
-    this.parts = [this.legL, this.legR, this.tail, this.body, this.head];
 
     const bw = DINO.barWidth, bh = DINO.barHeight;
     const back = scene.add.rectangle(0, 0, bw + 12, bh + 12, 0xffffff).setStrokeStyle(6, 0x222222);
     const hole = scene.add.rectangle(0, 0, bw, bh, 0x333333);
     this.barFill = scene.add.rectangle(-bw / 2, 0, bw, bh, 0x59d84a).setOrigin(0, 0.5);
-    ensureLaserTextures(scene);
     this.bar = scene.add.container(x, y - DINO.barOffset, [back, hole, this.barFill]).setDepth(DEPTH.worldUi).setVisible(false);
   }
 
@@ -145,7 +160,8 @@ export class Dino {
       }
     };
     burst(TEX.fxSmoke, 12, 220, 3.2, 1100, [0xffffff, 0xe8e8f4], 0);
-    burst(TEX.fxConfetti, 36, 420, 1.6, 1500, [0xff5a5a, 0xffd34d, 0x5ad8ff, 0x7cfc5a, 0xff7ae0], 90);
+    burst(TEX.fxConfetti, 36, 420, 1.6, 1500, this.rockMonster ? [0xa690bd, 0x4ddbea, 0xc0fbff, 0x7775ab] :
+      [0xff5a5a, 0xffd34d, 0x5ad8ff, 0x7cfc5a, 0xff7ae0], 90);
     burst(TEX.fxStar, 10, 340, 1.3, 1300, [0xffe14d, 0xffffff], 0);
   }
 
@@ -157,7 +173,8 @@ export class Dino {
   /** World positions of the two eyes. */
   eyes(): [Vec2, Vec2] {
     const k = this.scale * this.mult;
-    return eyePositions(this.root.x, this.root.y, this.angle, DINO_LASER.eyeFwd * k, DINO_LASER.eyeSide * k);
+    const rig = this.rockMonster ? ROCK_MONSTER_RIG : DINO_LASER;
+    return eyePositions(this.root.x, this.root.y, this.angle, rig.eyeFwd * k, rig.eyeSide * k);
   }
 
   private makeLaserFx() {
@@ -166,7 +183,8 @@ export class Dino {
       if (blend) im.setBlendMode(Phaser.BlendModes.ADD);
       return im;
     });
-    this.laserFx = { glow: mk(LASER_TEX.glow, 2), beam: mk(LASER_TEX.beam, 2), tip: mk(LASER_TEX.glow, 2) };
+    const tex = this.rockMonster ? TEX.rockMonster : LASER_TEX;
+    this.laserFx = { glow: mk(tex.glow, 2), beam: mk(tex.beam, 2), tip: mk(tex.glow, 2) };
     for (const b of this.laserFx.beam) b.setOrigin(0, 0.5);
     return this.laserFx;
   }
@@ -194,9 +212,9 @@ export class Dino {
     }
   }
 
-  /** Little pink star burst where a beam zapped something. */
+  /** Little star burst where a beam zapped something. */
   zap(x: number, y: number): void {
-    const star = this.scene.add.image(x, y, TEX.fxStar).setDepth(DEPTH.fx).setTint(0xff7ab8).setScale(0.5);
+    const star = this.scene.add.image(x, y, TEX.fxStar).setDepth(DEPTH.fx).setTint(this.rockMonster ? 0x7affed : 0xff7ab8).setScale(0.5);
     this.extras.add(star);
     this.scene.tweens.add({
       targets: star, scale: 1.6, alpha: 0, rotation: 1.5, duration: 380, ease: 'Cubic.easeOut',
@@ -206,14 +224,15 @@ export class Dino {
 
   /** World position of the mouth. */
   mouth(): { x: number; y: number } {
-    const reach = (LOOK.headX + 0.88 * 140 * LOOK.headScale) * this.scale;
+    const reach = (this.rockMonster ? ROCK_MONSTER_RIG.headX + 110 : LOOK.headX + 0.88 * 140 * LOOK.headScale) * this.scale;
     return { x: this.root.x + Math.cos(this.angle) * reach, y: this.root.y + Math.sin(this.angle) * reach };
   }
 
   /** World position of a foot (side -1 left, 1 right). */
   foot(side: -1 | 1): { x: number; y: number } {
     const a = this.angle, c = Math.cos(a), s = Math.sin(a);
-    const lx = -8 * this.scale, ly = side * LOOK.legY * this.scale;
+    const lx = (this.rockMonster ? ROCK_MONSTER_RIG.footX : -8) * this.scale;
+    const ly = side * (this.rockMonster ? ROCK_MONSTER_RIG.footY : LOOK.legY) * this.scale;
     return { x: this.root.x + c * lx - s * ly, y: this.root.y + s * lx + c * ly };
   }
 
@@ -224,11 +243,12 @@ export class Dino {
 
   get roaring() { return this.roarT >= 0; }
 
-  roar(text = 'ROAAAR!', color = '#ff5a36'): void {
+  roar(text = 'ROAAAR!', color = this.rockMonster ? '#3edee8' : '#ff5a36'): void {
     this.roarT = 0;
     const m = this.mouth();
     for (let i = 0; i < 3; i++) {
-      const ring = this.scene.add.image(m.x, m.y, TEX.fxRing).setDepth(DEPTH.fx).setTint(i === 1 ? 0xffd34d : 0xff9a3c)
+      const tint = this.rockMonster ? (i === 1 ? 0xc1ffff : 0x67d4ed) : (i === 1 ? 0xffd34d : 0xff9a3c);
+      const ring = this.scene.add.image(m.x, m.y, TEX.fxRing).setDepth(DEPTH.fx).setTint(tint)
         .setScale(0.3).setAlpha(0);
       this.extras.add(ring);
       this.scene.tweens.add({
@@ -258,7 +278,8 @@ export class Dino {
   dust(x: number, y: number): void {
     for (let i = 0; i < 3; i++) {
       const a = Math.random() * Math.PI * 2;
-      const d = this.scene.add.image(x, y, TEX.fxDust).setDepth(DEPTH.fx).setAlpha(0.7).setScale(0.6 + Math.random() * 0.4).setTint(0xd8c8a0);
+      const d = this.scene.add.image(x, y, TEX.fxDust).setDepth(DEPTH.fx).setAlpha(0.7).setScale(0.6 + Math.random() * 0.4)
+        .setTint(this.rockMonster ? 0xb5a4d5 : 0xd8c8a0);
       this.extras.add(d);
       this.scene.tweens.add({
         targets: d, x: x + Math.cos(a) * 60, y: y + Math.sin(a) * 60, scale: d.scale * 2.4, alpha: 0,
@@ -335,28 +356,40 @@ export class Dino {
       for (const p of this.parts) { if (this.tintT > 0) p.setTint(0xff6a6a); else p.clearTint(); }
     }
     if (this.stars.length > 0) {
-      const hx = this.root.x + Math.cos(this.angle) * LOOK.headX * this.scale * this.mult;
-      const hy = this.root.y + Math.sin(this.angle) * LOOK.headX * this.scale * this.mult;
+      const headX = this.rockMonster ? ROCK_MONSTER_RIG.headX : LOOK.headX;
+      const hx = this.root.x + Math.cos(this.angle) * headX * this.scale * this.mult;
+      const hy = this.root.y + Math.sin(this.angle) * headX * this.scale * this.mult;
       this.stars.forEach((st, i) => {
         const a = this.t * 4 + (i * Math.PI) / 2;
         st.setPosition(hx + Math.cos(a) * 110, hy + Math.sin(a) * 110).setRotation(a * 2);
       });
     }
     if (walking) this.phase += moveDist / 55; // one leg frame per ~55 world px of stride
-    const frames = DINO_RIG.legs.frames;
-    const f = Math.floor(this.phase);
-    this.legL.setTexture(frames[((f % 4) + 4) % 4]);
-    this.legR.setTexture(frames[((f + DINO_RIG.legs.rightPhaseOffset) % 4 + 4) % 4]);
+    if (this.arms) {
+      const rig = ROCK_MONSTER_RIG, stride = Math.sin(this.phase * Math.PI / 2);
+      const sway = Math.sin(this.t * 2.6);
+      this.legL.setX(rig.footX + stride * 28).setRotation(stride * 0.12);
+      this.legR.setX(rig.footX - stride * 28).setRotation(stride * 0.12);
+      this.arms[0].setX(rig.armX - stride * 19 + stomp * 20).setRotation(-0.12 + sway * 0.03 + stride * 0.1);
+      this.arms[1].setX(rig.armX + stride * 19 + stomp * 20).setRotation(0.12 - sway * 0.03 + stride * 0.1);
+    } else {
+      const frames = DINO_RIG.legs.frames;
+      const f = Math.floor(this.phase);
+      this.legL.setTexture(frames[((f % 4) + 4) % 4]);
+      this.legR.setTexture(frames[((f + DINO_RIG.legs.rightPhaseOffset) % 4 + 4) % 4]);
+    }
 
     this.looking += ((walking ? 0 : 1) - this.looking) * Math.min(1, dt * 5);
     const wag = DINO_RIG.tailWag * (walking ? 1.4 : 0.8);
-    this.tail.setRotation(Math.sin(this.t * (walking ? 4.2 : 2.2)) * wag);
+    this.tail?.setRotation(Math.sin(this.t * (walking ? 4.2 : 2.2)) * wag);
+    const baseY = this.rockMonster ? 1 : LOOK.bodyScaleY;
     this.body.setScale(LOOK.bodyScaleX * (1 + Math.sin(this.t * 3.1) * 0.015 - stomp * 0.09),
-      LOOK.bodyScaleY * (1 + Math.sin(this.t * 3.1) * 0.02 + stomp * 0.12));
+      baseY * (1 + Math.sin(this.t * 3.1) * 0.02 + stomp * 0.12));
 
     let headRot = Math.sin(this.t * 2.6) * 0.06 + Math.sin(this.t * 1.1) * 0.35 * this.looking;
-    let headScaleX = LOOK.headScale;
-    let headScaleY = LOOK.headScale;
+    const baseHeadScale = this.rockMonster ? 1 : LOOK.headScale;
+    let headScaleX = baseHeadScale;
+    let headScaleY = baseHeadScale;
     let headY = Math.sin(this.t * (walking ? 7 : 3)) * 4;
     if (this.roarT >= 0) {
       this.roarT += dt;
@@ -366,12 +399,13 @@ export class Dino {
         const env = Math.sin(Math.min(1, k * 1.2) * Math.PI);
         headRot = Math.sin(this.roarT * 55) * 0.16 * env;
         const lift = Math.min(1, k * 6) * (1 - Math.max(0, (k - 0.75) / 0.25));
-        headScaleX = LOOK.headScale * (1 + lift * 0.28 + Math.sin(this.roarT * 30) * 0.06 * env); // jaw "opens"
-        headScaleY = LOOK.headScale * (1 + lift * 0.22);
+        headScaleX = baseHeadScale * (1 + lift * 0.28 + Math.sin(this.roarT * 30) * 0.06 * env); // jaw "opens"
+        headScaleY = baseHeadScale * (1 + lift * 0.22);
         headY = 0;
       }
     }
-    this.head.setRotation(headRot).setScale(headScaleX, headScaleY).setY(headY).setX(LOOK.headX + stomp * 26);
+    const headX = this.rockMonster ? ROCK_MONSTER_RIG.headX : LOOK.headX;
+    this.head.setRotation(headRot).setScale(headScaleX, headScaleY).setY(headY).setX(headX + stomp * 26);
   }
 
   destroy(): void {

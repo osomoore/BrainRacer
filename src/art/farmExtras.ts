@@ -208,6 +208,8 @@ function drawWindmillBase(scene: Phaser.Scene): void {
   for (let i = 0; i < 6; i++) disc(ctx, 50 + hash(i, 1, 71) * 156, 50 + hash(i, 2, 71) * 156, 3, i % 2 ? '#fff6b0' : '#ffd24a', null);
   disc(ctx, 128, 128, 92, '#d9cfb8', OUTLINE, 3);
   stoneRing(ctx, 128, 128, 92, 30, 9, 13);
+  rr(ctx, 109, 180, 38, 73, 5); fillStroke(ctx, '#cab28a', '#927453', 2);
+  for (let y = 184; y < 250; y += 10) line(ctx, 111, y, 145, y, 1.5, '#a78b64');
   done();
 }
 

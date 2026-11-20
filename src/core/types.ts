@@ -16,7 +16,7 @@ export type PlayerId = 0 | 1;
 /** easyPlus sits between easy and normal (sums into the teens). */
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type CarKind = 'dino' | 'kart';
-export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor';
+export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor' | 'underground';
 /** 0 = left = X (blue), 1 = center = Y (yellow), 2 = right = B (red). */
 /**
  * 0 = X (blue, left), 1 = Y (yellow, top), 2 = B (red, right), 3 = A (green, bottom).
@@ -297,7 +297,7 @@ export type SfxName =
   | 'menuMove' | 'menuSelect' | 'join' | 'crossing'
   | 'moo' | 'baa' | 'oink' | 'neigh' | 'cluck' | 'quack' | 'cornRustle' | 'mudSplash';
 
-export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'dino' | 'results';
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'dino' | 'results';
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 export type CameraMode = 'single' | 'merged' | 'split';

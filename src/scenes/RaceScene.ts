@@ -14,6 +14,7 @@ import { createSystems } from '../systems';
 import { cityGen, generateFarm } from '../world/gen';
 import { generateIndustrial } from '../world/gen/industrial';
 import { generateHarbor } from '../world/gen/harbor';
+import { generateUnderground } from '../world/gen/underground';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
@@ -61,10 +62,12 @@ export class RaceScene extends Phaser.Scene {
 
     const industrial = settings.map === 'industrial';
     const farm = settings.map === 'farm';
-    this.raceMusic = industrial ? 'industrial' : farm ? 'farm' : 'race';
     const harbor = settings.map === 'harbor';
-    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : harbor ? generateHarbor(seed) : cityGen(seed);
-    this.built = buildWorld(this, world, industrial, harbor);
+    const underground = settings.map === 'underground';
+    this.raceMusic = industrial ? 'industrial' : farm ? 'farm' : underground ? 'underground' : 'race';
+    const world = industrial ? generateIndustrial(seed) : farm ? generateFarm(seed) : harbor ? generateHarbor(seed)
+      : underground ? generateUnderground(seed) : cityGen(seed);
+    this.built = buildWorld(this, world, industrial, harbor, underground);
     this.skids = new SkidMarks(this);
 
     this.players = settings.players.map((p, i) => {
@@ -156,6 +159,7 @@ export class RaceScene extends Phaser.Scene {
     for (const car of this.players) car.update(services.input.get(car.player), dt);
     this.skids.update(dt);
     if (this.started) for (const s of this.systems) s.update(dt, this.ctx);
+    if (this.started && !this.ended && !this.ctx.questionBreak) this.built.update?.(dt);
     // A system (challenge) may have just started a break: freeze right away.
     if (this.ctx.questionBreak) this.setBreak(true);
     this.rig.update(dt);

@@ -79,7 +79,7 @@ describe('generateIndustrial', () => {
     expect(world.laneGraph.nodes.every((node) => isRoadAt(world, node))).toBe(true);
 
     const bridges = decorations.filter(({ kind }) => kind === 'bridge');
-    expect(bridges).toHaveLength(5);
+    expect(bridges).toHaveLength(6);
     for (const bridge of bridges) {
       expect(reachable.has(tileId(bridge))).toBe(true);
       for (let x = bridge.x - bridge.w / 2 + ts / 2; x < bridge.x + bridge.w / 2; x += ts) {
@@ -158,16 +158,17 @@ describe('generateIndustrial props and bridges', () => {
   };
   const landmarkKinds = new Set(['bridge', 'factoryBay', 'gantry', 'loadingYard', 'waterTower']);
 
-  it('has five or six bridges, each with road on both sides, for many seeds', () => {
+  it('has six bridges with two open lanes and approaches for many seeds', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const world = generateIndustrial(seed);
       const ts = world.tileSize;
       const bridges = world.industrial!.decorations.filter((d) => d.kind === 'bridge');
-      expect(bridges.length).toBeGreaterThanOrEqual(5);
-      expect(bridges.length).toBeLessThanOrEqual(6);
+      expect(bridges).toHaveLength(6);
       for (const b of bridges) {
-        expect(isRoadAt(world, { x: b.x - b.w / 2 - ts / 2, y: b.y - ts / 2 })).toBe(true);
-        expect(isRoadAt(world, { x: b.x + b.w / 2 + ts / 2, y: b.y + ts / 2 })).toBe(true);
+        for (const x of [b.x - b.w / 2 - ts / 2, b.x + b.w / 2 + ts / 2]) {
+          expect(isRoadAt(world, { x, y: b.y - ts / 2 })).toBe(true);
+          expect(isRoadAt(world, { x, y: b.y + ts / 2 })).toBe(true);
+        }
       }
       expect(largestScc(world.laneGraph)).toBe(world.laneGraph.nodes.length);
     }

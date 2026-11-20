@@ -4,11 +4,21 @@ import { TEX } from '../core/assetKeys';
 import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { services } from '../core/services';
-import type { Vec2 } from '../core/types';
+import type { PlayerId, Vec2 } from '../core/types';
 import { ensureBombArt } from '../art/homingBombArt';
 import { bombPath, nearestBombTarget } from '../entities/homingBombAI';
 import { ParticlePool } from '../fx/ParticlePool';
 import { isDrivable } from '../world/geometry';
+
+interface BombView {
+  player: PlayerId;
+  camera: Phaser.Cameras.Scene2D.Camera;
+  sprite: Phaser.GameObjects.Image;
+  glow: Phaser.GameObjects.Image;
+}
+
+const FUSE_X = B.diameter * (157 - 110) / 220;
+const FUSE_Y = B.diameter * (29 - 110) / 220;
 
 /** One slow, visible comic hazard at a time. Time advances only while the race runs. */
 export class HomingBombSystem implements GameSystem {
@@ -16,8 +26,7 @@ export class HomingBombSystem implements GameSystem {
   private ctx!: RaceContext;
   private rng!: Rng;
   private particles!: ParticlePool;
-  private sprite: Phaser.GameObjects.Image | null = null;
-  private glow: Phaser.GameObjects.Image | null = null;
+  private views: BombView[] = [];
   private x = 0; private y = 0;
   private timer = 0; private pathTimer = 0; private clock = 0; private sparkTimer = 0;
   private path: Vec2[] = [];
@@ -30,15 +39,16 @@ export class HomingBombSystem implements GameSystem {
     this.ctx = ctx; this.rng = ctx.rng.fork(0xb04b);
     this.debug = new URLSearchParams(location.search).get('bomb') === 'now';
     this.timer = this.debug ? B.debugSpawnSec : B.firstSpawnSec;
-    this.particles = new ParticlePool(ctx.scene, B.particleLimit);
+    this.particles = new ParticlePool(ctx.scene, B.particleLimit * ctx.players.length);
     ensureBombArt(ctx.scene);
+    ctx.scene.events.on(Phaser.Scenes.Events.PRE_RENDER, this.draw, this);
     this.offEnd = ctx.bus.on('round:end', () => { this.ended = true; });
   }
 
   update(dt: number): void {
     if (this.ended || this.ctx.paused || this.ctx.questionBreak) return;
     this.clock += dt; this.particles.update(dt);
-    if (!this.sprite) {
+    if (this.views.length === 0) {
       this.timer -= dt;
       if (this.timer <= 0 && !this.spawn()) this.timer = 1;
       return;
@@ -59,12 +69,18 @@ export class HomingBombSystem implements GameSystem {
       if (isDrivable(this.ctx.world, nx, ny)) { this.x = nx; this.y = ny; }
     }
     if (this.path.length && distance <= step + 0.01) this.path.shift();
-    this.sprite.setPosition(this.x, this.y);
-    this.glow!.setPosition(this.x + 60, this.y - 103).setScale(0.9 + 0.15 * Math.sin(this.clock * 15)).setAlpha(0.7 + 0.2 * Math.sin(this.clock * 19));
     this.sparkTimer -= dt;
     if (this.sparkTimer <= 0) {
       this.sparkTimer = 0.1;
-      this.particles.spawn({ key: TEX.homingBombGlow, x: this.x + 40, y: this.y - 70, vx: this.rng.range(-40, 40), vy: this.rng.range(-100, -30), life: 0.35, s0: 0.12, s1: 0.02, add: true });
+      const vx = this.rng.range(-40, 40), vy = this.rng.range(-100, -30);
+      for (const { camera, player, sprite } of this.views) {
+        if (!camera.visible) continue;
+        const angle = this.ctx.camera.viewRotation(player);
+        const fuse = this.rotateForCamera(angle, FUSE_X, FUSE_Y);
+        const velocity = this.rotateForCamera(angle, vx, vy);
+        this.particles.spawn({ key: TEX.homingBombGlow, x: this.x + fuse.x, y: this.y + fuse.y,
+          vx: velocity.x, vy: velocity.y, life: 0.35, s0: 0.12, s1: 0.02, add: true, cameraFilter: sprite.cameraFilter });
+      }
     }
     for (const p of this.ctx.players) {
       if (!p.airborne && !p.riding && Math.hypot(p.x - this.x, p.y - this.y) <= B.contactRadius) { this.explode(p); break; }
@@ -84,10 +100,40 @@ export class HomingBombSystem implements GameSystem {
     const spot = candidates.find(p => bombPath(w, p, player) !== null);
     if (!spot) return false;
     this.x = spot.x; this.y = spot.y; this.path = []; this.pathTimer = 0;
-    this.sprite = this.ctx.scene.add.image(this.x, this.y, TEX.homingBomb).setName('homing-bomb')
-      .setDisplaySize(B.diameter, B.diameter).setDepth(DEPTH.vehicle + 1);
-    this.glow = this.ctx.scene.add.image(this.x + 60, this.y - 103, TEX.homingBombGlow).setDepth(DEPTH.fx).setBlendMode(Phaser.BlendModes.ADD);
+    const { scene } = this.ctx;
+    const mask = scene.cameras.cameras.reduce((ids, camera) => ids | camera.id, 0);
+    this.views = scene.cameras.cameras.map((camera, i) => {
+      const suffix = i === 0 ? '' : `-view-${i + 1}`;
+      const sprite = scene.add.image(this.x, this.y, TEX.homingBomb).setName(`homing-bomb${suffix}`)
+        .setDisplaySize(B.diameter, B.diameter).setDepth(DEPTH.vehicle + 1);
+      const glow = scene.add.image(this.x, this.y, TEX.homingBombGlow).setName(`homing-bomb-fuse${suffix}`)
+        .setDepth(DEPTH.fx).setBlendMode(Phaser.BlendModes.ADD);
+      sprite.cameraFilter = glow.cameraFilter = mask & ~camera.id;
+      return { camera, player: i === 0 ? 0 : 1, sprite, glow };
+    });
     return true;
+  }
+
+  private rotateForCamera(angle: number, x: number, y: number): Vec2 {
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    return { x: x * cos + y * sin, y: y * cos - x * sin };
+  }
+
+  // The cameras have finished following the cars when the scene is about to draw.
+  private draw(): void {
+    const scale = 0.9 + 0.15 * Math.sin(this.clock * 15);
+    const alpha = 0.7 + 0.2 * Math.sin(this.clock * 19);
+    for (const { player, sprite, glow } of this.views) {
+      const angle = this.ctx.camera.viewRotation(player);
+      const fuse = this.rotateForCamera(angle, FUSE_X, FUSE_Y);
+      sprite.setPosition(this.x, this.y).setRotation(-angle);
+      glow.setPosition(this.x + fuse.x, this.y + fuse.y).setScale(scale).setAlpha(alpha);
+    }
+  }
+
+  private clearViews(): void {
+    for (const { sprite, glow } of this.views) { sprite.destroy(); glow.destroy(); }
+    this.views = [];
   }
 
   private explode(player: IPlayerCar): void {
@@ -102,12 +148,14 @@ export class HomingBombSystem implements GameSystem {
     }
     this.ctx.camera.shakeAt(this.x, this.y, 1000, 0.008, 250);
     services.audio.sfx('crashBig'); services.input.rumble(player.player, 0.8, 250);
-    this.sprite?.destroy(); this.glow?.destroy(); this.sprite = null; this.glow = null;
+    this.clearViews();
     this.timer = B.respawnSec; this.debug = false;
   }
 
   destroy(): void {
-    this.offEnd?.(); this.sprite?.destroy(); this.glow?.destroy(); this.particles?.destroy();
-    this.sprite = null; this.glow = null;
+    this.offEnd?.();
+    this.ctx.scene.events.off(Phaser.Scenes.Events.PRE_RENDER, this.draw, this);
+    this.clearViews();
+    this.particles?.destroy();
   }
 }

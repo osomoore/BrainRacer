@@ -87,9 +87,11 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
 type Direction = -1 | 1;
 type Drive = { player: PlayerId; x: number; y: number; targetX: number; direction: Direction };
 
-function pairedDrive(bridge: IndustrialDecoration, bay: IndustrialDecoration, player: PlayerId, direction: Direction): Drive {
+function bridgeDrive(
+  bridge: IndustrialDecoration, player: PlayerId, direction: Direction, exit: IndustrialDecoration = bridge,
+): Drive {
   const west = bridge.x - bridge.w / 2 - 95;
-  const east = bay.x + bay.w / 2 + 95;
+  const east = exit.x + exit.w / 2 + 95;
   return { player, y: bridge.y, x: direction === 1 ? west : east, targetX: direction === 1 ? east : west, direction };
 }
 
@@ -169,7 +171,7 @@ for (const count of [1, 2] as const) {
     expect(mode).toBe(count === 1 ? 'single' : 'split');
     const bridges = decorations.filter(({ kind }) => kind === 'bridge').sort((a, b) => a.y - b.y);
     const bays = decorations.filter(({ kind }) => kind === 'factoryBay').sort((a, b) => a.y - b.y);
-    expect(bridges).toHaveLength(5);
+    expect(bridges).toHaveLength(6);
     expect(bays).toHaveLength(2);
 
     await checkHeadlights(page, count);
@@ -188,8 +190,9 @@ for (const count of [1, 2] as const) {
     }
 
     for (const direction of [1, -1] as const) {
-      const drives = bays.map((bay, i) => pairedDrive(bridges.find((b) => b.y === bay.y)!, bay, count === 1 ? 0 : i as PlayerId, direction));
+      const drives = bays.map((bay, i) => bridgeDrive(bridges.find((b) => b.y === bay.y)!, count === 1 ? 0 : i as PlayerId, direction, bay));
       if (count === 1) {
+        drives.push(bridgeDrive(bridges.at(-1)!, 0, direction));
         for (const drive of drives) {
           await stageCars(page, [drive]);
           await driveAcross(page, [drive]);
@@ -215,7 +218,7 @@ test('freight circles both crossings and drivers can take the central bridge dur
   await page.goto('/?race=1&map=industrial&seed=3&questions=off');
   await waitForGo(page);
   const bridge = await page.evaluate(() => window.__race.world.industrial!.decorations
-    .filter(({ kind }) => kind === 'bridge').sort((a, b) => a.y - b.y)[1]);
+    .filter(({ kind }) => kind === 'bridge').sort((a, b) => a.y - b.y)[2]);
   const drive: Drive = {
     player: 0, direction: 1, y: bridge.y, x: bridge.x - bridge.w / 2 - 25, targetX: bridge.x + bridge.w / 2 + 25,
   };

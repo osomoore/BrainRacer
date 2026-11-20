@@ -9,6 +9,7 @@ import type { Rng } from '../core/rng';
 import { services } from '../core/services';
 import { ParticlePool } from '../fx/ParticlePool';
 import { NpcVehicle } from '../entities/NpcVehicle';
+import { isUndergroundVehicleTexture } from '../entities/undergroundVehicles';
 import { STEP_HZ } from '../entities/Vehicle';
 
 const T = VEHICLE_CONDITION;
@@ -317,7 +318,8 @@ export class VehicleConditionSystem implements GameSystem {
   private leaveCar(car: IPlayerCar, damage: number): NpcVehicle {
     const texture = car.chassis.texture.key;
     const kind = TEX.police.some((key) => key === texture) ? 'police'
-      : texture === TEX.truck || texture === TEX.freightTruck ? 'truck' : 'traffic';
+      : texture === TEX.truck || texture === TEX.freightTruck || texture === TEX.underground.rockCrusher
+        || texture === TEX.underground.oreHauler ? 'truck' : 'traffic';
     const parked = new NpcVehicle(this.ctx.scene, kind, texture, car.spec, car.x, car.y, car.angle, CAT.prop);
     parked.view.setName(`abandoned-car-${car.player}`);
     parked.body.frictionAir = 0.13;
@@ -350,7 +352,7 @@ export class VehicleConditionSystem implements GameSystem {
         id: npc.body, damage: old?.damage ?? 0,
         current: () => !npc.destroyed && this.ctx.npcs.has(npc) ? {
           position: { x: npc.x, y: npc.y }, angle: npc.angle, velocity: npc.velocity,
-          spec: old ? npc.spec : {
+          spec: old || isUndergroundVehicleTexture(npc.appearanceKey) ? npc.spec : {
             ...npc.spec,
             ...(npc.npcKind === 'police' ? BOARDING_DRIVE.police
               : npc.npcKind !== 'truck' ? BOARDING_DRIVE.sedan

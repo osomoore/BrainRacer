@@ -4,7 +4,7 @@ import { services } from '../core/services';
 import { createInput } from '../input';
 import { createAudio } from '../audio';
 import { currentLaunchOptions } from '../config/launchOptions';
-import { loadSettings } from '../core/settings';
+import { isRaceMap, loadSettings } from '../core/settings';
 import type { CarKind, InputDevice, PlayerId, Settings } from '../core/types';
 import { SCENES } from '../data/scenes';
 import { REG, SCENE } from './keys';
@@ -63,7 +63,7 @@ export class BootScene extends Phaser.Scene {
     const cars: CarKind[] = ['dino', 'kart'];
     const settings: Settings = {
       ...base,
-      map: map === 'industrial' || map === 'city' || map === 'farm' || map === 'harbor' ? map : base.map,
+      map: isRaceMap(map) ? map : base.map,
       players: Array.from({ length: count }, (_, i) => ({
         device: pads[i] ?? kb[i],
         difficulty: base.players[i]?.difficulty ?? 'normal',

@@ -366,8 +366,8 @@ export function fillWindmillPond(b: FarmBuilder, c: Cell): void {
     b.zones.push(zone('duck', zx, zy, zw, zh, false));
   }
   const pond = best ? { x: (best.x + best.pw / 2) * TS, y: (best.y + best.ph / 2) * TS } : undefined;
-  placeSigned(b, c, 2, 1, 'lake', undefined, c.roads, pond);
   placeSigned(b, c, 2, 2, 'windmill', 'windmill');
+  placeSigned(b, c, 2, 1, 'lake', undefined, c.roads, pond);
 }
 
 export function fillOrchard(b: FarmBuilder, c: Cell): void {

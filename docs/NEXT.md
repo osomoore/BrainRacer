@@ -30,13 +30,12 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 ## Backlog
 
 ### Session 4 follow-ups
-- Farm: tractors sometimes wander onto paved roads. Ramming a hay wagon never moves it; a wagon left alone after a dino toss freezes.
+- Farm: tractors sometimes wander onto paved roads.
 - Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.
 - Farm look: lane mud is a square tile with no lane edges, square inner road corners, overlapping shadows stack darker, flower placement repeats, east turbine shadows run off the map. Golden-grade strength is `FARM_LOOK.gradeAlpha`/`gradeColor`.
 - Corn slowdown shares `car.slow()` with the police-bump slow (a bump in corn can be cut short); a `surfaceMult` on IPlayerCar would separate them.
 - Dino ride: police heat still builds while riding; the freight train passes through the ridden dino. `DINO.maxHp`/`ramDamage*`/`turboMult`/`teamMult` are mostly unused now.
 - Guide buddy: one cause fixed (arrived player driving off). Unverified: the orbit target is not clamped to the inset view (could sit under the scoreboard/seam near a view edge), and buddy visibility after vehicle hop / reset / dino events.
-- Industrial: 5 bridges (a 6th needs re-laying the north/south edge roads).
 - Audio by ear: farm track (new `pluck` instrument), animal sounds, corn rustle, mud splash, louder player siren.
 - Merge script lesson: only delete a package branch/worktree after `git merge` succeeded (a conflict leaves the merge in progress).
 
@@ -71,6 +70,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - Session 4 by eye/ear: Farm golden hour and long shadows on a projector in both split views, corn slowdown/track/spring-back, animal launches (fun, not scary), tractors and combines, dino ride (3 hits, 20 s, speed, stomp shake), Industrial clutter and new bridges, guide buddy in 2P.
 - Session 3 by eye/ear: Industrial darkness on a projector (`INDUSTRIAL_LIGHTING.nightAlpha`), player siren loudness (`POLICE.playerSirenVolume`), dino laser fairness for 5-year-olds (`DINO_LASER.chargeSec`/`fireSec`), freight smash threshold and re-form time, whether the building alleys look intentional (`WORLD.maxBuildingRun`), Easy+ feel.
 - Latest changes: Beach & Harbor scenery density, ramp approaches, market shortcuts, beachgoer readability, bridge detail, and night visibility. Also check half-speed handling, one-press dino boarding, split-screen fence restoration, and bomb knockback.
+- Check Underground neon and lava readability on a projector, the mine carts from both seats, and the new music by ear. Check the bomb stays upright while turning and try bumping a Farm wagon before and after a dino toss.
 
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
 - Industrial at Night and Beach & Harbor are playable in Setup. The projector, real-controller, and by-ear checks remain on the playtest checklist.
@@ -81,6 +81,5 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 The Industrial at Night and Farm kickoff plans were carried out (sessions 1–4); see STATUS "Industrial at Night" and "Farm". Use them as the template for a new map: orchestrator sets contracts (RaceMap, tiles, layout types, TEX block, SfxName/MusicTrack), phase 1 = generator (Opus) + art + audio in parallel, phase 2 = renderer (Opus) + gameplay systems + traffic, then wiring, Setup row and e2e.
 
 ## Small cleanups
-- Remove unused config key `WORLD.bigAirSec`; remove the HudTest "Nice jump!" popup.
 - Police bump should use the actual colliding cruiser (add an npc reference to `vehicle:crash`).
 - Traffic right-of-way at junctions (optional).

@@ -8,9 +8,10 @@ import { STEP_HZ } from './Vehicle';
 import { followLane, nearestNode, newFollowResult, trackSpeed, type FollowResult, type FollowState } from './laneFollow';
 import { HayWagon } from './HayWagon';
 import { NpcVehicle } from './NpcVehicle';
+import { UNDERGROUND_VEHICLES, type UndergroundVehicleKind } from './undergroundVehicles';
 
 export type TrafficState = 'drive' | 'knocked' | 'reverse';
-export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine' | 'convertible';
+export type TrafficKind = 'car' | 'truck' | 'freight' | 'pickup' | 'tractor' | 'combine' | 'convertible' | UndergroundVehicleKind;
 
 /** Spawn role used by TrafficSystem to cap special vehicles; null for ordinary traffic. */
 export type TrafficRole = 'freight' | 'tractor' | 'combine' | null;
@@ -23,6 +24,10 @@ function kindLook(kind: TrafficKind, rng: Rng): { npc: 'traffic' | 'truck'; tex:
     case 'tractor': return { npc: 'truck', tex: TEX.farm.tractor, spec: TRACTOR_SPEC };
     case 'combine': return { npc: 'truck', tex: TEX.farm.combine, spec: COMBINE_SPEC };
     case 'convertible': return { npc: 'traffic', tex: rng.pick(TEX.convertible)!, spec: TRAFFIC_SPEC };
+    case 'caveBuggy': case 'crystalRunner': case 'surveyRover': case 'oreHauler': case 'rockCrusher': {
+      const { truck, texture, spec } = UNDERGROUND_VEHICLES[kind];
+      return { npc: truck ? 'truck' : 'traffic', tex: texture, spec };
+    }
     default: return { npc: 'traffic', tex: TEX.traffic[rng.int(0, TEX.traffic.length - 1)], spec: TRAFFIC_SPEC };
   }
 }
@@ -36,7 +41,7 @@ export class TrafficCar extends NpcVehicle {
   readonly follow: FollowState;
   readonly oversized: boolean;
   readonly role: TrafficRole;
-  /** Hay wagon pulled by a tractor (a separate solid NPC part); null once it is gone. */
+  /** Hay wagon this tractor spawned. TrafficSystem also tracks it after it is detached. */
   trailer: HayWagon | null = null;
   private readonly cruise: number;
   private readonly res: FollowResult = newFollowResult();
@@ -51,13 +56,13 @@ export class TrafficCar extends NpcVehicle {
   private launched = false;
 
   constructor(
-    scene: Phaser.Scene, rng: Rng, kind: TrafficKind,
+    scene: Phaser.Scene, rng: Rng, readonly kind: TrafficKind,
     x: number, y: number, angle: number, target: number,
   ) {
     const look = kindLook(kind, rng);
     super(scene, look.npc, look.tex, look.spec, x, y, angle);
     this.role = kind === 'freight' || kind === 'tractor' || kind === 'combine' ? kind : null;
-    this.oversized = this.role !== null;
+    this.oversized = this.role !== null || kind === 'rockCrusher' || kind === 'oreHauler';
     this.follow = { target, next: -1 };
     this.cruise = this.spec.maxSpeed * rng.range(TRAFFIC.speedMinFrac, TRAFFIC.speedMaxFrac);
     this.stuckX = x; this.stuckY = y;
@@ -65,10 +70,12 @@ export class TrafficCar extends NpcVehicle {
   }
 
   /** Extra length (px) trailing behind the body, for visibility margins. */
-  get trailerLength(): number { return this.trailer && !this.trailer.destroyed ? this.trailer.spec.length : 0; }
+  get trailerLength(): number { return this.trailer?.hitched ? this.trailer.spec.length : 0; }
 
-  destroy(): void {
-    this.trailer?.destroy();
+  override squash(): void { this.trailer?.detach(); super.squash(); }
+
+  override destroy(): void {
+    this.trailer?.detach();
     super.destroy();
   }
 
@@ -96,9 +103,6 @@ export class TrafficCar extends NpcVehicle {
       default: this.updateDrive(dt, ctx, graph, rng, fwd);
     }
     this.syncView();
-    if (this.trailer) {
-      if (this.trailer.destroyed) this.trailer = null; else this.trailer.follow(this);
-    }
     this.lastVx = this.body.velocity.x; this.lastVy = this.body.velocity.y;
     this.haveLast = true;
   }
@@ -179,6 +183,7 @@ export class TrafficCar extends NpcVehicle {
     };
     for (const n of ctx.npcs) {
       if (n === this || n.destroyed) continue;
+      if (this.kind === 'rockCrusher' && n.spec.mass < this.spec.mass) continue;
       const v = n.body.velocity;
       check(n.x, n.y, n.spec.length, n.spec.width, v.x * STEP_HZ, v.y * STEP_HZ);
     }

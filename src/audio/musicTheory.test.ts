@@ -4,6 +4,7 @@ import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
 import farm from './music/tracks/farm.json';
+import underground from './music/tracks/underground.json';
 import results from './music/tracks/results.json';
 import {
   beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
@@ -31,7 +32,7 @@ describe('units', () => {
 });
 
 describe('validateTrack', () => {
-  for (const [name, t] of Object.entries({ title, race, industrial, farm, dino, results })) {
+  for (const [name, t] of Object.entries({ title, race, industrial, farm, underground, dino, results })) {
     it(`${name}.json is well-formed`, () => {
       expect(validateTrack(t)).toEqual([]);
     });

@@ -11,6 +11,7 @@ import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
 import dino from './music/tracks/dino.json';
 import farm from './music/tracks/farm.json';
+import underground from './music/tracks/underground.json';
 import results from './music/tracks/results.json';
 
 /** Optional MIDI overrides: drop <track>.mid files into src/audio/music/midi/ (resolved at build time). */
@@ -24,6 +25,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   race: race as TrackData,
   industrial: industrial as TrackData,
   farm: farm as TrackData,
+  underground: underground as TrackData,
   dino: dino as TrackData,
   results: results as TrackData,
 };

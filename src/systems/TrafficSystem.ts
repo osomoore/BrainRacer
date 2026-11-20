@@ -1,8 +1,12 @@
-import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC } from '../config/gameConfig';
+import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC, UNDERGROUND_TRAFFIC } from '../config/gameConfig';
+import { TEX } from '../core/assetKeys';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { pickSpawnNode, type SpawnQuery } from '../entities/laneFollow';
 import { TrafficCar, type TrafficKind } from '../entities/TrafficCar';
+import { HayWagon } from '../entities/HayWagon';
+import type { NpcVehicle } from '../entities/NpcVehicle';
+import { UNDERGROUND_VEHICLE_KINDS, type UndergroundVehicleKind } from '../entities/undergroundVehicles';
 import { findFarmStarts, pickFarmStart, isFarmLaneNode, type FarmStarts } from './farmTraffic';
 import { findFreightStarts, pickFreightStart, type FreightSpawn } from './industrialTraffic';
 
@@ -13,6 +17,7 @@ export class TrafficSystem implements GameSystem {
   private ctx!: RaceContext;
   private rng!: Rng;
   private cars: TrafficCar[] = [];
+  private wagons = new Set<HayWagon>();
   private freightStarts: FreightSpawn[] = [];
   private freightCount = 0;
   private regularLimit = TRAFFIC.maxVehicles;
@@ -23,6 +28,7 @@ export class TrafficSystem implements GameSystem {
   private tractorLimit = 0;
   private combineLimit = 0;
   private spawnT = 0;
+  private undergroundOrder: UndergroundVehicleKind[] = [];
   private scratch: number[] = [];
   private occupied: { x: number; y: number }[] = [];
   private playerPts: { x: number; y: number }[] = [];
@@ -33,6 +39,11 @@ export class TrafficSystem implements GameSystem {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x7aff1c);
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
+    if (ctx.settings.map === 'underground') {
+      this.regularLimit = UNDERGROUND_TRAFFIC.maxVehicles;
+      this.undergroundOrder = [...UNDERGROUND_VEHICLE_KINDS];
+      this.rng.shuffle(this.undergroundOrder);
+    }
     if (ctx.settings.map === 'harbor') {
       const { centerX, centerY, gateWidth, gateHeight } = HARBOR.drawbridge;
       const size = ctx.world.tileSize;
@@ -70,7 +81,23 @@ export class TrafficSystem implements GameSystem {
         const dx = p.x - car.x, dy = p.y - car.y;
         if (dx * dx + dy * dy < r2) { far = false; break; }
       }
-      if ((far || car.wantsDespawn) && !this.visible(car)) { car.destroy(); this.remove(i); }
+      if ((far || car.wantsDespawn) && !this.visible(car)) {
+        if (car.trailer?.hitched) car.trailer.destroy();
+        car.destroy();
+        this.remove(i);
+      }
+    }
+    for (const wagon of this.wagons) {
+      if (!wagon.destroyed && !wagon.hitched && !this.inPlayerView(wagon, wagon.spec.length)) {
+        const nearby = ctx.players.some(p => (p.x - wagon.x) ** 2 + (p.y - wagon.y) ** 2 < r2);
+        if (!nearby) wagon.destroy();
+      }
+      if (wagon.destroyed) {
+        ctx.npcs.delete(wagon);
+        this.wagons.delete(wagon);
+      } else {
+        wagon.step(dt);
+      }
     }
     this.spawnT -= dt;
     if (this.cars.length < this.totalLimit() && this.spawnT <= 0) {
@@ -83,10 +110,11 @@ export class TrafficSystem implements GameSystem {
   private shove(e: { player: number | null; with: string; impact: number; x: number; y: number }): void {
     if (e.player === null || e.with !== 'traffic') return;
     const pl = this.ctx.players[e.player];
-    if (!pl) return;
-    let best: TrafficCar | null = null, bd = 160 * 160;
-    for (const c of this.cars) {
+    if (!pl || pl.chassis.texture.key === TEX.underground.rockCrusher) return;
+    let best: NpcVehicle | null = null, bd = 160 * 160;
+    for (const c of this.ctx.npcs) {
       if (c.destroyed) continue;
+      if (!(c instanceof TrafficCar) && !(c instanceof HayWagon && this.wagons.has(c))) continue;
       const d = (c.x - e.x) ** 2 + (c.y - e.y) ** 2;
       if (d < bd) { bd = d; best = c; }
     }
@@ -110,7 +138,9 @@ export class TrafficSystem implements GameSystem {
 
   destroy(): void {
     this.offCrash?.();
-    for (const c of this.cars) { this.ctx.npcs.delete(c); if (c.trailer) this.ctx.npcs.delete(c.trailer); c.destroy(); }
+    for (const wagon of this.wagons) { this.ctx.npcs.delete(wagon); wagon.destroy(); }
+    this.wagons.clear();
+    for (const c of this.cars) { this.ctx.npcs.delete(c); c.destroy(); }
     this.cars.length = 0;
   }
 
@@ -121,7 +151,7 @@ export class TrafficSystem implements GameSystem {
   private remove(i: number): void {
     const car = this.cars[i];
     this.ctx.npcs.delete(car);
-    if (car.trailer) this.ctx.npcs.delete(car.trailer);
+    car.trailer?.detach();
     if (car.role === 'freight') this.freightCount--;
     else if (car.role === 'tractor') this.tractorCount--;
     else if (car.role === 'combine') this.combineCount--;
@@ -131,6 +161,10 @@ export class TrafficSystem implements GameSystem {
 
   private visible(car: TrafficCar): boolean {
     const m = car.oversized ? Math.hypot(car.spec.length + car.trailerLength, car.spec.width) / 2 : TRAFFIC.spawnMargin * 0.5;
+    return this.inPlayerView(car, m);
+  }
+
+  private inPlayerView(car: NpcVehicle, m: number): boolean {
     for (const p of this.ctx.players) {
       const v = this.ctx.camera.worldView(p.player);
       if (car.x > v.x - m && car.x < v.x + v.w + m && car.y > v.y - m && car.y < v.y + v.h + m) return true;
@@ -170,7 +204,8 @@ export class TrafficSystem implements GameSystem {
     if (this.farmStarts && this.trySpawnFarmSlow(q)) return;
     if (this.cars.length - this.freightCount - this.tractorCount - this.combineCount >= this.regularLimit) return;
     q.minR = minR;
-    q.gap = ctx.world.industrial ? INDUSTRIAL_TRAFFIC.spawnGap : ctx.world.farm ? FARM_TRAFFIC.spawnGap : TRAFFIC.spawnGap;
+    q.gap = ctx.world.industrial ? INDUSTRIAL_TRAFFIC.spawnGap : ctx.world.farm ? FARM_TRAFFIC.spawnGap
+      : this.undergroundOrder.length ? UNDERGROUND_TRAFFIC.spawnGap : TRAFFIC.spawnGap;
 
     let id = pickSpawnNode(graph, q, this.rng, this.scratch);
     if (id < 0) return;
@@ -188,10 +223,22 @@ export class TrafficSystem implements GameSystem {
     const nn = graph.nodes[nextId];
     const angle = Math.atan2(nn.y - n.y, nn.x - n.x);
     let kind: TrafficKind = 'car';
-    if (ctx.world.farm) kind = 'pickup';
+    if (this.undergroundOrder.length) kind = this.undergroundKind();
+    else if (ctx.world.farm) kind = 'pickup';
     else if (this.rng.chance(TRAFFIC.truckFraction)) kind = 'truck';
     else if (ctx.settings.map === 'harbor' && this.rng.chance(TRAFFIC.harborConvertibleFraction)) kind = 'convertible';
     this.add(new TrafficCar(ctx.scene, this.rng, kind, n.x, n.y, angle, nextId));
+  }
+
+  /** Fill missing variants first and distribute replacements without letting crushers dominate. */
+  private undergroundKind(): UndergroundVehicleKind {
+    let best = this.undergroundOrder[0], least = Infinity;
+    for (const kind of this.undergroundOrder) {
+      const count = this.cars.reduce((n, car) => n + Number(!car.destroyed && car.kind === kind), 0);
+      if (kind === 'rockCrusher' && count >= UNDERGROUND_TRAFFIC.crusherQuota) continue;
+      if (count < least) { best = kind; least = count; }
+    }
+    return best;
   }
 
   /** Slow farm vehicles (tractor + wagon, combine) start on dirt lanes, off-screen. Returns true if one spawned. */
@@ -213,6 +260,9 @@ export class TrafficSystem implements GameSystem {
   private add(car: TrafficCar): void {
     this.cars.push(car);
     this.ctx.npcs.add(car);
-    if (car.trailer) this.ctx.npcs.add(car.trailer);
+    if (car.trailer) {
+      this.ctx.npcs.add(car.trailer);
+      this.wagons.add(car.trailer);
+    }
   }
 }

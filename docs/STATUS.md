@@ -1,6 +1,6 @@
-# BrainRacer — Status (as of 2026-11-19)
+# BrainRacer — Status (as of 2026-11-20)
 
-**City (day), Industrial (night), Farm (golden hour), and Beach & Harbor (sunset into night) are playable.** Active development is on `dev`.
+**City (day), Industrial (night), Farm (golden hour), Beach & Harbor (sunset into night), and Underground are playable.** Active development is on `dev`.
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
@@ -11,6 +11,7 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Questions are mandatory in normal play** (no "Off" in the setup menu; `?questions=off` is ignored). The ability to turn them off exists only when started with `VITE_ALLOW_QUESTIONS_OFF=1`: `npm run dev` does this automatically (`.env.development`) and also defaults questions to off (`VITE_QUESTIONS=off`); `npm run dev:questions` has the ability but questions stay on; `play.bat --questions-off` enables it for a built game; Playwright's webServer sets it. For a manual `npm run build && npm run preview` set `VITE_ALLOW_QUESTIONS_OFF=1` first. Logic: `src/config/questionsPolicy.ts`.
 - Map quick launch: `/?race=2&map=industrial&seed=3&questions=off` or `&map=farm`. Use `race=1` for solo or `map=city` to select City explicitly. Free farm camera: `?dev=FarmView&seed=7&zoom=0.3` (WASD pan, Q/E zoom, R/T rotate).
 - Beach & Harbor quick launch: `/?race=2&map=harbor&seed=3&questions=off`. Add `&harbor=now` to see the first tide and drawbridge cycle sooner, or `&bomb=now` to spawn the homing bomb after two seconds of driving on any map.
+- Underground quick launch: `/?race=2&map=underground&seed=3&questions=off`.
 - Test hooks: `&dino=now` (dino appears next to players in 2 s), `&laser=now` (dino fires lasers soon and often), `&train=near` (Industrial: a wagon passes P1's nearest rail point), `&dinohits=N` / `&dinoride=N` (dino hits to defeat / ride seconds; console `__dinoDefeat()`), `&heat=100` (police chase P1), `&rewards=1` (keys 6/7/8/9 = rainbow/shockwave/ghost/magnet).
 - Dev scenes: `?dev=ArtGallery | DriveTest | CameraTest | WorldTest | HudTest | InputTest | AudioTest | ChallengeTest | ResultsTest`.
 - F2 anywhere: raw controller input overlay. `window.__race` = live RaceContext; `window.__challenge` = challenge state hook (used by e2e).
@@ -69,21 +70,30 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - **Corn & mud** (`CornSystem`, `FARM_CORN`): corn caps speed at 60%, mud at 50% with a wobble; corn flattens into a stamped track that springs back as soon as it is off every player's view (or after 30 s). Rustle and splash sounds.
 - **Animals** (`AnimalSystem`, `animalAI.ts`, `ANIMALS`): cows, sheep, pigs, horses in pastures, chickens in farmyards, ducks by the pond. They wander and scurry from fast cars; a hit sends them flying cartoon-style (star-eye tumble, spin, bounce, dazed, walk home). Never hurt, never damage cars (`CollisionSystem` skips animal contacts). Dino roar scatters them.
 - **Farm traffic** (`farmTraffic.ts`, `FARM_TRAFFIC`): 25 pickups, 4 slow tractors with hay wagons (`HayWagon.ts`), 2 combines. All boardable and dino-tossable. Pickups drive like normal player cars when boarded. Tractors and combines use the player truck handling.
+- The traditional four-sail mill spins on the pond hill, separate from the turbine row. Hay wagons swing on a physical hitch when rammed. A dino toss detaches the wagon, and it becomes a solid, free rolling obstacle again after landing.
 
 ## Player speed, bomb, and Beach & Harbor
 
 - Starter cars top out at 310 px/s (dino car) or 285 px/s (kart). Acceleration, reverse, turbo, punch-through, and boost-jump distance use the half-speed balance. Steering rates stay the same. Dino lasers, ride speed, guide lead, crash impacts, freight smash threshold, and police pursuit have been retuned.
 - A large homing bomb first appears after 25 s of driving. Its fuse throws sparks and a fiery orange glow. It moves at half its target's top speed, then knocks the target into a spin on contact. A later bomb can spawn 35 s after it explodes. Tune in `HOMING_BOMB`.
+- The bomb, its shadow, and its fuse stay upright as each player's camera rotates.
 - Pick **Beach & Harbor** in Setup. Tire tracks fade in the sand. Seeded beach groups include umbrellas, towels, coolers, beach balls and sandcastles. Use the beach ramps for jumps and drive through the pennant-marked market gaps. Cars can flatten sandcastles and scatter fruit crates, fish crates, barrels and buoys. Disturbed props return after they leave both players' views.
 - The waterfront has a red-and-white lighthouse, ice cream cart, market stalls, and convertible sports cars. Two beachgoer designs with varying colors jump clear. Surfers, sailboats and gulls move around the channel. The suspension bridge has towers and cables, and the drawbridge shows a water gap, flashing lights and striped barriers when the ship passes.
 - On the default five-minute round, sunset begins fading at four minutes remaining and reaches full night when two minutes remain. Wind gusts roll beach balls and the tidal surge pushes cars and loose shore props inland. Timing and strength are tuned in `HARBOR`.
 - **Easy word pool:** dam remains eligible. Church and city now appear at higher levels.
 - Harbor update verification: the 33-test Edge suite passed. After fixing traffic spawns on the drawbridge, typecheck, all 377 unit tests, and the three focused Harbor and Bomb browser tests passed.
 
+## Underground
+
+- Pick **Underground** in Setup. Cyan neon strips mark the race routes through dark caverns and across three reinforced causeways over a glowing, bubbling lava river. Miniature neon trains pull two illuminated ore wagons each around separate rail loops.
+- The caves include crystal clusters, glowing mushrooms, rock formations, glowing fissures, lanterns, floodlights, mining elevators, ore chutes and bins, timber portals, steam vents, drifting embers, pools, safety barriers, chevrons, and jump ramps. The map has its own music, "Crystal Switchback".
+- A crystal rock monster guards Underground goals. Ram it to tame it, then press B nearby to ride it. `&dino=now` forces the Underground encounter for a quick check.
+- Five boardable vehicles drive the cave roads: Cave Buggy, Crystal Runner, Survey Rover, Ore Hauler, and Rock Crusher. The Rock Crusher is slower and heavier. Hit ore crates or smaller vehicles head-on while driving it to smash crates and shove traffic aside.
+
 ## Industrial at Night
 
 - Pick **Industrial** in Setup's **Map** row. City is the default for new and older saved settings. Setup remembers the map selection, and quick launch can override it for that session. Industrial is always night.
-- Five lit canal bridges, a canal-side bypass, and factory cross streets connect the districts. The north and south bridge roads run through open factory bays. The south freight yard has an eastbound ramp. Oversized freight trucks serve the loading yards.
+- Six lit canal bridges, a canal-side bypass, and factory cross streets connect the districts. The new southernmost bridge connects the loading loop to the east factory road. The south freight yard has an eastbound ramp. Oversized freight trucks serve the loading yards.
 - The train stays on a closed rail circuit. Two sets of lights warn about the approaching train. The road network offers a bypass for either occupied crossing.
 - Both cars have headlights in Industrial. Its music starts at GO and resumes after the dino cue.
 
