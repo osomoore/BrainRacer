@@ -220,21 +220,22 @@ test('freight circles both crossings and drivers can take the central bridge dur
     player: 0, direction: 1, y: bridge.y, x: bridge.x - bridge.w / 2 - 25, targetX: bridge.x + bridge.w / 2 + 25,
   };
   await stageCars(page, [drive]);
-  const waitForCrossing = async (index: number, occupied: boolean) => {
-    const handle = await page.waitForFunction(({ index, occupied }) => {
-      const { scene, elapsedSec, world } = window.__race;
+  const waitForCrossing = async (index: number, occupied: boolean, passedX?: number) => {
+    const handle = await page.waitForFunction(({ index, occupied, passedX }) => {
+      const { scene, elapsedSec, players, world } = window.__race;
       const { center, width } = world.industrial!.rail.crossings[index];
       const signal = scene.children.getByName(`industrial-crossing-signal-${index}`) as Phaser.GameObjects.Image;
       const train = scene.children.list.filter((obj) => obj.name.startsWith('industrial-train-')) as Phaser.GameObjects.Image[];
       const bodies = scene.matter.world.getAllBodies().filter((body) => body.plugin?.owner?.kind === 'train');
       const blocking = bodies.some(({ bounds }) => bounds.min.x < center.x + width / 2 && bounds.max.x > center.x - width / 2
         && bounds.min.y <= center.y && bounds.max.y >= center.y);
+      if (passedX !== undefined && players[0].x < passedX) return false;
       if (occupied ? blocking : !blocking && signal.texture.key === 'industrial_crossing_lit') {
         return { elapsedSec, cars: train.length, solidCars: bodies.filter((body) => body.collisionFilter.mask).length,
           allVisible: train.every((image) => image.visible && image.alpha === 1) };
       }
       return false;
-    }, { index, occupied }, { timeout: 30_000 });
+    }, { index, occupied, passedX }, { timeout: 30_000 });
     return await handle.jsonValue();
   };
   const warning = await waitForCrossing(0, false);
@@ -244,8 +245,7 @@ test('freight circles both crossings and drivers can take the central bridge dur
   expect(arrival.solidCars).toBe(5);
   expect(arrival.allVisible).toBe(true);
   expect(arrival.elapsedSec - warning.elapsedSec).toBeGreaterThan(2);
-  await driveAcross(page, [drive]);
-  const stillOccupied = await waitForCrossing(0, true);
+  const [, stillOccupied] = await Promise.all([driveAcross(page, [drive]), waitForCrossing(0, true, drive.x + 100)]);
   if (stillOccupied === false) throw new Error('Crossing occupancy was missing');
   expect(stillOccupied.elapsedSec - arrival.elapsedSec).toBeLessThan(2.5);
   const crossing = await page.evaluate(() => window.__race.world.industrial!.rail.crossings[0].center);

@@ -171,7 +171,16 @@ export class VehicleConditionSystem implements GameSystem {
     const now = this.ctx.elapsedSec;
     if (car.airborne) return;
     const aim = state.aim;
+    const priority = this.nearestTarget(car);
     this.clearAim(state);
+    if (priority?.dino) {
+      const from = { x: car.x, y: car.y };
+      state.hop = { target: priority, started: now, from };
+      car.setBoarding(from);
+      state.rider.setPosition(from.x, from.y).setScale(1).setVisible(true);
+      services.audio.sfx('jump', { volume: 0.55 });
+      return;
+    }
     if (aim && now - aim.started <= T.transferTapSec) {
       if (!this.boardable(car, aim.target)) return;
       const from = { x: car.x, y: car.y };
@@ -180,8 +189,7 @@ export class VehicleConditionSystem implements GameSystem {
       state.rider.setPosition(from.x, from.y).setScale(1).setVisible(true);
       services.audio.sfx('jump', { volume: 0.55 });
     } else {
-      const target = this.nearestTarget(car);
-      if (target) state.aim = { target, started: now };
+      if (priority) state.aim = { target: priority, started: now };
     }
   }
 
@@ -374,7 +382,7 @@ export class VehicleConditionSystem implements GameSystem {
     const dino = this.ctx.dino;
     if (dinoBoardable(dino) && !this.reserved(DINO_TARGET)) {
       const distance = dinoBoardDistance(dino, car, DINO_RIDE.boardReach);
-      if (distance <= reach) {
+      if (distance <= T.transferReach) {
         const texture = car.chassis.texture.key;
         nearest = {
           id: DINO_TARGET, damage: 0, dino: true, reachPad: DINO_RIDE.boardReach,

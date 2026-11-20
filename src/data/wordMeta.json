@@ -213,7 +213,7 @@
   },
   "church": {
     "category": "place",
-    "simple": true,
+    "simple": false,
     "confusableWith": []
   },
   "circle": {
@@ -229,7 +229,7 @@
   },
   "city": {
     "category": "place",
-    "simple": true,
+    "simple": false,
     "confusableWith": [
       "house",
       "school"

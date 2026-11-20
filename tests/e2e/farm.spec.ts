@@ -23,7 +23,7 @@ async function waitForGo(page: Page) {
   await page.waitForFunction(() => window.__race?.elapsedSec > 0.25, undefined, WAIT);
 }
 
-/** What the farm renderer put in the scene (fence bodies, golden grade, blades). */
+/** What the farm renderer put in the scene (drive-through fences, golden grade, blades). */
 async function farmState(page: Page) {
   return page.evaluate(() => {
     const { scene, settings, world } = window.__race;
@@ -54,7 +54,7 @@ for (const count of [1, 2] as const) {
     expect(state.map).toBe('farm');
     expect(state.farm).toBe(true);
     expect(state.fences).toBeGreaterThan(0);
-    expect(state.fenceBodies).toBe(state.fences);
+    expect(state.fenceBodies).toBe(0);
     expect(state).toMatchObject({ grade: true, barn: true, blades: true, farmTileset: true });
     expect(await page.evaluate(() => window.__race.camera.layout().mode)).toBe(count === 1 ? 'single' : 'split');
 
@@ -106,4 +106,46 @@ test('Setup can select Farm', async ({ page }) => {
   expect(state.grade).toBe(true);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!).map)).toBe('farm');
   expect(errors).toEqual([]);
+});
+
+test('a driven-through Farm fence restores after both players leave', async ({ page }) => {
+  await page.goto('/?race=2&map=farm&seed=3&questions=off');
+  await waitForGo(page);
+  const fence = await page.evaluate(() => {
+    const { players, scene } = window.__race;
+    const sections = scene.children.list.filter(o => o.name === 'farm-fence-section') as Phaser.GameObjects.Image[];
+    const section = sections.find(o => o.x > 2200 && o.y > 1800)!;
+    const { x, y, rotation } = section;
+    const heading = rotation - Math.PI / 2;
+    scene.matter.body.setPosition(players[0].body, { x: x - Math.cos(heading) * 70, y: y - Math.sin(heading) * 70 });
+    scene.matter.body.setAngle(players[0].body, heading);
+    scene.matter.body.setVelocity(players[0].body, { x: 0, y: 0 });
+    scene.matter.body.setPosition(players[1].body, { x: x - Math.cos(heading) * 200, y: y - Math.sin(heading) * 200 });
+    return { x, y, rotation, index: sections.indexOf(section) };
+  });
+
+  await page.keyboard.down('KeyW');
+  try {
+    await page.waitForFunction(({ x, y, index }) => {
+      const section = window.__race.scene.children.list.filter(o => o.name === 'farm-fence-section')[index] as Phaser.GameObjects.Image;
+      return Math.hypot(section.x - x, section.y - y) > 25;
+    }, fence, WAIT);
+  } finally { await page.keyboard.up('KeyW'); }
+
+  const leave = (player: number) => page.evaluate((i) => {
+    const { players, scene } = window.__race;
+    scene.matter.body.setPosition(players[i].body, { x: 520 + i * 100, y: 520 });
+    scene.matter.body.setVelocity(players[i].body, { x: 0, y: 0 });
+  }, player);
+  await leave(0);
+  await page.waitForTimeout(750);
+  expect(await page.evaluate(({ index, rotation }) => {
+    const section = window.__race.scene.children.list.filter(o => o.name === 'farm-fence-section')[index] as Phaser.GameObjects.Image;
+    return section.rotation !== rotation;
+  }, fence)).toBe(true);
+  await leave(1);
+  await page.waitForFunction(({ x, y, index }) => {
+    const section = window.__race.scene.children.list.filter(o => o.name === 'farm-fence-section')[index] as Phaser.GameObjects.Image;
+    return section.x === x && section.y === y;
+  }, fence, WAIT);
 });

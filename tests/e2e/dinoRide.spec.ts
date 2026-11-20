@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DINO, DINO_RIDE } from '../../src/config/gameConfig';
+import { DINO, DINO_RIDE, VEHICLE_CONDITION } from '../../src/config/gameConfig';
 import type { RaceContext } from '../../src/core/race';
 
 type RideWindow = Window & { __race: RaceContext; __dinoDefeat?: () => void };
@@ -18,17 +18,22 @@ async function startAndTame(page: Page, query: string): Promise<void> {
 test('beaten dino can be boarded, ridden over everything, and returns the player to a car', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await startAndTame(page, '&dinoride=3');
+  await startAndTame(page, '&dinoride=8');
 
-  // park P1 beside the tame dino and double-tap B (keyboard P1)
-  await page.evaluate(() => {
-    const { scene, players, dino } = (window as RideWindow).__race;
-    scene.matter.body.setPosition(players[0].body, { x: dino.x - Math.sin(dino.angle) * 200, y: dino.y + Math.cos(dino.angle) * 200 });
-    scene.matter.body.setVelocity(players[0].body, { x: 0, y: 0 });
-  });
-  await page.waitForTimeout(150);
-  await page.keyboard.press('KeyB', { delay: 60 });
-  await page.waitForTimeout(80);
+  // Put a traffic vehicle closer than the dino, which is beyond the old 150px reach.
+  // One B press must still choose the dino from the expanded range.
+  const distance = DINO_RIDE.boardReach + VEHICLE_CONDITION.transferReach - 35;
+  expect(distance).toBeGreaterThan(150 + VEHICLE_CONDITION.transferReach);
+  await page.waitForFunction(() => (window as RideWindow).__race.npcs.size > 0, undefined, WAIT);
+  await page.evaluate((range) => {
+    const { scene, players, dino, npcs } = (window as RideWindow).__race;
+    const car = players[0], npc = [...npcs][0];
+    const x = dino.x - Math.sin(dino.angle) * range, y = dino.y + Math.cos(dino.angle) * range;
+    scene.matter.body.setPosition(car.body, { x, y });
+    scene.matter.body.setVelocity(car.body, { x: 0, y: 0 });
+    scene.matter.body.setPosition(npc.body, { x: x + 80, y });
+    scene.matter.body.setVelocity(npc.body, { x: 0, y: 0 });
+  }, distance);
   await page.keyboard.press('KeyB', { delay: 60 });
   await page.waitForFunction(() => (window as RideWindow).__race.dino.rider === 0, undefined, WAIT);
 
@@ -46,7 +51,7 @@ test('beaten dino can be boarded, ridden over everything, and returns the player
   expect(riding.mask).toBe(0); // walks over buildings, props and fences
   expect(riding.maxSpeed).toBe(DINO_RIDE.spec.maxSpeed);
   expect(riding.tamed).toBe(false); // nobody else can board now
-  expect(riding.left).toBeGreaterThan(2);
+  expect(riding.left).toBeGreaterThan(5);
   expect(riding.onDino).toBeLessThan(5);
 
   // the HUD countdown shows for the rider
@@ -56,15 +61,26 @@ test('beaten dino can be boarded, ridden over everything, and returns the player
     return !!card?.visible;
   }, undefined, WAIT);
 
-  // drive: the dino follows the player's (invisible) car
+  // Repeated transfer and reset presses cannot cut the ride short.
+  await page.keyboard.press('KeyB');
+  await page.keyboard.press('KeyB');
+  await page.keyboard.press('KeyR');
+  await page.keyboard.press('KeyR');
+  expect(await page.evaluate(() => {
+    const { players, dino } = (window as RideWindow).__race;
+    return players[0].riding && dino.rider === 0 && (dino.rideLeftSec ?? 0) > 0;
+  })).toBe(true);
+
+  // Wait for movement rather than relying on the old, faster speed and a fixed delay.
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(900);
-  await page.keyboard.up('KeyW');
-  const moved = await page.evaluate((start) => {
-    const { dino } = (window as RideWindow).__race;
-    return Math.hypot(dino.x - start.x, dino.y - start.y);
-  }, riding);
-  expect(moved).toBeGreaterThan(60);
+  try {
+    await page.waitForFunction((start) => {
+      const { dino } = (window as RideWindow).__race;
+      return Math.hypot(dino.x - start.x, dino.y - start.y) > 20;
+    }, riding, WAIT);
+  } finally {
+    await page.keyboard.up('KeyW');
+  }
 
   // ride runs out → back in a car (visible, colliding again), the dino poofs
   await page.waitForFunction(() => {

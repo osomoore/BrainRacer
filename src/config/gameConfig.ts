@@ -14,8 +14,8 @@ export const INDUSTRIAL = {
 };
 
 export const VEHICLE_CONDITION = {
-  minImpact: 155,
-  maxImpact: 700,
+  minImpact: 77.5,
+  maxImpact: 350,
   minDamage: 13,
   maxDamage: 39,
   // Cars take 2x the hits to wreck (was 26 / 59 / 100); smoke and fire stages scale with it.
@@ -155,8 +155,8 @@ export const CHALLENGE = {
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
 export const CAR_SPECS: Record<CarKind, VehicleSpec> = {
-  dino: { length: 72, width: 40, mass: 14, maxSpeed: 620, reverseSpeed: 200, accel: 360, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
-  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 570, reverseSpeed: 220, accel: 440, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
+  dino: { length: 72, width: 40, mass: 14, maxSpeed: 310, reverseSpeed: 100, accel: 180, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
+  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 285, reverseSpeed: 110, accel: 220, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
 };
 /** Tunables for the top-down tire model and collision feedback (package F). */
 export const VEHICLE_MODEL = {
@@ -172,10 +172,10 @@ export const VEHICLE_MODEL = {
   /** Wall un-stick: holding throttle, nearly stationary, touching a static body. */
   unstick: {
     minThrottle: 0.3,
-    speed: 40,          // px/s below which we count as "no progress"
+    speed: 20,          // px/s below which we count as "no progress"
     sec: 0.5,
     cooldownSec: 0.6,
-    pushSpeed: 150,     // px/s gentle push away from the wall
+    pushSpeed: 75,     // px/s gentle push away from the wall
     turnRate: 4,        // rad/s the car is rotated toward the wall tangent
     awayTilt: 0.35,     // rad: aim slightly away from the wall rather than along it
     maxAssistSec: 0.6,
@@ -190,21 +190,21 @@ export const VEHICLE_MODEL = {
   /** Reverse acceleration as a fraction of accel. */
   reverseAccelFrac: 0.8,
   /** |forward speed| (px/s) below which the brake starts reversing. */
-  reverseThreshold: 25,
+  reverseThreshold: 12.5,
   /** Matter engine iterations recommended for ~1000 px/s turbo speeds. */
   positionIterations: 10,
   velocityIterations: 8,
   restitution: 0.3,
   /** After a hard hit (velocity jump above this, px/s) the car recoils: weaker throttle, lower grip. */
-  recoilTriggerSpeed: 150,
+  recoilTriggerSpeed: 75,
   recoilSec: 0.35,
   recoilThrottle: 0.5,
   recoilGrip: 0.06,
   friction: 0.02,
   chamfer: 8,
   /** Skid marks. */
-  skidLateralSpeed: 150,   // px/s sideways slip to start marking
-  skidBrakeSpeed: 260,     // px/s forward speed above which hard braking marks
+  skidLateralSpeed: 75,   // px/s sideways slip to start marking
+  skidBrakeSpeed: 130,     // px/s forward speed above which hard braking marks
   skidBrakeAmount: 0.7,
   skidFadeSec: 4,
   skidMax: 400,
@@ -215,8 +215,8 @@ export const VEHICLE_MODEL = {
 
 /** Collision feedback (package F). */
 export const COLLISION = {
-  minImpact: 60,          // px/s along the normal to emit vehicle:crash
-  bigImpact: 350,         // px/s: crashBig + camera shake
+  minImpact: 30,          // px/s along the normal to emit vehicle:crash
+  bigImpact: 175,         // px/s: crashBig + camera shake
   pairThrottleMs: 250,
   shakeMin: 0.004,
   shakeMax: 0.014,
@@ -225,15 +225,15 @@ export const COLLISION = {
 
 export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 5, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
 export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 255, reverseSpeed: 100, accel: 205, brake: 650, turnRate: 1.6, grip: 0.97, drag: 0.8 };
-export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 680, reverseSpeed: 240, accel: 600, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
+export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 340, reverseSpeed: 120, accel: 300, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
 
 export const BOARDING_DRIVE = {
-  sedan: { mass: 11, maxSpeed: 595, reverseSpeed: 210, accel: 400, brake: 1100, turnRate: 2.9, grip: 0.86, drag: 0.65 },
-  police: { maxSpeed: 720 },
-  truck: { mass: 40, maxSpeed: 410, reverseSpeed: 140, accel: 310, brake: 900, turnRate: 2.05 },
-  freight: { mass: 56, maxSpeed: 375, reverseSpeed: 125, accel: 280, brake: 850, turnRate: 1.85 },
+  sedan: { mass: 11, maxSpeed: 297.5, reverseSpeed: 105, accel: 200, brake: 1100, turnRate: 2.9, grip: 0.86, drag: 0.65 },
+  police: { maxSpeed: 360 },
+  truck: { mass: 40, maxSpeed: 205, reverseSpeed: 70, accel: 155, brake: 900, turnRate: 2.05 },
+  freight: { mass: 56, maxSpeed: 187.5, reverseSpeed: 62.5, accel: 140, brake: 850, turnRate: 1.85 },
   heavyMass: 40,
-  minimumShoveSpeed: 85,
+  minimumShoveSpeed: 42.5,
   trafficDamageScale: 0.32,
   trafficShoveBoost: 1.65,
 };
@@ -251,8 +251,8 @@ export const REWARDS = {
   turboMaxSec: 8,           // cap when correct answers stack
   flavorWeights: { rainbow: 3, shockwave: 3, ghost: 2, magnet: 2 },
   fxMaxParticles: 520,
-  crashSparkMin: 250,
-  crashSmokeMin: 500,
+  crashSparkMin: 125,
+  crashSmokeMin: 250,
   shockwaveSec: 0.4,
   // --- playtest 2: wrong/timeout answers slow the car a little ---
   missSlowMult: 0.7,
@@ -264,7 +264,7 @@ export const REWARDS = {
   // --- boost punch-through ---
   turboMassMult: 5,          // player body mass multiplier while turbo is on
   punchImpulse: 0.9,         // px/s thrown at the hit object per px/s of player speed
-  punchMax: 900,
+  punchMax: 450,
   punchSpin: 6,
   punchKeepFrac: 0.9,        // restore the pre-hit speed if it dropped below this fraction
   punchRadius: 150,
@@ -290,8 +290,8 @@ export const WORLD = {
   rampDirCos: 0.5,           // min |cos(heading - ramp angle)| to launch
   bigAirSec: 1.0,           
   spinSpeedFrac: 0.85,       // speed frac above which the car does a 360 spin
-  boostLandSearchPx: 700,    // how far ahead a boost jump looks for drivable ground when it lands on a building
-  boostJumpMinSpeed: 420,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
+  boostLandSearchPx: 350,    // how far ahead a boost jump looks for drivable ground when it lands on a building
+  boostJumpMinSpeed: 210,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
   boostJumpPeakScale: 0.55,  // bigger arc for the correct-answer boost jump
   jumpPeakScale: 0.3,        // extra view scale at the peak of the arc
   npcHopScale: 0.12,
@@ -388,7 +388,7 @@ export const POLICE = {
   loseDistance: 1400,       // px — chasers give up beyond this
   // --- package K additions ---
   heatMax: 100,
-  heatImpactRef: 600,         // impact (px/s) at which heat gain is +50%
+  heatImpactRef: 300,         // impact (px/s) at which heat gain is +50%
   loseHoldSec: 1.5,
   turboEscapeDistance: 900,
   repathSec: 0.5,
@@ -490,16 +490,16 @@ export const DINO = {
   maxHp: 100,                // legacy (variable damage); the dino now counts hits
   hitsToDefeat: 3,           // rams that count as a hit (>= ramMinSpeed, off cooldown) to beat the dino
   teamHits: 2,               // a TEAM hit (both players within teamWindowSec) counts as this many hits
-  ramMinSpeed: 200,          // px/s closing speed to hurt
-  ramSpeedMax: 700,
+  ramMinSpeed: 100,          // px/s closing speed to hurt
+  ramSpeedMax: 350,
   ramDamageMin: 12,
   ramDamageMax: 30,
   turboMult: 1.5,
   teamMult: 2,
   teamWindowSec: 1.5,
   ramCooldownSec: 0.6,
-  ramBounceBase: 80,         // px/s added on top of 1.3x closing speed
-  ramBounceMax: 760,
+  ramBounceBase: 40,         // px/s added on top of 1.3x closing speed
+  ramBounceMax: 380,
   ramSpin: 2,
   shoveSpeed: 320,           // px/s^2 gentle push of slow cars
   flinchStagger: 6,
@@ -517,12 +517,12 @@ export const DINO_RIDE = {
   tameSec: 8,                  // dizzy + boardable window after the last hit; then it poofs if nobody boards
   durationSec: 20,             // ride length (race time; question breaks don't count). URL &dinoride=N overrides
   dismountSec: 1.4,            // happy roar before the poof after the rider hops off
-  boardReach: 150,             // px from the dino centre (minus this) that still counts as "nearby" (see VEHICLE_CONDITION.transferReach)
+  boardReach: 300,             // px from the dino centre (minus this) that still counts as "nearby" (see VEHICLE_CONDITION.transferReach)
   markerLength: 380,           // boarding highlight box around the dino
   markerWidth: 230,
   returnMaxDist: 1400,         // own car farther than this from the dino -> respawn the starter car on a clear road nearby
   // driving: slow (~60% of a starter car), heavy, turns gently. length/width = invisible body size
-  spec: { length: 240, width: 140, mass: 80, maxSpeed: 360, reverseSpeed: 130, accel: 230, brake: 700, turnRate: 1.45, grip: 0.95, drag: 0.75 },
+  spec: { length: 240, width: 140, mass: 80, maxSpeed: 180, reverseSpeed: 65, accel: 115, brake: 700, turnRate: 1.45, grip: 0.95, drag: 0.75 },
   stepIntervalSec: 0.42,       // stomp (dust + sfx + small shake) cadence while moving
   stepMinSpeed: 40,            // px/s: below this the dino stands still (no stomps)
   stepShake: 0.004,            // rider camera shake per stomp
@@ -539,7 +539,7 @@ export const DINO_LASER = {
   rangeMax: 1100,              // only fires when a player is this close
   chargeSec: 1.1,              // telegraph: eyes glow and a faint aim line shows the start of the sweep
   fireSec: 2.2,                // beams sweep this long
-  arc: 1.5,                    // rad swept (~86 deg); tip speed = arc/fireSec*length ~ 610 px/s
+  arc: 0.68,                   // rad swept; tip speed ~278 px/s, just below the slower starter car
   length: 900,                 // beam reach from the eyes
   hitHalfWidth: 20,            // beam half width for hits (plus target radius)
   drawWidth: 46,               // drawn beam thickness
@@ -583,7 +583,7 @@ export const CAMERA = {
   lookSmoothing: 3,          // 1/s exponential smoothing rate of the look-ahead offset
   zoomSmoothing: 2.5,        // 1/s smoothing rate of the speed/turbo zoom-out
   speedZoomOut: 0.06,        // extra zoom-out at speedZoomRef (scaled linearly below it)
-  speedZoomRef: 900,         // px/s at which speedZoomOut is fully applied
+  speedZoomRef: 450,         // px/s at which speedZoomOut is fully applied
   // R1: facing-up (car-relative rotating) view
   facingUp: true,            // false = old north-up split/merge camera
   facingSplitZoom: 1.15,     // zoom of each half-view in facing-up split (about the same as single)
@@ -596,15 +596,15 @@ export const CAMERA = {
 
 // ───────────────────────── guide buddies (package U1) ─────────────────────────
 export const GUIDE = {
-  holdDist: 170,             // px fallback hover distance when the view rect is unknown; also the minimum
+  holdDist: 85,             // px fallback hover distance when the view rect is unknown; also the minimum
   edgeFrac: 0.8,             // hover at this fraction of the car->view-edge distance (screen space) along the lead direction
   edgeMargin: 80,            // screen px kept free between the buddy and the (inset) view edge
   topInset: 150,             // screen px at the top treated as off-limits (scoreboard)
   seamInset: 200,            // split screen: px at the centre seam treated as off-limits (scoreboard overlap)
-  holdMax: 700,              // world px cap on the hover distance
+  holdMax: 350,              // world px cap on the hover distance
   spring: 42,                // spring stiffness toward the hover spot (1/s^2)
   damping: 11,               // damping on velocity relative to the car (1/s)
-  maxSpeed: 1500,            // px/s; above car turbo (~990) so it never falls behind
+  maxSpeed: 1500,            // px/s; catches up quickly after a goal or vehicle change so it never falls behind
   bobAmp: 9,                 // px gentle hover bob
   bobHz: 1.4,
   nearGoal: 450,             // px: within this the buddy flies to the goal and circles it
@@ -676,7 +676,7 @@ export const FREIGHT = {
   soundVolume: 0.72,
   releaseSpeed: 380,
   // --- smash (turbo or a hard hit breaks the train apart) ---
-  smashImpactSpeed: 760,   // px/s along contact normal without turbo (train itself moves at `speed`)
+  smashImpactSpeed: 580,   // px/s along contact normal without turbo (train itself moves at `speed`)
   smashCooldownSec: 0.4,   // per-player, avoids double triggers
   reformSec: 9,            // smashed cars rejoin their slot after this (once no vehicle is in the way)
   debrisSec: 2.4,          // tumbling wagon lifetime before it poofs away
@@ -844,3 +844,5 @@ export const ANIMALS = {
   },
   sfx: { cow: 'moo', sheep: 'baa', pig: 'oink', horse: 'neigh', chicken: 'cluck', duck: 'quack' },
 } as const;
+
+export const FARM_FENCE = { segmentLength: 128, hitRadius: 48, scatterDistance: 110, scatterSec: 0.5, viewMargin: 160 };

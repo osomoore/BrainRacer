@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import { TEX } from '../../src/core/assetKeys';
-import { BOARDING_DRIVE, CAR_SPECS } from '../../src/config/gameConfig';
+import { BOARDING_DRIVE, CAR_SPECS, VEHICLE_CONDITION } from '../../src/config/gameConfig';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 const WAIT = { timeout: 20_000 };
@@ -11,12 +11,12 @@ async function waitForRace(page: Page) {
 }
 
 async function damageCar(page: Page) {
-  const now = await page.evaluate(() => {
+  const now = await page.evaluate((impact) => {
     const race = window.__race;
-    race.bus.emit('vehicle:damage', { player: 0, impact: 700 });
+    race.bus.emit('vehicle:damage', { player: 0, impact });
     return race.elapsedSec;
-  });
-  await page.waitForFunction((time) => window.__race.elapsedSec >= time + 0.3, now, WAIT);
+  }, VEHICLE_CONDITION.maxImpact);
+  await page.waitForFunction((time) => window.__race.elapsedSec >= time, now + VEHICLE_CONDITION.damageCooldownSec + 0.05, WAIT);
 }
 
 test('a battered car smokes, catches fire, breaks down, and can be replaced using B', async ({ page }) => {
@@ -25,16 +25,20 @@ test('a battered car smokes, catches fire, breaks down, and can be replaced usin
   await waitForRace(page);
   expect(await page.evaluate(() => window.__race.settings.players[0].device)).toEqual({ type: 'gamepad', index: 0 });
   const playerTexture = await page.evaluate(() => window.__race.players[0].chassis.texture.key);
-  await damageCar(page);
   const visibleEffect = (key: string) => page.evaluate((texture) =>
     (window.__race.scene.children.list as Phaser.GameObjects.Image[])
       .some((object) => object.visible && object.texture?.key === texture), key);
-  expect(await visibleEffect(TEX.fxSmoke)).toBe(true);
+  let hits = 0;
+  const damageUntil = async (threshold: number) => {
+    for (; hits * VEHICLE_CONDITION.maxDamage < threshold; hits++) await damageCar(page);
+  };
+  await damageUntil(VEHICLE_CONDITION.smokeDamage);
+  await expect.poll(() => visibleEffect(TEX.fxSmoke)).toBe(true);
   expect(await visibleEffect(TEX.fxFlame)).toBe(false);
 
-  await damageCar(page);
-  expect(await visibleEffect(TEX.fxFlame)).toBe(true);
-  await damageCar(page);
+  await damageUntil(VEHICLE_CONDITION.fireDamage);
+  await expect.poll(() => visibleEffect(TEX.fxFlame)).toBe(true);
+  await damageUntil(VEHICLE_CONDITION.wreckDamage);
   expect(await page.evaluate(() => window.__race.players[0].disabled)).toBe(true);
   await setPad(page, 0, { buttons: { 7: 1 } });
   await page.waitForTimeout(350);
@@ -89,7 +93,8 @@ test('a battered car smokes, catches fire, breaks down, and can be replaced usin
     if (kind === 'police') expect(after.spec.maxSpeed).toBeGreaterThan(CAR_SPECS.dino.maxSpeed);
     else {
       expect(after.spec.mass).toBeGreaterThanOrEqual(BOARDING_DRIVE.heavyMass);
-      expect(after.spec.maxSpeed).toBeGreaterThan(350);
+      const truckSpec = expected.length > 130 ? BOARDING_DRIVE.freight : BOARDING_DRIVE.truck;
+      expect(after.spec.maxSpeed).toBe(truckSpec.maxSpeed);
     }
   }
   expect(await page.evaluate(() => window.__race.players[0].chassis.texture.key)).not.toBe(playerTexture);

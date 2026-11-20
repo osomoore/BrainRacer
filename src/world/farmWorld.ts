@@ -8,7 +8,7 @@
 import type Phaser from 'phaser';
 import { FARM_TILE, farmTileSource } from '../art/farm';
 import { hash, makeCanvas, type Ctx } from '../art/draw';
-import { DEPTH, FARM_LOOK } from '../config/gameConfig';
+import { DEPTH, FARM_FENCE, FARM_LOOK } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { BodyOwner } from '../core/race';
 import { FARM_LANE_BASE, centerSides } from './farmGround';
@@ -487,17 +487,33 @@ function fenceKey(scene: Phaser.Scene, len: number): string {
   return key;
 }
 
-function addFences(scene: Phaser.Scene, farm: FarmLayout, objs: Objs, addRect: AddRect): void {
-  const owner: BodyOwner = { kind: 'fence' };
+export interface FarmFenceSection {
+  x: number; y: number; angle: number; length: number;
+  image: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image;
+  scatter?: { angle: number; elapsed: number };
+}
+const fenceSections = new WeakMap<Phaser.Scene, FarmFenceSection[]>();
+export function getFarmFenceSections(scene: Phaser.Scene): FarmFenceSection[] { return fenceSections.get(scene) ?? []; }
+
+function addFences(scene: Phaser.Scene, farm: FarmLayout, objs: Objs): void {
+  const sections: FarmFenceSection[] = [];
+  fenceSections.set(scene, sections);
   const posts = new Set<string>();
   for (const f of farm.fences) {
     const len = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y);
     if (len < 1) continue;
     const ang = Math.atan2(f.b.y - f.a.y, f.b.x - f.a.x);
-    const mx = (f.a.x + f.b.x) / 2, my = (f.a.y + f.b.y) / 2;
-    castShadow(scene, farm, objs, mx, my, { w: len, h: 8, rotation: ang, blur: 5, fade: 0.2 }, H.fence);
-    objs.push(scene.add.image(mx, my, fenceKey(scene, len)).setRotation(ang).setDepth(DEPTH.prop).setTint(FARM_LOOK.decorTint));
-    addRect(mx, my, len, 14, owner, ang);
+    const count = Math.ceil(len / FARM_FENCE.segmentLength), sectionLen = len / count;
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count;
+      const x = f.a.x + (f.b.x - f.a.x) * t, y = f.a.y + (f.b.y - f.a.y) * t;
+      castShadow(scene, farm, objs, x, y, { w: sectionLen, h: 8, rotation: ang, blur: 5, fade: 0.2 }, H.fence);
+      const shadow = objs[objs.length - 1] as Phaser.GameObjects.Image;
+      const image = scene.add.image(x, y, fenceKey(scene, sectionLen)).setName('farm-fence-section')
+        .setRotation(ang).setDepth(DEPTH.prop).setTint(FARM_LOOK.decorTint);
+      objs.push(image);
+      sections.push({ x, y, angle: ang, length: sectionLen, image, shadow });
+    }
     for (const p of [f.a, f.b]) {
       const k = `${Math.round(p.x)},${Math.round(p.y)}`;
       if (posts.has(k)) continue;
@@ -506,8 +522,6 @@ function addFences(scene: Phaser.Scene, farm: FarmLayout, objs: Objs, addRect: A
     }
   }
 }
-
-// ───────────────────────────── entry ─────────────────────────────
 
 export interface FarmWorldHandle { destroy(): void }
 
@@ -520,7 +534,7 @@ export function addFarmWorld(
 ): FarmWorldHandle {
   const farm = world.farm!;
   for (const d of farm.decorations) addDecoration(scene, world, d, objs, blades, addRect, addCircle);
-  addFences(scene, farm, objs, addRect);
+  addFences(scene, farm, objs);
   cornEdgeShadows(scene, world, farm, objs);
   for (const p of world.props) {
     if (p.kind === 'tree') treeShadow(scene, farm, objs, p.x, p.y, 70, H.treeTrunk, H.treeTop);
@@ -535,6 +549,6 @@ export function addFarmWorld(
     }
   };
   scene.events.on('update', spin);
-  return { destroy: () => scene.events.off('update', spin) };
+  return { destroy: () => { scene.events.off('update', spin); fenceSections.delete(scene); } };
 }
 
