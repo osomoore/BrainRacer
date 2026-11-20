@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "bb363a40ad9af6e7",
+ "sourceHash": "eac60842b93b4beb",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -352,13 +352,13 @@
   "underground": {
    "file": "music/underground.ogg",
    "sampleRate": 32000,
-   "length": 264828,
+   "length": 465455,
    "channels": 2,
    "copies": 1,
    "loop": true,
-   "bpm": 116,
-   "lengthBeats": 16,
-   "loopSeconds": 8.275862068965518
+   "bpm": 132,
+   "lengthBeats": 32,
+   "loopSeconds": 14.545454545454545
   },
   "results": {
    "file": "music/results.ogg",

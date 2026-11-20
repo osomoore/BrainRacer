@@ -3,7 +3,8 @@ import { generateTextures } from '../art';
 import { services } from '../core/services';
 import { createInput } from '../input';
 import { createAudio } from '../audio';
-import { isRaceMap, loadSettings } from '../core/settings';
+import { loadUnlocks } from '../core/progression';
+import { isRaceMap, loadSettings, savedSecondPlayer } from '../core/settings';
 import type { CarKind, InputDevice, PlayerId, Settings } from '../core/types';
 import { SCENES } from '../data/scenes';
 import { REG, SCENE } from './keys';
@@ -42,9 +43,10 @@ export class BootScene extends Phaser.Scene {
     services.audio = createAudio();
     generateTextures(this);
     const startup = loadSettings();
+    loadUnlocks();
     services.audio.setVolumes(startup.musicVolume, startup.sfxVolume);
     this.placeholderForMissingScenes();
-    this.registry.set(REG.settings, loadSettings());
+    this.registry.set(REG.settings, startup);
     const params = new URLSearchParams(location.search);
     const dev = params.get('dev');
     const quick = Number(params.get('race'));
@@ -63,11 +65,15 @@ export class BootScene extends Phaser.Scene {
     const settings: Settings = {
       ...base,
       map: isRaceMap(map) ? map : base.map,
-      players: Array.from({ length: count }, (_, i) => ({
-        device: pads[i] ?? kb[i],
-        difficulty: base.players[i]?.difficulty ?? 'normal',
-        car: cars[i],
-      })),
+      players: Array.from({ length: count }, (_, i) => {
+        const saved = base.players[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
+        return {
+          ...saved,
+          device: pads[i] ?? kb[i],
+          difficulty: saved?.difficulty ?? 'normal',
+          car: saved?.car ?? cars[i],
+        };
+      }),
     };
     this.registry.set(REG.settings, settings);
     services.input.reset();

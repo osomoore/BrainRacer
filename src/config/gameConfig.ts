@@ -3,7 +3,7 @@
  * and may ADD new keys only inside the section for their own package (mark with the package id),
  * never rename/remove existing keys.
  */
-import type { CarKind, ChallengeKind, Difficulty, Settings, VehicleSpec } from '../core/types';
+import type { ChallengeKind, Difficulty, Settings, StarterCar, VehicleSpec } from '../core/types';
 
 export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
@@ -82,6 +82,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sfxVolume: 0.8,
 };
 
+export const DEVELOPER_ROUND_SEC = 60;
+
 // ───────────────────────── challenges (package B) ─────────────────────────
 export interface DifficultyProfile {
   periodMultiplier: number;           // period = challengeIntervalSec * this
@@ -154,7 +156,7 @@ export const CHALLENGE = {
 };
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
-export const CAR_SPECS: Record<CarKind, VehicleSpec> = {
+export const CAR_SPECS: Record<StarterCar, VehicleSpec> = {
   dino: { length: 72, width: 40, mass: 14, maxSpeed: 310, reverseSpeed: 100, accel: 180, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
   kart: { length: 60, width: 36, mass: 9,  maxSpeed: 285, reverseSpeed: 110, accel: 220, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
 };
@@ -419,7 +421,12 @@ export const POLICE = {
   offscreenMargin: 80,
   chaserRespawnCooldownSec: 4,
   sirenVolume: 0.22,         // AI cruisers chasing you (gentle)
-  playerSirenVolume: 1.4,    // your own siren while you drive a police cruiser; >= 1 also switches to the brighter, punchier tone
+  playerSirenVolume: 0.7,    // your own siren while you drive a police cruiser
+  monsterSwarmCount: 5,
+  monsterSwarmSpawnMinDist: 360,
+  monsterSwarmSpawnMaxDist: 1050,
+  monsterSwarmExitDist: 900,
+  monsterSwarmExitSec: 8,
   spawnGraceSec: 6,          // freshly spawned (off-screen) cars are exempt from the off-screen despawn
 };
 
@@ -890,6 +897,7 @@ export const UNDERGROUND_TRAFFIC = {
 export const HARBOR = {
   sunsetFadeStartFrac: 0.2,
   fullNightFrac: 0.6,
+  lighthouse: { x: 43, y: 9.5, lanternY: -100, beamLength: 1100, beamWidth: 340, sweepRate: 0.32 },
   bridgeCycleSec: 48,
   bridgeOpenSec: 12,
   bridgeLiftSec: 2,

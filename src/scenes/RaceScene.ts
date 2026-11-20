@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
+import { availableLoadouts, awardMapCompletion, loadUnlocks, selectedLoadout } from '../core/progression';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { MusicTrack, PlayerId, RoundResults, Settings } from '../core/types';
@@ -52,6 +53,9 @@ export class RaceScene extends Phaser.Scene {
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
     Object.assign(settings, currentLaunchOverrides());
+    const developerMode = settings.developerMode === true;
+    const available = availableLoadouts(loadUnlocks(), developerMode);
+    settings.players = settings.players.map((player, i) => ({ ...player, ...selectedLoadout(player, i, developerMode, available) }));
     const roundLengthSec = settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
 
@@ -205,12 +209,14 @@ export class RaceScene extends Phaser.Scene {
     if (this.ended) return;
     this.ended = true;
     this.registry.set(REG.results, results);
+    const settings = this.ctx.settings;
+    const unlocked = awardMapCompletion(settings.developerMode === true, new Rng(results.seed ^ 0x391bf724));
     for (const car of this.players) car.setControlEnabled(false);
     services.audio.music('results', 0.5);
     bus.emit('ui:banner', { text: "TIME'S UP!", color: '#FFD700', durationSec: 3 });
     this.time.delayedCall(4000, () => {
       this.scene.stop(SCENE.hud);
-      this.scene.start(SCENE.results);
+      this.scene.start(SCENE.results, { settings, unlocked });
     });
   }
 

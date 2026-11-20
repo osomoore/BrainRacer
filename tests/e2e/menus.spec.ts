@@ -34,6 +34,7 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
   await tapPad(page, 0, 13); // Car.
+  await tapPad(page, 0, 13); // Guide.
   await tapPad(page, 0, 13); // Questions.
   await tapPad(page, 1, 13); // Select P2's Car row while P1 changes the question type.
   for (const [button, mode] of [[15, 'math'], [15, 'mixed'], [14, 'math'], [14, 'words']] as const) {
@@ -81,6 +82,8 @@ test('keyboard only: join, select Questions Off, and start the race', async ({ p
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
   await page.keyboard.press('KeyS');   // Car
+  await page.waitForTimeout(150);
+  await page.keyboard.press('KeyS');   // Guide
   await page.waitForTimeout(150);
   await page.keyboard.press('KeyS');   // Questions
   await page.waitForTimeout(150);

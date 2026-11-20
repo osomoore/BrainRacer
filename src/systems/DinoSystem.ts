@@ -1,4 +1,5 @@
 import { DINO, DINO_LASER, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
+import { MAP_BOSSES } from '../art/boss';
 import { Dino } from '../entities/Dino';
 import { HayWagon } from '../entities/HayWagon';
 import { STEP_HZ } from '../entities/Vehicle';
@@ -221,7 +222,7 @@ export class DinoSystem implements GameSystem {
     }
     const angle = this.phase + Math.PI / 2;
     this.walk = { x: pos.x, y: pos.y, angle, pauseLeft: 0 };
-    this.dino = new Dino(ctx.scene, pos.x, pos.y, angle, this.rockMonster);
+    this.dino = new Dino(ctx.scene, pos.x, pos.y, angle, ctx.settings.map);
     this.dino.setMult(DINO.dropScale);
     this.mode = 'drop'; this.modeT = 0;
     this.hits = 0;
@@ -504,7 +505,8 @@ export class DinoSystem implements GameSystem {
     d.setLaser(0, false, 0);
     const by = [...this.hitBy].sort() as PlayerId[];
     ctx.bus.emit('dino:defeated', { by, x: this.walk.x, y: this.walk.y });
-    ctx.bus.emit('ui:banner', { text: this.rockMonster ? 'ROCK MONSTER DEFEATED!' : 'DINO DEFEATED!', color: '#7CFC00', durationSec: 3 });
+    const name = MAP_BOSSES[ctx.settings.map].name.toUpperCase();
+    ctx.bus.emit('ui:banner', { text: `${name} DEFEATED!`, color: '#7CFC00', durationSec: 3 });
     services.audio.sfx('goal', { volume: 1 });
     services.audio.sfx('shockwave', { volume: 0.6 });
     ctx.camera.shake(null, 0.012, 500);
@@ -531,7 +533,7 @@ export class DinoSystem implements GameSystem {
     d.setRider(car.chassis.texture.key, parseInt(PLAYER_COLORS[player].slice(1), 16));
     this.walk = { x: car.x, y: car.y, angle: car.angle, pauseLeft: 0 };
     this.stepTimer = 0;
-    d.roar('ROAAAR!', this.rockMonster ? '#78f7ed' : '#ffd34d');
+    d.roar();
     this.playRoar(ctx, 0.9, 1.25);
     services.input.rumble(player, 0.7, 350);
     ctx.camera.shake(player, 0.01, 350);
@@ -565,7 +567,7 @@ export class DinoSystem implements GameSystem {
     const d = this.dino;
     if (d) {
       d.setRider(null);
-      d.roar('ROAAAR!', this.rockMonster ? '#78f7ed' : '#ffd34d');
+      d.roar();
     }
     this.playRoar(ctx, 0.8, 1.35);
     if (player !== null) ctx.bus.emit('dino:rideEnded', { player, x: this.walk.x, y: this.walk.y });

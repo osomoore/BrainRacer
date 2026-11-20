@@ -1,4 +1,4 @@
-﻿import Phaser from 'phaser';
+import Phaser from 'phaser';
 import { addHarborScenery } from './harborScenery';
 import { DEPTH } from '../config/gameConfig';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, type WorldData } from '../core/types';
@@ -7,6 +7,22 @@ import { addHarborSuspension } from './harborBridges';
 import { harborTexture } from './harborTexture';
 
 const rect = (c: CanvasRenderingContext2D, color: string, x: number, y: number, w: number, h: number) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
+
+export function harborLighthouseTexture(scene: Phaser.Scene): string {
+  return harborTexture(scene, 'lighthouse', 260, 300, c => {
+    c.fillStyle = 'rgba(35,44,52,.3)'; c.beginPath(); c.ellipse(145, 240, 100, 45, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#beb7a1'; c.beginPath(); c.ellipse(130, 243, 92, 35, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f7eddb'; c.beginPath(); c.moveTo(77, 230); c.lineTo(101, 91); c.lineTo(159, 91); c.lineTo(183, 230); c.closePath(); c.fill();
+    c.fillStyle = '#c83b35'; c.beginPath(); c.moveTo(91, 150); c.lineTo(169, 150); c.lineTo(175, 183); c.lineTo(85, 183); c.closePath(); c.fill();
+    c.fillStyle = '#c83b35'; c.beginPath(); c.moveTo(80, 211); c.lineTo(180, 211); c.lineTo(183, 230); c.lineTo(77, 230); c.closePath(); c.fill();
+    rect(c, '#723e35', 118, 205, 24, 29);
+    rect(c, '#563d3b', 86, 83, 88, 12); rect(c, '#eee2c9', 94, 72, 72, 12);
+    rect(c, '#594d48', 101, 30, 58, 43); rect(c, '#ffe78e', 108, 37, 44, 29);
+    rect(c, '#faf3df', 127, 36, 6, 31); rect(c, '#faf3df', 107, 48, 46, 5);
+    c.fillStyle = '#b72f2e'; c.beginPath(); c.moveTo(90, 31); c.lineTo(130, 5); c.lineTo(170, 31); c.closePath(); c.fill();
+    c.fillStyle = '#f9dc91'; c.beginPath(); c.arc(130, 5, 5, 0, Math.PI * 2); c.fill();
+  });
+}
 
 /** Static harbor dressing. All features outside roads are decorative and have no road collisions. */
 export function addHarborWorld(scene: Phaser.Scene, world: WorldData, objs: Phaser.GameObjects.GameObject[]): void {
@@ -29,15 +45,6 @@ export function addHarborWorld(scene: Phaser.Scene, world: WorldData, objs: Phas
     rect(c, '#613c33', 0, 10, 330, 7); rect(c, '#613c33', 0, 83, 330, 7);
   });
   add(dock, 25.8, 13); add(dock, 25.8, 30);
-  const lighthouse = harborTexture(scene, 'lighthouse', 190, 190, c => {
-    c.fillStyle = 'rgba(65,44,39,.25)'; c.beginPath(); c.ellipse(105, 115, 75, 62, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#f8e9d3'; c.beginPath(); c.arc(95, 90, 62, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#c8413b'; c.beginPath(); c.arc(95, 90, 46, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#fff3d2'; c.beginPath(); c.arc(95, 90, 31, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#d34538'; c.beginPath(); c.arc(95, 90, 20, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#fff2a0'; c.beginPath(); c.arc(95, 90, 9, 0, Math.PI * 2); c.fill();
-  });
-  add(lighthouse, 43, 5, DEPTH.building);
   const stall = harborTexture(scene, 'stall', 140, 100, c => {
     rect(c, '#814f37', 8, 12, 124, 80); rect(c, '#fff3d6', 5, 4, 130, 60);
     for (let x = 5; x < 135; x += 26) rect(c, '#dc624a', x, 4, 13, 60);

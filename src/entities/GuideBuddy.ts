@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
+import { guideArt } from '../art/loadoutKeys';
+import { UNLOCK_GUIDES } from '../config/collectibles';
 import { DEPTH, GUIDE } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { RaceContext } from '../core/race';
-import type { CarKind, PlayerId, Vec2 } from '../core/types';
+import type { GuideKind, PlayerId, Vec2 } from '../core/types';
 import { stepFly, type FlyState } from './guideMath';
 
 const FLAP = [0, 1, 2, 1];
@@ -16,7 +18,7 @@ interface Puff {
 export interface CarMotion { x: number; y: number; vx: number; vy: number; angle: number }
 
 /**
- * One guide buddy: a flying dino (dino car) or a shining star (kart). World-space, drawn above cars and
+ * One guide buddy. World-space, drawn above cars and
  * buildings, visible only in its own player's view. Flight uses guideMath.stepFly; the trail is a fixed pool.
  */
 export class GuideBuddy {
@@ -25,6 +27,7 @@ export class GuideBuddy {
   private readonly body: Phaser.GameObjects.Image;
   private readonly glow: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Image;
+  private readonly trailColors: readonly number[];
   private readonly puffs: Puff[] = [];
   private cursor = 0;
   private placed = false;
@@ -37,17 +40,19 @@ export class GuideBuddy {
   private flashT = 0;
   private happy = false;
 
-  constructor(private readonly ctx: RaceContext, private readonly player: PlayerId, kind: CarKind) {
+  constructor(private readonly ctx: RaceContext, private readonly player: PlayerId, kind: GuideKind) {
     const s = ctx.scene;
     this.isDino = kind === 'dino';
+    const glow = kind === 'dino' ? 0xff5fb0 : kind === 'star' ? 0xffd84a : UNLOCK_GUIDES[kind].glow;
+    this.trailColors = kind === 'dino' ? GUIDE.dinoColors : kind === 'star' ? GUIDE.starColors : [glow, 0xffffff, glow];
     this.shadow = s.add.image(0, 0, TEX.carShadow).setDepth(DEPTH.shadow).setAlpha(GUIDE.shadowAlpha).setVisible(false);
     for (let i = 0; i < GUIDE.trailPool; i++) {
       const img = s.add.image(0, 0, TEX.buddyGlow).setDepth(GUIDE.depthTrail).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
       this.puffs.push({ img, alive: false, t: 0, life: 1, s0: 1, s1: 0, a0: 1, vx: 0, vy: 0, spin: 0, twinkle: false });
     }
     this.glow = s.add.image(0, 0, TEX.buddyGlow).setDepth(GUIDE.depthGlow).setBlendMode(Phaser.BlendModes.ADD)
-      .setTint(this.isDino ? 0xff5fb0 : 0xffd84a).setVisible(false);
-    this.body = s.add.image(0, 0, this.isDino ? TEX.buddyDino[0] : TEX.buddyStar).setDepth(GUIDE.depthBody).setVisible(false);
+      .setTint(glow).setVisible(false);
+    this.body = s.add.image(0, 0, guideArt(kind)).setDepth(GUIDE.depthBody).setVisible(false);
     for (const o of [this.shadow, this.glow, this.body, ...this.puffs.map((p) => p.img)]) ctx.camera.showOnlyTo(o, player);
   }
 
@@ -113,7 +118,7 @@ export class GuideBuddy {
   }
 
   private emitTrail(x: number, y: number) {
-    const cols = this.isDino ? GUIDE.dinoColors : GUIDE.starColors;
+    const cols = this.trailColors;
     this.colorI = (this.colorI + 1) % cols.length;
     if (this.isDino) {
       // ribbon of pink / orange / yellow puffs from the tail

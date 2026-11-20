@@ -1,3 +1,5 @@
+import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, type UnlockGuide, type UnlockVehicle } from '../config/collectibles';
+
 /**
  * Texture keys produced by src/art (package E) at boot and consumed everywhere else.
  * Orchestrator-owned contract. All vehicle/creature textures face +x (east).
@@ -8,6 +10,7 @@ export const TEX = {
   carDino: 'car_dino',          // 72 x 40, green dino roadster
   carKart: 'car_kart',          // 60 x 36, red kart, driver cap with white circle + gold star
   carShadow: 'car_shadow',      // soft ellipse, 80 x 48
+  unlockVehicles: Object.fromEntries(UNLOCK_VEHICLE_IDS.map(kind => [kind, `car_${kind}`])) as Record<UnlockVehicle, string>,
   brakeLights: 'traffic_brake_lights',
 
   // traffic / police
@@ -33,6 +36,18 @@ export const TEX = {
   rockMonster: {
     body: 'rock_monster_body', head: 'rock_monster_head', arm: 'rock_monster_arm', foot: 'rock_monster_foot',
     beam: 'rock_monster_beam', glow: 'rock_monster_glow',
+  },
+  octopus: {
+    body: 'octopus_body', head: 'octopus_head', arm: 'octopus_arm', foot: 'octopus_foot',
+    beam: 'octopus_beam', glow: 'octopus_glow',
+  },
+  factoryRobot: {
+    body: 'factory_robot_body', head: 'factory_robot_head', arm: 'factory_robot_arm', foot: 'factory_robot_foot',
+    beam: 'factory_robot_beam', glow: 'factory_robot_glow',
+  },
+  giantChicken: {
+    body: 'giant_chicken_body', head: 'giant_chicken_head', arm: 'giant_chicken_wing', foot: 'giant_chicken_foot',
+    beam: 'giant_chicken_beam', glow: 'giant_chicken_glow',
   },
 
   // world tiles: 128x128 each. Road variants chosen by roadMask (ROAD_N|E|S|W) → `road_${mask}`
@@ -154,6 +169,7 @@ export const TEX = {
   // guide buddies (flying dino for the dino car, shining star for the kart)
   buddyDino: ['buddy_dino_0', 'buddy_dino_1', 'buddy_dino_2'] as const, // 64 x 56 wing-flap frames, face +x
   buddyStar: 'buddy_star',      // 56 x 56
+  unlockGuides: Object.fromEntries(UNLOCK_GUIDE_IDS.map(kind => [kind, `buddy_${kind}`])) as Record<UnlockGuide, string>,
   buddyGlow: 'buddy_glow',      // 128 x 128 soft additive glow (white, tint as needed)
 
   // ui

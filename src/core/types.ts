@@ -8,6 +8,8 @@
  *  - All sprites/textures are drawn FACING +x at angle 0.
  */
 
+import type { UnlockGuide, UnlockVehicle } from '../config/collectibles';
+
 // ───────────────────────── basics ─────────────────────────
 export interface Vec2 { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -15,7 +17,9 @@ export interface Rect { x: number; y: number; w: number; h: number }
 export type PlayerId = 0 | 1;
 /** easyPlus sits between easy and normal (sums into the teens). */
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
-export type CarKind = 'dino' | 'kart';
+export type StarterCar = 'dino' | 'kart';
+export type CarKind = StarterCar | UnlockVehicle;
+export type GuideKind = 'dino' | 'star' | UnlockGuide;
 export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor' | 'underground';
 export type ControllerFamily = 'xbox' | 'nintendo' | 'other';
 /**
@@ -104,6 +108,9 @@ export interface PlayerSettings {
   device: InputDevice;
   difficulty: Difficulty;
   car: CarKind;
+  guide?: GuideKind;
+  devCar?: CarKind;
+  devGuide?: GuideKind;
 }
 
 /** Which challenge kinds appear: words = picToWord + wordToPic (default), math = addition only, mixed = all. */
@@ -123,6 +130,7 @@ export interface Settings {
   seed: number;                   // 0 = random each race
   musicVolume: number;            // 0..1
   sfxVolume: number;              // 0..1
+  developerMode?: boolean;
 }
 
 export interface PlayerStats {

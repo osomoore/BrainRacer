@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MAP_BOSSES } from '../art/boss';
 import { CHALLENGE, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import type { GameEvents } from '../core/events';
 import type { RaceContext } from '../core/race';
@@ -14,7 +15,6 @@ import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
-import { TEX } from '../core/assetKeys';
 import { rideSecondsShown } from '../entities/dinoRide';
 
 const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 20, fly: 30 };
@@ -141,8 +141,10 @@ export class HudScene extends Phaser.Scene {
       this.kindBanner('goal', `GOAL! +${pts}`, '#7dff8a');
     });
     this.on('round:half', () => this.kindBanner('half', 'Halfway!', '#ffd43b'));
-    this.on('dino:spawned', () => this.kindBanner('dino',
-      this.ctx.settings.map === 'underground' ? '⚠ ROCK MONSTER ALERT ⚠' : '⚠ DINO ALERT ⚠'));
+    this.on('dino:spawned', () => {
+      const name = MAP_BOSSES[this.ctx.settings.map].name.toUpperCase();
+      this.kindBanner('dino', `⚠ ${name} ALERT ⚠`);
+    });
     this.on('ui:banner', (e) => {
       const kind = KIND_RE.find(([, re]) => re.test(e.text))?.[0];
       if (kind) this.kindBanner(kind, e.text, e.color, e.durationSec);
@@ -185,7 +187,7 @@ export class HudScene extends Phaser.Scene {
     const { w, h, barW, barH } = RIDE;
     const g = rrectImage(this, { r: 34, fill: HUD.colors.navy, fillA: 0.92, stroke: hexNum(color), strokeW: 8 }, 0, 0, w, h);
     const parts: Phaser.GameObjects.GameObject[] = [g];
-    const head = this.ctx.settings.map === 'underground' ? TEX.rockMonster.head : TEX.dinoHead;
+    const head = MAP_BOSSES[this.ctx.settings.map].head;
     if (this.textures.exists(head)) {
       const icon = this.add.image(-w / 2 + 72, 0, head);
       icon.setScale(119 / icon.width);

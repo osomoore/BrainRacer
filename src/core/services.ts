@@ -34,6 +34,12 @@ export interface IEngineSound {
   stop(): void;
 }
 
+export interface AudioLoopOptions {
+  pan?: number;
+  volume?: number;
+  sirenTone?: 'bright' | 'soft';
+}
+
 export interface IAudio {
   /** Must be called from a user gesture (key/button/click) to satisfy autoplay policy. */
   unlock(): Promise<void>;
@@ -41,7 +47,7 @@ export interface IAudio {
   /** pan -1..1 (left/right screen half), volume 0..1 multiplier. */
   sfx(name: SfxName, opts?: { pan?: number; volume?: number; rate?: number }): void;
   /** Start/stop a looping one-shot (e.g. siren). Returns a stop function. */
-  loop(name: SfxName, opts?: { pan?: number; volume?: number }): () => void;
+  loop(name: SfxName, opts?: AudioLoopOptions): () => void;
   engine(player: PlayerId): IEngineSound;
   music(track: MusicTrack | null, crossfadeSec?: number): void;
   setVolumes(music: number, sfx: number): void;

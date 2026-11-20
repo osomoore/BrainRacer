@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
+import { collectibleName, type Collectible } from '../config/collectibles';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, GOALS, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
-import { randomSeed } from '../core/rng';
+import { nextMap } from '../core/progression';
+import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerStats, RoundResults, Settings } from '../core/types';
 import { starRating } from '../systems/roundStats';
@@ -15,7 +17,9 @@ const CX = GAME_WIDTH / 2;
 const CARD_W = 600, CARD_H = 330, CARD_Y = 600;
 const INPUT_GRACE_MS = 1200;
 
-/** Celebratory end-of-round screen: counting team score, stars, per-player cards, Play Again / Menu. */
+interface ResultsData { settings?: Settings; unlocked?: Collectible }
+
+/** Celebratory end-of-round screen with the next map preselected. */
 export class ResultsScene extends Phaser.Scene {
   private buttons: MenuButton[] = [];
   private sel = 0;
@@ -25,11 +29,11 @@ export class ResultsScene extends Phaser.Scene {
 
   constructor() { super(SCENE.results); }
 
-  create() {
+  create(data: ResultsData = {}) {
     this.buttons = []; this.sel = 0; this.leaving = false;
     this.readyAt = this.time.now + INPUT_GRACE_MS;
     const results: RoundResults = this.registry.get(REG.results) ?? { teamPoints: 0, players: [], goalsCompleted: 0, seed: 0 };
-    this.settings = this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
+    this.settings = data.settings ?? this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
     const roundSec = this.settings.roundLengthSec;
     const stars = starRating(results.teamPoints, roundSec, GOALS.starThresholds);
 
@@ -48,6 +52,7 @@ export class ResultsScene extends Phaser.Scene {
 
     this.buildCards(results);
     this.buildButtons();
+    if (data.unlocked) bigText(this, CX, 520, `Unlocked: ${collectibleName(data.unlocked)}`, 43, MENU.yellow, { font: FONT_HEAD });
 
     // Count up with ticks, then stars pop in.
     const counter = { v: 0 };
@@ -69,7 +74,7 @@ export class ResultsScene extends Phaser.Scene {
           targets: s, scale: 1, duration: 450, delay: i * 260, ease: 'Back.Out',
           onStart: () => services.audio.sfx(i < stars ? 'goalArrive' : 'pop'),
         }));
-        this.tweens.add({ targets: msg, alpha: 1, duration: 500, delay: 800 });
+        if (!data.unlocked) this.tweens.add({ targets: msg, alpha: 1, duration: 500, delay: 800 });
         if (stars >= 2) this.time.delayedCall(700, () => services.audio.sfx('goal'));
       },
     });
@@ -143,8 +148,12 @@ export class ResultsScene extends Phaser.Scene {
   }
 
   private buildButtons() {
-    const defs = [{ label: 'PLAY AGAIN', x: CX - 300, color: 0x2ecc40 }, { label: 'MENU', x: CX + 300, color: 0x4dabf7 }];
-    this.buttons = defs.map((d) => new MenuButton(this, d.x, 1000, 460, 100, d.label, d.color, 52));
+    const defs = [
+      { label: 'NEXT MAP', x: CX - 500, color: 0x2ecc40 },
+      { label: 'SETUP', x: CX, color: 0x4dabf7 },
+      { label: 'TITLE', x: CX + 500, color: 0x4dabf7 },
+    ];
+    this.buttons = defs.map((d) => new MenuButton(this, d.x, 1000, 430, 100, d.label, d.color, 52));
     this.refreshButtons();
   }
 
@@ -161,8 +170,11 @@ export class ResultsScene extends Phaser.Scene {
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (i === 0) {
         const latest = (this.registry.get(REG.settings) as Settings | undefined) ?? this.settings;
-        this.registry.set(REG.settings, { ...latest, seed: randomSeed() });
+        const seed = randomSeed();
+        this.registry.set(REG.settings, { ...latest, map: nextMap(this.settings.map, new Rng(seed)), seed });
         this.scene.start(SCENE.race);
+      } else if (i === 1) {
+        this.scene.start(SCENE.setup);
       } else {
         this.scene.start(SCENE.title);
       }

@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import type { IAudio, IEngineSound } from '../core/services';
+import type { AudioLoopOptions, IAudio, IEngineSound } from '../core/services';
 import type { MusicTrack, PlayerId, SfxName } from '../core/types';
 import { getTuning, onTuningChange } from '../config/deviceTuning';
 import { renderQueue } from './bufferUtils';
@@ -248,7 +248,7 @@ class AudioImpl implements IAudio {
     try { this.sfxEngine?.play(name, opts); } catch { /* never throw */ }
   }
 
-  loop(name: SfxName, opts?: { pan?: number; volume?: number }): () => void {
+  loop(name: SfxName, opts?: AudioLoopOptions): () => void {
     if (!this.unlocked) return NOOP_STOP;
     try { return this.sfxEngine?.loop(name, opts) ?? NOOP_STOP; } catch { return NOOP_STOP; }
   }

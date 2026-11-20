@@ -1,4 +1,5 @@
 import * as Tone from 'tone';
+import type { AudioLoopOptions } from '../core/services';
 import type { SfxName } from '../core/types';
 import type { Mixer } from './mixer';
 import { makeSeamlessLoop, renderQueue, trimSilenceLength } from './bufferUtils';
@@ -642,7 +643,7 @@ export class SfxEngine {
   }
 
   /** Start a continuous sound; returns a stop function (fades out, then disposes). */
-  loop(name: SfxName, opts: { pan?: number; volume?: number } = {}): () => void {
+  loop(name: SfxName, opts: AudioLoopOptions = {}): () => void {
     let stopped = false;
     let stopFn: () => void = () => { stopped = true; };
     try {
@@ -699,9 +700,9 @@ export class SfxEngine {
     };
   }
 
-  private continuous(name: 'siren' | 'skid', opts: { pan?: number; volume?: number }): () => void {
+  private continuous(name: 'siren' | 'skid', opts: AudioLoopOptions): () => void {
+    const loud = opts.sirenTone ? opts.sirenTone === 'bright' : (opts.volume ?? 1) >= 1;
     if (this.prerendered) {
-      const loud = (opts.volume ?? 1) >= 1;
       const buf = this.loopBuffers.get(name === 'skid' ? 'skid' : loud ? 'siren-loud' : 'siren-soft');
       if (buf) {
         if (name === 'skid') return this.continuousBuffered(buf, opts, 0.2, 0.05, 0.12);
@@ -715,8 +716,6 @@ export class SfxEngine {
     let timer = 0;
     if (name === 'siren') {
       // gentle two-tone: sine, rounded by a lowpass, ~0.7 s per tone, slow fade in.
-      // volume >= 1 (player-driven cruiser): brighter triangle tone with an open filter so it cuts through.
-      const loud = (opts.volume ?? 1) >= 1;
       const o = v.add(new Tone.Oscillator({ type: loud ? 'triangle' : 'sine', frequency: 660 }));
       const lp = v.add(new Tone.Filter({ type: 'lowpass', frequency: loud ? 2600 : 900, Q: 0.4 }));
       o.connect(lp);

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { services } from '../core/services';
-import { loadSettings, saveSettings } from '../core/settings';
+import { loadSettings, savedSecondPlayer, saveSettings } from '../core/settings';
 import type { CarKind, InputDevice, PlayerSettings, Settings } from '../core/types';
 import { ConfirmPrompt } from '../ui/menu/FaceButtonBadge';
 import { JoinCard } from '../ui/menu/JoinCard';
@@ -204,9 +204,10 @@ export class TitleScene extends Phaser.Scene {
     const current = loadSettings();
     const saved = current.players;
     const players: PlayerSettings[] = this.joined.map((device, i) => {
-      const prev = saved[i];
+      const prev = saved[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
       const p0car: CarKind = saved[0]?.car ?? 'dino';
       return {
+        ...prev,
         device,
         difficulty: prev?.difficulty ?? saved[0]?.difficulty ?? 'normal',
         car: prev?.car ?? (i === 0 ? 'dino' : p0car === 'dino' ? 'kart' : 'dino'),

@@ -37,6 +37,8 @@ export class PoliceSystem implements GameSystem {
   private index!: NodeIndex;
   private env!: ThinkEnv;
   private cars: PoliceCar[] = [];
+  private monsterSwarm = new Set<PoliceCar>();
+  private swarmRider: PlayerId | null = null;
   private per: PlayerPolice[] = [];
   private spawnT = 0;
   /** Seconds each car has been off every player's view (negative = spawn grace). */
@@ -73,6 +75,7 @@ export class PoliceSystem implements GameSystem {
     this.silenceSirens();
     for (const c of this.cars) c.destroy();
     this.cars = [];
+    this.monsterSwarm.clear();
     this.offSec.clear();
   }
 
@@ -133,6 +136,8 @@ export class PoliceSystem implements GameSystem {
   update(dt: number): void {
     this.cars = this.cars.filter((c) => this.isActive(c));
     for (const k of this.offSec.keys()) if (!this.isActive(k)) this.offSec.delete(k);
+    for (const car of this.monsterSwarm) if (!this.isActive(car)) this.monsterSwarm.delete(car);
+    this.updateMonsterSwarm();
 
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
@@ -153,7 +158,7 @@ export class PoliceSystem implements GameSystem {
   }
 
   private chasersOf(p: PlayerId): PoliceCar[] {
-    return this.cars.filter((c) => c.mode === 'chase' && c.target === p && this.isActive(c));
+    return this.cars.filter((c) => c.mode === 'chase' && c.target === p && this.isActive(c) && !this.monsterSwarm.has(c));
   }
 
   private isActive(car: PoliceCar): boolean {
@@ -206,10 +211,48 @@ export class PoliceSystem implements GameSystem {
     st.stopSiren?.();
     st.stopSiren = null;
     this.setHeat(p, Math.min(st.heat, POLICE.heatChaseThreshold / 2));
-    for (const c of this.chasersOf(p)) {
-      c.mode = 'leave'; c.target = null; c.leaveSec = 0; c.brain.goal = -1; c.brain.path = [];
-    }
+    for (const c of this.chasersOf(p)) this.sendAway(c);
     this.ctx.bus.emit('police:lost', { player: p });
+  }
+
+  private sendAway(car: PoliceCar, goal = -1): void {
+    car.mode = 'leave';
+    car.target = null;
+    car.leaveSec = 0;
+    car.brain.goal = goal;
+    car.brain.path = [];
+  }
+
+  private updateMonsterSwarm(): void {
+    const { dino, world } = this.ctx;
+    const rider = this.roundOver ? null : dino.rider ?? null;
+    if (this.swarmRider === rider) return;
+    this.swarmRider = rider;
+    for (const car of this.monsterSwarm) {
+      if (car.mode !== 'chase') continue;
+      const away = Math.atan2(car.y - dino.y, car.x - dino.x);
+      const distance = POLICE.monsterSwarmExitDist;
+      this.sendAway(car, this.index.nearest(car.x + distance * Math.cos(away), car.y + distance * Math.sin(away)));
+    }
+    if (rider === null) return;
+
+    // Pick nearby road lanes all around the monster. Patrols and heat-based chasers keep their usual limits.
+    const nodes = world.laneGraph.nodes;
+    const candidates = nodes.filter((node) => {
+      const distance = Math.hypot(node.x - dino.x, node.y - dino.y);
+      return node.next.length > 0 && distance >= POLICE.monsterSwarmSpawnMinDist && distance <= POLICE.monsterSwarmSpawnMaxDist;
+    });
+    let spawned = 0;
+    while (candidates.length && spawned < POLICE.monsterSwarmCount) {
+      const [node] = candidates.splice(this.rng.int(0, candidates.length - 1), 1);
+      if (this.ctx.players.some((p) => Math.hypot(p.x - node.x, p.y - node.y) < 180)) continue;
+      if ([...this.ctx.npcs].some((npc) => Math.hypot(npc.x - node.x, npc.y - node.y) < 120)) continue;
+      const next = nodes[node.next[0]];
+      const car = this.spawn({ x: node.x, y: node.y, angle: Math.atan2(next.y - node.y, next.x - node.x) });
+      this.monsterSwarm.add(car);
+      this.startPursuit(car, rider);
+      spawned++;
+    }
   }
 
   private driveCar(car: PoliceCar, dt: number): void {
@@ -230,6 +273,7 @@ export class PoliceSystem implements GameSystem {
     if (car.mode === 'leave') {
       car.leaveSec += dt;
       if (this.offscreen(car.x, car.y) && (car.leaveSec > 2 || this.nearestPlayerDist(car) > 1000)) car.destroy();
+      else if (this.monsterSwarm.has(car) && car.leaveSec >= POLICE.monsterSwarmExitSec) car.destroy();
     }
     if (car.mode !== 'chase' && this.nearestPlayerDist(car) > POLICE.despawnDist) car.destroy();
   }
@@ -237,6 +281,7 @@ export class PoliceSystem implements GameSystem {
   /** Cars (patrols and chasers) that stay off every player's view for a while are removed. */
   private checkOffscreen(car: PoliceCar, dt: number): void {
     if (car.destroyed) return;
+    if (car.mode === 'chase' && this.monsterSwarm.has(car)) return;
     let t = this.offSec.get(car);
     if (t === undefined) t = -POLICE.spawnGraceSec;
     if (this.offscreen(car.x, car.y, POLICE.offscreenMargin)) t += dt; else t = Math.max(0, Math.min(t, 0));
@@ -340,7 +385,7 @@ export class PoliceSystem implements GameSystem {
 
   /** True while the player is driving a police cruiser (their chassis carries a police texture). */
   private inCruiser(p: PlayerId): boolean {
-    return isPoliceTexture(this.ctx.players[p]?.chassis?.texture?.key);
+    return this.ctx.dino.rider !== p && isPoliceTexture(this.ctx.players[p]?.chassis?.texture?.key);
   }
 
   /** The player's own siren: loops while they drive a cruiser in a live race. */
@@ -349,7 +394,7 @@ export class PoliceSystem implements GameSystem {
       const p = pi as PlayerId;
       const st = this.per[p];
       const want = !this.roundOver && !this.ctx.paused && !this.ctx.questionBreak && this.inCruiser(p);
-      if (want && !st.playerSiren) st.playerSiren = services.audio.loop('siren', { pan: this.pan(p), volume: POLICE.playerSirenVolume });
+      if (want && !st.playerSiren) st.playerSiren = services.audio.loop('siren', { pan: this.pan(p), volume: POLICE.playerSirenVolume, sirenTone: 'bright' });
       else if (!want && st.playerSiren) { st.playerSiren(); st.playerSiren = null; }
     }
   }

@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
 import { CAR_SPECS, CAT, DEPTH, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
+import { UNLOCK_VEHICLES } from '../config/collectibles';
+import { carArt } from '../art/loadoutKeys';
 import { TEX } from '../core/assetKeys';
 import type { IPlayerCar, VehicleChassis } from '../core/race';
 import { services } from '../core/services';
-import type { CarKind, PlayerId, PlayerInput, Vec2 } from '../core/types';
+import type { CarKind, PlayerId, PlayerInput, StarterCar, Vec2 } from '../core/types';
 import type { SkidMarks } from '../fx/SkidMarks';
 import { PLAYER_MASK_ALL, STEP_HZ, Vehicle } from './Vehicle';
 import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
 
 const MASK_GHOST = PLAYER_MASK_ALL & ~(CAT.traffic | CAT.police);
-const CAR_COLORS: Record<CarKind, { body: number; stripe: number }> = {
+const CAR_COLORS: Record<StarterCar, { body: number; stripe: number }> = {
   dino: { body: 0x2ecc40, stripe: 0x1a7a26 },
   kart: { body: 0xff3b30, stripe: 0xa3231b },
 };
@@ -19,7 +21,10 @@ function carTexture(scene: Phaser.Scene, key: string, kind: CarKind, w: number, 
   if (scene.textures.exists(key)) return key;
   const fb = `${key}_fallback`;
   if (!scene.textures.exists(fb)) {
-    const c = CAR_COLORS[kind];
+    const c = kind === 'dino' || kind === 'kart' ? CAR_COLORS[kind] : {
+      body: parseInt(UNLOCK_VEHICLES[kind].colors[0].slice(1), 16),
+      stripe: parseInt(UNLOCK_VEHICLES[kind].colors[1].slice(1), 16),
+    };
     const g = scene.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(c.body, 1).fillRoundedRect(0, 0, w, h, 10);
     g.fillStyle(c.stripe, 1).fillRoundedRect(w * 0.72, 3, w * 0.24, h - 6, 5);
@@ -81,13 +86,13 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     scene: Phaser.Scene, player: PlayerId, kind: CarKind, x: number, y: number, angle: number,
     private readonly skids?: SkidMarks,
   ) {
-    const spec = CAR_SPECS[kind];
+    const spec = kind === 'dino' || kind === 'kart' ? CAR_SPECS[kind] : UNLOCK_VEHICLES[kind].spec;
     super(scene, spec, { x, y, angle, category: CAT.player, mask: PLAYER_MASK_ALL });
     this.player = player;
     this.kind = kind;
     this.setOwner({ kind: 'player', player, car: this });
 
-    const key = carTexture(scene, kind === 'dino' ? TEX.carDino : TEX.carKart, kind, spec.length, spec.width);
+    const key = carTexture(scene, carArt(kind), kind, spec.length, spec.width);
     this.shadow = scene.add.image(0, 0, shadowTexture(scene)).setDisplaySize(spec.length * 1.1, spec.width * 1.2).setAlpha(0.35);
     this.sprite = scene.add.image(0, 0, key).setDisplaySize(spec.length, spec.width);
     this.view.add([this.shadow, this.sprite]);

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { TEX } from '../../core/assetKeys';
-import type { CarKind, ControllerFamily, InputDevice } from '../../core/types';
+import { carArt } from '../../art/loadoutKeys';
+import { UNLOCK_GUIDES, UNLOCK_VEHICLES } from '../../config/collectibles';
+import type { CarKind, ControllerFamily, GuideKind, InputDevice } from '../../core/types';
 
 export const FONT_HEAD = 'Arial Black, Arial, sans-serif';
 export const FONT_BODY = 'Arial, "Segoe UI Emoji", "Segoe UI Symbol", sans-serif';
@@ -50,8 +51,15 @@ export function bigText(
 /** Car picture (texture if the art package has landed, else a simple colored shape). Faces +x. */
 export function carPreview(scene: Phaser.Scene, kind: CarKind, x: number, y: number, scale: number): Phaser.GameObjects.Container {
   const c = scene.add.container(x, y);
-  const key = kind === 'dino' ? TEX.carDino : TEX.carKart;
-  if (scene.textures.exists(key)) c.add(scene.add.image(0, 0, key));
+  const key = carArt(kind);
+  if (scene.textures.exists(key)) {
+    const art = scene.add.image(0, 0, key);
+    if (kind !== 'dino' && kind !== 'kart') {
+      const { length, width } = UNLOCK_VEHICLES[kind].spec;
+      art.setDisplaySize(length, width);
+    }
+    c.add(art);
+  }
   else {
     const w = kind === 'dino' ? 72 : 60, h = kind === 'dino' ? 40 : 36;
     c.add(scene.add.rectangle(0, 0, w, h, kind === 'dino' ? 0x2ecc40 : 0xff3b30).setStrokeStyle(3, 0x000000));
@@ -60,7 +68,17 @@ export function carPreview(scene: Phaser.Scene, kind: CarKind, x: number, y: num
   return c.setScale(scale);
 }
 
-export function carName(kind: CarKind): string { return kind === 'dino' ? 'Dino-Car' : 'Red Kart'; }
+export function carName(kind: CarKind): string {
+  if (kind === 'dino') return 'Dino-Car';
+  if (kind === 'kart') return 'Red Kart';
+  return UNLOCK_VEHICLES[kind].name;
+}
+
+export function guideName(kind: GuideKind): string {
+  if (kind === 'dino') return 'Flying Dino';
+  if (kind === 'star') return 'Twinkle Star';
+  return UNLOCK_GUIDES[kind].name;
+}
 
 export function deviceLabel(d: InputDevice, family?: ControllerFamily): string {
   if (d.type === 'gamepad') {

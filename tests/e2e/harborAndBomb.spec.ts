@@ -4,6 +4,33 @@ import { TEX } from '../../src/core/assetKeys';
 
 const WAIT = { timeout: 35_000 };
 
+test('the Harbor lighthouse and its beam are visible from the northeast driving route', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/?race=1&map=harbor&seed=3&questions=off');
+  await page.waitForFunction(() => window.__race?.elapsedSec > 0.2, undefined, WAIT);
+  const preparation = await page.evaluate(() => {
+    const { players, scene, world } = window.__race;
+    const tower = scene.children.getByName('harbor-lighthouse') as Phaser.GameObjects.Image;
+    const beam = scene.children.getByName('harbor-lighthouse-beam') as Phaser.GameObjects.Image;
+    const nearest = world.laneGraph.nodes.reduce((best, node) =>
+      Math.hypot(node.x - tower.x, node.y - tower.y) < Math.hypot(best.x - tower.x, best.y - tower.y) ? node : best);
+    scene.matter.body.setPosition(players[0].body, nearest);
+    scene.matter.body.setAngle(players[0].body, Math.atan2(tower.y - nearest.y, tower.x - nearest.x));
+    window.__race.elapsedSec = window.__race.roundLengthSec * 0.65;
+    return { roadDistance: Math.hypot(nearest.x - tower.x, nearest.y - tower.y), angle: beam.rotation };
+  });
+  expect(preparation.roadDistance).toBeLessThan(300);
+  await page.waitForFunction((from) => {
+    const { camera, scene } = window.__race;
+    const tower = scene.children.getByName('harbor-lighthouse') as Phaser.GameObjects.Image;
+    const beam = scene.children.getByName('harbor-lighthouse-beam') as Phaser.GameObjects.Image;
+    const view = camera.worldView(0);
+    return tower.visible && tower.x > view.x && tower.x < view.x + view.w && tower.y > view.y && tower.y < view.y + view.h &&
+      beam.visible && beam.alpha > 0.95 && Math.abs(beam.rotation - from) > 0.2;
+  }, preparation.angle, WAIT);
+  await page.screenshot({ path: info.outputPath('lighthouse-night.png') });
+});
+
 test('Beach & Harbor runs the tide, opens the drawbridge for the ship, and closes it again', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

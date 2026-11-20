@@ -48,6 +48,7 @@ describe('PoliceSystem pursuit slots', () => {
     ];
     const ctx = {
       bus, npcs, players, rng: new Rng(3), elapsedSec: 1,
+      dino: { active: false, rider: null },
       world: {
         widthTiles: 65, heightTiles: 3, tileSize: 100,
         tiles: new Uint8Array(65 * 3).fill(Tile.Road),
@@ -110,6 +111,7 @@ describe('PoliceSystem player siren', () => {
     const player = { player: 0, x: 0, y: 0, velocity: { x: 0, y: 0 }, chassis: { texture: { key: texture } } };
     const ctx = {
       bus, npcs: new Set<INpcVehicle>(), players: [player], rng: new Rng(3), elapsedSec: 1,
+      dino: { active: false, rider: null },
       paused: false, questionBreak: false,
       world: {
         widthTiles: 1, heightTiles: 1, tileSize: 100, tiles: new Uint8Array([Tile.Road]),
@@ -127,7 +129,7 @@ describe('PoliceSystem player siren', () => {
   it('loops louder while the player drives a cruiser, and stops when they leave it', () => {
     const { player, police, stop, loop } = setup('police_0');
     police.update(0.016);
-    expect(loop).toHaveBeenCalledWith('siren', { pan: 0, volume: POLICE.playerSirenVolume });
+    expect(loop).toHaveBeenCalledWith('siren', { pan: 0, volume: 0.7, sirenTone: 'bright' });
     expect(POLICE.playerSirenVolume).toBeGreaterThan(POLICE.sirenVolume);
     police.update(0.016);
     expect(loop).toHaveBeenCalledTimes(1);

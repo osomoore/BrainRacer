@@ -3,6 +3,7 @@ import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } fr
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
+import { developerModeSettings } from '../core/progression';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { Settings } from '../core/types';
@@ -159,6 +160,8 @@ export class ConfigScene extends Phaser.Scene {
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
     option(0, rowY(9), 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
+    option(0, rowY(10), 'Developer Mode', () => onOff(this.settings().developerMode === true),
+      () => this.patchSettings(developerModeSettings(this.settings().developerMode !== true)));
 
     header(1, 155, 'AUDIO');
     option(1, rowY(0), 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
@@ -178,8 +181,8 @@ export class ConfigScene extends Phaser.Scene {
     action(1, rowY(9), 'Reset to defaults', () => this.resetAll());
     action(1, rowY(10), 'Close', () => this.close());
 
-    c.add(bigText(this, COL_X[0] - ROW_W / 2 + 8, rowY(10), '* Takes effect after reload', 40, MENU.dim, { origin: [0, 0.5], shadow: false }));
-    c.add(bigText(this, GAME_WIDTH / 2, 1024, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
+    c.add(bigText(this, COL_X[0] - ROW_W / 2 + 8, 987, '* Takes effect after reload', 40, MENU.dim, { origin: [0, 0.5], shadow: false }));
+    c.add(bigText(this, GAME_WIDTH / 2, 1040, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
   }
 
   // ───────────────────────── settings helpers ─────────────────────────
@@ -198,8 +201,9 @@ export class ConfigScene extends Phaser.Scene {
     resetTuning();
     const d = DEFAULT_SETTINGS;
     this.patchSettings({
+      ...developerModeSettings(false),
       musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
-      roundLengthSec: d.roundLengthSec, challengeIntervalSec: d.challengeIntervalSec,
+      challengeIntervalSec: d.challengeIntervalSec,
       questionStyle: d.questionStyle,
     });
     services.audio.sfx('menuSelect');

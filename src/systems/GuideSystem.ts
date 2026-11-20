@@ -1,4 +1,4 @@
-/** Guide buddies: one flying dino / star per player that leads the way to the goal and circles it on arrival. */
+/** Guide buddies lead each player to the goal and circle it on arrival. */
 import { GAME_HEIGHT, GAME_WIDTH, GUIDE } from '../config/gameConfig';
 import { GuideBuddy } from '../entities/GuideBuddy';
 import { edgeHoldDist, hoverSpot, nextGoalMode, obstacleDist, orbitPoint, viewEdgeDist } from '../entities/guideMath';
@@ -24,7 +24,7 @@ export class GuideSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     this.guides = ctx.players.map((car, i) => ({
-      buddy: new GuideBuddy(ctx, car.player, car.kind),
+      buddy: new GuideBuddy(ctx, car.player, ctx.settings.players[i]?.guide ?? (car.kind === 'dino' ? 'dino' : 'star')),
       goalMode: false, arrived: false, orbit: i * Math.PI, redirect: false,
     }));
     this.offs.push(

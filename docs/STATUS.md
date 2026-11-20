@@ -4,6 +4,15 @@
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
+## Map progression and bosses
+
+- Results defaults to **Next Map**, which picks a different random map and starts the next race on Confirm. **Setup** on Results returns to manual map and loadout selection.
+- Setup offers independent car and guide choices for each player. The new catalog contains 20 vehicles and 5 guides. Both players share a collection that starts with one random new item and gains one previously locked item for each completed map.
+- **Developer Mode** is in hidden Advanced settings (F9 or hold LT+RT and press Start). It makes every new vehicle and guide selectable, defaults rounds to 60 seconds, and grants no completion unlocks. Switching back restores the 300-second default and the regular loadouts and unlocks. Explicit launch overrides still apply.
+- **Bosses by map** are Dino in City, Rock Monster in Mine, Octopus in Beach & Harbor, Robot in Factory, and Giant Chicken on Farm. All use the same twin-laser, ram, and boarding rules. After three qualifying hits, press the right face button nearby to control the boss for 20 seconds of driving. A police swarm drives toward the ridden boss. Remaining cruisers drive away when the ride ends. Use `&dino=now&laser=now` to check any boss.
+- The striped Harbor lighthouse stands beside the northeast waterfront road. The tower stays upright per camera and its stronger beam sweeps from the lantern. Factory headlights are aligned to the chassis, and the player cruiser siren plays at half its previous gain with the same bright tone.
+- The Mine track “Crystal Switchback” has a fuller and faster 132 BPM arrangement, with its new Opus file bundled in the game.
+
 ## How to play / test
 - Full game: `play.bat`, or `npm run dev` → http://localhost:5173/ (press A / Space three times to start).
 - Skip menus: `/?race=1` or `/?race=2`, plus `&seed=N`, `&round=60` (short round), `&debug=1` (physics outlines), or `&questions=off` (disable questions for this race).

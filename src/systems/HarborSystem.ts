@@ -2,13 +2,14 @@
 import { CAT, DEPTH, HARBOR, TILE_SIZE } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, IVehicle, RaceContext } from '../core/race';
-import { Tile, type Vec2 } from '../core/types';
+import { Tile, type PlayerId, type Vec2 } from '../core/types';
 import { ParticlePool } from '../fx/ParticlePool';
 import { tileAt } from '../world/geometry';
 import { makeHarborDrawbridge } from '../world/harborBridges';
 import { makeHarborLife } from '../world/harborLife';
 import { makeHarborProps } from '../world/harborProps';
 import { harborTexture } from '../world/harborTexture';
+import { harborLighthouseTexture } from '../world/harborWorld';
 
 const TS = TILE_SIZE;
 const BRIDGE = HARBOR.drawbridge;
@@ -26,7 +27,7 @@ export class HarborSystem implements GameSystem {
   private lastTrack = new Map<IVehicle, Vec2>();
   private pushed = new Set<IVehicle>();
   private gate?: MatterJS.BodyType;
-  private beam?: Phaser.GameObjects.Image;
+  private lighthouseViews: { player: PlayerId; tower: Phaser.GameObjects.Image; beam: Phaser.GameObjects.Image }[] = [];
   private ship?: Phaser.GameObjects.Image;
   private grade?: Phaser.GameObjects.Image;
   private wave?: Phaser.GameObjects.Image;
@@ -51,11 +52,23 @@ export class HarborSystem implements GameSystem {
     };
     this.updateProps = makeHarborProps(ctx, this.objects);
     this.updateLife = makeHarborLife(ctx, this.objects);
-    const beam = texture('beam', 650, 230, c => {
-      const gradient = c.createLinearGradient(0, 0, 650, 0); gradient.addColorStop(0, 'rgba(255,247,169,.45)'); gradient.addColorStop(1, 'rgba(255,247,169,0)');
-      c.fillStyle = gradient; c.beginPath(); c.moveTo(0, 115); c.lineTo(650, 0); c.lineTo(650, 230); c.closePath(); c.fill();
+    const { x, y, beamLength, beamWidth } = HARBOR.lighthouse;
+    const beam = texture('beam', beamLength, beamWidth, c => {
+      const gradient = c.createLinearGradient(0, 0, beamLength, 0);
+      gradient.addColorStop(0, 'rgba(255,247,169,.85)');
+      gradient.addColorStop(1, 'rgba(255,247,169,0)');
+      c.fillStyle = gradient;
+      c.beginPath(); c.moveTo(0, beamWidth / 2); c.lineTo(beamLength, 0); c.lineTo(beamLength, beamWidth); c.closePath(); c.fill();
     });
-    this.beam = image(43 * TS, 5 * TS - 5, beam, DEPTH.fx - 1).setOrigin(0, 0.5).setName('harbor-lighthouse-beam');
+    const towerTexture = harborLighthouseTexture(s);
+    this.lighthouseViews = ctx.players.map(({ player }) => {
+      const tower = image(x * TS, y * TS, towerTexture, DEPTH.building).setName('harbor-lighthouse');
+      const light = image(tower.x, tower.y, beam, DEPTH.fx - 1).setOrigin(0, 0.5).setAlpha(0.45).setName('harbor-lighthouse-beam');
+      ctx.camera.showOnlyTo(tower, player);
+      ctx.camera.showOnlyTo(light, player);
+      return { player, tower, beam: light };
+    });
+    s.events.on(Phaser.Scenes.Events.PRE_RENDER, this.drawLighthouse, this);
     const ship = texture('ship', 190, 410, c => {
       c.fillStyle = '#753f39'; c.beginPath(); c.moveTo(95, 4); c.lineTo(172, 75); c.lineTo(155, 360); c.lineTo(95, 402); c.lineTo(35, 360); c.lineTo(18, 75); c.closePath(); c.fill();
       c.fillStyle = '#faf0dc'; c.fillRect(49, 92, 92, 212); c.fillStyle = '#e16a51'; c.fillRect(62, 153, 66, 60); c.fillStyle = '#75b8cb'; c.fillRect(67, 105, 56, 24);
@@ -94,17 +107,29 @@ export class HarborSystem implements GameSystem {
     const lift = opening ? Math.min(1, (this.cycle - (cycle - open)) / liftSec, (cycle - this.cycle) / liftSec) : 0;
     this.updateDrawbridge?.(lift, opening, this.clock);
     this.ship?.setPosition(24 * TS, opening ? (12 + 18 * (this.cycle - (cycle - open)) / open) * TS : -500);
-    this.beam?.setRotation(this.clock * .32);
     const { sunsetFadeStartFrac: sunset, fullNightFrac: fullNight } = HARBOR;
     const progress = Phaser.Math.Clamp((ctx.elapsedSec / ctx.roundLengthSec - sunset) / (fullNight - sunset), 0, 1);
     const night = progress * progress * (3 - 2 * progress);
     const tint = Phaser.Display.Color.GetColor(246 - 218 * night, 169 - 139 * night, 109 - 40 * night);
     this.grade?.setTint(tint).setAlpha(0.12 + night * 0.36);
-    this.beam?.setAlpha(0.45 + night * 0.55);
+    for (const { beam } of this.lighthouseViews) beam.setAlpha(0.45 + night * 0.55);
     this.updateLife?.(dt, this.clock, vehicles);
     const tideFront = this.updateTide(dt, vehicles);
     this.updateProps?.(dt, vehicles, tideFront);
     this.updateTracks(dt, ctx);
+  }
+
+  private drawLighthouse(): void {
+    const camera = this.ctx!.camera;
+    const { lanternY, sweepRate } = HARBOR.lighthouse;
+    const merged = camera.layout().mode === 'merged';
+    for (const { player, tower, beam } of this.lighthouseViews) {
+      const rotation = camera.viewRotation(player);
+      const visible = !merged || player === 0;
+      tower.setRotation(-rotation).setVisible(visible);
+      beam.setPosition(tower.x + Math.sin(rotation) * lanternY, tower.y + Math.cos(rotation) * lanternY)
+        .setRotation(this.clock * sweepRate).setVisible(visible);
+    }
   }
 
   private updateTide(dt: number, vehicles: IVehicle[]): number | undefined {
@@ -146,12 +171,14 @@ export class HarborSystem implements GameSystem {
   }
   destroy(): void {
     this.offEnd?.();
+    this.ctx?.scene.events.off(Phaser.Scenes.Events.PRE_RENDER, this.drawLighthouse, this);
     if (this.gate) this.ctx?.scene.matter.world?.remove(this.gate);
     this.tracks?.destroy();
     this.lastTrack.clear();
     this.pushed.clear();
     for (const o of this.objects) o.destroy();
     this.objects = [];
+    this.lighthouseViews = [];
     this.updateProps = undefined;
     this.updateLife = undefined;
     this.updateDrawbridge = undefined;
