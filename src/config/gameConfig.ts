@@ -349,7 +349,8 @@ export const TRAFFIC = {
   policeResumeRadius: 290,
   queueSpeed: 30,            // px/s below which a car waiting behind another is queued
   jamClearAfterSec: 5,       // a slow queue must persist before off-screen traffic can be recycled
-  jamCheckIntervalSec: 1.5,  // remove at most one queued vehicle per check
+  jamCheckIntervalSec: 1.5,
+  jamClearBatchSize: 3,      // maximum off-screen queued vehicles recycled per check
   spreadSpawnSamples: 8,     // favor the open lanes when replenishing regular traffic
   spreadSpawnGap: 440,       // a replacement can stop looking once it finds this much space
   spawnMargin: 160,          // px beyond camera view that spawns must stay outside

@@ -31,6 +31,7 @@ export class TrafficSystem implements GameSystem {
   private combineLimit = 0;
   private spawnT = 0;
   private jamCheckT = TRAFFIC.jamCheckIntervalSec;
+  private offscreenYieldSec = new WeakMap<TrafficCar, number>();
   private undergroundOrder: UndergroundVehicleKind[] = [];
   private worldVehicleOrder: WorldVehicle[] = [];
   private scratch: number[] = [];
@@ -100,6 +101,12 @@ export class TrafficSystem implements GameSystem {
       }
       if ((far || car.wantsDespawn) && !this.visible(car)) {
         this.despawn(i);
+        continue;
+      }
+      if (car.isYieldingToPolice && !this.visible(car)) {
+        this.offscreenYieldSec.set(car, (this.offscreenYieldSec.get(car) ?? 0) + dt);
+      } else {
+        this.offscreenYieldSec.delete(car);
       }
     }
     for (const wagon of this.wagons) {
@@ -168,17 +175,21 @@ export class TrafficSystem implements GameSystem {
     return this.regularLimit + this.freightLimit + this.tractorLimit + this.combineLimit;
   }
 
-  /** Make space in a persistent unseen queue. Normal spawning replenishes the car from the lane graph. */
+  /** Make space in persistent unseen queues. Normal spawning replenishes traffic from the lane graph. */
   private relieveJam(): void {
-    let candidate = -1;
-    let longestWait = TRAFFIC.jamClearAfterSec;
-    for (let i = 0; i < this.cars.length; i++) {
-      const car = this.cars[i];
-      if (car.queuedSec < longestWait || this.visible(car)) continue;
-      candidate = i;
-      longestWait = car.queuedSec;
+    for (let cleared = 0; cleared < TRAFFIC.jamClearBatchSize; cleared++) {
+      let candidate = -1;
+      let longestWait = TRAFFIC.jamClearAfterSec;
+      for (let i = 0; i < this.cars.length; i++) {
+        const car = this.cars[i];
+        const wait = Math.max(car.queuedSec, this.offscreenYieldSec.get(car) ?? 0);
+        if (wait < longestWait || this.visible(car)) continue;
+        candidate = i;
+        longestWait = wait;
+      }
+      if (candidate < 0) break;
+      this.despawn(candidate);
     }
-    if (candidate >= 0) this.despawn(candidate);
   }
 
   private despawn(i: number): void {
@@ -190,6 +201,7 @@ export class TrafficSystem implements GameSystem {
 
   private remove(i: number): void {
     const car = this.cars[i];
+    this.offscreenYieldSec.delete(car);
     this.ctx.npcs.delete(car);
     car.trailer?.detach();
     if (car.role === 'freight') this.freightCount--;

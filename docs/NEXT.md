@@ -84,6 +84,15 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 - **#47** High-score table.
 - **#48** Optional desktop wrapper (Electron/Tauri).
 
+## Future worlds (ideas, not started)
+Each would follow the map kickoff template below (contracts → generator/art/audio → renderer/systems → wiring). Every world gets a boss; keep bosses kid-friendly (bounce, squash, poof; no gore).
+- **Frozen Tundra**: icicles, snow tracks, penguins, skiers, icy patches where cars slide. Boss: yeti.
+- **Volcano**: tunnels and lava flows. Partway through the race the volcano erupts and lava temporarily blocks some routes. Fire-based and rock-based vehicles. Boss: a lava monster that drips lava.
+- **Candyland**: lollipops, cupcakes, and other sweets. Boss: "Killer Cone", an ice cream cone monster (keep it silly, not scary).
+- **Castle**: walls, knights, horses, a drawbridge. An army attack rush that players can ride through and scatter. Boss: a giant wooden horse.
+- **Airport**: terminals, runways, helicopters and planes flying low and landing, little luggage trains roaming about. Boss: a giant helicopter.
+- **In My House**: matchbox-sized cars driving past beds, stuffed animals, chairs, books, etc. Boss: a full-size cat.
+
 ## Map kickoff plans (done)
 
 The Industrial at Night and Farm kickoff plans were carried out (sessions 1–4); see STATUS "Industrial at Night" and "Farm". Use them as the template for a new map: orchestrator sets contracts (RaceMap, tiles, layout types, TEX block, SfxName/MusicTrack), phase 1 = generator (Opus) + art + audio in parallel, phase 2 = renderer (Opus) + gameplay systems + traffic, then wiring, Setup row and e2e.

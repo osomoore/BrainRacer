@@ -59,6 +59,10 @@ export class TrafficCar extends NpcVehicle {
   private launched = false;
   private yieldingToPolice = false;
 
+  get isYieldingToPolice(): boolean {
+    return this.state === 'drive' && this.yieldingToPolice;
+  }
+
   constructor(
     scene: Phaser.Scene, rng: Rng, readonly kind: TrafficKind,
     x: number, y: number, angle: number, target: number,

@@ -60,29 +60,90 @@ test('player cruiser flashes and civilian traffic stops until it passes', async 
   expect(result.hasGlow).toBe(false);
 });
 
-test('queue relief only removes traffic outside both camera views', async ({ page }) => {
+test('queue relief prioritizes the longest waits and protects both camera views', async ({ page }) => {
   await page.goto('/?race=2&seed=3&questions=off');
-  await page.waitForFunction(() => (window.__race?.npcs.size ?? 0) >= 2);
-  const result = await page.evaluate((jamClearAfterSec) => {
+  await page.waitForFunction(() => (window.__race?.npcs.size ?? 0) >= 13);
+  const result = await page.evaluate(({ jamClearAfterSec, batchSize }) => {
     const race = window.__race;
-    const [visible, hidden] = [...race.npcs].filter((npc): npc is TrafficCar => 'follow' in npc);
+    const [visibleP1, visibleP2, recent, ...queued] = [...race.npcs]
+      .filter((npc): npc is TrafficCar => 'follow' in npc).slice(0, 13);
     const scene = race.scene as unknown as { systems: (GameSystem & { relieveJam(): void })[] };
     const traffic = scene.systems.find((system) => system.name === 'traffic')!;
-    // Fix the camera bounds to make the oldest jam visible to P2 alone.
     const originalView = race.camera.worldView;
     race.camera.worldView = (player) => player === 0
       ? { x: 0, y: 0, w: 500, h: 500 }
       : { x: 2000, y: 2000, w: 500, h: 500 };
     try {
-      visible.setPose(2250, 2250, 0);
-      hidden.setPose(3500, 3500, 0);
-      visible.queuedSec = jamClearAfterSec + 2;
-      hidden.queuedSec = jamClearAfterSec + 1;
-      traffic.relieveJam();
+      visibleP1.setPose(250, 250, 0);
+      visibleP2.setPose(2250, 2250, 0);
+      visibleP1.queuedSec = visibleP2.queuedSec = jamClearAfterSec + 20;
+      recent.setPose(3500, 3500, 0);
+      recent.queuedSec = jamClearAfterSec - 1;
+      queued.forEach((car, i) => {
+        car.setPose(3500 + i * 85, 3500, 0);
+        car.queuedSec = jamClearAfterSec + i;
+      });
+      const removed = () => queued.flatMap((car, i) => race.npcs.has(car) ? [] : [i]);
+      const removedByCheck = Array.from({ length: Math.ceil(queued.length / batchSize) }, () => {
+        traffic.relieveJam();
+        return removed();
+      });
+      return { removedByCheck, protected: [visibleP1, visibleP2, recent].every(car => race.npcs.has(car)) };
     } finally {
       race.camera.worldView = originalView;
     }
-    return { visibleRemains: race.npcs.has(visible), hiddenRemoved: !race.npcs.has(hidden) };
-  }, TRAFFIC.jamClearAfterSec);
-  expect(result).toEqual({ visibleRemains: true, hiddenRemoved: true });
+  }, { jamClearAfterSec: TRAFFIC.jamClearAfterSec, batchSize: TRAFFIC.jamClearBatchSize });
+  expect(result).toEqual({
+    removedByCheck: [[7, 8, 9], [4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]],
+    protected: true,
+  });
+});
+
+test('a civilian yielding to a parked cruiser is recycled after a continuous off-screen wait', async ({ page }) => {
+  await page.goto('/?race=2&seed=3&questions=off');
+  await page.waitForFunction(() => (window.__race?.npcs.size ?? 0) >= 2);
+  const result = await page.evaluate(({ cruiser, yieldRadius, jamClearAfterSec, jamCheckIntervalSec }) => {
+    const race = window.__race;
+    const player = race.players[0] as PlayerCar;
+    const civilian = [...race.npcs].find((npc): npc is TrafficCar => 'follow' in npc)!;
+    const scene = race.scene as unknown as { systems: GameSystem[] };
+    const traffic = scene.systems.find((system) => system.name === 'traffic')!;
+    const position = { x: player.x + yieldRadius + 80, y: player.y };
+    civilian.setPose(position.x, position.y, 0);
+    player.replaceChassis({
+      spec: player.spec, texture: cruiser, angle: 0,
+      position: { x: position.x - yieldRadius + 20, y: position.y },
+    });
+
+    const originalView = race.camera.worldView;
+    let visibleToP2 = true;
+    race.camera.worldView = (p) => p === 1 && visibleToP2
+      ? { x: position.x - 250, y: position.y - 250, w: 500, h: 500 }
+      : { x: position.x - 1200, y: position.y - 1200, w: 500, h: 500 };
+    const step = (seconds: number) => {
+      for (let i = 0; i < Math.round(seconds * 60); i++) traffic.update(1 / 60, race);
+    };
+    try {
+      step(jamClearAfterSec + jamCheckIntervalSec);
+      const heldVisible = race.npcs.has(civilian) && civilian.isYieldingToPolice;
+      visibleToP2 = false;
+      step(jamClearAfterSec - 0.5);
+      const heldInitiallyOffscreen = race.npcs.has(civilian);
+      visibleToP2 = true;
+      step(0.5);
+      visibleToP2 = false;
+      step(jamClearAfterSec - 0.5);
+      const heldAfterReappearing = race.npcs.has(civilian);
+      const before = new Set(race.npcs);
+      step(jamCheckIntervalSec + 1);
+      const replacement = [...race.npcs].some(npc => !before.has(npc) && 'follow' in npc);
+      return { heldVisible, heldInitiallyOffscreen, heldAfterReappearing, removed: !race.npcs.has(civilian), replacement };
+    } finally {
+      race.camera.worldView = originalView;
+    }
+  }, { cruiser: TEX.police[0], yieldRadius: TRAFFIC.policeYieldRadius,
+    jamClearAfterSec: TRAFFIC.jamClearAfterSec, jamCheckIntervalSec: TRAFFIC.jamCheckIntervalSec });
+  expect(result).toEqual({
+    heldVisible: true, heldInitiallyOffscreen: true, heldAfterReappearing: true, removed: true, replacement: true,
+  });
 });
