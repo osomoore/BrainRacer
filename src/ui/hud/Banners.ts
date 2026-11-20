@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bigText, FONT_BODY, FONT_HEAD } from '../menu/style';
+import { rrectImage } from './bake';
 import { HUD } from './hudConfig';
 import { easeOutBack } from './hudMath';
 
@@ -23,7 +24,11 @@ export class Banners {
   private flashT = 0;
 
   constructor(private scene: Phaser.Scene, private depth: number) {
+    // Drawn once at full alpha; the pulse is the object's alpha (no per-frame redraw).
+    const w = scene.scale.width, h = scene.scale.height;
     this.flash = scene.add.graphics().setDepth(depth - 1).setVisible(false);
+    this.flash.lineStyle(36, 0xff3b30, 1).strokeRect(18, 18, w - 36, h - 36);
+    this.flash.lineStyle(10, 0xffd43b, 1).strokeRect(40, 40, w - 80, h - 80);
   }
 
   /** Show a banner container at (x, y). Replaces any banner with the same key. */
@@ -59,17 +64,14 @@ export class Banners {
     const blockW = Math.max(...texts.map((t) => t.width));
     const iconW = icon ? 150 : 0;
     const totalW = iconW + blockW + 70;
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(HUD.colors.navy, 0.9).fillRoundedRect(-totalW / 2, -blockH / 2 - 24, totalW, blockH + 48, 34);
-    bg.lineStyle(7, HUD.colors.gold, 1).strokeRoundedRect(-totalW / 2, -blockH / 2 - 24, totalW, blockH + 48, 34);
+    const bg = rrectImage(this.scene, { r: 34, fill: HUD.colors.navy, fillA: 0.9, stroke: HUD.colors.gold, strokeW: 7 }, 0, 0, Math.round(totalW), Math.round(blockH + 48));
     c.add(bg);
     let ty = -blockH / 2;
     const tx = -totalW / 2 + 35 + iconW + blockW / 2;
     for (const t of texts) { t.setPosition(tx, ty + t.height / 2); ty += t.height; c.add(t); }
     if (icon) {
       icon.setScale(130 / Math.max(icon.width, icon.height)).setPosition(-totalW / 2 + 35 + 65, 0);
-      const ib = this.scene.add.graphics();
-      ib.fillStyle(0xffffff, 1).fillRoundedRect(-totalW / 2 + 28, -72, 144, 144, 24);
+      const ib = rrectImage(this.scene, { r: 24, fill: 0xffffff }, -totalW / 2 + 28 + 72, 0, 144, 144);
       c.add(ib);
       c.add(icon);
     }
@@ -114,10 +116,7 @@ export class Banners {
     if (this.flashT <= 0) { this.flash.setVisible(false); return; }
     this.flashT -= dt;
     const a = 0.25 + 0.3 * Math.abs(Math.sin(this.flashT * 7));
-    const w = this.scene.scale.width, h = this.scene.scale.height;
-    this.flash.setVisible(true).clear();
-    this.flash.lineStyle(36, 0xff3b30, a).strokeRect(18, 18, w - 36, h - 36);
-    this.flash.lineStyle(10, 0xffd43b, a).strokeRect(40, 40, w - 80, h - 80);
+    this.flash.setVisible(true).setAlpha(a);
   }
 
   clear() {

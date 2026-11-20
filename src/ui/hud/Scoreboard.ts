@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS } from '../../config/gameConfig';
 import { bigText, FONT_HEAD } from '../menu/style';
+import { rrectImage } from './bake';
 import { HUD, scoreboardRect } from './hudConfig';
 import { formatTime } from './hudMath';
 
@@ -21,9 +22,7 @@ export class Scoreboard {
     this.numPlayers = numPlayers;
     const { x, y, w, h } = scoreboardRect(numPlayers);
     const two = numPlayers > 1;
-    const bg = scene.add.graphics();
-    bg.fillStyle(HUD.colors.navy, 0.9).fillRoundedRect(-w / 2, 0, w, h, 34);
-    bg.lineStyle(7, HUD.colors.gold, 1).strokeRoundedRect(-w / 2, 0, w, h, 34);
+    const bg = rrectImage(scene, { r: 34, fill: HUD.colors.navy, fillA: 0.9, stroke: HUD.colors.gold, strokeW: 7 }, 0, h / 2, w, h);
     const label = bigText(scene, -w / 2 + 28, 66, 'TEAM', 46, '#ffd43b', { font: FONT_HEAD, stroke: 8, origin: [0, 0.5] });
     this.teamText = bigText(scene, w / 2 - 28, 66, '0', 104, '#ffffff', { font: FONT_HEAD, stroke: 12, origin: [1, 0.5] });
     this.plusText = bigText(scene, 0, h + 40, '', 64, '#7dff8a', { font: FONT_HEAD, stroke: 9 }).setAlpha(0);
@@ -50,7 +49,7 @@ export class Scoreboard {
     const d = team - this.team;
     this.team = team;
     this.teamText.setText(String(team));
-    this.pText.forEach((t, p) => t.setText(`P${p + 1} ${perPlayer[p] ?? 0}`));
+    this.pText.forEach((t, p) => t.setText(`P${p + 1} ${perPlayer[p] ?? 0}`)); // Phaser skips unchanged text
     if (d > 0) this.bump(d);
   }
 
@@ -66,7 +65,8 @@ export class Scoreboard {
   setRemaining(sec: number) { this.remaining = sec; }
 
   update(dt: number) {
-    this.timer.setText(formatTime(this.remaining));
+    const label = formatTime(this.remaining);
+    if (label !== this.timerLabel) { this.timerLabel = label; this.timer.setText(label); }
     const urgent = this.remaining <= HUD.timerWarnSec && this.remaining > 0;
     if (urgent) {
       this.pulseT += dt;
@@ -80,6 +80,7 @@ export class Scoreboard {
     }
   }
 
+  private timerLabel = '00:00';
   private timerColor = '#ffffff';
   private setTimerColor(c: string) {
     if (c === this.timerColor) return; // setColor re-renders the text texture: only on change

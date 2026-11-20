@@ -5,6 +5,7 @@ import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, Rect,
 } from '../../core/types';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
+import { bakedImage, circle, glowRect, resizeRR, rrectImage, type RRectSpec } from './bake';
 import { breakSplitRegion, challengeRegion, HUD } from './hudConfig';
 import { easeInOut, easeOutBack, lerp } from './hudMath';
 
@@ -22,9 +23,9 @@ interface Pose { x: number; y: number; s: number }
 interface Cell {
   root: Phaser.GameObjects.Container;    // posed by the panel
   inner: Phaser.GameObjects.Container;   // animated by result effects
-  card: Phaser.GameObjects.Graphics;
+  card: Phaser.GameObjects.Image;
   content: Phaser.GameObjects.Container;
-  hint: Phaser.GameObjects.Graphics;
+  hint: Phaser.GameObjects.Container;
   dock: Pose;
 }
 
@@ -45,13 +46,13 @@ function fitImage(img: Phaser.GameObjects.Image, size: number) {
 export class ChallengePanel {
   finished = false;
   readonly root: Phaser.GameObjects.Container;
-  private bg: Phaser.GameObjects.Graphics;
+  private bg!: Phaser.GameObjects.Image;
   private header?: Phaser.GameObjects.Text;
   private promptRoot: Phaser.GameObjects.Container;
   private promptDock: Pose = { x: 0, y: 0, s: 1 };
   private cells: Cell[] = [];
   private promptW = 250;
-  private glow: Phaser.GameObjects.Graphics;
+  private glow: Phaser.GameObjects.NineSlice;
   private dockW = 0;
   private dockH = 0;
   private readonly diamond: boolean;
@@ -82,9 +83,8 @@ export class ChallengePanel {
     this.cardH = this.diamond ? D_CARD_H : CARD_H;
     if (this.centered) this.phase = 'docked';
     this.root = scene.add.container(0, 0).setDepth(hooks.depth);
-    this.glow = scene.add.graphics();
-    this.bg = scene.add.graphics();
-    this.root.add([this.glow, this.bg]);
+    this.glow = glowRect(scene, HUD.colors.gold, 0.16, 4, 10, 36, 0, 0, 100, 100).setVisible(false);
+    this.root.add(this.glow);
 
     this.promptRoot = this.buildPrompt(challenge.prompt);
     this.root.add(this.promptRoot);
@@ -100,10 +100,19 @@ export class ChallengePanel {
   }
 
   // ───────────────────────── building ─────────────────────────
-  private drawCard(g: Phaser.GameObjects.Graphics, w: number, h: number, fill: number, stroke: number, strokeW = 6, alpha = 0.97) {
-    g.clear();
-    g.fillStyle(fill, alpha).fillRoundedRect(-w / 2, -h / 2, w, h, 26);
-    g.lineStyle(strokeW, stroke, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 26);
+  /** Baked card (rounded rect) of the given look. */
+  private makeCard(w: number, h: number, fill: number, stroke: number, strokeW = 6, alpha = 0.97): Phaser.GameObjects.Image {
+    const spec: RRectSpec = { r: 26, fill, fillA: alpha, stroke, strokeW };
+    return rrectImage(this.scene, spec, 0, 0, w, h);
+  }
+
+  /** Swap a cell's card for another look (same slot in the display list). */
+  private restyleCard(cell: Cell, fill: number, stroke: number, strokeW: number) {
+    const old = cell.card;
+    const next = this.makeCard(this.cardW, this.cardH, fill, stroke, strokeW);
+    cell.inner.addAt(next, cell.inner.getIndex(old));
+    old.destroy();
+    cell.card = next;
   }
 
   private textFit(txt: string, size: number, maxW: number, maxH: number, minSize = 36): Phaser.GameObjects.Text {
@@ -119,11 +128,13 @@ export class ChallengePanel {
 
   private buildPrompt(p: ChallengePrompt): Phaser.GameObjects.Container {
     const c = this.scene.add.container(0, 0);
-    const card = this.scene.add.graphics();
-    c.add(card);
+    // The card is baked once the prompt width is known; this slot keeps its place at the bottom of the list.
+    const slot = this.scene.add.container(0, 0);
+    c.add(slot);
+    const bake = () => slot.add(this.makeCard(this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10));
     if (p.kind === 'image') {
       this.promptW = 230;
-      this.drawCard(card, this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10);
+      bake();
       if (this.scene.textures.exists(sceneTex(p.sceneId))) {
         const img = this.scene.add.image(0, 0, sceneTex(p.sceneId));
         fitImage(img, 168);
@@ -134,12 +145,11 @@ export class ChallengePanel {
       const txt = isMath ? `${p.text} = ?` : p.text;
       const t = this.textFit(txt, isMath ? 96 : 104, 540, PROMPT_H - 30, 60);
       this.promptW = Math.max(250, Math.min(600, t.width * t.scaleX + 70));
-      this.drawCard(card, this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10);
+      bake();
       c.add(t);
     }
     if (!(p.kind === 'text' && /^\s*\d+\s*\+\s*\d+\s*$/.test(p.text))) {
-      const q = this.scene.add.graphics();
-      q.fillStyle(hexNum(this.color), 1).fillCircle(0, 0, 26).lineStyle(4, 0xffffff, 1).strokeCircle(0, 0, 26);
+      const q = circle(this.scene, { r: 26, fill: hexNum(this.color), stroke: 0xffffff, strokeW: 4 }, 0, 0);
       const qt = bigText(this.scene, 0, 0, '?', 40, '#ffffff', { font: FONT_BODY, stroke: 0 });
       c.add(this.scene.add.container(-this.promptW / 2 + 6, -PROMPT_H / 2 + 6, [q, qt]));
     }
@@ -150,11 +160,10 @@ export class ChallengePanel {
     const root = this.scene.add.container(0, 0);
     const inner = this.scene.add.container(0, 0);
     root.add(inner);
-    const card = this.scene.add.graphics();
     const content = this.scene.add.container(0, 0);
-    const hint = this.scene.add.graphics();
+    const hint = this.scene.add.container(0, 0);
     const cw = this.cardW, ch = this.cardH, dia = this.diamond;
-    this.drawCard(card, cw, ch, HUD.colors.card, 0x9fb0d0, 5);
+    const card = this.makeCard(cw, ch, HUD.colors.card, 0x9fb0d0, 5);
     const cx = dia ? 36 : 0;
     content.setX(cx);
     inner.add([card, content]);
@@ -174,9 +183,7 @@ export class ChallengePanel {
     if (!this.scene.textures.exists(TEX.buttonBadge[i])) badge.setVisible(false);
     inner.add(badge);
     if (!badge.visible) {
-      const g = this.scene.add.graphics();
-      g.fillStyle(hexNum(ANSWER_COLORS[i]), 1).fillCircle(bx, by, 32);
-      inner.add(g);
+      inner.add(circle(this.scene, { r: 32, fill: hexNum(ANSWER_COLORS[i]) }, bx, by));
     }
     this.root.add(root);
     return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
@@ -215,9 +222,9 @@ export class ChallengePanel {
 
   private drawBg() {
     const w = this.dockW, h = this.dockH;
-    this.bg.clear();
-    this.bg.fillStyle(NAVY, 0.97).fillRoundedRect(-w / 2, -h / 2, w, h, 36);
-    this.bg.lineStyle(8, hexNum(this.color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 36);
+    this.bg = rrectImage(this.scene, { r: 36, fill: NAVY, fillA: 0.97, stroke: hexNum(this.color), strokeW: 8 }, 0, 0, w, h);
+    this.root.addAt(this.bg, 1);
+    resizeRR(this.glow, w, h);
   }
 
   /** Big fills the region (width- or height-limited); docked is slightly smaller, same top-center anchor. */
@@ -265,15 +272,12 @@ export class ChallengePanel {
     this.root.setAlpha(alpha * this.fadeAlpha);
 
     // attention glow: pulsing gold halo while shown, fading out as it shrinks
-    const w = this.dockW, h = this.dockH;
-    this.glow.clear();
+    const h = this.dockH;
     const ga = 1 - e;
     if (ga > 0.01 && !this.resolved) {
       const pulse = 0.6 + 0.4 * Math.sin(this.age * 18);
-      for (let i = 4; i >= 1; i--) {
-        this.glow.fillStyle(HUD.colors.gold, 0.16 * ga * pulse).fillRoundedRect(-w / 2 - i * 10, -h / 2 - i * 10, w + i * 20, h + i * 20, 36 + i * 10);
-      }
-    }
+      this.glow.setVisible(true).setAlpha(ga * pulse);
+    } else this.glow.setVisible(false);
 
     const pp = this.promptDock;
     this.promptRoot.setPosition(pp.x, pp.y).setScale(pp.s);
@@ -325,7 +329,7 @@ export class ChallengePanel {
   }
 
   private celebrate(cell: Cell) {
-    this.drawCard(cell.card, this.cardW, this.cardH, HUD.colors.green, 0xffffff, 10);
+    this.restyleCard(cell, HUD.colors.green, 0xffffff, 10);
     const { x, y } = this.cellWorld(cell);
     const sc = this.scene;
     sc.tweens.add({ targets: cell.inner, scale: { from: 1, to: 1.22 }, duration: 160, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
@@ -353,11 +357,13 @@ export class ChallengePanel {
   }
 
   private markWrong(cell: Cell) {
-    this.drawCard(cell.card, this.cardW, this.cardH, HUD.colors.gray, 0x7b8494, 5);
+    this.restyleCard(cell, HUD.colors.gray, 0x7b8494, 5);
     cell.content.setAlpha(0.45);
-    const x = this.scene.add.graphics();
-    x.lineStyle(18, 0xffffff, 1).beginPath().moveTo(-46, -46).lineTo(46, 46).moveTo(46, -46).lineTo(-46, 46).strokePath();
-    x.lineStyle(10, HUD.colors.red, 1).beginPath().moveTo(-46, -46).lineTo(46, 46).moveTo(46, -46).lineTo(-46, 46).strokePath();
+    const x = this.scene.add.container(0, 0, [bakedImage(this.scene, 'xmark', 120, 120, 0, 0, (g, k) => {
+      const c = 60 * k, a = 46 * k;
+      g.lineStyle(18 * k, 0xffffff, 1).beginPath().moveTo(c - a, c - a).lineTo(c + a, c + a).moveTo(c + a, c - a).lineTo(c - a, c + a).strokePath();
+      g.lineStyle(10 * k, HUD.colors.red, 1).beginPath().moveTo(c - a, c - a).lineTo(c + a, c + a).moveTo(c + a, c - a).lineTo(c - a, c + a).strokePath();
+    })]);
     cell.inner.add(x);
     this.extraTargets.push(x);
     this.scene.tweens.add({ targets: cell.inner, x: { from: -14, to: 14 }, duration: 55, yoyo: true, repeat: 4, ease: 'Sine.easeInOut', onComplete: () => cell.inner.setX(0) });
@@ -367,8 +373,10 @@ export class ChallengePanel {
   private showHint() {
     this.hintShown = true;
     const cell = this.cells[this.challenge.correct];
-    cell.hint.lineStyle(12, HUD.colors.green, 1).strokeRoundedRect(-this.cardW / 2 - 6, -this.cardH / 2 - 6, this.cardW + 12, this.cardH + 12, 30);
-    cell.hint.lineStyle(4, 0xffffff, 0.9).strokeRoundedRect(-this.cardW / 2 - 14, -this.cardH / 2 - 14, this.cardW + 28, this.cardH + 28, 36);
+    cell.hint.add([
+      rrectImage(this.scene, { r: 30, stroke: HUD.colors.green, strokeW: 12 }, 0, 0, this.cardW + 12, this.cardH + 12),
+      rrectImage(this.scene, { r: 36, stroke: 0xffffff, strokeW: 4, strokeA: 0.9 }, 0, 0, this.cardW + 28, this.cardH + 28),
+    ]);
     this.scene.tweens.add({ targets: cell.hint, alpha: { from: 0, to: 1 }, duration: 250 });
   }
 

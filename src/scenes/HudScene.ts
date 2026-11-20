@@ -7,6 +7,7 @@ import type { CameraLayout, PlayerId, Rect, Vec2 } from '../core/types';
 import { bigText, FONT_HEAD, hexNum } from '../ui/menu/style';
 import { PauseOverlay } from '../ui/menu/PauseOverlay';
 import { Banners } from '../ui/hud/Banners';
+import { bakedImage, rrectImage } from '../ui/hud/bake';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
 import { HUD } from '../ui/hud/hudConfig';
 import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
@@ -33,8 +34,9 @@ export class HudScene extends Phaser.Scene {
   private nPlayers = 1;
   private layout: CameraLayout = { mode: 'single', playerViews: [{ x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT }] };
   private curViews: Rect[] = [];
-  private divider!: Phaser.GameObjects.Graphics;
+  private divider: Phaser.GameObjects.Rectangle[] = [];
   private dividerAlpha = 0;
+  private dividerKey = '';
   private scoreboard!: Scoreboard;
   private panels: (ChallengePanel | null)[] = [null, null];
   private bars: TimerBar[] = [];
@@ -46,8 +48,8 @@ export class HudScene extends Phaser.Scene {
   private pauseStyle = true;
   private waiting = [false, false];
   private waitCards: Phaser.GameObjects.Container[] = [];
-  private rideCards: { box: Phaser.GameObjects.Container; num: Phaser.GameObjects.Text; fill: Phaser.GameObjects.Rectangle; shown: number }[] = [];
-  private dim!: Phaser.GameObjects.Graphics;
+  private rideCards: { box: Phaser.GameObjects.Container; num: Phaser.GameObjects.Text; fill: Phaser.GameObjects.Rectangle; shown: number; low: boolean | null }[] = [];
+  private dim: Phaser.GameObjects.Rectangle[] = [];
   private dimA = 0;
 
   constructor() { super(SCENE.hud); }
@@ -73,8 +75,14 @@ export class HudScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
 
     this.pauseStyle = (ctx.settings?.questionStyle ?? 'pause') === 'pause';
-    this.divider = this.add.graphics().setDepth(D.divider);
-    this.dim = this.add.graphics().setDepth(0.5);
+    // Plain rectangles (cheap) instead of a Graphics cleared and redrawn every frame.
+    const bar = () => this.add.rectangle(0, 0, 1, GAME_HEIGHT, 0xe8f0ff).setOrigin(0, 0).setDepth(D.divider).setVisible(false);
+    this.divider = [bar(), bar(), bar()];
+    this.divider[0].setFillStyle(0x0b1226).setSize(16, GAME_HEIGHT);
+    this.divider[1].setSize(3, GAME_HEIGHT);
+    this.divider[2].setSize(3, GAME_HEIGHT);
+    this.dividerKey = '';
+    this.dim = [0, 1].map(() => this.add.rectangle(0, 0, 1, 1, 0x0b1226).setOrigin(0, 0).setDepth(0.5).setVisible(false));
     this.scoreboard = new Scoreboard(this, this.nPlayers, D.scoreboard);
     this.scoreboard.setRemaining(ctx.roundLengthSec);
     for (let p = 0; p < this.nPlayers; p++) {
@@ -162,19 +170,19 @@ export class HudScene extends Phaser.Scene {
 
   /** Friendly "waiting for teammate" indicator: big check mark plus a small Waiting label. */
   private buildWaitCard(color: string): Phaser.GameObjects.Container {
-    const g = this.add.graphics();
-    g.fillStyle(0x14213d, 0.9).fillCircle(0, 0, 170).lineStyle(14, hexNum(color), 1).strokeCircle(0, 0, 170);
-    g.fillStyle(HUD.colors.green, 1).fillCircle(0, 0, 134).lineStyle(8, 0xffffff, 1).strokeCircle(0, 0, 134);
-    g.lineStyle(34, 0xffffff, 1).beginPath().moveTo(-62, 4).lineTo(-18, 52).lineTo(66, -50).strokePath();
+    const g = bakedImage(this, `wait:${color}`, 360, 360, 0, 0, (gr, k) => {
+      const c = 180 * k;
+      gr.fillStyle(0x14213d, 0.9).fillCircle(c, c, 170 * k).lineStyle(14 * k, hexNum(color), 1).strokeCircle(c, c, 170 * k);
+      gr.fillStyle(HUD.colors.green, 1).fillCircle(c, c, 134 * k).lineStyle(8 * k, 0xffffff, 1).strokeCircle(c, c, 134 * k);
+      gr.lineStyle(34 * k, 0xffffff, 1).beginPath().moveTo(c - 62 * k, c + 4 * k).lineTo(c - 18 * k, c + 52 * k).lineTo(c + 66 * k, c - 50 * k).strokePath();
+    });
     const t = bigText(this, 0, 222, 'Waiting…', 48, '#ffffff', { font: FONT_HEAD, stroke: 8 });
     return this.add.container(0, 0, [g, t]).setDepth(D.panel).setVisible(false);
   }
 
   private buildRideCard(color: string) {
     const { w, h, barW, barH } = RIDE;
-    const g = this.add.graphics();
-    g.fillStyle(HUD.colors.navy, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 34)
-      .lineStyle(8, hexNum(color), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 34);
+    const g = rrectImage(this, { r: 34, fill: HUD.colors.navy, fillA: 0.92, stroke: hexNum(color), strokeW: 8 }, 0, 0, w, h);
     const parts: Phaser.GameObjects.GameObject[] = [g];
     const head = this.ctx.settings.map === 'underground' ? TEX.rockMonster.head : TEX.dinoHead;
     if (this.textures.exists(head)) {
@@ -188,7 +196,7 @@ export class HudScene extends Phaser.Scene {
     const fill = this.add.rectangle(bx, 0, barW, barH, 0x7cfc5a).setOrigin(0, 0.5);
     parts.push(num, back, fill);
     const box = this.add.container(0, 0, parts).setDepth(D.panel).setVisible(false).setName('dino-ride-countdown');
-    return { box, num, fill, shown: -1 };
+    return { box, num, fill, shown: -1, low: null as boolean | null };
   }
 
   /** Ride countdown for the player riding the dino (numbers and a bar only). */
@@ -199,15 +207,18 @@ export class HudScene extends Phaser.Scene {
       const left = st.rider === p ? st.rideLeftSec ?? 0 : 0;
       const on = st.active && left > 0 && !this.panels[p];
       card.box.setVisible(on);
-      if (!on) { card.shown = -1; continue; }
+      if (!on) { card.shown = -1; card.low = null; continue; }
       const v = this.curViews[p];
       const secs = rideSecondsShown(left);
       if (secs !== card.shown) { card.shown = secs; card.num.setText(String(secs)); }
       const frac = Math.max(0, Math.min(1, left / Math.max(0.001, st.rideTotalSec ?? left)));
       const low = secs <= 5;
       card.fill.width = Math.max(1, RIDE.barW * frac);
-      card.fill.setFillStyle(low ? 0xffa53b : 0x7cfc5a);
-      card.num.setColor(low ? '#ffa53b' : '#ffd43b');
+      if (low !== card.low) { // setColor re-renders the text texture: only on change
+        card.low = low;
+        card.fill.setFillStyle(low ? 0xffa53b : 0x7cfc5a);
+        card.num.setColor(low ? '#ffa53b' : '#ffd43b');
+      }
       const pulse = low ? 1 + 0.05 * Math.sin(this.clock * 10) : 1;
       card.box.setPosition(v.x + v.w / 2, v.y + v.h - RIDE.fromBottom).setScale(Math.min(1, v.w / (RIDE.w + 40)) * pulse);
     }
@@ -216,12 +227,13 @@ export class HudScene extends Phaser.Scene {
   private updateBreakVisuals(realDt: number) {
     const breaking = this.ctx.questionBreak && this.pauseStyle;
     this.dimA += ((breaking ? CHALLENGE.breakDimAlpha : 0) - this.dimA) * smoothFactor(realDt, 12);
-    const g = this.dim.clear();
-    if (this.dimA > 0.01) {
-      g.fillStyle(0x0b1226, this.dimA);
-      if (this.shared()) { const r = this.mapRect(0); g.fillRect(r.x, r.y, r.w, r.h); }
-      else for (let p = 0; p < this.nPlayers; p++) { const v = this.curViews[p]; g.fillRect(v.x, v.y, v.w, v.h); }
-    }
+    const dimOn = this.dimA > 0.01;
+    const dimRects: Rect[] = !dimOn ? [] : this.shared() ? [this.mapRect(0)] : this.curViews.slice(0, this.nPlayers);
+    this.dim.forEach((d, i) => {
+      const r = dimRects[i];
+      d.setVisible(!!r);
+      if (r) d.setPosition(r.x, r.y).setSize(r.w, r.h).setAlpha(this.dimA);
+    });
     for (let p = 0; p < this.waitCards.length; p++) {
       const card = this.waitCards[p];
       const show = breaking && this.waiting[p] && !this.panels[p];
@@ -369,11 +381,16 @@ export class HudScene extends Phaser.Scene {
   private drawDivider(dt: number) {
     const want = this.layout.mode === 'split' && this.nPlayers > 1 ? 1 : 0;
     this.dividerAlpha += (want - this.dividerAlpha) * smoothFactor(dt, 10);
-    const g = this.divider.clear();
-    if (this.dividerAlpha < 0.02) return;
+    const vis = this.dividerAlpha >= 0.02;
+    if (!vis) { if (this.dividerKey !== 'off') { this.dividerKey = 'off'; this.divider.forEach((d) => d.setVisible(false)); } return; }
     const x = this.curViews[1]?.x ?? GAME_WIDTH / 2;
-    const a = this.dividerAlpha;
-    g.fillStyle(0x0b1226, a).fillRect(x - 8, 0, 16, GAME_HEIGHT);
-    g.fillStyle(0xe8f0ff, a).fillRect(x - 11, 0, 3, GAME_HEIGHT).fillRect(x + 8, 0, 3, GAME_HEIGHT);
+    const a = Math.round(this.dividerAlpha * 1000) / 1000;
+    const key = `${x}|${a}`;
+    if (key === this.dividerKey) return; // only touch the rectangles when the layout/fade changed
+    this.dividerKey = key;
+    const [dark, l, r] = this.divider;
+    dark.setPosition(x - 8, 0).setAlpha(a).setVisible(true);
+    l.setPosition(x - 11, 0).setAlpha(a).setVisible(true);
+    r.setPosition(x + 8, 0).setAlpha(a).setVisible(true);
   }
 }
