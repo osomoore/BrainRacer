@@ -345,6 +345,13 @@ export const TRAFFIC = {
   stuckSec: 3,
   stuckMoveDist: 24,
   reverseSec: 0.9,
+  policeYieldRadius: 240,
+  policeResumeRadius: 290,
+  queueSpeed: 30,            // px/s below which a car waiting behind another is queued
+  jamClearAfterSec: 5,       // a slow queue must persist before off-screen traffic can be recycled
+  jamCheckIntervalSec: 1.5,  // remove at most one queued vehicle per check
+  spreadSpawnSamples: 8,     // favor the open lanes when replenishing regular traffic
+  spreadSpawnGap: 440,       // a replacement can stop looking once it finds this much space
   spawnMargin: 160,          // px beyond camera view that spawns must stay outside
   spawnGap: 140,             // min distance to other vehicles at spawn
   spawnIntervalSec: 0.12,    // at most one spawn per interval after the initial fill
@@ -421,6 +428,8 @@ export const POLICE = {
   bumpBackoffSec: 0.9,
   sirenNearDist: 1300,
   lightFlashSec: 0.2,
+  playerLightGlowSize: 96,
+  playerLightGlowAlpha: 0.55,
   // --- playtest 2 ---
   offscreenDespawnSec: 1.5,  // off every player's view this long -> removed
   offscreenMargin: 80,
@@ -947,6 +956,9 @@ export const FOREST = {
   treeRadius: 22,
   treeCount: 195,
   shrubCount: 120,
+  shrubScale: [1.45, 1.9],
+  shrubHitRadius: 55,
+  shrubScatterDistance: 160,
   streetLampStep: 4,
   fireflyCount: 44,
   fireflyDrift: 25,
@@ -959,6 +971,8 @@ export const FOREST = {
 
 /** Sky-city traffic control and scenery. Bridge timing uses seconds of driving. */
 export const SKY_CROSSINGS = [8, 16, 30] as const;
+export const SKY_FIXED_CROSSINGS = [SKY_CROSSINGS[0], SKY_CROSSINGS[2], 39] as const;
+export const SKY_NORTH_SOUTH_ROADS = [7, 12, 17, 29, 34, 39] as const;
 export const SKY_DRAWBRIDGE = { left: 21, right: 27, row: SKY_CROSSINGS[1], height: 2 } as const;
 export const SKY = {
   bridgeCycleSec: 39,
@@ -968,9 +982,9 @@ export const SKY = {
   bridgeTestLeadSec: 2,
   bridgeClearance: 36,
   bridgeSoundRadius: 1200,
-  cloudBands: 8,
-  cloudsPerBand: 9,
-  cloudSpeed: 17,
+  cloudBands: 11,
+  cloudsPerBand: 12,
+  cloudSpeed: 22,
   airshipCount: 5,
   airshipSpeed: 112,
 } as const;

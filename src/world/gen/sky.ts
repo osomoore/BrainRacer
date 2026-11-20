@@ -1,4 +1,4 @@
-import { SKY_CROSSINGS, SKY_DRAWBRIDGE, TILE_SIZE, WORLD } from '../../config/gameConfig';
+import { SKY_DRAWBRIDGE, SKY_FIXED_CROSSINGS, SKY_NORTH_SOUTH_ROADS, TILE_SIZE, WORLD } from '../../config/gameConfig';
 import { Rng } from '../../core/rng';
 import { Tile, type BuildingLot, type PlaceSite, type WorldData } from '../../core/types';
 import { scenesForWord } from '../../data/scenes';
@@ -10,7 +10,7 @@ export function isSkyBridgeDeck(x: number, y: number): boolean {
   return x >= b.left && x < b.right && y >= b.row && y < b.row + b.height;
 }
 
-/** Four floating districts. Suspended decks form a connected circuit even with the middle span raised. */
+/** Four floating districts connected by permanent skyways and a central lifting span. */
 export function generateSky(seed: number): WorldData {
   const rng = new Rng(seed);
   const { widthTiles: w, heightTiles: h } = WORLD;
@@ -36,27 +36,38 @@ export function generateSky(seed: number): WorldData {
       paint(x, y, 2, 2, Tile.Road);
     }
   };
-  for (const y of SKY_CROSSINGS) road(7, y, 39, y);
-  for (const x of [7, 17, 29, 39]) road(x, 8, x, 39);
-  for (const y of [12, 39]) {
-    road(7, y, 17, y);
-    road(29, y, 39, y);
-  }
+  for (const y of [...SKY_FIXED_CROSSINGS, SKY_DRAWBRIDGE.row]) road(7, y, 39, y);
+  for (const x of SKY_NORTH_SOUTH_ROADS) road(x, 8, x, 39);
+  road(7, 12, 17, 12);
+  road(29, 12, 39, 12);
+  // Join the two southern crossings above the central void.
+  road(23, 30, 23, 39);
 
   const buildings: BuildingLot[] = [];
   const places: PlaceSite[] = [];
   const sites = [
-    [10, 6, 'tower', 8], [14, 6, 'museum', 8], [32, 6, 'train station', 8], [36, 6, 'shop', 8],
-    [10, 14, 'bakery', 16], [14, 14, 'library', 16], [32, 14, 'restaurant', 16], [36, 14, 'school', 16],
-    [10, 33, 'house', 31], [14, 35, 'farm', 39], [32, 33, 'church', 31], [36, 35, 'park', 39],
+    [10, 6, 'tower', 8, 6], [14, 6, 'museum', 8, 7], [32, 6, 'train station', 8, 8], [36, 6, 'shop', 8, 9],
+    [10, 14, 'bakery', 16, 2], [14, 14, 'library', 16, 7], [32, 14, 'restaurant', 16, 9], [36, 14, 'school', 16, 6],
+    [10, 33, 'house', 31, 6], [14, 35, 'farm', 39, 9], [32, 33, 'church', 31, 7], [36, 35, 'park', 39, 9],
   ] as const;
-  for (const [x, y, word, streetY] of sites) {
+  for (const [x, y, word, streetY, style] of sites) {
     const id = buildings.length;
     const placeWord = scenesForWord(word).length ? word : undefined;
-    buildings.push({ id, tx: x, ty: y, tw: 2, th: 2, style: rng.int(0, 5), placeWord });
+    buildings.push({ id, tx: x, ty: y, tw: 2, th: 2, style, placeWord });
     paint(x, y, 2, 2, Tile.Building);
     if (placeWord) places.push({ word: placeWord, buildingId: id,
       sign: { x: (x + 1) * ts, y: (y + 1) * ts }, front: { x: (x + 1) * ts, y: (streetY + .55) * ts } });
+  }
+  const spaceportLots = [
+    [4, 8, 2, 3], [5, 13, 2, 2], [4, 16, 2, 2], [19, 10, 2, 3], [19, 14, 2, 2],
+    [27, 10, 2, 3], [27, 13, 2, 2], [27, 32, 2, 2], [41, 8, 3, 2], [42, 13, 2, 3],
+    [4, 33, 3, 3], [5, 38, 2, 2], [9, 28, 3, 2], [14, 27, 3, 3], [19, 34, 2, 3],
+    [27, 34, 2, 3], [31, 28, 3, 2], [36, 27, 3, 3], [42, 30, 2, 3], [41, 35, 3, 2],
+    [9, 41, 3, 2], [14, 41, 2, 2], [31, 41, 3, 2], [36, 41, 2, 2],
+  ] as const;
+  for (const [tx, ty, tw, th] of spaceportLots) {
+    buildings.push({ id: buildings.length, tx, ty, tw, th, style: rng.int(6, 9) });
+    paint(tx, ty, tw, th, Tile.Building);
   }
   computeRoadMask(grid);
   const laneGraph = generateLaneGraph(lanes);

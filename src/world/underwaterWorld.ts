@@ -3,8 +3,10 @@ import { ellipse, fillStroke, lin, radial, type Ctx } from '../art/draw';
 import { DEPTH } from '../config/gameConfig';
 import { Rng } from '../core/rng';
 import { Tile, type BuildingLot, type WorldData } from '../core/types';
+import { UNDERWATER_GLASS_ROADS, UNDERWATER_VIEWING_POOLS } from './gen/underwater';
 import { addUnderwaterLife } from './underwaterLife';
 import { paintCoral, paintDome, paintKelp, paintTube, underwaterTexture } from './underwaterPaint';
+import { paintDeepWater } from './underwaterTiles';
 
 export { UNDERWATER_TILESET_KEY, underwaterTileIndex, underwaterTileSource } from './underwaterTiles';
 
@@ -46,22 +48,37 @@ function paintCaustics(c: Ctx): void {
 
 export function addUnderwaterWorld(scene: Phaser.Scene, world: WorldData, objects: Objects): (dt: number) => void {
   const ts = world.tileSize;
-  const glass = (left: number, right: number, y: number, vertical = false) => {
-    const w = (right - left) * 128;
-    const key = underwaterTexture(scene, `glass_${w}`, w, 256, c => paintTube(c, w, 256, false));
-    const center = (left + right) * ts / 2;
-    objects.push(scene.add.image(vertical ? y * ts : center, vertical ? center : y * ts, key)
-      .setDisplaySize((right - left) * ts, 2 * ts).setRotation(vertical ? Math.PI / 2 : 0)
+  const width = world.widthTiles * ts, height = world.heightTiles * ts;
+  const water = underwaterTexture(scene, 'deep-water', 600, 600, c => paintDeepWater(c, 600));
+  objects.push(scene.add.image(width / 2, height / 2, water).setDisplaySize(width + 1200, height + 1200)
+    .setDepth(DEPTH.ground - 4).setName('underwater-seabed'));
+
+  for (const { start, end, center, vertical } of UNDERWATER_GLASS_ROADS) {
+    const w = (end - start) * ts;
+    const key = underwaterTexture(scene, `glass_${w}`, w, 2 * ts, c => paintTube(c, w, 2 * ts));
+    const along = (start + end) * ts / 2, across = center * ts;
+    objects.push(scene.add.image(vertical ? across : along, vertical ? along : across, key)
+      .setRotation(vertical ? Math.PI / 2 : 0)
       .setDepth(DEPTH.decal - 1).setName('underwater-glass-tube'));
-  };
-  glass(19, 29, 11);
-  glass(19, 21, 21);
-  glass(27, 29, 21);
-  glass(19, 29, 37);
-  glass(23, 28, 7, true);
-  glass(23, 28, 31, true);
-  glass(13, 19, 18, true);
-  glass(23, 34, 18, true);
+  }
+  for (const { x, y, w, h } of UNDERWATER_VIEWING_POOLS) {
+    const viewWidth = w * ts, viewHeight = h * ts;
+    const key = underwaterTexture(scene, `viewing_pool_${w}_${h}`, viewWidth, viewHeight, c => {
+      c.strokeStyle = '#163b53';
+      c.lineWidth = 24;
+      c.strokeRect(0, 0, viewWidth, viewHeight);
+      c.strokeStyle = '#8ce3cb';
+      c.lineWidth = 3;
+      c.strokeRect(3, 3, viewWidth - 6, viewHeight - 6);
+      c.fillStyle = '#fff0ad';
+      for (let px = ts / 2; px < viewWidth; px += ts) {
+        c.fillRect(px - 13, 7, 26, 4);
+        c.fillRect(px - 13, viewHeight - 11, 26, 4);
+      }
+    });
+    objects.push(scene.add.image((x + w / 2) * ts, (y + h / 2) * ts, key)
+      .setDepth(DEPTH.ground + 1).setName('underwater-viewing-pool'));
+  }
 
   const garden = [
     underwaterTexture(scene, 'kelp', 158, 159, paintKelp),
@@ -81,7 +98,7 @@ export function addUnderwaterWorld(scene: Phaser.Scene, world: WorldData, object
     if (!rng.chance(0.29) || world.tiles[y * world.widthTiles + x] !== Tile.Water) continue;
     const scale = rng.range(0.5, 1.15);
     objects.push(scene.add.image((x + 0.5) * ts, (y + 0.5) * ts, rng.pick(garden))
-      .setScale(scale).setRotation(rng.range(0, Math.PI * 2)).setDepth(DEPTH.ground + 1));
+      .setScale(scale).setRotation(rng.range(0, Math.PI * 2)).setDepth(DEPTH.ground - 3));
   }
   const caustic = underwaterTexture(scene, 'caustics', 500, 500, paintCaustics);
   const glimmers = Array.from({ length: 45 }, () => {

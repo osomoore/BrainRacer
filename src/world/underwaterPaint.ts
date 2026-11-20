@@ -43,14 +43,12 @@ export function paintDome(c: Ctx, base: string, glass: string, glint: string): v
   }
 }
 
-/** Glass skin with curved cross braces. Paint only where the roadway is straight. */
-export function paintTube(c: Ctx, w: number, h: number, deck: boolean): void {
-  if (deck) {
-    c.fillStyle = '#294d63';
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = '#c8dcd68c';
-    for (let x = 31; x < w; x += 128) c.fillRect(x, h / 2 - 1.5, 45, 3);
-  }
+/** Translucent floor and glass skin with curved cross braces over straight roadways. */
+export function paintTube(c: Ctx, w: number, h: number): void {
+  c.fillStyle = lin(c, 0, 0, 0, h, [[0, '#305d75ca'], [.4, '#2a638747'], [.6, '#2a638747'], [1, '#305d75ca']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#c8dcd68c';
+  for (let x = 31; x < w; x += 128) c.fillRect(x, h / 2 - 1.5, 45, 3);
   for (const flip of [false, true]) {
     c.save();
     if (flip) { c.translate(0, h); c.scale(1, -1); }

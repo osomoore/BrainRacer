@@ -118,7 +118,47 @@ export function skyRoof(scene: Phaser.Scene, style: number): string {
       box(c, '#394c77', x, 241, 19, 13);
       box(c, '#a7e1e4', x + 2, 243, 15, 5);
     }
+    if (style >= 6) paintSpaceportRoof(c, style);
   });
+}
+
+function paintSpaceportRoof(c: Ctx, style: number): void {
+  switch (style) {
+    case 6:
+      // Navigation tower with a glazed control cabin and antenna.
+      ellipse(c, 146, 132, 74, 73); fillStroke(c, '#535982', '#ffe4b1', 6);
+      ellipse(c, 133, 113, 66, 54); fillStroke(c, bodyGrad(c, 75, 65, 132, 96, '#daf9ff', '#40769e'), '#f7d79d', 6);
+      for (const x of [101, 124, 149, 172]) line(c, '#576f97', 4, x, 86, x + 5, 143);
+      line(c, '#f5e5c7', 5, 133, 111, 155, 59, 168, 43);
+      ellipse(c, 168, 43, 7, 7); fillStroke(c, '#fdc370', '#856a88', 3);
+      break;
+    case 7:
+      // Radar dish with a receiver on an angled support.
+      rr(c, 94, 103, 100, 89, 14); fillStroke(c, '#505882', '#f7d9ab', 5);
+      c.save(); c.translate(134, 112); c.rotate(-.4);
+      ellipse(c, 0, 0, 73, 48); fillStroke(c, bodyGrad(c, -73, -48, 146, 96, '#fff3d8', '#9c92cb'), '#53547e', 6);
+      ellipse(c, 2, -1, 56, 33); fillStroke(c, '#a1a5cd', '#dbd7ee', 3);
+      line(c, '#63577f', 5, -43, -2, 8, -18, 48, 8);
+      ellipse(c, 8, -18, 12, 12); fillStroke(c, '#ffdb91', '#665578', 4);
+      c.restore();
+      break;
+    case 8:
+      // Shuttle hangar with arched metal ribs and illuminated doors.
+      rr(c, 70, 51, 137, 150, 43); fillStroke(c, bodyGrad(c, 70, 51, 137, 150, '#f0eee5', '#667fa4'), '#525b85', 5);
+      for (const y of [79, 104, 129, 154]) line(c, '#e6edea', 4, 77, y, 199, y);
+      rr(c, 83, 155, 111, 43, 8); fillStroke(c, '#354a73', '#f8d9a2', 5);
+      for (const x of [102, 126, 151, 175]) box(c, '#8bdde4', x - 4, 163, 8, 23);
+      break;
+    case 9:
+      // Fuel and service station with paired tanks.
+      for (const x of [94, 180]) {
+        rr(c, x - 30, 55, 61, 141, 27); fillStroke(c, bodyGrad(c, x - 30, 55, 61, 141, '#fff2d6', '#be7089'), '#645476', 5);
+        for (const y of [95, 152]) line(c, '#fff1af', 7, x - 27, y, x + 27, y);
+        ellipse(c, x, 74, 11, 11); fillStroke(c, '#9fdae5', '#646587', 4);
+      }
+      line(c, '#6d597b', 9, 125, 124, 150, 124);
+      break;
+  }
 }
 
 export function skyBridgeDeck(scene: Phaser.Scene, length: number, height: number, lifting: boolean): string {

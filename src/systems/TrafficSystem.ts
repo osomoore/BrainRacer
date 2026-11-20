@@ -30,13 +30,16 @@ export class TrafficSystem implements GameSystem {
   private tractorLimit = 0;
   private combineLimit = 0;
   private spawnT = 0;
+  private jamCheckT = TRAFFIC.jamCheckIntervalSec;
   private undergroundOrder: UndergroundVehicleKind[] = [];
   private worldVehicleOrder: WorldVehicle[] = [];
   private scratch: number[] = [];
   private occupied: { x: number; y: number }[] = [];
   private playerPts: { x: number; y: number }[] = [];
   private offCrash: (() => void) | null = null;
-  private query: SpawnQuery = { players: [], views: [], occupied: [], minR: 0, maxR: 0, margin: 0, gap: 0 };
+  private query: SpawnQuery = {
+    players: [], views: [], occupied: [], minR: 0, maxR: 0, margin: 0, gap: 0, spreadGap: TRAFFIC.spreadSpawnGap,
+  };
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
@@ -96,9 +99,7 @@ export class TrafficSystem implements GameSystem {
         if (dx * dx + dy * dy < r2) { far = false; break; }
       }
       if ((far || car.wantsDespawn) && !this.visible(car)) {
-        if (car.trailer?.hitched) car.trailer.destroy();
-        car.destroy();
-        this.remove(i);
+        this.despawn(i);
       }
     }
     for (const wagon of this.wagons) {
@@ -112,6 +113,11 @@ export class TrafficSystem implements GameSystem {
       } else {
         wagon.step(dt);
       }
+    }
+    this.jamCheckT -= dt;
+    if (this.jamCheckT <= 0) {
+      this.jamCheckT = TRAFFIC.jamCheckIntervalSec;
+      this.relieveJam();
     }
     this.spawnT -= dt;
     if (this.cars.length < this.totalLimit() && this.spawnT <= 0) {
@@ -162,6 +168,26 @@ export class TrafficSystem implements GameSystem {
     return this.regularLimit + this.freightLimit + this.tractorLimit + this.combineLimit;
   }
 
+  /** Make space in a persistent unseen queue. Normal spawning replenishes the car from the lane graph. */
+  private relieveJam(): void {
+    let candidate = -1;
+    let longestWait = TRAFFIC.jamClearAfterSec;
+    for (let i = 0; i < this.cars.length; i++) {
+      const car = this.cars[i];
+      if (car.queuedSec < longestWait || this.visible(car)) continue;
+      candidate = i;
+      longestWait = car.queuedSec;
+    }
+    if (candidate >= 0) this.despawn(candidate);
+  }
+
+  private despawn(i: number): void {
+    const car = this.cars[i];
+    if (car.trailer?.hitched) car.trailer.destroy();
+    car.destroy();
+    this.remove(i);
+  }
+
   private remove(i: number): void {
     const car = this.cars[i];
     this.ctx.npcs.delete(car);
@@ -174,8 +200,10 @@ export class TrafficSystem implements GameSystem {
   }
 
   private visible(car: TrafficCar): boolean {
-    const m = car.oversized ? Math.hypot(car.spec.length + car.trailerLength, car.spec.width) / 2 : TRAFFIC.spawnMargin * 0.5;
-    return this.inPlayerView(car, m);
+    const margin = Math.max(TRAFFIC.spawnMargin * 0.5, Math.hypot(car.spec.length, car.spec.width) / 2);
+    if (this.inPlayerView(car, margin)) return true;
+    const trailer = car.trailer;
+    return !!trailer?.hitched && this.inPlayerView(trailer, Math.hypot(trailer.spec.length, trailer.spec.width) / 2);
   }
 
   private inPlayerView(car: NpcVehicle, m: number): boolean {
@@ -218,6 +246,7 @@ export class TrafficSystem implements GameSystem {
     if (this.farmStarts && this.trySpawnFarmSlow(q)) return;
     if (this.cars.length - this.freightCount - this.tractorCount - this.combineCount >= this.regularLimit) return;
     q.minR = minR;
+    q.spreadSamples = minR === TRAFFIC.initialSpawnMin ? 1 : TRAFFIC.spreadSpawnSamples;
     q.gap = ctx.world.industrial ? INDUSTRIAL_TRAFFIC.spawnGap : ctx.world.farm ? FARM_TRAFFIC.spawnGap
       : this.undergroundOrder.length ? UNDERGROUND_TRAFFIC.spawnGap : TRAFFIC.spawnGap;
 

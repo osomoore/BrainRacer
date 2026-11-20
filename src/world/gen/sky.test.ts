@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SKY_CROSSINGS, SKY_DRAWBRIDGE } from '../../config/gameConfig';
+import { SKY_CROSSINGS, SKY_DRAWBRIDGE, SKY_FIXED_CROSSINGS, SKY_NORTH_SOUTH_ROADS } from '../../config/gameConfig';
 import { Tile } from '../../core/types';
 import { tileAt } from '../geometry';
 import { largestScc } from './analysis';
@@ -36,6 +36,23 @@ describe('Sky-city', () => {
       expect(tileAt(world, Math.floor(x / ts), Math.floor(y / ts))).toBe(Tile.Road);
       expect(isSkyBridgeDeck(x / ts, y / ts)).toBe(false);
     }
+  });
+
+  it('fills the permanent skyways and their approaches with continuous two-tile decks', () => {
+    const world = generateSky(16);
+    for (const row of SKY_FIXED_CROSSINGS) {
+      for (let x = 17; x < 31; x++) {
+        expect(tileAt(world, x, row)).toBe(Tile.Road);
+        expect(tileAt(world, x, row + 1)).toBe(Tile.Road);
+      }
+    }
+    for (const x of SKY_NORTH_SOUTH_ROADS) {
+      for (let y = 19; y < 29; y++) {
+        expect(tileAt(world, x, y)).toBe(Tile.Road);
+        expect(tileAt(world, x + 1, y)).toBe(Tile.Road);
+      }
+    }
+    expect(world.buildings.filter(lot => !lot.placeWord && lot.style >= 6).length).toBeGreaterThanOrEqual(20);
   });
 
   it('repeats the same layout and architecture for a seed', () => {

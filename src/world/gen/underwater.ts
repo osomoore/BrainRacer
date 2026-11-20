@@ -5,6 +5,46 @@ import { scenesForWord } from '../../data/scenes';
 import { computeRoadMask, type Grid } from './grid';
 import { generateLaneGraph } from './lanes';
 
+export const UNDERWATER_GLASS_ROADS = [
+  { start: 19, end: 29, center: 11, vertical: false },
+  { start: 8, end: 16, center: 21, vertical: false },
+  { start: 19, end: 21, center: 21, vertical: false },
+  { start: 27, end: 29, center: 21, vertical: false },
+  { start: 32, end: 40, center: 21, vertical: false },
+  { start: 19, end: 29, center: 37, vertical: false },
+  { start: 13, end: 19, center: 18, vertical: true },
+  { start: 23, end: 28, center: 7, vertical: true },
+  { start: 23, end: 28, center: 31, vertical: true },
+  { start: 23, end: 28, center: 42, vertical: true },
+  { start: 31, end: 36, center: 18, vertical: true },
+  { start: 31, end: 36, center: 31, vertical: true },
+] as const;
+
+export function isUnderwaterGlassRoad(tx: number, ty: number): boolean {
+  return UNDERWATER_GLASS_ROADS.some(({ start, end, center, vertical }) => {
+    const along = vertical ? ty : tx;
+    const across = vertical ? tx : ty;
+    return along >= start && along < end && across >= center - 1 && across < center + 1;
+  });
+}
+
+export const UNDERWATER_VIEWING_POOLS = [
+  { x: 8, y: 14, w: 2, h: 2 },
+  { x: 10, y: 25, w: 3, h: 3 },
+  { x: 33, y: 15, w: 4, h: 2 },
+  { x: 35, y: 26, w: 3, h: 3 },
+] as const;
+
+const glassPlazas = [
+  { x: 8, y: 13, w: 8, h: 4 }, { x: 8, y: 25, w: 8, h: 4 },
+  { x: 9, y: 31, w: 8, h: 5 }, { x: 32, y: 13, w: 8, h: 6 },
+  { x: 33, y: 24, w: 8, h: 5 }, { x: 33, y: 31, w: 8, h: 5 },
+];
+
+export function isUnderwaterGlassPlaza(tx: number, ty: number): boolean {
+  return glassPlazas.some(({ x, y, w, h }) => tx >= x && tx < x + w && ty >= y && ty < y + h);
+}
+
 export function isUnderwaterCrossing(x: number, y: number, tileSize: number): boolean {
   const { left, right, top, bottom } = UNDERWATER_CROSSING;
   return x >= left * tileSize && x < right * tileSize && y >= top * tileSize && y < bottom * tileSize;
@@ -27,6 +67,7 @@ export function generateUnderwater(seed: number): WorldData {
   deck(29, 9, 15, 15, Tile.Plaza);
   deck(33, 24, 9, 15, Tile.Plaza);
   deck(29, 33, 15, 5, Tile.Plaza);
+  for (const { x, y, w, h } of UNDERWATER_VIEWING_POOLS) deck(x, y, w, h, Tile.Water);
 
   const road = (x0: number, y0: number, x1: number, y1: number, traffic = true) => {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {

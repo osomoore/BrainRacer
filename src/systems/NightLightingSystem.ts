@@ -49,7 +49,7 @@ export class NightLightingSystem implements GameSystem {
         .setDepth(L.nightDepth + 1)
         .setBlendMode(Phaser.BlendModes.ADD);
       this.beams.push({ car, image });
-      const halo = ctx.scene.add.image(0, 0, glow).setDepth(L.nightDepth + 1)
+      const halo = ctx.scene.add.image(0, 0, glow).setName(`${ctx.settings.map}-car-halo-${car.player}`).setDepth(L.nightDepth + 1)
         .setBlendMode(Phaser.BlendModes.ADD).setTint(L.carHaloColor)
         .setScale(L.carHaloScale * 42 / 128).setAlpha(L.carHaloAlpha);
       this.halos.push({ car, image: halo });
@@ -66,7 +66,9 @@ export class NightLightingSystem implements GameSystem {
         .setAlpha(INDUSTRIAL_LIGHTING.goalGlowAlpha);
     }
     for (const { car, image } of this.halos) {
-      image.setPosition(car.chassis.x, car.chassis.y).setVisible(!car.disabled && !car.riding);
+      const transform = car.chassis.getWorldTransformMatrix(this.chassisMatrix, this.parentMatrix);
+      image.setPosition(transform.tx, transform.ty).setVisible(!car.disabled && !car.riding)
+        .setAlpha(INDUSTRIAL_LIGHTING.carHaloAlpha * car.view.alpha);
     }
     for (const { car, image } of this.beams) {
       const chassis = car.chassis;

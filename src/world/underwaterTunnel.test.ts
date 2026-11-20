@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { UNDERWATER_CROSSING, UNDERWATER_TUNNEL } from '../config/gameConfig';
 import { Tile } from '../core/types';
 import { largestScc } from './gen/analysis';
-import { generateUnderwater, isUnderwaterCrossing } from './gen/underwater';
+import { generateUnderwater, isUnderwaterCrossing, UNDERWATER_GLASS_ROADS, UNDERWATER_VIEWING_POOLS } from './gen/underwater';
+import { isDrivableTile } from './geometry';
+import { underwaterTileIndex } from './underwaterTiles';
 import { advanceUnderwaterTunnel, setUnderwaterTunnelOpen, underwaterCrossingOccupied, underwaterTunnelFrame } from './underwaterTunnel';
 
 describe('underwater city and submarine crossing', () => {
@@ -31,6 +33,29 @@ describe('underwater city and submarine crossing', () => {
     expect(underwaterTunnelFrame(advanceUnderwaterTunnel(UNDERWATER_TUNNEL.cycleSec - 0.02, 0.03, false))).toMatchObject({
       warning: false, open: false, retract: 0,
     });
+  });
+
+  it('assigns clear tiles to glass roads and open pools while keeping solid city tiles opaque', () => {
+    const world = generateUnderwater(3);
+    const index = (x: number, y: number) => y * world.widthTiles + x;
+    for (const { start, end, center, vertical } of UNDERWATER_GLASS_ROADS) {
+      for (let coord = start; coord < end; coord++) for (const across of [center - 1, center]) {
+        const i = vertical ? index(across, coord) : index(coord, across);
+        expect(world.tiles[i]).toBe(Tile.Road);
+        expect(underwaterTileIndex(world, i)).toBe(0);
+      }
+    }
+    for (const { x, y, w, h } of UNDERWATER_VIEWING_POOLS) {
+      for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {
+        const i = index(col, row);
+        expect(underwaterTileIndex(world, i)).toBe(0);
+        expect(isDrivableTile(world.tiles[i])).toBe(false);
+      }
+    }
+    expect(world.tiles[index(10, 14)]).toBe(Tile.Plaza);
+    expect(underwaterTileIndex(world, index(10, 14))).toBe(3);
+    expect(underwaterTileIndex(world, index(8, 11))).toBe(2);
+    expect(underwaterTileIndex(world, index(6, 8))).toBeGreaterThanOrEqual(6);
   });
 
   it('treats a vehicle overhanging the mouth as occupying the tube', () => {

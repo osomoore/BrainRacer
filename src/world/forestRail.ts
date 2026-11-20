@@ -162,35 +162,46 @@ export function addForestRail(scene: Phaser.Scene, world: WorldData) {
       start = distance + CAR_LENGTHS[0] + FOREST.trainGap + CAR_LENGTHS[1] / 2 - 1.5 * FOREST.trainSpeed;
     }
   }
-  const centers: number[] = [];
-  let trainLength = 0;
-  const cars = CAR_LENGTHS.map((length, i) => {
-    centers.push(trainLength + length / 2);
-    trainLength += length + FOREST.trainGap;
-    const image = scene.add.image(0, 0, i ? wagonKey : engineKey)
-      .setName(i ? `forest-logging-wagon-${i}` : 'forest-logging-engine').setDepth(DEPTH.vehicle - 1);
-    return { image, length, width: CAR_WIDTH };
+  const trainLength = CAR_LENGTHS.reduce((total, length) => total + length, 0) + (CAR_LENGTHS.length - 1) * FOREST.trainGap;
+  let distance = 0;
+  const centers = CAR_LENGTHS.map(length => {
+    const center = distance + length / 2;
+    distance += length + FOREST.trainGap;
+    return center;
   });
-  const couplers = cars.slice(1).map(() => {
-    const image = scene.add.image(0, 0, '__WHITE').setTint(0x674948).setDepth(DEPTH.vehicle - 2);
-    scenery.push(image);
-    return image;
+  // Both trains advance at one speed and stay half a lap apart, including when a wagon is scattered.
+  const trains = [start, start + circuit.length / 2].map((initialHead, index) => {
+    const suffix = index === 0 ? '' : '-2';
+    const cars = CAR_LENGTHS.map((length, i) => {
+      const name = i ? `forest-logging-wagon-${i}` : 'forest-logging-engine';
+      const image = scene.add.image(0, 0, i ? wagonKey : engineKey)
+        .setName(name + suffix).setDepth(DEPTH.vehicle - 1);
+      return { image, length, width: CAR_WIDTH };
+    });
+    const couplers = cars.slice(1).map(() => {
+      const image = scene.add.image(0, 0, '__WHITE').setTint(0x674948).setDepth(DEPTH.vehicle - 2);
+      scenery.push(image);
+      return image;
+    });
+    const headAt = (elapsed: number) => initialHead + elapsed * FOREST.trainSpeed;
+    const poseAt = (elapsed: number, i: number) => carriagePose(circuit, headAt(elapsed) - centers[i], cars[i].length * .57);
+    return { cars, couplers, headAt, poseAt };
   });
-  const headAt = (elapsed: number) => start + elapsed * FOREST.trainSpeed;
-  const poseAt = (elapsed: number, i: number) => carriagePose(circuit, headAt(elapsed) - centers[i], cars[i].length * .57);
   return {
-    trains: [{ cars, couplers, headAt, poseAt }],
+    trains,
     update(elapsed: number) {
-      const head = headAt(elapsed);
       const lead = FOREST.trainWarningSec * FOREST.trainSpeed;
+      const heads = trains.map(({ headAt }) => headAt(elapsed));
+      const flashOn = Math.floor(elapsed / FREIGHT.flashStepSec) % 2 === 0;
       for (const signal of signals) {
-        const distance = ((head - signal.crossing.start + lead) % circuit.length + circuit.length) % circuit.length;
-        const lit = distance < lead + signal.crossing.width + trainLength
-          && Math.floor(elapsed / FREIGHT.flashStepSec) % 2 === 0;
+        const lit = flashOn && heads.some(head => {
+          const distance = ((head - signal.crossing.start + lead) % circuit.length + circuit.length) % circuit.length;
+          return distance < lead + signal.crossing.width + trainLength;
+        });
         if (lit !== signal.flash) signal.image.setTexture(warningKeys[Number(lit)]);
         signal.flash = lit;
       }
-      for (const [i, link] of couplers.entries()) {
+      for (const { cars, couplers } of trains) for (const [i, link] of couplers.entries()) {
         const front = cars[i], rear = cars[i + 1];
         const a = front.image, b = rear.image;
         link.setVisible(a.visible && b.visible);

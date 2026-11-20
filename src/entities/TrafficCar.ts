@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COMBINE_SPEC, FREIGHT_TRUCK_SPEC, PICKUP_SPEC, TRACTOR_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC } from '../config/gameConfig';
+import { COMBINE_SPEC, FREIGHT_TRUCK_SPEC, PICKUP_SPEC, TRACTOR_SPEC, TRAFFIC, TRAFFIC_SPEC, TRUCK_SPEC, VEHICLE_MODEL } from '../config/gameConfig';
 import { UNLOCK_VEHICLES, WORLD_VEHICLE_IDS, type WorldVehicle } from '../config/collectibles';
 import { TEX } from '../core/assetKeys';
 import type { RaceContext } from '../core/race';
@@ -9,6 +9,7 @@ import { STEP_HZ } from './Vehicle';
 import { followLane, nearestNode, newFollowResult, trackSpeed, type FollowResult, type FollowState } from './laneFollow';
 import { HayWagon } from './HayWagon';
 import { NpcVehicle } from './NpcVehicle';
+import { isPoliceTexture } from './policeLights';
 import { UNDERGROUND_VEHICLES, type UndergroundVehicleKind } from './undergroundVehicles';
 
 export type TrafficState = 'drive' | 'knocked' | 'reverse';
@@ -39,8 +40,9 @@ export class TrafficCar extends NpcVehicle {
   state: TrafficState = 'drive';
   /** Set when stuck while off-screen; the system removes the car. */
   wantsDespawn = false;
+  /** Time spent crawling behind another vehicle without enough room to go. */
+  queuedSec = 0;
   readonly follow: FollowState;
-  readonly oversized: boolean;
   readonly role: TrafficRole;
   /** Hay wagon this tractor spawned. TrafficSystem also tracks it after it is detached. */
   trailer: HayWagon | null = null;
@@ -55,6 +57,7 @@ export class TrafficCar extends NpcVehicle {
   private stuckY: number;
   private readonly brakeLights: Phaser.GameObjects.Image;
   private launched = false;
+  private yieldingToPolice = false;
 
   constructor(
     scene: Phaser.Scene, rng: Rng, readonly kind: TrafficKind,
@@ -66,15 +69,11 @@ export class TrafficCar extends NpcVehicle {
       .setName('traffic-brake-lights').setDisplaySize(16, this.spec.width).setVisible(false);
     this.view.add(this.brakeLights);
     this.role = kind === 'freight' || kind === 'tractor' || kind === 'combine' ? kind : null;
-    this.oversized = this.role !== null || kind === 'rockCrusher' || kind === 'oreHauler';
     this.follow = { target, next: -1 };
     this.cruise = this.spec.maxSpeed * rng.range(TRAFFIC.speedMinFrac, TRAFFIC.speedMaxFrac);
     this.stuckX = x; this.stuckY = y;
     if (kind === 'tractor') this.trailer = new HayWagon(scene, this);
   }
-
-  /** Extra length (px) trailing behind the body, for visibility margins. */
-  get trailerLength(): number { return this.trailer?.hitched ? this.trailer.spec.length : 0; }
 
   override squash(): void { this.trailer?.detach(); super.squash(); }
 
@@ -101,6 +100,11 @@ export class TrafficCar extends NpcVehicle {
       if (jump > TRAFFIC.knockSpeed) { this.state = 'knocked'; this.stateT = TRAFFIC.knockSec; this.setBraking(false); }
     }
 
+    if (this.state !== 'knocked') {
+      this.yieldingToPolice = this.policeNearby(ctx);
+      if (this.yieldingToPolice && this.state === 'reverse') this.state = 'drive';
+    }
+    if (this.state !== 'drive') this.queuedSec = 0;
     switch (this.state) {
       case 'knocked': this.updateKnocked(dt, graph); break;
       case 'reverse': this.updateReverse(dt); break;
@@ -147,11 +151,26 @@ export class TrafficCar extends NpcVehicle {
 
   private updateDrive(dt: number, ctx: RaceContext, graph: LaneGraph, rng: Rng, fwd: number): void {
     const r = followLane(graph, this.follow, this.x, this.y, this.angle, fwd, this.cruise, rng, this.res);
-    let limit = r.speedLimit;
-    limit = Math.min(limit, this.carAheadLimit(ctx, fwd));
+    const aheadLimit = this.yieldingToPolice ? 0 : this.carAheadLimit(ctx, fwd);
+    const limit = Math.min(r.speedLimit, aheadLimit);
     trackSpeed(limit, fwd, r);
+    if (this.yieldingToPolice) {
+      const threshold = VEHICLE_MODEL.reverseThreshold;
+      r.brake = fwd > threshold ? 1 : 0;
+      r.throttle = fwd < -threshold ? 1 : 0;
+      // Below this speed the pedal reverses the car. Hold the remaining forward speed at zero.
+      if (fwd !== 0 && Math.abs(fwd) <= threshold) this.nudge(-fwd * Math.cos(this.angle), -fwd * Math.sin(this.angle));
+    }
     this.drive(r, dt);
-    this.setBraking(r.brake > 0.1 || (limit < 20 && fwd > 5));
+    this.setBraking(this.yieldingToPolice || r.brake > 0.1 || (limit < 20 && fwd > 5));
+
+    // Give intentional stops time to clear. The traffic system can later recycle an unseen queue.
+    const waiting = aheadLimit < TRAFFIC.queueSpeed && Math.abs(fwd) < TRAFFIC.queueSpeed;
+    this.queuedSec = waiting && !this.yieldingToPolice ? this.queuedSec + dt : 0;
+    if (waiting || this.yieldingToPolice) {
+      this.stuckT = 0; this.stuckX = this.x; this.stuckY = this.y;
+      return;
+    }
 
     // stuck detection
     this.stuckT += dt;
@@ -163,6 +182,20 @@ export class TrafficCar extends NpcVehicle {
         else { this.state = 'reverse'; this.stateT = TRAFFIC.reverseSec; this.recoverTarget(graph); }
       }
     }
+  }
+
+  private policeNearby(ctx: RaceContext): boolean {
+    const radius = this.yieldingToPolice ? TRAFFIC.policeResumeRadius : TRAFFIC.policeYieldRadius;
+    const radiusSq = radius * radius;
+    const nearby = (other: { x: number; y: number }) =>
+      (other.x - this.x) ** 2 + (other.y - this.y) ** 2 <= radiusSq;
+    for (const npc of ctx.npcs) {
+      if (npc.npcKind === 'police' && !npc.destroyed && nearby(npc)) return true;
+    }
+    for (const car of ctx.players) {
+      if (!car.disabled && !car.riding && isPoliceTexture(car.chassis?.texture?.key) && nearby(car)) return true;
+    }
+    return false;
   }
 
   /**

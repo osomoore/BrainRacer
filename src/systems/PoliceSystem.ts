@@ -1,20 +1,17 @@
 import { POLICE } from '../config/gameConfig';
-import { TEX } from '../core/assetKeys';
 import type { CrashWith } from '../core/events';
 import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerId } from '../core/types';
 import { PoliceCar } from '../entities/PoliceCar';
+import { isPoliceTexture } from '../entities/policeLights';
 import {
   addHeat, decayHeat, desiredChasers, lineOfSight, NodeIndex, think, updateEscape,
   type EscapeState, type ThinkEnv,
 } from '../entities/policeAI';
 
-/** True for the police light-bar chassis textures (AI cruisers, and a player who took one over). */
-export function isPoliceTexture(key: string | undefined): boolean {
-  return key !== undefined && (TEX.police as readonly string[]).includes(key);
-}
+export { isPoliceTexture } from '../entities/policeLights';
 
 interface PlayerPolice {
   heat: number;
@@ -385,7 +382,8 @@ export class PoliceSystem implements GameSystem {
 
   /** True while the player is driving a police cruiser (their chassis carries a police texture). */
   private inCruiser(p: PlayerId): boolean {
-    return this.ctx.dino.rider !== p && isPoliceTexture(this.ctx.players[p]?.chassis?.texture?.key);
+    const car = this.ctx.players[p];
+    return this.ctx.dino.rider !== p && !car?.disabled && isPoliceTexture(car?.chassis?.texture?.key);
   }
 
   /** The player's own siren: loops while they drive a cruiser in a live race. */

@@ -163,6 +163,8 @@ export interface SpawnQuery {
   views: readonly { x: number; y: number; w: number; h: number }[];
   occupied: readonly { x: number; y: number }[];
   excluded?: { x: number; y: number; w: number; h: number };
+  spreadSamples?: number;
+  spreadGap?: number;
   minR: number; maxR: number; margin: number; gap: number;
 }
 
@@ -182,7 +184,7 @@ export function spawnOk(x: number, y: number, q: SpawnQuery): boolean {
   return true;
 }
 
-/** Pick a random lane node (with a successor) satisfying `spawnOk`, or -1. `scratch` avoids allocation. */
+/** Pick an eligible lane node, optionally preferring the most space between cars among several samples. */
 export function pickSpawnNode(graph: LaneGraph, q: SpawnQuery, rng: Rng, scratch: number[] = []): number {
   if (q.players.length === 0) return -1;
   const p = q.players[Math.floor(rng.next() * q.players.length)];
@@ -193,10 +195,18 @@ export function pickSpawnNode(graph: LaneGraph, q: SpawnQuery, rng: Rng, scratch
   const nodes = graph.nodes;
   const start = Math.floor(rng.next() * len);
   const tries = Math.min(len, 300);
+  const samples = q.spreadSamples ?? 1;
+  let eligible = 0, bestId = -1, bestClearance = -1;
   for (let k = 0; k < tries; k++) {
     const id = scratch[(start + k * 2749) % len]; // coprime-ish stride scatters the samples
     const n = nodes[id];
-    if (n.next.length > 0 && spawnOk(n.x, n.y, q)) return id;
+    if (!n.next.length || !spawnOk(n.x, n.y, q)) continue;
+    if (samples <= 1) return id;
+    let clearance = Infinity;
+    for (const p of q.occupied) clearance = Math.min(clearance, (n.x - p.x) ** 2 + (n.y - p.y) ** 2);
+    if (clearance >= (q.spreadGap ?? Infinity) ** 2) return id;
+    if (clearance > bestClearance) { bestId = id; bestClearance = clearance; }
+    if (++eligible === samples) break;
   }
-  return -1;
+  return bestId;
 }

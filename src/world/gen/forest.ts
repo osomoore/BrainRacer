@@ -109,6 +109,8 @@ function addScenery(rng: Rng, grid: Grid, route: FreightRoute): Prop[] {
       const street = edge.dx ? x : y;
       if ((chainage + street) % FOREST.streetLampStep === 0) {
         props.push({ kind: 'lamp', ...toPixels({ x: px + edge.dx * .27, y: py + edge.dy * .27 }), angle: 0 });
+      } else {
+        shrubs.push(i);
       }
     } else {
       trees.push(i);
@@ -116,11 +118,13 @@ function addScenery(rng: Rng, grid: Grid, route: FreightRoute): Prop[] {
       if (tile === Tile.Park || rng.chance(.3)) trees.push(i);
     }
   }
+  const planted = new Set<number>();
   const scatter = (candidates: number[], kind: Prop['kind'], quota: number): void => {
-    for (const i of [...new Set(rng.shuffle(candidates))].slice(0, quota)) {
+    for (const i of [...new Set(rng.shuffle(candidates))].filter(i => !planted.has(i)).slice(0, quota)) {
       const x = i % grid.w + rng.range(.34, .66), y = Math.floor(i / grid.w) + rng.range(.34, .66);
       if (railDistance(route, x * TILE_SIZE, y * TILE_SIZE) <= FOREST.railClearanceTiles * TILE_SIZE) continue;
       props.push({ kind, ...toPixels({ x, y }), angle: rng.range(0, Math.PI * 2) });
+      planted.add(i);
     }
   };
   scatter(trees, 'tree', FOREST.treeCount);

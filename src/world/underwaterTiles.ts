@@ -1,22 +1,23 @@
 import { ellipse, fillStroke, hash, lin, radial, type Ctx } from '../art/draw';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, Tile, type WorldData } from '../core/types';
-import { isUnderwaterCrossing } from './gen/underwater';
+import { isUnderwaterCrossing, isUnderwaterGlassPlaza, isUnderwaterGlassRoad } from './gen/underwater';
 
 export const UNDERWATER_TILESET_KEY = 'world_tileset_underwater';
 
 export function underwaterTileIndex(world: WorldData, i: number): number {
   const tile = world.tiles[i];
+  const { tileSize, widthTiles } = world;
+  const tx = i % widthTiles, ty = Math.floor(i / widthTiles);
   if (tile === Tile.Road) {
-    const { tileSize, widthTiles } = world;
-    const x = (i % widthTiles + 0.5) * tileSize;
-    const y = (Math.floor(i / widthTiles) + 0.5) * tileSize;
-    return isUnderwaterCrossing(x, y, tileSize) ? 0 : 6 + (world.roadMask[i] & 15);
+    const x = (tx + 0.5) * tileSize, y = (ty + 0.5) * tileSize;
+    return isUnderwaterCrossing(x, y, tileSize) || isUnderwaterGlassRoad(tx, ty) ? 0 : 6 + (world.roadMask[i] & 15);
   }
+  if (tile === Tile.Plaza && isUnderwaterGlassPlaza(tx, ty)) return 3;
   return tile === Tile.Water ? 0 : tile === Tile.Building ? 2 : 4;
 }
 
-function deepWater(c: Ctx, s: number): void {
-  c.fillStyle = '#113a54';
+export function paintDeepWater(c: Ctx, s: number): void {
+  c.fillStyle = lin(c, 0, 0, s, s, [[0, '#1b5167'], [.48, '#113b57'], [1, '#132941']]);
   c.fillRect(0, 0, s, s);
   for (let i = 0; i < 16; i++) {
     const x = hash(i, 7) * s, y = hash(i, 19) * s, radius = 4 + 13 * hash(i, 28);
@@ -26,6 +27,24 @@ function deepWater(c: Ctx, s: number): void {
       fillStroke(c, radial(c, cx, cy, 0, radius, [[0, '#5095a718'], [1, '#5095a700']]), null);
     }
   }
+}
+
+function glassFloor(c: Ctx, s: number): void {
+  const rim = s * .09;
+  c.fillStyle = lin(c, 0, 0, s, s, [[0, '#7edaee60'], [.42, '#3d92b04b'], [1, '#2954767d']]);
+  c.fillRect(rim, rim, s - 2 * rim, s - 2 * rim);
+  c.strokeStyle = '#244f68';
+  c.lineWidth = 2 * rim;
+  c.strokeRect(0, 0, s, s);
+  c.strokeStyle = '#79d5d3';
+  c.lineWidth = 2;
+  c.strokeRect(rim, rim, s - 2 * rim, s - 2 * rim);
+  c.strokeStyle = '#bfefde89';
+  c.beginPath();
+  c.moveTo(rim * 2, rim * 4);
+  c.lineTo(rim * 4, rim * 2);
+  c.lineTo(rim * 6, rim * 2);
+  c.stroke();
 }
 
 const sides = [[ROAD_N, 0], [ROAD_E, Math.PI / 2], [ROAD_S, Math.PI], [ROAD_W, -Math.PI / 2]];
@@ -71,7 +90,8 @@ export function underwaterTileSource(size: number): (index: number) => HTMLCanva
     canvas.height = size;
     const c = canvas.getContext('2d')!;
     if (index >= 6) road(c, size, index - 6);
-    else if (index === 0) deepWater(c, size);
+    else if (index === 0) return canvas;
+    else if (index === 3) glassFloor(c, size);
     else {
       c.fillStyle = '#31596e';
       c.fillRect(0, 0, size, size);

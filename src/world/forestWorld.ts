@@ -208,6 +208,18 @@ function forestBramble(scene: Phaser.Scene): string {
   });
 }
 
+interface ForestShrub {
+  x: number;
+  y: number;
+  angle: number;
+  length: number;
+  image: Phaser.GameObjects.Image;
+  scatter?: { angle: number; elapsed: number };
+}
+
+const forestShrubs = new WeakMap<Phaser.Scene, ForestShrub[]>();
+export function getForestShrubs(scene: Phaser.Scene): ForestShrub[] { return forestShrubs.get(scene) ?? []; }
+
 function forestLamp(scene: Phaser.Scene): string {
   return forestTexture(scene, 'street-lamp', 200, 200, c => {
     lampGlow(c, 100, 100, 99, '#fcbd7a');
@@ -229,15 +241,18 @@ export function addForestWorld(
   const rng = new Rng(world.seed ^ 0x464f5245);
   const treeKeys = Array.from({ length: 4 }, (_, i) => forestTree(scene, i));
   const bush = forestBramble(scene), lamp = forestLamp(scene);
+  const shrubs: ForestShrub[] = [];
+  forestShrubs.set(scene, shrubs);
   for (const prop of world.props) {
     const tree = prop.kind === 'tree', lantern = prop.kind === 'lamp';
     const key = lantern ? lamp : tree ? rng.pick(treeKeys) : bush;
-    const scale = lantern ? 1 : tree ? rng.range(.81, 1.36) : rng.range(.65, 1.16);
+    const scale = lantern ? 1 : tree ? rng.range(.81, 1.36) : rng.range(...FOREST.shrubScale);
     const image = scene.add.image(prop.x, prop.y, key).setScale(scale).setRotation(prop.angle)
       .setDepth(lantern ? DEPTH.decal - 1 : DEPTH.prop)
       .setName(lantern ? 'forest-lantern' : tree ? 'forest-tree' : 'forest-bramble');
     objs.push(image);
     if (tree) addTreeBody(prop.x, prop.y, FOREST.treeRadius * scale);
+    if (prop.kind === 'bush') shrubs.push({ ...prop, length: 0, image });
   }
 
   const firefly = forestTexture(scene, 'firefly-light', 40, 40, c => {

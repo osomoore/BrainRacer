@@ -43,7 +43,7 @@ export function makeUnderwaterTunnel(scene: Phaser.Scene, ts: number, objects: P
   const { top, bottom, left, right } = UNDERWATER_CROSSING;
   const cx = (left + right) / 2, cy = (top + bottom) / 2;
   const w = (right - left) * 128 / 2;
-  const key = underwaterTexture(scene, 'lock_deck', w, 256, c => paintTube(c, w, 256, true));
+  const key = underwaterTexture(scene, 'lock_deck', w, 256, c => paintTube(c, w, 256));
   const leaf = (x: number, side: number, name: string) => {
     const image = scene.add.image(x * ts, cy * ts, key).setOrigin(side, 0.5).setDepth(DEPTH.decal - 1).setName(name);
     objects.push(image);

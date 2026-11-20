@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAR_SPECS, CAT, DEPTH, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
+import { CAR_SPECS, CAT, DEPTH, POLICE, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
 import { UNLOCK_VEHICLES } from '../config/collectibles';
 import { carArt } from '../art/loadoutKeys';
 import { TEX } from '../core/assetKeys';
@@ -8,6 +8,7 @@ import { services } from '../core/services';
 import type { CarKind, PlayerId, PlayerInput, StarterCar, Vec2 } from '../core/types';
 import type { SkidMarks } from '../fx/SkidMarks';
 import { PLAYER_MASK_ALL, STEP_HZ, Vehicle } from './Vehicle';
+import { isPoliceTexture } from './policeLights';
 import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
 
 const MASK_GHOST = PLAYER_MASK_ALL & ~(CAT.traffic | CAT.police);
@@ -61,6 +62,9 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
   private readonly sprite: Phaser.GameObjects.Image;
   get chassis() { return this.sprite; }
   private readonly shadow: Phaser.GameObjects.Image;
+  private policeGlow?: Phaser.GameObjects.Image;
+  private policeFlashElapsed = 0;
+  private policeChassis = false;
   private _turbo = false;
   private _ghost = false;
   private _airborne = false;
@@ -215,6 +219,15 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.view.setScale(1);
     this.shadow.setDisplaySize(spec.length * 1.1, spec.width * 1.2);
     this.sprite.setTexture(texture).setDisplaySize(spec.length, spec.width).setRotation(0);
+    this.policeChassis = isPoliceTexture(texture);
+    this.policeFlashElapsed = texture === TEX.police[1] ? POLICE.lightFlashSec : 0;
+    if (this.policeChassis && !this.policeGlow && this.scene.textures.exists(TEX.beacon)) {
+      this.policeGlow = this.scene.add.image(0, 0, TEX.beacon)
+        .setName('player-police-light-glow').setBlendMode(Phaser.BlendModes.ADD)
+        .setDisplaySize(POLICE.playerLightGlowSize, POLICE.playerLightGlowSize).setAlpha(POLICE.playerLightGlowAlpha);
+      this.view.addAt(this.policeGlow, 1);
+    }
+    this.updatePoliceLights(0);
     if (velocity) {
       this.scene.matter.body.setVelocity(this.body, { x: velocity.x / STEP_HZ, y: velocity.y / STEP_HZ });
     }
@@ -246,6 +259,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
 
   /** Airborne scale + shadow offset (eased). */
   private updateVisual(dt: number): void {
+    this.updatePoliceLights(dt);
     const target = this._airborne ? VEHICLE_MODEL.airborneScale : 1;
     this.visScale += (target - this.visScale) * (1 - Math.exp(-14 * dt));
     this.sprite.setScale(this.visScale * this.spec.length / this.sprite.width, this.visScale * this.spec.width / this.sprite.height);
@@ -255,6 +269,17 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     const a = -this.angle;
     this.shadow.setPosition(ox * Math.cos(a) - oy * Math.sin(a), ox * Math.sin(a) + oy * Math.cos(a));
     this.shadow.setAlpha(0.35 - 0.12 * lift);
+  }
+
+  private updatePoliceLights(dt: number): void {
+    const active = this.policeChassis && !this._disabled && !this._riding;
+    this.policeGlow?.setVisible(active);
+    if (!active) return;
+    this.policeFlashElapsed = (this.policeFlashElapsed + dt) % (POLICE.lightFlashSec * 2);
+    const alternate = this.policeFlashElapsed >= POLICE.lightFlashSec;
+    const frame = TEX.police[alternate ? 1 : 0];
+    if (this.sprite.texture.key !== frame && this.scene.textures.exists(frame)) this.sprite.setTexture(frame);
+    this.policeGlow?.setTint(alternate ? 0x3060ff : 0xff2020);
   }
 
   private updateSkids(brake: number): void {

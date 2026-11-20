@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { bodyGrad, ellipse, fillStroke, lin, radial, rr } from '../art/draw';
-import { DEPTH, SKY, SKY_CROSSINGS, SKY_DRAWBRIDGE } from '../config/gameConfig';
+import { DEPTH, SKY, SKY_DRAWBRIDGE, SKY_FIXED_CROSSINGS, SKY_NORTH_SOUTH_ROADS } from '../config/gameConfig';
 import { Rng } from '../core/rng';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, Tile, type BuildingLot, type WorldData } from '../core/types';
 import { isSkyBridgeDeck } from './gen/sky';
@@ -105,9 +105,11 @@ export function addSkyWorld(scene: Phaser.Scene, world: WorldData, objects: Obje
     Array.from({ length: SKY.cloudsPerBand }, (_, col) => {
       const x = (col + rng.range(-.3, .65)) / SKY.cloudsPerBand * width;
       const y = (row + rng.range(-.25, .95)) / SKY.cloudBands * height;
-      const p = rng.range(.55, 1.4), drift = rng.range(.8, 2.8);
-      const view = image(x, y, cloudBank(scene, (row + col) % 4), DEPTH.ground - 6, 'cloud-bank');
-      view.setScale(p * 1.45, p).setRotation(rng.range(-.52, .52)).setAlpha(rng.range(.36, .92));
+      const high = (row + col) % 3 === 0;
+      const p = high ? rng.range(.56, 1.2) : rng.range(.74, 1.58);
+      const drift = high ? rng.range(1.9, 3.1) : rng.range(.65, 1.6);
+      const view = image(x, y, cloudBank(scene, (row + col) % 4), DEPTH.ground - (high ? 4 : 7), 'cloud-bank');
+      view.setScale(p * 1.45, p).setRotation(rng.range(-.52, .52)).setAlpha(high ? rng.range(.48, .8) : rng.range(.32, .76));
       return { view, x, y, drift };
     })).flat();
 
@@ -134,13 +136,25 @@ export function addSkyWorld(scene: Phaser.Scene, world: WorldData, objects: Obje
   });
 
   addRailRuns(scene, world, objects);
-  const bridgeWidth = (SKY_DRAWBRIDGE.right - SKY_DRAWBRIDGE.left) * ts;
   const bridgeHeight = SKY_DRAWBRIDGE.height * ts;
-  const deck = skyBridgeDeck(scene, bridgeWidth, bridgeHeight, false);
-  for (const row of [SKY_CROSSINGS[0], SKY_CROSSINGS[2]]) {
-    const x = (SKY_DRAWBRIDGE.left + SKY_DRAWBRIDGE.right) * ts / 2;
-    image(x, row * ts + bridgeHeight / 2 + 14, deck, DEPTH.ground + 2, 'fixed-bridge');
+  const addSkyway = (start: number, end: number, across: number, vertical = false) => {
+    const along = (start + end) * ts / 2;
+    const cross = across * ts + bridgeHeight / 2;
+    const deck = skyBridgeDeck(scene, (end - start) * ts, bridgeHeight, false);
+    image(vertical ? cross - 14 : along, vertical ? along : cross + 14, deck, DEPTH.ground + 2, 'fixed-bridge')
+      .setRotation(vertical ? Math.PI / 2 : 0);
+  };
+  for (const [index, row] of SKY_FIXED_CROSSINGS.entries()) {
+    if (index === 0) {
+      addSkyway(SKY_DRAWBRIDGE.left, SKY_DRAWBRIDGE.right, row);
+      continue;
+    }
+    // Leave the railings open where the southern connector meets the east-west spans.
+    addSkyway(SKY_DRAWBRIDGE.left, 23, row);
+    addSkyway(25, SKY_DRAWBRIDGE.right, row);
   }
+  for (const column of SKY_NORTH_SOUTH_ROADS) addSkyway(20, 27, column, true);
+  addSkyway(32, 39, 23, true);
 
   const dash = skyTexture(scene, 'lane-dash', 30, 6, c => {
     rr(c, 0, 0, 30, 6, 3); fillStroke(c, '#decfa1', null);
@@ -166,7 +180,7 @@ export function addSkyWorld(scene: Phaser.Scene, world: WorldData, objects: Obje
     ellipse(c, 136, 88, 27, 34); fillStroke(c, '#9ddae6', '#8b9fc5', 3);
     line(c, '#ecfbdb', 2, 125, 102, 137, 63, 147, 105);
   });
-  for (const [x, y] of [[5.9, 11.6], [11.8, 18.9], [33.5, 18.8], [41.7, 11.7], [11.3, 36.8], [33.7, 36.8]]) {
+  for (const [x, y] of [[5.9, 11.8], [10.8, 18.9], [32.1, 18.8], [41.9, 11.7], [10.4, 36.8], [32.2, 36.8]]) {
     image(x * ts, y * ts, park, DEPTH.decal - 2, 'garden').setScale(.83);
   }
 
@@ -187,7 +201,7 @@ export function addSkyWorld(scene: Phaser.Scene, world: WorldData, objects: Obje
   const update = (dt: number) => {
     elapsed += dt;
     for (const cloud of clouds) {
-      cloud.view.setPosition(wrapX(cloud.x + elapsed * cloud.drift * SKY.cloudSpeed, 430),
+      cloud.view.setPosition(wrapX(cloud.x + elapsed * cloud.drift * SKY.cloudSpeed, 720),
         cloud.y + Math.sin(cloud.x + elapsed * .15) * 22);
     }
     for (const ship of ships) {

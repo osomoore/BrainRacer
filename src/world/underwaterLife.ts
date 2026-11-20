@@ -93,7 +93,7 @@ export function submarineTexture(scene: Phaser.Scene): string {
   });
 }
 
-/** Swim well behind the tunnel shell, so fish do not hide racers or the gate. */
+/** Swim below the tile layer, visible only through glass and open water. */
 export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects: Phaser.GameObjects.GameObject[]): (dt: number) => void {
   const ts = world.tileSize;
   const whale = underwaterTexture(scene, 'whale', 400, 190, c => paintSwimmer(c, true));
@@ -109,11 +109,12 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
     { key: whale, name: 'whale', x: 22, y: 16.55, v: 0.85, scale: 1.9, sign: 1 },
     { key: whale, name: 'whale', x: 30, y: 32, v: -0.93, scale: 2.15, sign: -1 },
     { key: fish, name: 'giant-fish', x: 27, y: 23.6, v: -1.53, scale: 0.82, sign: -1 },
-    { key: fish, name: 'giant-fish', x: 6, y: 25.2, v: 1.46, scale: 1.05, sign: 1 },
+    { key: fish, name: 'giant-fish', x: 11, y: 26.5, v: 1.46, scale: 1.05, sign: 1 },
+    { key: fish, name: 'giant-fish', x: 39, y: 27.4, v: -1.32, scale: 0.92, sign: -1 },
     { key: fish, name: 'giant-fish', x: 34, y: 6.7, v: -1.13, scale: 1.00, sign: -1 },
     { key: sub, name: 'patrol-submarine', x: 16, y: 40, v: 1.4, scale: 0.77, sign: 1 },
   ].map((p, i) => {
-    const img = scene.add.image(p.x * ts, p.y * ts, p.key).setDepth(DEPTH.ground + 1.4).setScale(p.scale)
+    const img = scene.add.image(p.x * ts, p.y * ts, p.key).setDepth(DEPTH.ground - 1).setScale(p.scale)
       .setFlipX(p.sign < 0).setAlpha(p.name === 'whale' ? 0.71 : 0.91).setName(`underwater-${p.name}`);
     objects.push(img);
     return { ...p, img, phase: i * 1.7 };
@@ -121,7 +122,7 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
   const rng = new Rng(world.seed ^ 0x19845f);
   const bubbles = Array.from({ length: 33 }, () => {
     const x = rng.range(2, 44), y = rng.range(3, 45), rate = rng.range(0.25, 0.7), scale = rng.range(0.27, 0.8);
-    const img = scene.add.image(x * ts, y * ts, bubble).setDepth(DEPTH.prop - 1);
+    const img = scene.add.image(x * ts, y * ts, bubble).setDepth(DEPTH.ground - .5);
     objects.push(img);
     return { img, x, y, rate, scale, phase: rng.next() };
   });
