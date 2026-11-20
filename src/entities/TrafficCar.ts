@@ -32,8 +32,6 @@ function kindLook(kind: TrafficKind, rng: Rng): { npc: 'traffic' | 'truck'; tex:
   }
 }
 
-const BRAKE_TINT = 0xff9a9a;
-
 export class TrafficCar extends NpcVehicle {
   state: TrafficState = 'drive';
   /** Set when stuck while off-screen; the system removes the car. */
@@ -52,7 +50,7 @@ export class TrafficCar extends NpcVehicle {
   private stuckT = 0;
   private stuckX: number;
   private stuckY: number;
-  private braking = false;
+  private readonly brakeLights: Phaser.GameObjects.Image;
   private launched = false;
 
   constructor(
@@ -61,6 +59,9 @@ export class TrafficCar extends NpcVehicle {
   ) {
     const look = kindLook(kind, rng);
     super(scene, look.npc, look.tex, look.spec, x, y, angle);
+    this.brakeLights = scene.add.image(-this.spec.length * 0.43, 0, TEX.brakeLights)
+      .setName('traffic-brake-lights').setDisplaySize(16, this.spec.width).setVisible(false);
+    this.view.add(this.brakeLights);
     this.role = kind === 'freight' || kind === 'tractor' || kind === 'combine' ? kind : null;
     this.oversized = this.role !== null || kind === 'rockCrusher' || kind === 'oreHauler';
     this.follow = { target, next: -1 };
@@ -204,8 +205,6 @@ export class TrafficCar extends NpcVehicle {
   }
 
   private setBraking(on: boolean): void {
-    if (on === this.braking) return;
-    this.braking = on;
-    if (on) this.sprite.setTint(BRAKE_TINT); else this.sprite.clearTint();
+    if (on !== this.brakeLights.visible) this.brakeLights.setVisible(on);
   }
 }

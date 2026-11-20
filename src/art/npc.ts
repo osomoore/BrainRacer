@@ -13,6 +13,17 @@ function taillights(ctx: Ctx, x: number, y0: number, y1: number): void {
   for (const y of [y0, y1]) { rr(ctx, x, y - 3, 3, 6, 1); fillStroke(ctx, '#ff3030', OUTLINE, 1.2); }
 }
 
+export function drawBrakeLights(scene: Phaser.Scene): void {
+  const { ctx, done } = makeCanvas(scene, TEX.brakeLights, 20, 40);
+  for (const y of [9, 31]) {
+    ctx.fillStyle = radial(ctx, 10, y, 2, 9, [[0, '#ff4343'], [1, 'rgba(255,40,40,0)']]);
+    ctx.fillRect(1, y - 9, 18, 18);
+    rr(ctx, 8, y - 3, 4, 6, 1);
+    ctx.fillStyle = '#ffd0b8'; ctx.fill();
+  }
+  done();
+}
+
 interface Sedan { light: string; dark: string; roof: string }
 const SEDANS: Sedan[] = [
   { light: '#5da4ff', dark: '#1d5fd6', roof: '#8cc0ff' },

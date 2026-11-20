@@ -1,4 +1,26 @@
 import { expect, test } from '@playwright/test';
+import type Phaser from 'phaser';
+import type { TrafficCar } from '../../src/entities/TrafficCar';
+
+test('traffic lights its rear lamps when braking without tinting its paint', async ({ page }) => {
+  await page.goto('/?race=1&seed=3&questions=off');
+  await page.waitForFunction(() => window.__race && window.__race.npcs.size > 0);
+  const result = await page.evaluate(() => {
+    const race = window.__race;
+    const car = [...race.npcs].find((npc): npc is TrafficCar => 'follow' in npc)!;
+    const lamp = car.view.getByName('traffic-brake-lights') as Phaser.GameObjects.Image;
+    const player = race.players[0];
+    const body = race.scene.matter.body;
+    const gap = (player.spec.length + car.spec.length) / 2 + 1;
+    const initiallyLit = lamp?.visible;
+    const paint = car.appearanceKey;
+    body.setPosition(player.body, { x: car.x + gap * Math.cos(car.angle), y: car.y + gap * Math.sin(car.angle) });
+    body.setVelocity(player.body, { x: 0, y: 0 });
+    car.update(0, race, race.rng.fork(1));
+    return { initiallyLit, braking: lamp?.visible, tinted: car.sprite.isTinted, samePaint: paint === car.appearanceKey };
+  });
+  expect(result).toEqual({ initiallyLit: false, braking: true, tinted: false, samePaint: true });
+});
 
 test('quick race runs: countdown, driving, challenges, no errors', async ({ page }) => {
   const errors: string[] = [];

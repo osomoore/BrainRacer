@@ -13,7 +13,7 @@ import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/st
 import { REG, SCENE } from './keys';
 
 /**
- * Advanced settings. Open from Setup, with LT+RT+Start on a gamepad, or with F9 on a keyboard.
+ * Hidden advanced settings. Open with LT+RT+Start on a gamepad or F9 on a keyboard.
  * While open it pauses every other running scene.
  * Also hosts the optional always-on-top debug readout.
  */
@@ -215,12 +215,6 @@ export class ConfigScene extends Phaser.Scene {
   }
 
   // ───────────────────────── open / close ─────────────────────────
-  openFromSetup(): void {
-    if (this.isOpen) return;
-    this.lastToggle = performance.now();
-    this.open();
-  }
-
   private toggle(): void {
     const now = performance.now();
     if (now - this.lastToggle < DEBOUNCE_MS) return;

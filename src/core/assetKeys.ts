@@ -8,6 +8,7 @@ export const TEX = {
   carDino: 'car_dino',          // 72 x 40, green dino roadster
   carKart: 'car_kart',          // 60 x 36, red kart, driver cap with white circle + gold star
   carShadow: 'car_shadow',      // soft ellipse, 80 x 48
+  brakeLights: 'traffic_brake_lights',
 
   // traffic / police
   traffic: ['traffic_0', 'traffic_1', 'traffic_2', 'traffic_3'] as const, // 64 x 36 sedans, varied colors

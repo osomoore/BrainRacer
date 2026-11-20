@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installGamepadMock, tapPad } from './gamepadMock';
+import type Phaser from 'phaser';
+import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 const BTN_A = 0;
 
@@ -32,7 +33,29 @@ test('gamepads: join P1+P2, setup, start race', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
-  await tapPad(page, 0, BTN_A);   // A from the very first row starts the race
+  await tapPad(page, 0, 13); // Car.
+  await tapPad(page, 0, 13); // Questions.
+  await tapPad(page, 1, 13); // Select P2's Car row while P1 changes the question type.
+  for (const [button, mode] of [[15, 'math'], [15, 'mixed'], [14, 'math'], [14, 'words']] as const) {
+    await tapPad(page, 0, button);
+    const layout = await page.evaluate(() => {
+      type Column = { diff: Phaser.GameObjects.Container; car: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
+      const setup = window.__game.scene.getScene('Setup') as unknown as { cols: Column[]; cfg: { challengeMode: string } };
+      return {
+        mode: setup.cfg.challengeMode,
+        previews: setup.cols.map(({ diff, car, hint }) => ({
+          text: hint.text,
+          fits: diff.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
+        })),
+      };
+    });
+    expect(layout.mode).toBe(mode);
+    for (const preview of layout.previews) {
+      expect(preview.fits).toBe(true);
+      expect(preview.text.includes('Sums like')).toBe(mode !== 'words');
+    }
+  }
+  await tapPad(page, 0, BTN_A); // Confirm from the Questions row starts the race.
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
@@ -114,9 +137,9 @@ test('single gamepad: A, A, A reaches the race', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Setup wraps upward and Advanced applies answer mode from its first row', async ({ page }) => {
+test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode', async ({ page }) => {
   const errors = watchErrors(page);
-  await installGamepadMock(page, 0);
+  await installGamepadMock(page, 1);
   await page.goto('/');
   await waitScene(page, 'Title');
   await page.keyboard.press('Space');
@@ -130,11 +153,9 @@ test('Setup wraps upward and Advanced applies answer mode from its first row', a
     await page.waitForTimeout(55);
   };
   await tap('KeyW'); // Difficulty wraps to Start.
-  await tap('KeyW'); // Advanced settings.
   await tap('KeyW'); // Map.
   await tap('KeyD'); // City → Factory.
-  await tap('KeyS'); // Advanced settings.
-  await tap('Space');
+  await tap('F9');
   await page.waitForFunction(() => window.__game.scene.isPaused('Setup'));
 
   await tap('KeyW'); // Answer mode wraps to Close.
@@ -142,6 +163,16 @@ test('Setup wraps upward and Advanced applies answer mode from its first row', a
   await tap('KeyD'); // Stop & Answer → While Driving.
   expect((await settingsOf(page)).questionStyle).toBe('drive');
   await tap('Space'); // Accepting from Answer mode closes the menu.
+  await waitScene(page, 'Setup');
+
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, 9); // Start alone leaves Setup active.
+  expect(await page.evaluate(() => window.__game.scene.isActive('Setup'))).toBe(true);
+  await setPad(page, 0, { buttons: { 6: 1, 7: 1 } });
+  await tapPad(page, 0, 9);
+  await page.waitForFunction(() => window.__game.scene.isPaused('Setup'));
+  await setPad(page, 0, { buttons: { 6: 0, 7: 0 } });
+  await tapPad(page, 0, BTN_A);
   await waitScene(page, 'Setup');
 
   await tap('Space');
