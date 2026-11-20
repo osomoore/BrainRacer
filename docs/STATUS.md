@@ -110,3 +110,15 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 - Unused config keys: `WORLD.bigAirSec`. HudTest still emits a "Nice jump!" popup (ignored).
 - Police bump picks the nearest cruiser to the crash point; no traffic right-of-way at junctions.
 - Nothing has been checked by ear (audio) or with real Xbox pads yet; see the playtest checklist in NEXT.md.
+
+## Hidden settings menu (device tuning)
+Built for the Android TV box (gamepad only; audio can starve under load). Opens in any scene: hold **LT + RT** and press **Start** on a gamepad, or **F9** on a keyboard (Esc / B / Start / the combo again closes). It pauses every other running scene and resumes them on close. In a race the Start press also opens the pause menu underneath. Source: `src/scenes/ConfigScene.ts`, knobs in `src/config/deviceTuning.ts` (localStorage `brainracer.tuning.v1`; defaults == previous behaviour).
+
+- **Music / Sound FX volume**, **Round length**, **Time between questions**: saved in the normal settings (URL params `?round ?every ?music ?sfx` only override when actually present). Round/interval apply to the next race.
+- **Engine sound** Full / Lite (one saw + lowpass) / Off. Live.
+- **Audio buffer** Fast / Balanced / Safe = Web Audio `latencyHint` interactive / balanced / playback. Applies after reload.
+- **Schedule ahead** 0.1 / 0.2 / 0.3 s Tone look-ahead. Live. Larger = more starvation tolerance, more latency.
+- **Compressor** On/Off: master -> compressor -> limiter -> out, or master -> out. Live.
+- **Frame-rate cap** 60 / 30 (Phaser `fps.limit`). Applies after reload.
+- **Debug readout** (bottom-left, always on top): `FPS`, audio `state`, `clock` (audio-clock advance / wall-clock over the last second; ~1.00 healthy, lower = audio starving), `stalls` (1 s windows with clock < 0.5 while visible), `lat` base/output latency ms, `ahead` look-ahead s, `sfx` live sfx voices, `eng` engine mode.
+- Audio also tries `resume()` on `statechange`, tab-visible, and any key/pointer press if the context is not running.

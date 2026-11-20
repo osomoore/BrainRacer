@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from './gameConfig';
-import { parseLaunchOptions } from './launchOptions';
+import { parseLaunchOptions, parseLaunchOverrides } from './launchOptions';
 
 describe('parseLaunchOptions', () => {
   it('uses defaults (300 s / 10 s / 0.6 / 0.8) when nothing is given', () => {
@@ -21,5 +21,15 @@ describe('parseLaunchOptions', () => {
   it('clamps volumes to 0..1 and ignores garbage', () => {
     expect(parseLaunchOptions('?music=3&sfx=-1')).toMatchObject({ musicVolume: 1, sfxVolume: 0 });
     expect(parseLaunchOptions('?music=0&sfx=x')).toMatchObject({ musicVolume: 0, sfxVolume: 0.8 });
+  });
+});
+
+describe('parseLaunchOverrides', () => {
+  it('is empty when no params are present', () => {
+    expect(parseLaunchOverrides('')).toEqual({});
+    expect(parseLaunchOverrides('?round=abc&every=0&music=x')).toEqual({});
+  });
+  it('returns only present valid params', () => {
+    expect(parseLaunchOverrides('?round=120&music=2')).toEqual({ roundLengthSec: 120, musicVolume: 1 });
   });
 });

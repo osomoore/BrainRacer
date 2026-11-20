@@ -1,6 +1,6 @@
 /** Settings persistence (localStorage, failure-tolerant). */
 import { DEFAULT_SETTINGS } from '../config/gameConfig';
-import { currentLaunchOptions } from '../config/launchOptions';
+import { currentLaunchOverrides } from '../config/launchOptions';
 import type { RaceMap, Settings } from './types';
 
 const KEY = 'brainracer.settings.v1';
@@ -16,10 +16,10 @@ export function loadSettings(): Settings {
     if (raw) {
       const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...JSON.parse(raw) };
       if (!isRaceMap(settings.map)) settings.map = 'city';
-      return { ...settings, ...currentLaunchOptions() };
+      return { ...settings, ...currentLaunchOverrides() };
     }
   } catch { /* ignore */ }
-  return { ...structuredClone(DEFAULT_SETTINGS), ...currentLaunchOptions() };
+  return { ...structuredClone(DEFAULT_SETTINGS), ...currentLaunchOverrides() };
 }
 
 export function saveSettings(s: Settings): void {

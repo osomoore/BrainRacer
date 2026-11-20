@@ -7,6 +7,7 @@ export class Mixer {
   readonly sfxBus: Tone.Gain;
   private readonly comp: Tone.Compressor;
   private readonly limiter: Tone.Limiter;
+  private dynamicsOn = true;
 
   constructor() {
     this.limiter = new Tone.Limiter(-3).toDestination();
@@ -14,6 +15,15 @@ export class Mixer {
     this.master = new Tone.Gain(0.8).connect(this.comp);
     this.musicBus = new Tone.Gain(0.7).connect(this.master);
     this.sfxBus = new Tone.Gain(0.9).connect(this.master);
+  }
+
+  /** true: master -> comp -> limiter -> destination; false: master -> destination (cheaper). */
+  setDynamics(on: boolean): void {
+    if (on === this.dynamicsOn) return;
+    this.dynamicsOn = on;
+    this.master.disconnect();
+    if (on) this.master.connect(this.comp);
+    else this.master.toDestination();
   }
 
   setVolumes(music: number, sfx: number): void {

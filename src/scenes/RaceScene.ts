@@ -2,7 +2,7 @@ import { questionsOffAllowed, resolveChallengeMode } from '../config/questionsPo
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
-import { currentLaunchOptions } from '../config/launchOptions';
+import { currentLaunchOverrides } from '../config/launchOptions';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { Rng, randomSeed } from '../core/rng';
@@ -51,7 +51,7 @@ export class RaceScene extends Phaser.Scene {
       settings.challengeMode, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed());
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
-    Object.assign(settings, currentLaunchOptions());
+    Object.assign(settings, currentLaunchOverrides());
     const roundLengthSec = settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
 

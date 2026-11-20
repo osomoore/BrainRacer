@@ -29,6 +29,10 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 
 ## Backlog
 
+### Low-end device (ONN Android TV box, TV Bro browser)
+- Audio drops out during races (CPU starvation; recovers on menus). The hidden settings menu (LT+RT+Start / F9) adds audio and fps knobs to diagnose it on the box. Pick defaults from the playtest results.
+- Later: general performance work for the ONN box (rendering cost of the two rotated cameras, per-frame work), plus a low-end option that reduces traffic and other cars.
+
 ### Session 4 follow-ups
 - Farm: tractors sometimes wander onto paved roads.
 - Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.

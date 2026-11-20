@@ -1,7 +1,8 @@
 import * as Tone from 'tone';
 import type { IAudio, IEngineSound } from '../core/services';
 import type { MusicTrack, PlayerId, SfxName } from '../core/types';
-import { EngineSound } from './engineSound';
+import { getTuning, onTuningChange } from '../config/deviceTuning';
+import { EngineSound, LiteEngineSound } from './engineSound';
 import { Mixer } from './mixer';
 import { MusicPlayer } from './musicPlayer';
 import { SfxEngine } from './sfx';
@@ -10,11 +11,11 @@ const NOOP_STOP = (): void => {};
 
 /** Engine handle that stays valid before audio is unlocked; builds the real sound lazily. */
 class LazyEngine implements IEngineSound {
-  private real: EngineSound | null = null;
+  private real: IEngineSound | null = null;
   private stopped = false;
   private speed = 0;
   private boost = false;
-  constructor(private readonly make: () => EngineSound | null, private readonly onStop: () => void) {}
+  constructor(private readonly make: () => IEngineSound | null, private readonly onStop: () => void) {}
 
   set(speed: number, boost: boolean): void {
     if (this.stopped) return;
@@ -30,12 +31,43 @@ class LazyEngine implements IEngineSound {
     this.real?.stop();
     this.real = null;
   }
+  /** Tuning changed (engine mode): drop the real engine and rebuild per the new mode. */
+  reset(): void {
+    if (this.stopped) return;
+    try { this.real?.stop(); } catch { /* ignore */ }
+    this.real = null;
+    this.refresh();
+  }
   /** Called after unlock so a pre-unlock set() takes effect. */
   refresh(): void {
     if (this.stopped) return;
     this.real ??= this.make();
     this.real?.set(this.speed, this.boost);
   }
+}
+
+export interface AudioDiagnostics {
+  state: string;
+  sampleRate: number;
+  baseLatency: number;
+  outputLatency: number;
+  lookAhead: number;
+  /** Audio-clock advance / wall-clock advance over the last ~1 s (1.00 healthy, lower = starving). */
+  clockRatio: number;
+  /** Count of 1 s windows with ratio < 0.5 while the page was visible. */
+  stalls: number;
+  activeSfx: number;
+  engineMode: string;
+}
+
+let activeImpl: AudioImpl | null = null;
+
+/** Safe to call at any time (before unlock returns idle values). */
+export function audioDiagnostics(): AudioDiagnostics {
+  return activeImpl?.diagnostics() ?? {
+    state: 'locked', sampleRate: 0, baseLatency: 0, outputLatency: 0,
+    lookAhead: getTuning().lookAheadSec, clockRatio: 1, stalls: 0, activeSfx: 0, engineMode: getTuning().engineSound,
+  };
 }
 
 class AudioImpl implements IAudio {
@@ -48,16 +80,99 @@ class AudioImpl implements IAudio {
   private pendingMusic: { track: MusicTrack | null; fade: number } | null = null;
   private unlocking: Promise<void> | null = null;
 
+  private clockRatio = 1;
+  private stalls = 0;
+  private monitorStarted = false;
+
+  constructor() {
+    activeImpl = this;
+    onTuningChange((t) => {
+      try {
+        this.mixer?.setDynamics(t.compressor);
+        if (this.unlocked) Tone.getContext().lookAhead = t.lookAheadSec;
+      } catch { /* ignore */ }
+      if (t.engineSound !== this.engineMode) {
+        this.engineMode = t.engineSound;
+        for (const e of this.engines.values()) e.reset();
+      }
+    });
+    const retry = (): void => { this.tryResume(); };
+    try {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) retry(); });
+      window.addEventListener('keydown', retry, true);
+      window.addEventListener('pointerdown', retry, true);
+    } catch { /* ignore */ }
+  }
+
+  private engineMode = getTuning().engineSound;
+
+  private raw(): AudioContext | null {
+    try { return Tone.getContext().rawContext as unknown as AudioContext; } catch { return null; }
+  }
+
+  /** Resume a suspended/interrupted context. Never throws. */
+  private tryResume(): void {
+    if (!this.unlocked) return;
+    try {
+      const ctx = this.raw();
+      if (ctx && ctx.state !== 'running' && !document.hidden) void Promise.resolve(ctx.resume()).catch(() => {});
+    } catch { /* ignore */ }
+  }
+
+  private startMonitor(): void {
+    if (this.monitorStarted) return;
+    this.monitorStarted = true;
+    const ctx = this.raw();
+    if (!ctx) return;
+    try { ctx.addEventListener('statechange', () => this.tryResume()); } catch { /* ignore */ }
+    let lastAudio = ctx.currentTime;
+    let lastWall = performance.now();
+    window.setInterval(() => {
+      const c = this.raw();
+      if (!c) return;
+      const a = c.currentTime, w = performance.now();
+      const dw = (w - lastWall) / 1000, da = a - lastAudio;
+      lastAudio = a; lastWall = w;
+      if (document.hidden || dw <= 0) return;
+      this.clockRatio = da / dw;
+      if (this.clockRatio < 0.5) this.stalls++;
+      if (c.state !== 'running') this.tryResume();
+    }, 1000);
+  }
+
+  diagnostics(): AudioDiagnostics {
+    const ctx = this.unlocked ? this.raw() : null;
+    return {
+      state: ctx ? ctx.state : 'locked',
+      sampleRate: ctx?.sampleRate ?? 0,
+      baseLatency: ctx?.baseLatency ?? 0,
+      outputLatency: ctx?.outputLatency ?? 0,
+      lookAhead: this.unlocked ? Tone.getContext().lookAhead : getTuning().lookAheadSec,
+      clockRatio: this.clockRatio,
+      stalls: this.stalls,
+      activeSfx: this.sfxEngine?.activeVoices ?? 0,
+      engineMode: this.engineMode,
+    };
+  }
+
   unlock(): Promise<void> {
     if (this.unlocked) return Promise.resolve();
     this.unlocking ??= (async () => {
       try {
+        const tuning = getTuning();
+        if (tuning.audioLatency !== 'interactive') {
+          Tone.setContext(new Tone.Context({ latencyHint: tuning.audioLatency, lookAhead: tuning.lookAheadSec }));
+        } else {
+          Tone.getContext().lookAhead = tuning.lookAheadSec;
+        }
         await Tone.start();
         this.mixer = new Mixer();
+        this.mixer.setDynamics(tuning.compressor);
         this.mixer.setVolumes(this.volumes.music, this.volumes.sfx);
         this.sfxEngine = new SfxEngine(this.mixer);
         this.musicPlayer = new MusicPlayer(this.mixer);
         this.unlocked = true;
+        this.startMonitor();
         for (const e of this.engines.values()) e.refresh();
         if (this.pendingMusic) {
           this.musicPlayer.play(this.pendingMusic.track, this.pendingMusic.fade);
@@ -87,7 +202,11 @@ class AudioImpl implements IAudio {
     const handle = new LazyEngine(
       () => {
         if (!this.unlocked || !this.mixer) return null;
-        try { return new EngineSound(this.mixer, pan, () => {}); } catch { return null; }
+        const mode = getTuning().engineSound;
+        if (mode === 'off') return null;
+        try {
+          return mode === 'lite' ? new LiteEngineSound(this.mixer, pan, () => {}) : new EngineSound(this.mixer, pan, () => {});
+        } catch { return null; }
       },
       () => { if (this.engines.get(player) === handle) this.engines.delete(player); },
     );

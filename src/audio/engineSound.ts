@@ -100,3 +100,56 @@ export class EngineSound implements IEngineSound {
     }, 500);
   }
 }
+
+/** Cheap engine: one sawtooth -> lowpass -> gain -> panner. No LFO, bright layer or square sub. */
+export class LiteEngineSound implements IEngineSound {
+  private nodes: Tone.ToneAudioNode[] = [];
+  private readonly osc: Tone.Oscillator;
+  private readonly filter: Tone.Filter;
+  private readonly out: Tone.Gain;
+  private stopped = false;
+
+  constructor(mixer: Mixer, pan: number, private readonly onStop: () => void) {
+    const panner = new Tone.Panner(pan);
+    this.out = new Tone.Gain(0);
+    this.filter = new Tone.Filter({ type: 'lowpass', frequency: 300, Q: 1 });
+    this.osc = new Tone.Oscillator({ type: 'sawtooth', frequency: IDLE_HZ });
+    this.osc.connect(this.filter);
+    this.filter.connect(this.out);
+    this.out.connect(panner);
+    panner.connect(mixer.sfxBus);
+    this.nodes = [panner, this.out, this.filter, this.osc];
+    const t = Tone.now() + 0.02;
+    this.osc.start(t);
+    this.out.gain.setValueAtTime(0, t);
+    this.out.gain.linearRampToValueAtTime(0.07, t + 0.15);
+  }
+
+  set(speed: number, boost: boolean): void {
+    if (this.stopped) return;
+    const s = Math.min(1, Math.max(0, Number.isFinite(speed) ? speed : 0));
+    const hz = IDLE_HZ + (TOP_HZ - IDLE_HZ) * s;
+    this.osc.frequency.rampTo(hz * (boost ? 1.1 : 1), 0.1);
+    this.filter.frequency.rampTo(280 + s * 900 + (boost ? 900 : 0), 0.1);
+    this.out.gain.rampTo(0.06 + s * 0.05 + (boost ? 0.04 : 0), 0.12);
+  }
+
+  stop(): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.onStop();
+    try {
+      const now = Tone.now();
+      this.out.gain.cancelScheduledValues(now);
+      this.out.gain.setValueAtTime(this.out.gain.value, now);
+      this.out.gain.linearRampToValueAtTime(0, now + 0.15);
+      this.osc.stop(now + 0.2);
+    } catch { /* ignore */ }
+    window.setTimeout(() => {
+      for (const n of this.nodes) {
+        try { n.dispose(); } catch { /* ignore */ }
+      }
+      this.nodes = [];
+    }, 400);
+  }
+}

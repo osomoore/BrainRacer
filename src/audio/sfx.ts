@@ -448,6 +448,9 @@ export class SfxEngine {
 
   constructor(private readonly mixer: Mixer) {}
 
+  /** Live one-shot voices (diagnostics). */
+  get activeVoices(): number { return this.total; }
+
   play(name: SfxName, opts: PlayOpts = {}): void {
     const recipe = RECIPES[name];
     if (!recipe) return;

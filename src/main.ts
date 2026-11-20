@@ -6,6 +6,9 @@ import { SetupScene } from './scenes/SetupScene';
 import { RaceScene } from './scenes/RaceScene';
 import { HudScene } from './scenes/HudScene';
 import { ResultsScene } from './scenes/ResultsScene';
+import { ConfigScene } from './scenes/ConfigScene';
+import { SCENE } from './scenes/keys';
+import { getTuning } from './config/deviceTuning';
 
 /**
  * Dev scenes: any file in src/scenes/dev/*.ts whose default export is a Phaser.Scene subclass
@@ -24,9 +27,12 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   input: { gamepad: false, keyboard: true }, // gamepads read via navigator.getGamepads in src/input
   physics: { default: 'matter', matter: { gravity: { x: 0, y: 0 }, debug: false } },
-  fps: { target: 60, smoothStep: true },
-  scene: [BootScene, TitleScene, SetupScene, RaceScene, HudScene, ResultsScene, ...devScenes],
+  fps: { target: 60, smoothStep: true, limit: getTuning().fpsCap === 30 ? 30 : 0 },
+  scene: [BootScene, TitleScene, SetupScene, RaceScene, HudScene, ResultsScene, ...devScenes, ConfigScene],
 });
+
+// Hidden settings menu: always running, on top of everything (see ConfigScene).
+game.events.once(Phaser.Core.Events.READY, () => game.scene.start(SCENE.config));
 
 // Exposed for Playwright tests / debugging.
 (window as unknown as { __game: Phaser.Game }).__game = game;

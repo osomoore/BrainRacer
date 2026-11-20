@@ -5,6 +5,7 @@ export const SCENE = {
   race: 'Race',
   hud: 'Hud',
   results: 'Results',
+  config: 'Config',
 } as const;
 
 /** Phaser registry keys for passing data between scenes. */

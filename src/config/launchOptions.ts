@@ -22,25 +22,33 @@ function num(raw: string | null): number | undefined {
   return Number.isFinite(v) ? v : undefined;
 }
 
-function inRange(raw: string | null, min: number, max: number, fallback: number): number {
-  const v = num(raw);
-  return v !== undefined && v >= min && v <= max ? v : fallback;
-}
-
-function volume(raw: string | null, fallback: number): number {
-  const v = num(raw);
-  return v === undefined ? fallback : Math.min(1, Math.max(0, v));
+/** Only the params actually present (and valid) in the URL; saved settings keep everything else. */
+export function parseLaunchOverrides(search: string): Partial<LaunchOptions> {
+  const q = new URLSearchParams(search);
+  const out: Partial<LaunchOptions> = {};
+  const round = num(q.get('round'));
+  if (round !== undefined && round >= LAUNCH_LIMITS.roundMin && round <= LAUNCH_LIMITS.roundMax) out.roundLengthSec = round;
+  const every = num(q.get('every'));
+  if (every !== undefined && every >= LAUNCH_LIMITS.everyMin && every <= LAUNCH_LIMITS.everyMax) out.challengeIntervalSec = every;
+  const music = num(q.get('music'));
+  if (music !== undefined) out.musicVolume = Math.min(1, Math.max(0, music));
+  const sfx = num(q.get('sfx'));
+  if (sfx !== undefined) out.sfxVolume = Math.min(1, Math.max(0, sfx));
+  return out;
 }
 
 export function parseLaunchOptions(search: string): LaunchOptions {
-  const q = new URLSearchParams(search);
   const d = DEFAULT_SETTINGS;
   return {
-    roundLengthSec: inRange(q.get('round'), LAUNCH_LIMITS.roundMin, LAUNCH_LIMITS.roundMax, d.roundLengthSec),
-    challengeIntervalSec: inRange(q.get('every'), LAUNCH_LIMITS.everyMin, LAUNCH_LIMITS.everyMax, d.challengeIntervalSec),
-    musicVolume: volume(q.get('music'), d.musicVolume),
-    sfxVolume: volume(q.get('sfx'), d.sfxVolume),
+    roundLengthSec: d.roundLengthSec, challengeIntervalSec: d.challengeIntervalSec,
+    musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
+    ...parseLaunchOverrides(search),
   };
+}
+
+/** Overrides for the current page (empty when there is no `location`, e.g. unit tests). */
+export function currentLaunchOverrides(): Partial<LaunchOptions> {
+  return parseLaunchOverrides(typeof location === 'undefined' ? '' : location.search);
 }
 
 /** Launch options for the current page (defaults when there is no `location`, e.g. unit tests). */
