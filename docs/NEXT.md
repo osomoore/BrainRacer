@@ -20,7 +20,10 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 
 ## Queued playtest changes
 
-The latest queue is implemented on `dev`. See STATUS for the Beach & Harbor scenery and bridge update, including full night at two minutes remaining in a five-minute race.
+The Beach & Harbor scenery and bridge update is complete. See STATUS for the new details and night timing.
+
+- Beach & Harbor lighthouse: the player could not find it during normal play. Check visibility from the driving routes and check the rotating beam at night.
+- Dino encounter: the alert appeared, then the dino wandered off without taking hits or firing lasers. Check the transition into the active encounter in solo and co-op.
 
 Session 3 finished the queued playtest list and the map/gameplay ideas (destination text, round clock during breaks, launch options, day/night by map, darker Industrial, Easy+, player siren, freight smash, dino lasers, building gaps). See STATUS "Session 3 changes".
 
@@ -72,7 +75,6 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 ## Bigger roadmap (from PLAN.md Wave 5, not started)
 - Industrial at Night and Beach & Harbor are playable in Setup. The projector, real-controller, and by-ear checks remain on the playtest checklist.
 - Optional minimap; button remapping UI for odd USB pads; more challenge types (subtraction, letter-by-letter spelling); high-score table; optional desktop wrapper (Electron/Tauri).
-- Decide whether/when to merge `dev` → `main` and push to a remote.
 
 ## Map kickoff plans (done)
 

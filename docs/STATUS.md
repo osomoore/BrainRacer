@@ -1,6 +1,6 @@
 # BrainRacer — Status (as of 2026-11-19)
 
-**City (day), Industrial (night), Farm (golden hour), and Beach & Harbor (sunset into night) are playable.** Branch `dev` (local only, never pushed; `main` still has only the old prototype).
+**City (day), Industrial (night), Farm (golden hour), and Beach & Harbor (sunset into night) are playable.** Active development is on `dev`.
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
