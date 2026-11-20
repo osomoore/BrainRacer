@@ -6,7 +6,6 @@ import { isUndergroundLava, UNDERGROUND_CROSSINGS, undergroundRiverSpan } from '
 import { DIRS } from './gen/grid';
 import { tileAt } from './geometry';
 import { block, glow, undergroundArt, undergroundTexture } from './undergroundArt';
-import { addUndergroundRail } from './undergroundRail';
 
 export interface UndergroundWorldHandle { update(dt: number): void }
 
@@ -70,8 +69,6 @@ export function addUndergroundWorld(scene: Phaser.Scene, world: WorldData, objs:
   makeBanks(scene, world, objs);
   makeBridges(scene, world, objs);
 
-  const updateRail = addUndergroundRail(scene, ts, objs);
-
   const landmarks = [
     ['portal', 8, 8.4, 1.35], ['elevator', 11.8, 7.5, 1.5], ['elevator', 35.7, 39.8, 1.5],
     ['chute', 13, 12.3, 1.21], ['ore-bin', 14.1, 12.9, .85], ['portal', 15, 18.5, 1.35],
@@ -127,7 +124,6 @@ export function addUndergroundWorld(scene: Phaser.Scene, world: WorldData, objs:
   let elapsed = 0;
   const update = (dt: number) => {
     elapsed += dt;
-    updateRail(dt);
     for (const item of steam) {
       const p = (elapsed * .43 + item.phase) % 1;
       item.image.setPosition((item.x + p * .4) * ts, (item.y - p * .58) * ts).setScale(.55 + p * 1.14).setAlpha(Math.sin(p * Math.PI) * .7);

@@ -1,7 +1,7 @@
 ﻿import { FARM_FENCE } from '../config/gameConfig';
 import type { GameSystem, IVehicle, RaceContext } from '../core/race';
 import type { Vec2 } from '../core/types';
-import { getFarmFenceSections } from '../world/farmWorld';
+import { getFarmFenceSections, type FarmFenceSection } from '../world/farmWorld';
 import { fenceOffscreen, hitsFence } from './fenceLogic';
 
 /** Drive through farm fences; the knocked-aside sections return once everyone has moved away. */
@@ -9,6 +9,7 @@ export class FenceSystem implements GameSystem {
   readonly name = 'fence';
   static order = 75;
   private previous = new Map<IVehicle, Vec2>();
+  private offStomp?: () => void;
 
   update(dt: number, ctx: RaceContext): void {
     if (!ctx.world.farm) return;
@@ -21,13 +22,7 @@ export class FenceSystem implements GameSystem {
       const vx = current.x - previous.x, vy = current.y - previous.y;
       const moved = Math.hypot(vx, vy);
       if (car.airborne || car.disabled || car.boardingPosition || moved < 0.1 || moved > ctx.world.tileSize / 2) continue;
-      for (const f of sections) {
-        if (f.scatter) continue;
-        const dx = Math.cos(f.angle) * f.length / 2, dy = Math.sin(f.angle) * f.length / 2;
-        if (!hitsFence(previous, current, { x: f.x - dx, y: f.y - dy }, { x: f.x + dx, y: f.y + dy }, FARM_FENCE.hitRadius)) continue;
-        f.scatter = { angle: Math.atan2(vy, vx), elapsed: 0 };
-        f.shadow.setVisible(false);
-      }
+      this.scatter(sections, previous, current, FARM_FENCE.hitRadius, Math.atan2(vy, vx));
     }
     for (const f of sections) {
       if (!f.scatter) continue;
@@ -45,6 +40,23 @@ export class FenceSystem implements GameSystem {
     }
   }
 
-  init(): void { this.previous.clear(); }
-  destroy(): void { this.previous.clear(); }
+  private scatter(sections: FarmFenceSection[], start: Vec2, end: Vec2, radius: number, angle: number): void {
+    for (const f of sections) {
+      if (f.scatter) continue;
+      const dx = Math.cos(f.angle) * f.length / 2, dy = Math.sin(f.angle) * f.length / 2;
+      if (!hitsFence(start, end, { x: f.x - dx, y: f.y - dy }, { x: f.x + dx, y: f.y + dy }, radius)) continue;
+      f.scatter = { angle, elapsed: 0 };
+      f.shadow.setVisible(false);
+    }
+  }
+
+  init(ctx: RaceContext): void {
+    if (!ctx.world.farm) return;
+    const sections = getFarmFenceSections(ctx.scene);
+    this.offStomp = ctx.bus.on('dino:stompPath', ({ start, end, radius, direction }) => {
+      this.scatter(sections, start, end, radius, Math.atan2(direction.y, direction.x));
+    });
+  }
+
+  destroy(): void { this.previous.clear(); this.offStomp?.(); }
 }

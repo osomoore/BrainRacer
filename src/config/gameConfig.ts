@@ -566,6 +566,9 @@ export const DINO_SMASH = {
   npcPeakScale: 0.35,
   npcSquashSec: 0.24,
   stompAnimationSec: 0.34,
+  obstacleCheckSec: 1 / 15,
+  propLaunchSpeed: 550,
+  propSpin: 8,
 };
 
 // ───────────────────────── camera (package H) ─────────────────────────
@@ -861,6 +864,15 @@ export const UNDERGROUND_VEHICLE_SPECS = {
   oreHauler: { length: 116, width: 54, mass: 30, maxSpeed: 197, reverseSpeed: 80, accel: 175, brake: 950, turnRate: 1.85, grip: 0.97, drag: 0.8 },
   rockCrusher: { length: 148, width: 68, mass: 60, maxSpeed: 156, reverseSpeed: 62, accel: 170, brake: 950, turnRate: 1.75, grip: 0.98, drag: 0.8 },
 } satisfies Record<string, VehicleSpec>;
+
+/** Player handling for boarded Mine vehicles. Traffic keeps its own slower cruise specs. */
+export const UNDERGROUND_PLAYER_DRIVE = {
+  caveBuggy: { maxSpeed: 305, accel: 240 },
+  crystalRunner: { maxSpeed: 340, accel: 245 },
+  surveyRover: { maxSpeed: 285, accel: 225 },
+  oreHauler: { maxSpeed: 250, accel: 205 },
+  rockCrusher: { maxSpeed: 225, accel: 195 },
+} satisfies Record<keyof typeof UNDERGROUND_VEHICLE_SPECS, Pick<VehicleSpec, 'maxSpeed' | 'accel'>>;
 
 export const UNDERGROUND_TRAFFIC = {
   maxVehicles: 19,

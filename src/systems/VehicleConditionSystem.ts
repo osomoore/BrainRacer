@@ -9,7 +9,7 @@ import type { Rng } from '../core/rng';
 import { services } from '../core/services';
 import { ParticlePool } from '../fx/ParticlePool';
 import { NpcVehicle } from '../entities/NpcVehicle';
-import { isUndergroundVehicleTexture } from '../entities/undergroundVehicles';
+import { undergroundPlayerSpec } from '../entities/undergroundVehicles';
 import { STEP_HZ } from '../entities/Vehicle';
 
 const T = VEHICLE_CONDITION;
@@ -352,7 +352,7 @@ export class VehicleConditionSystem implements GameSystem {
         id: npc.body, damage: old?.damage ?? 0,
         current: () => !npc.destroyed && this.ctx.npcs.has(npc) ? {
           position: { x: npc.x, y: npc.y }, angle: npc.angle, velocity: npc.velocity,
-          spec: old || isUndergroundVehicleTexture(npc.appearanceKey) ? npc.spec : {
+          spec: old ? npc.spec : undergroundPlayerSpec(npc.appearanceKey, npc.spec) ?? {
             ...npc.spec,
             ...(npc.npcKind === 'police' ? BOARDING_DRIVE.police
               : npc.npcKind !== 'truck' ? BOARDING_DRIVE.sedan

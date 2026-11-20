@@ -1,5 +1,6 @@
-import { UNDERGROUND_VEHICLE_SPECS } from '../config/gameConfig';
+import { UNDERGROUND_PLAYER_DRIVE, UNDERGROUND_VEHICLE_SPECS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
+import type { VehicleSpec } from '../core/types';
 
 export const UNDERGROUND_VEHICLES = {
   caveBuggy: { texture: TEX.underground.caveBuggy, spec: UNDERGROUND_VEHICLE_SPECS.caveBuggy, truck: false },
@@ -13,6 +14,7 @@ export type UndergroundVehicleKind = keyof typeof UNDERGROUND_VEHICLES;
 
 export const UNDERGROUND_VEHICLE_KINDS = Object.keys(UNDERGROUND_VEHICLES) as UndergroundVehicleKind[];
 
-export function isUndergroundVehicleTexture(texture: string): boolean {
-  return UNDERGROUND_VEHICLE_KINDS.some(kind => UNDERGROUND_VEHICLES[kind].texture === texture);
+export function undergroundPlayerSpec(texture: string, spec: VehicleSpec): VehicleSpec | undefined {
+  const kind = UNDERGROUND_VEHICLE_KINDS.find(kind => UNDERGROUND_VEHICLES[kind].texture === texture);
+  return kind === undefined ? undefined : { ...spec, ...UNDERGROUND_PLAYER_DRIVE[kind] };
 }

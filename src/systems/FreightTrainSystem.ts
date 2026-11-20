@@ -5,16 +5,28 @@ import type { GameSystem, IVehicle, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import { ParticlePool } from '../fx/ParticlePool';
 import { ownerOf } from '../core/race';
-import type { PlayerId } from '../core/types';
+import type { PlayerId, Vec2 } from '../core/types';
+import { STEP_HZ } from '../entities/Vehicle';
+import { addUndergroundRail } from '../world/undergroundRail';
 import { canReform, debrisVelocity, detachedFrom, shouldSmash } from './freightSmash';
 import { carriagePose, crossingFrame, freightFrontAt, measureCircuit, type MeasuredCrossing, type RailCircuit } from './freightTiming';
 
-interface TrainCar {
+interface CarAppearance {
   image: Phaser.GameObjects.Image;
+  length: number;
+  width: number;
+}
+
+interface TrainCar extends CarAppearance {
   body: MatterJS.BodyType;
-  centerFromFront: number;
   smashedAt: number; // -1 = intact
   debris?: { image: Phaser.GameObjects.Image; body: MatterJS.BodyType; t: number };
+}
+
+type Pose = Vec2 & { angle: number };
+interface Train {
+  cars: TrainCar[];
+  poseAt(elapsed: number, carIndex: number): Pose;
 }
 
 interface PairLike {
@@ -35,8 +47,6 @@ function bakeCrate(scene: Phaser.Scene): void {
   tex.refresh();
 }
 
-const STEP_HZ = 60; // Matter velocity is px/step
-
 interface Signal {
   image: Phaser.GameObjects.Image;
   crossing: MeasuredCrossing;
@@ -52,7 +62,12 @@ export class FreightTrainSystem implements GameSystem {
   private ctx!: RaceContext;
   private circuit?: RailCircuit;
   private signals: Signal[] = [];
-  private cars: TrainCar[] = [];
+  private trains: Train[] = [];
+  private byBody = new Map<MatterJS.BodyType, { train: Train; index: number }>();
+  private mineRail?: ReturnType<typeof addUndergroundRail>;
+  private mineElapsed = 0;
+  private finished = false;
+  private offs: (() => void)[] = [];
   private length = 0;
   private pool!: ParticlePool;
   private rng!: RaceContext['rng'];
@@ -64,17 +79,37 @@ export class FreightTrainSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     const rail = ctx.world.industrial?.rail;
-    if (!rail) return;
+    const mine = ctx.settings.map === 'underground';
+    if (!rail && !mine) return;
     this.ctx = ctx;
-    this.circuit = measureCircuit(rail);
-    bakeCrate(ctx.scene);
     this.pool = new ParticlePool(ctx.scene, 120);
     this.rng = ctx.rng.fork(0xf7e16);
+    ctx.scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
+    this.offs.push(ctx.bus.on('dino:trainHit', ({ body, direction }) => {
+      const hit = this.byBody.get(body);
+      if (this.finished || !hit || hit.train.cars[hit.index].smashedAt >= 0) return;
+      const { image } = hit.train.cars[hit.index];
+      this.smash(hit.train, hit.index, direction, FREIGHT.debrisLaunch);
+      services.audio.sfx('crashBig', { volume: 0.75 });
+      ctx.camera.shakeAt(image.x, image.y, 900, 0.012, 260);
+    }));
+    if (mine) {
+      this.mineRail = addUndergroundRail(ctx.scene, ctx.world.tileSize);
+      for (const { cars, poseAt } of this.mineRail.trains) this.addTrain(cars, poseAt);
+      this.mineRail.update(0);
+      this.offs.push(ctx.bus.on('round:end', () => { this.finished = true; }));
+    } else if (rail) {
+      this.addIndustrialTrain(measureCircuit(rail));
+    }
+  }
+
+  private addIndustrialTrain(circuit: RailCircuit): void {
+    this.circuit = circuit;
+    const { scene } = this.ctx;
+    bakeCrate(scene);
     this.devNear = new URLSearchParams(location.search).get('train') === 'near'; // dev hook
     if (this.devNear) (window as unknown as { __trainNear?: () => void }).__trainNear = () => { this.devPlaced = false; }; // re-aim after moving the player
-    ctx.scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
-    const { scene } = ctx;
-    this.signals = this.circuit.crossings.map((crossing, i) => {
+    this.signals = circuit.crossings.map((crossing, i) => {
       const { center, width, dx, dy } = crossing;
       const image = scene.add.image(center.x, center.y, TEX.industrial.crossing[0])
         .setName(`industrial-crossing-signal-${i}`)
@@ -84,16 +119,29 @@ export class FreightTrainSystem implements GameSystem {
       return { crossing, image, lastFlash: -1 };
     });
 
-    const front = freightFrontAt(this.circuit, ctx.elapsedSec + this.clockOffset);
-    for (let i = 0; i <= FREIGHT.wagonCount; i++) {
+    const centers: number[] = [];
+    const cars = Array.from({ length: FREIGHT.wagonCount + 1 }, (_, i) => {
       const engine = i === 0;
       const image = scene.add.image(0, 0, engine ? TEX.industrial.engine : TEX.industrial.freightCar)
         .setName(engine ? 'industrial-train-engine' : `industrial-train-car-${i}`)
         .setDepth(DEPTH.vehicle);
-      const centerFromFront = this.length + image.width / 2;
-      const pose = carriagePose(this.circuit, front - centerFromFront, image.width - 2 * AXLE_INSET);
+      centers.push(this.length + image.width / 2);
+      this.length += image.width + (i < FREIGHT.wagonCount ? FREIGHT.carriageGap : 0);
+      return { image, length: image.width, width: image.height };
+    });
+    this.addTrain(cars, (elapsed, i) => {
+      const front = freightFrontAt(circuit, elapsed + this.clockOffset);
+      return carriagePose(circuit, front - centers[i], cars[i].length - 2 * AXLE_INSET);
+    });
+  }
+
+  private addTrain(appearances: CarAppearance[], poseAt: Train['poseAt']): void {
+    const { scene } = this.ctx;
+    const cars = appearances.map((appearance, i) => {
+      const { image, length, width } = appearance;
+      const pose = poseAt(this.clock, i);
       image.setPosition(pose.x, pose.y).setRotation(pose.angle);
-      const body = scene.matter.add.rectangle(pose.x, pose.y, image.width, image.height, {
+      const body = scene.matter.add.rectangle(pose.x, pose.y, length, width, {
         label: image.name,
         isStatic: true,
         angle: pose.angle,
@@ -103,33 +151,41 @@ export class FreightTrainSystem implements GameSystem {
         collisionFilter: { category: CAT.static, mask: VEHICLE_MASK, group: 0 },
         plugin: { owner: { kind: 'train' } },
       }) as unknown as MatterJS.BodyType;
-      this.cars.push({ image, body, centerFromFront, smashedAt: -1 });
-      this.length += image.width + (i < FREIGHT.wagonCount ? FREIGHT.carriageGap : 0);
-    }
+      return { ...appearance, body, smashedAt: -1 };
+    });
+    const train = { cars, poseAt };
+    for (let i = 0; i < cars.length; i++) this.byBody.set(cars[i].body, { train, index: i });
+    this.trains.push(train);
   }
 
-  update(_dt: number, ctx: RaceContext): void {
+  private get clock(): number { return this.mineRail ? this.mineElapsed : this.ctx.elapsedSec; }
+
+  update(dt: number, ctx: RaceContext): void {
+    if (!this.trains.length || this.finished) return;
     const circuit = this.circuit;
-    if (!circuit) return;
     if (this.devNear && !this.devPlaced && ctx.players[0]) this.placeNear(ctx);
-    const front = freightFrontAt(circuit, ctx.elapsedSec + this.clockOffset);
-    for (let i = 0; i < this.cooldown.length; i++) this.cooldown[i] -= _dt;
-    this.pool.update(_dt);
-    for (const car of this.cars) {
-      const { image, body, centerFromFront } = car;
+    this.mineElapsed += dt;
+    for (let i = 0; i < this.cooldown.length; i++) this.cooldown[i] -= dt;
+    this.pool.update(dt);
+    for (const { cars, poseAt } of this.trains) for (const [i, car] of cars.entries()) {
+      const { image, body, length } = car;
+      const pose = poseAt(this.clock, i);
       if (car.smashedAt >= 0) {
-        this.updateDebris(car, _dt);
-        const slot = carriagePose(circuit, front - centerFromFront, image.width - 2 * AXLE_INSET);
-        if (!car.debris && canReform(ctx.elapsedSec, car.smashedAt, this.slotBlocked(ctx, slot, image.width))) this.reform(car, slot);
-        continue;
+        this.updateDebris(car, dt);
+        if (car.debris || !canReform(this.clock, car.smashedAt, this.slotBlocked(ctx, pose, length))) continue;
+        this.reform(car, pose);
       }
-      const pose = carriagePose(circuit, front - centerFromFront, image.width - 2 * AXLE_INSET);
       ctx.scene.matter.body.setPosition(body, pose, true);
       // Phaser normalizes display rotation but Matter keeps the unbounded angle.
       const turn = Math.atan2(Math.sin(pose.angle - body.angle), Math.cos(pose.angle - body.angle));
       ctx.scene.matter.body.setAngle(body, body.angle + turn, true);
       image.setPosition(pose.x, pose.y).setRotation(pose.angle);
     }
+    if (!circuit) {
+      this.mineRail?.update(this.clock);
+      return;
+    }
+    const front = freightFrontAt(circuit, ctx.elapsedSec + this.clockOffset);
     for (const signal of this.signals) {
       const { warningFlash, occupied } = crossingFrame(circuit, signal.crossing, front, this.length);
       this.updateSignal(signal, warningFlash);
@@ -141,15 +197,19 @@ export class FreightTrainSystem implements GameSystem {
 
   destroy(): void {
     this.ctx?.scene.matter?.world?.off(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
+    for (const off of this.offs) off();
     this.pool?.destroy();
-    for (const { debris } of this.cars) if (debris) { this.ctx.scene.matter.world?.remove(debris.body); debris.image.destroy(); }
+    this.mineRail?.destroy();
     for (const { image } of this.signals) image.destroy();
-    for (const { image, body } of this.cars) {
+    for (const { cars } of this.trains) for (const { image, body, debris } of cars) {
+      if (debris) { this.ctx.scene.matter.world?.remove(debris.body); debris.image.destroy(); }
       this.ctx.scene.matter.world?.remove(body);
       image.destroy();
     }
+    this.byBody.clear();
     this.signals.length = 0;
-    this.cars.length = 0;
+    this.trains.length = 0;
+    this.offs.length = 0;
     this.length = 0;
     this.circuit = undefined;
   }
@@ -182,8 +242,9 @@ export class FreightTrainSystem implements GameSystem {
     const sideways = dx * nx + dy * ny;
     const projectedHalfWidth = Math.abs(Math.cos(car.angle) * nx + Math.sin(car.angle) * ny) * car.spec.length / 2
       + Math.abs(Math.sin(car.angle) * nx - Math.cos(car.angle) * ny) * car.spec.width / 2;
-    if (Math.abs(sideways) > this.cars[0].image.height / 2 + projectedHalfWidth) return;
-    if (!this.cars.some(({ body, smashedAt }) => smashedAt < 0 && (() => {
+    const { cars } = this.trains[0];
+    if (Math.abs(sideways) > cars[0].width / 2 + projectedHalfWidth) return;
+    if (!cars.some(({ body, smashedAt }) => smashedAt < 0 && (() => {
       const a = car.body.bounds, b = body.bounds;
       return a.min.x < b.max.x && a.max.x > b.min.x && a.min.y < b.max.y && a.max.y > b.min.y;
     })())) return;
@@ -194,13 +255,13 @@ export class FreightTrainSystem implements GameSystem {
   }
 
   private onStart(pairs: PairLike[]): void {
+    if (this.finished) return;
     for (const pair of pairs) {
       const a = pair.bodyA, b = pair.bodyB;
-      const ia = this.cars.findIndex((c) => c.smashedAt < 0 && c.body === a);
-      const ib = ia < 0 ? this.cars.findIndex((c) => c.smashedAt < 0 && c.body === b) : -1;
-      const index = ia >= 0 ? ia : ib;
-      if (index < 0) continue;
-      const owner = ownerOf(ia >= 0 ? b : a);
+      const hitA = this.byBody.get(a);
+      const hit = hitA ?? this.byBody.get(b);
+      if (!hit || hit.train.cars[hit.index].smashedAt >= 0) continue;
+      const owner = ownerOf(hitA ? b : a);
       if (owner?.kind !== 'player') continue;
       const player = owner.car;
       if (this.cooldown[owner.player] > 0 || player.airborne) continue;
@@ -208,23 +269,31 @@ export class FreightTrainSystem implements GameSystem {
       const impact = Math.abs((a.velocity.x - b.velocity.x) * STEP_HZ * n.x + (a.velocity.y - b.velocity.y) * STEP_HZ * n.y);
       if (!shouldSmash(player.turbo, impact)) continue;
       this.cooldown[owner.player] = FREIGHT.smashCooldownSec;
-      this.smash(index, owner.player, player);
+      this.smashByPlayer(hit.train, hit.index, owner.player, player);
     }
   }
 
-  private smash(hit: number, player: PlayerId, car: IVehicle): void {
-    const smashed = this.cars.map((c) => c.smashedAt >= 0);
-    const vlen = Math.hypot(car.velocity.x, car.velocity.y);
-    const speed = vlen * STEP_HZ;
-    const dir = vlen > 0.02 ? { x: car.velocity.x / vlen, y: car.velocity.y / vlen } : { x: Math.cos(car.angle), y: Math.sin(car.angle) };
+  private smashByPlayer(train: Train, hit: number, player: PlayerId, car: IVehicle): void {
+    const { x: vx, y: vy } = car.velocity;
+    const speed = Math.hypot(vx, vy);
+    const dir = speed > 0.02 ? { x: vx / speed, y: vy / speed } : { x: Math.cos(car.angle), y: Math.sin(car.angle) };
+    this.smash(train, hit, dir, Math.max(speed * 0.5, FREIGHT.debrisLaunch));
+    services.audio.sfx('crashBig', { pan: this.ctx.players.length === 1 ? 0 : player === 0 ? -0.6 : 0.6 });
+    services.audio.sfx('pop');
+    this.ctx.camera.shakeAt(car.x, car.y, 900, 0.012, 260);
+    this.ctx.bus.emit('ui:popup', { player, text: `+${FREIGHT.smashScore}`, world: { x: car.x, y: car.y }, color: '#ffd34d' });
+  }
+
+  private smash({ cars }: Train, hit: number, direction: Vec2, launchSpeed: number): void {
+    const smashed = cars.map((c) => c.smashedAt >= 0);
     const { scene } = this.ctx;
-    for (const i of detachedFrom(hit, this.cars.length, smashed)) {
-      const c = this.cars[i];
-      c.smashedAt = this.ctx.elapsedSec;
+    for (const i of detachedFrom(hit, cars.length, smashed)) {
+      const c = cars[i];
+      c.smashedAt = this.clock;
       c.image.setVisible(false);
       c.body.collisionFilter.mask = 0; // intact body stops colliding while the slot is empty
       const image = scene.add.image(c.image.x, c.image.y, c.image.texture.key).setRotation(c.image.rotation).setDepth(DEPTH.vehicle + 1);
-      const body = scene.matter.add.rectangle(c.image.x, c.image.y, c.image.width, c.image.height, {
+      const body = scene.matter.add.rectangle(c.image.x, c.image.y, c.length, c.width, {
         label: `${c.image.name}-debris`,
         angle: c.image.rotation,
         density: 0.002,
@@ -234,7 +303,7 @@ export class FreightTrainSystem implements GameSystem {
         collisionFilter: { category: CAT.static, mask: VEHICLE_MASK, group: 0 },
         plugin: { owner: { kind: 'train' } },
       }) as unknown as MatterJS.BodyType;
-      const v = debrisVelocity(dir, Math.max(speed * 0.5, FREIGHT.debrisLaunch), {
+      const v = debrisVelocity(direction, launchSpeed, {
         spread: this.rng.range(-0.9, 0.9), speedMul: this.rng.range(0.7, 1.2) + (i - hit) * 0.12,
       });
       scene.matter.body.setVelocity(body, { x: v.vx / STEP_HZ, y: v.vy / STEP_HZ });
@@ -243,16 +312,13 @@ export class FreightTrainSystem implements GameSystem {
       for (let k = 0; k < FREIGHT.cratesPerCar; k++) {
         const a = this.rng.range(0, Math.PI * 2), sp = this.rng.range(250, 600);
         this.pool.spawn({
-          key: FREIGHT.crateKey, x: c.image.x, y: c.image.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          key: this.mineRail ? TEX.underground.oreChip : FREIGHT.crateKey,
+          x: c.image.x, y: c.image.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
           life: this.rng.range(1.0, 1.6), s0: 1, s1: 0.8, a0: 1, a1: 0, spin: this.rng.range(-10, 10), drag: 1.8, depth: DEPTH.vehicle + 2,
         });
       }
       this.poof(c.image.x, c.image.y, 3);
     }
-    services.audio.sfx('crashBig', { pan: this.ctx.players.length === 1 ? 0 : player === 0 ? -0.6 : 0.6 });
-    services.audio.sfx('pop');
-    this.ctx.camera.shakeAt(car.x, car.y, 900, 0.012, 260);
-    this.ctx.bus.emit('ui:popup', { player, text: `+${FREIGHT.smashScore}`, world: { x: car.x, y: car.y }, color: '#ffd34d' });
   }
 
   private updateDebris(car: TrainCar, dt: number): void {
@@ -282,7 +348,7 @@ export class FreightTrainSystem implements GameSystem {
   private slotBlocked(ctx: RaceContext, pose: { x: number; y: number }, width: number): boolean {
     const r = width / 2 + 70;
     const near = (v: { x: number; y: number }) => Math.hypot(v.x - pose.x, v.y - pose.y) < r;
-    return ctx.players.some(near) || [...ctx.npcs].some((n) => !n.destroyed && near(n));
+    return (ctx.dino.active && near(ctx.dino)) || ctx.players.some(near) || [...ctx.npcs].some((n) => !n.destroyed && near(n));
   }
 
   private reform(car: TrainCar, pose: { x: number; y: number; angle: number }): void {
@@ -300,7 +366,10 @@ export class FreightTrainSystem implements GameSystem {
       const q = circuit.sample(s), d = Math.hypot(q.x - p.x, q.y - p.y);
       if (d < bestD) { bestD = d; best = s; }
     }
-    const target = best + this.cars[Math.min(2, this.cars.length - 1)].centerFromFront;
+    const { cars } = this.trains[0];
+    const index = Math.min(2, cars.length - 1);
+    const gapAndCarsAhead = cars.slice(0, index).reduce((length, car) => length + car.length + FREIGHT.carriageGap, 0);
+    const target = best + gapAndCarsAhead + cars[index].length / 2;
     const at = ctx.elapsedSec + 1.5;
     this.clockOffset = (target - freightFrontAt(circuit, at + 0)) / FREIGHT.speed;
     this.devPlaced = true;

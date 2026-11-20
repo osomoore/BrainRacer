@@ -53,6 +53,8 @@ export interface GameEvents {
   'dino:spawned': { x: number; y: number };
   'dino:roar': { x: number; y: number };
   'dino:step': { x: number; y: number };
+  'dino:stompPath': { start: Vec2; end: Vec2; radius: number; direction: Vec2 };
+  'dino:trainHit': { body: MatterJS.BodyType; direction: Vec2 };
   'dino:hit': { player: PlayerId; x: number; y: number };
   'dino:squash': { x: number; y: number };
   'dino:damaged': { hp: number; maxHp: number; by: PlayerId; x: number; y: number };

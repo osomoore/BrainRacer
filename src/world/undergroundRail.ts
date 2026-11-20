@@ -11,6 +11,9 @@ interface Track { path: Vec2[]; starts: number[]; length: number }
 
 const TRAIN_PARTS = ['engine', 'ore', 'tail'] as const;
 const CAR_DISTANCE = [0, 98, 184] as const;
+// The 180 × 144 textures include transparent padding and glow around these chassis.
+const CAR_LENGTH = [100, 76, 76] as const;
+const CAR_WIDTH = 54;
 const TRAINS_PER_LOOP = 2;
 const LAMP_STEP = 144;
 
@@ -85,13 +88,19 @@ function railTexture(scene: Phaser.Scene, track: Track, color: Palette) {
   return { x, y, key };
 }
 
-interface Train { head: number; cars: Image[]; couplers: Image[] }
+interface MineTrain {
+  headAt(elapsed: number): number;
+  poseAt(elapsed: number, carIndex: number): Vec2 & { angle: number };
+  cars: { image: Image; length: number; width: number }[];
+  couplers: Image[];
+}
 
-/** Scenic mine traffic follows two separate rail circuits and never blocks the race route. */
-export function addUndergroundRail(scene: Phaser.Scene, tileSize: number, objects: Phaser.GameObjects.GameObject[]): (dt: number) => void {
-  const image = (x: number, y: number, key: string, name: string, depth: number): Image => {
+/** Build Mine rail art and routes. FreightTrainSystem owns the car poses and bodies. */
+export function addUndergroundRail(scene: Phaser.Scene, tileSize: number) {
+  const scenery: Image[] = [];
+  const decorate = (x: number, y: number, key: string, name: string, depth: number): Image => {
     const sprite = scene.add.image(x, y, key).setName(`underground-${name}`).setDepth(depth);
-    objects.push(sprite);
+    scenery.push(sprite);
     return sprite;
   };
   const couplerKey = undergroundTexture(scene, 'mine_coupler', 24, 12, c => {
@@ -102,7 +111,7 @@ export function addUndergroundRail(scene: Phaser.Scene, tileSize: number, object
   const circuits = UNDERGROUND_RAIL_LOOPS.map((path, i) => {
     const color = RAIL_COLORS[i % RAIL_COLORS.length];
     const track = buildTrack(path, tileSize), rail = railTexture(scene, track, color);
-    image(rail.x, rail.y, rail.key, 'rail', DEPTH.decal - 2).setOrigin(0);
+    decorate(rail.x, rail.y, rail.key, 'rail', DEPTH.decal - 2).setOrigin(0);
     const lampKey = undergroundTexture(scene, `rail_lamp_${color.name}`, 28, 98, c => {
       for (const y of [14, 84]) {
         glow(c, 14, y, 13, color.rgb, .83);
@@ -113,44 +122,55 @@ export function addUndergroundRail(scene: Phaser.Scene, tileSize: number, object
     const lamps: { distance: number; sprite: Image }[] = [];
     for (let distance = 0; distance < track.length; distance += LAMP_STEP) {
       const pose = trackPose(track, distance);
-      lamps.push({ distance, sprite: image(pose.x, pose.y, lampKey, 'rail-signal', DEPTH.decal - 1).setRotation(pose.angle) });
+      lamps.push({ distance, sprite: decorate(pose.x, pose.y, lampKey, 'rail-signal', DEPTH.decal - 1).setRotation(pose.angle) });
     }
-    const trains: Train[] = Array.from({ length: TRAINS_PER_LOOP }, (_, index) => ({
-      // Start with ore wagons on the straight nearest the north spawn, easy to see on approach.
-      head: (index * track.length / TRAINS_PER_LOOP + tileSize * 3) % track.length,
-      cars: TRAIN_PARTS.map(part => image(0, 0, mineTrainPart(scene, part, color), part === 'engine' ? 'mine-engine' : 'mine-cart', DEPTH.vehicle - 1)),
-      couplers: TRAIN_PARTS.slice(1).map(() => image(0, 0, couplerKey, 'mine-coupler', DEPTH.vehicle - 2)),
-    }));
+    const trains: MineTrain[] = Array.from({ length: TRAINS_PER_LOOP }, (_, index) => {
+      const start = index * track.length / TRAINS_PER_LOOP + tileSize * 3;
+      const headAt = (elapsed: number) => wrap(start + elapsed * UNDERGROUND.mineCartSpeed, track.length);
+      return {
+        headAt,
+        poseAt(elapsed, carIndex) {
+          const distance = headAt(elapsed) - CAR_DISTANCE[carIndex];
+          const nose = trackPose(track, distance + 22), rear = trackPose(track, distance - 22);
+          return { ...trackPose(track, distance), angle: Math.atan2(nose.y - rear.y, nose.x - rear.x) };
+        },
+        cars: TRAIN_PARTS.map((part, index) => ({
+          image: scene.add.image(0, 0, mineTrainPart(scene, part, color))
+            .setName(part === 'engine' ? 'underground-mine-engine' : 'underground-mine-cart').setDepth(DEPTH.vehicle - 1),
+          length: CAR_LENGTH[index], width: CAR_WIDTH,
+        })),
+        couplers: TRAIN_PARTS.slice(1).map(() => decorate(0, 0, couplerKey, 'mine-coupler', DEPTH.vehicle - 2)),
+      };
+    });
     return { track, lamps, trains };
   });
 
-  const update = (dt: number) => {
+  const update = (elapsed: number) => {
     for (const { track, lamps, trains } of circuits) {
       for (const train of trains) {
-        train.head = wrap(train.head + dt * UNDERGROUND.mineCartSpeed, track.length);
-        for (let i = 0; i < train.cars.length; i++) {
-          const distance = train.head - CAR_DISTANCE[i];
-          const pos = trackPose(track, distance);
-          const nose = trackPose(track, distance + 22), rear = trackPose(track, distance - 22);
-          train.cars[i].setPosition(pos.x, pos.y).setRotation(Math.atan2(nose.y - rear.y, nose.x - rear.x));
-          if (i === 0) continue;
-          const front = train.cars[i - 1], back = train.cars[i];
+        for (let i = 1; i < train.cars.length; i++) {
+          const front = train.cars[i - 1].image, back = train.cars[i].image;
+          const coupler = train.couplers[i - 1].setVisible(front.visible && back.visible);
+          if (!coupler.visible) continue;
           const endX = front.x - Math.cos(front.rotation) * (i === 1 ? 47 : 36);
           const endY = front.y - Math.sin(front.rotation) * (i === 1 ? 47 : 36);
           const startX = back.x + Math.cos(back.rotation) * 35;
           const startY = back.y + Math.sin(back.rotation) * 35;
           const dx = endX - startX, dy = endY - startY;
-          train.couplers[i - 1].setPosition(startX + dx / 2, startY + dy / 2)
+          coupler.setPosition(startX + dx / 2, startY + dy / 2)
             .setRotation(Math.atan2(dy, dx)).setDisplaySize(Math.hypot(dx, dy) + 8, 12);
         }
       }
       for (const { distance, sprite } of lamps) {
         let ahead = track.length;
-        for (const train of trains) ahead = Math.min(ahead, wrap(distance - train.head, track.length));
+        for (const train of trains) ahead = Math.min(ahead, wrap(distance - train.headAt(elapsed), track.length));
         sprite.setAlpha(.22 + .78 * Math.max(0, 1 - ahead / (LAMP_STEP * 2)));
       }
     }
   };
-  update(0);
-  return update;
+  return {
+    trains: circuits.flatMap(circuit => circuit.trains),
+    update,
+    destroy: () => { for (const sprite of scenery) sprite.destroy(); },
+  };
 }

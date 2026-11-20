@@ -1,6 +1,7 @@
 import { DINO, DINO_LASER, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
 import { Dino } from '../entities/Dino';
 import { HayWagon } from '../entities/HayWagon';
+import { STEP_HZ } from '../entities/Vehicle';
 import {
   capsuleHit, closestOnSegment, dinoCapsule, dist, isTeamHit, orbitStep, steer, wrapAngle, type Capsule, type DinoWalk,
 } from '../entities/dinoAI';
@@ -8,7 +9,7 @@ import { addHits, clampInside, healthFrac, hitValue, newRideTimer, stepRide, typ
 import {
   beamHitsCircle, beamSideNormal, cancelLaser, chargeFrac, laserReady, newLaser, startLaser, stepLaser, sweepAngle, type LaserState, type LaserTiming,
 } from '../entities/dinoLaser';
-import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
+import { ownerOf, type GameSystem, type INpcVehicle, type IPlayerCar, type RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { PlayerId, Vec2 } from '../core/types';
 import { isDrivable, nearestRoadPoint } from '../world/geometry';
@@ -51,6 +52,9 @@ export class DinoSystem implements GameSystem {
   private hitCooldown: number[] = [0, 0];
   private tossCooldown: number[] = [0, 0];
   private clock = 0;
+  private obstacleCheckLeft = 0;
+  private obstacleContacts = new Set<MatterJS.BodyType>();
+  private obstacleProbe?: { spine: MatterJS.BodyType; front: MatterJS.BodyType; back: MatterJS.BodyType };
   private laser: LaserState = newLaser(DINO_LASER.firstDelaySec);
   private laserDev = false;
   private laserHitCd: number[] = [0, 0];
@@ -176,6 +180,12 @@ export class DinoSystem implements GameSystem {
     }
     if (this.mode === 'guard' || this.mode === 'leaving' || this.mode === 'drop') this.contacts(dt, ctx, d);
     else if (this.mode === 'ridden') this.rideContacts(ctx, d);
+    this.obstacleCheckLeft -= dt;
+    if (moved > 0 && this.obstacleCheckLeft <= 0 &&
+      (this.mode === 'guard' || this.mode === 'leaving' || this.mode === 'ridden')) {
+      this.obstacleCheckLeft = DINO_SMASH.obstacleCheckSec;
+      this.smashObstacles(ctx, d);
+    }
   }
 
   destroy(): void {
@@ -389,6 +399,7 @@ export class DinoSystem implements GameSystem {
     this.dino?.destroy();
     this.dino = null;
     this.rider = null;
+    this.obstacleContacts.clear();
     const st = this.ctx.dino;
     st.active = false; st.tamed = false; st.rider = null; st.rideLeftSec = 0;
     this.ctx.bus.emit('dino:left', {});
@@ -437,13 +448,7 @@ export class DinoSystem implements GameSystem {
       }
     }
 
-    if (!canHurt) return;
-    for (const npc of ctx.npcs) {
-      if (npc.destroyed || !this.touchesNpc(cap, npc)) continue;
-      const { x, y } = npc;
-      if (!this.tossNpc(ctx, d, npc, this.contactNormal(cap, npc))) continue;
-      this.smashSound(ctx, x, y);
-    }
+    if (canHurt || this.mode === 'leaving') this.tossTraffic(ctx, d, cap);
   }
 
   private tossPlayer(ctx: RaceContext, d: Dino, car: IPlayerCar, normal: Vec2): void {
@@ -585,6 +590,10 @@ export class DinoSystem implements GameSystem {
       const out = v.x * n.x + v.y * n.y;
       if (out < DINO_RIDE.playerPush) car.applyImpulse(n.x * (DINO_RIDE.playerPush - out), n.y * (DINO_RIDE.playerPush - out));
     }
+    this.tossTraffic(ctx, d, cap);
+  }
+
+  private tossTraffic(ctx: RaceContext, d: Dino, cap: Capsule): void {
     for (const npc of ctx.npcs) {
       if (npc.destroyed || !this.touchesNpc(cap, npc)) continue;
       const { x, y } = npc;
@@ -592,6 +601,56 @@ export class DinoSystem implements GameSystem {
       ctx.bus.emit('dino:squash', { x, y });
       this.smashSound(ctx, x, y);
     }
+  }
+
+  private smashObstacles(ctx: RaceContext, d: Dino): void {
+    const cap = this.contactCapsule();
+    const start = { x: cap.ax, y: cap.ay }, end = { x: cap.bx, y: cap.by };
+    const direction = { x: Math.cos(this.walk.angle), y: Math.sin(this.walk.angle) };
+    ctx.bus.emit('dino:stompPath', { start, end, radius: cap.r, direction });
+
+    // Use the rounded monster footprint against actual prop and train bodies. The query shapes
+    // never enter the world, so they cannot interfere with the player's ram or boarding contacts.
+    const matter = ctx.scene.matter;
+    const probe = this.obstacleProbe ??= {
+      spine: matter.bodies.rectangle(0, 0, DINO.length * (DINO.capsuleFront + DINO.capsuleBack), 2 * cap.r),
+      front: matter.bodies.circle(0, 0, cap.r),
+      back: matter.bodies.circle(0, 0, cap.r),
+    };
+    matter.body.setPosition(probe.spine, { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 });
+    matter.body.setAngle(probe.spine, this.walk.angle);
+    matter.body.setPosition(probe.front, end);
+    matter.body.setPosition(probe.back, start);
+    const near = matter.query.region(matter.world.getAllBodies(), {
+      min: { x: Math.min(start.x, end.x) - cap.r, y: Math.min(start.y, end.y) - cap.r },
+      max: { x: Math.max(start.x, end.x) + cap.r, y: Math.max(start.y, end.y) + cap.r },
+    }).filter(body => {
+      if (body.isSensor || !body.collisionFilter.mask) return false;
+      const owner = ownerOf(body);
+      return body.isStatic ? owner?.kind === 'train' : owner?.kind === 'prop';
+    });
+    const touching = new Set<MatterJS.BodyType>();
+    for (const shape of [probe.spine, probe.front, probe.back]) {
+      for (const hit of matter.intersectBody(shape, near) as MatterJS.BodyType[]) {
+        touching.add(hit.parent ?? hit);
+      }
+    }
+    for (const body of touching) {
+      if (!body.collisionFilter.mask || this.obstacleContacts.has(body)) continue;
+      const normal = this.contactNormal(cap, body.position);
+      if (body.isStatic) {
+        ctx.bus.emit('dino:trainHit', { body, direction: normal });
+        continue;
+      }
+      const { x, y } = body.position;
+      const speed = DINO_SMASH.propLaunchSpeed / STEP_HZ;
+      const spin = Math.sign(direction.x * normal.y - direction.y * normal.x || 1) * DINO_SMASH.propSpin;
+      matter.body.setVelocity(body, { x: normal.x * speed, y: normal.y * speed });
+      matter.body.setAngularVelocity(body, spin / STEP_HZ);
+      d.smash(x, y);
+      this.smashSound(ctx, x, y);
+    }
+    this.obstacleContacts = touching;
   }
 
   private nearestPlayerDist(ctx: RaceContext): number {
@@ -642,7 +701,7 @@ export class DinoSystem implements GameSystem {
   }
 
   private squash(ctx: RaceContext, d: Dino, npc: INpcVehicle): void {
-    const x = npc.x, y = npc.y;
+    const { x, y } = npc;
     ctx.npcs.delete(npc);
     npc.squash();
     d.smash(x, y);

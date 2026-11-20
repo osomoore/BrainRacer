@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type Phaser from 'phaser';
-import { DINO, DINO_RIDE } from '../../src/config/gameConfig';
+import { DINO, DINO_RIDE, UNDERGROUND_PLAYER_DRIVE } from '../../src/config/gameConfig';
 import { TEX } from '../../src/core/assetKeys';
 
 const WAIT = { timeout: 35_000 };
@@ -62,6 +62,43 @@ test('Underground replaces the dino with a rideable rock monster', async ({ page
   await page.keyboard.press('KeyB', { delay: 60 });
   await page.waitForFunction(() => window.__race.dino.rider === 0, undefined, WAIT);
   expect(await page.evaluate(() => window.__race.players[0].spec.maxSpeed)).toBe(DINO_RIDE.spec.maxSpeed);
+  const crate = await page.evaluate(() => {
+    const { scene, players, world } = window.__race;
+    const car = players[0].body;
+    const body = scene.matter.world.getAllBodies().find(b => b.label === 'underground-ore-crate')!;
+    const x = 15.5 * world.tileSize, y = 9.66 * world.tileSize;
+    scene.matter.body.setPosition(car, { x: x - 65, y: y - 42 });
+    scene.matter.body.setAngle(car, 0);
+    scene.matter.body.setVelocity(car, { x: 0, y: 0 });
+    scene.matter.body.setPosition(body, { x, y });
+    scene.matter.body.setVelocity(body, { x: 0, y: 0 });
+    return { id: body.id, x, y };
+  });
+  await page.keyboard.down('KeyW');
+  try {
+    await page.waitForFunction(({ id, x, y }) => {
+      const body = window.__race.scene.matter.world.getAllBodies().find(b => b.id === id);
+      return !!body && Math.hypot(body.position.x - x, body.position.y - y) > 20;
+    }, crate, WAIT);
+  } finally { await page.keyboard.up('KeyW'); }
+  const wagonId = await page.evaluate(() => {
+    const { scene, players } = window.__race;
+    const wagon = scene.matter.world.getAllBodies().find(body => body.label === 'underground-mine-cart' && body.collisionFilter.mask)!;
+    const car = players[0].body;
+    const { x, y } = wagon.position;
+    const dx = Math.cos(wagon.angle), dy = Math.sin(wagon.angle);
+    scene.matter.body.setPosition(car, { x: x - 60 * dx + 40 * dy, y: y - 60 * dy - 40 * dx });
+    scene.matter.body.setAngle(car, wagon.angle);
+    scene.matter.body.setVelocity(car, { x: 2 * dx, y: 2 * dy });
+    return wagon.id;
+  });
+  await page.keyboard.down('KeyW');
+  try {
+    await page.waitForFunction(id => {
+      const wagon = window.__race.scene.matter.world.getAllBodies().find(body => body.id === id);
+      return !!wagon && wagon.collisionFilter.mask === 0;
+    }, wagonId, WAIT);
+  } finally { await page.keyboard.up('KeyW'); }
   expect(errors).toEqual([]);
 });
 
@@ -91,7 +128,10 @@ test('five cave vehicles spawn and a boarded crusher breaks an ore crate', async
   await page.waitForTimeout(80);
   await page.keyboard.press('KeyB', { delay: 60 });
   await page.waitForFunction(key => window.__race.players[0].chassis.texture.key === key, rockCrusher, WAIT);
-  expect(await page.evaluate(() => window.__race.players[0].spec)).toEqual(expected.spec);
+  expect(await page.evaluate(() => window.__race.players[0].spec)).toEqual({
+    ...expected.spec, ...UNDERGROUND_PLAYER_DRIVE.rockCrusher,
+  });
+  expect(UNDERGROUND_PLAYER_DRIVE.rockCrusher.maxSpeed).toBeGreaterThan(expected.spec.maxSpeed);
   const crateId = await page.evaluate(() => {
     const { scene, players, world } = window.__race;
     const crate = scene.matter.world.getAllBodies().find(b => b.label === 'underground-ore-crate')!;
