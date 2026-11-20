@@ -189,8 +189,12 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() { /* intentionally nothing */ }
 
+    // Gamepad Home/Guide: many controllers send BUTTON_MODE, which Android may turn into a
+    // Home/Menu fallback when unhandled. Consuming it keeps kids in the game. A true
+    // KEYCODE_HOME is handled by the system before apps see it, so that one can't be blocked here.
     private static boolean isBackish(int k) {
-        return k == KeyEvent.KEYCODE_BACK || k == KeyEvent.KEYCODE_BUTTON_B;
+        return k == KeyEvent.KEYCODE_BACK || k == KeyEvent.KEYCODE_BUTTON_B
+                || k == KeyEvent.KEYCODE_BUTTON_MODE;
     }
 
     @Override

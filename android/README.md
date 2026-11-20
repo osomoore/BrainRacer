@@ -4,7 +4,9 @@ A tiny Android TV app: one full-screen WebView that loads the live game
 (`https://osomoore.github.io/BrainRacer/`). It exists so that **Back / gamepad B does nothing**:
 B is a real in-game button (red answer / back), and some TV browsers (TV Bro) turn a held B
 into controller-as-mouse mode. The wrapper passes all gamepad events to the page (Gamepad API)
-and swallows Back/B at the Activity level only.
+and swallows Back/B at the Activity level only. It also swallows the gamepad Home/Guide button
+when the controller sends it as `KEYCODE_BUTTON_MODE`. A real `KEYCODE_HOME`, from the remote or
+from some controllers, goes to the system and can't be blocked by an app.
 
 ## Build
 
