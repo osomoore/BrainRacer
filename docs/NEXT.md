@@ -30,12 +30,14 @@ Session 3 finished the queued playtest list and the map/gameplay ideas (destinat
 ## Backlog
 
 ### Low-end device (ONN Android TV box, TV Bro browser)
-- Audio drops out during races (CPU starvation; recovers on menus). The hidden settings menu (LT+RT+Start / F9) adds audio and fps knobs to diagnose it on the box. Pick defaults from the playtest results.
-- Measured on the ONN box (2026-11-20): audio clock about 0.6x during races (state running, stalls counting) = the audio render thread can't keep up. The game runs mid-20s fps while driving (higher on menus), so a 30 fps cap won't help much. Fix in progress: pre-rendered audio mode (sfx, music loops and a sampled engine played back from buffers).
-- Result (2026-11-20): Files audio + Sample engine brought the ONN audio clock to 0.9-1.1x. Files and Sample are now the defaults.
-- Music: the Underground track is too sparse (too few notes). Give it more drive and action. Re-run `npm run audio:render` afterwards.
-- Next push: trigger gas. A per-player Gas option (A / Trigger / Auto) in the hidden settings menu, plus an input readout (which buttons and keys reach the page from each pad). Reason: on the ONN in TV Bro, holding a button on the second controller switches TV Bro to controller-as-mouse mode. Holding A for gas sets it off. Triggers are analog axes and likely avoid it.
-- Later: general performance work for the ONN box (rendering cost of the two rotated cameras, per-frame work), plus a low-end option that reduces traffic and other cars. Fallback if the browser keeps fighting us: a small Android TV WebView app wrapper.
+Done 2026-11-20 (see STATUS "Hidden settings menu"): hidden settings menu (LT+RT+Start / F9) with debug + input readouts; build stamp on title and menu; Files audio (Ogg Opus in `public/audio/`, `npm run audio:render`) + Sample engine, now the defaults (ONN audio clock went from about 0.6x to 0.9-1.1x); Traffic Normal/Reduced/Minimal; per-player gas A/Trigger/Auto; HUD baked to textures (6x-throttled 2P city: about 19 to 48 fps).
+Open:
+- Test on the ONN: race fps with the baked HUD, whether Trigger gas avoids TV Bro's controller-as-mouse mode on the second pad, and whether Auto gas feels right.
+- Baked HUD, never visually checked: wrong-answer X, the 2P "Waiting..." card, the dino / rock monster alert frame, and the "Look!" and place banners. The question-panel glow came out slightly fainter. The panel textures are baked at 2x, up to about 30 MB of GPU memory; bake them at 1x if the box stutters or crashes when a panel first appears.
+- Listen: loop seams in the title, race, farm and dino music, and in the siren and engine loops.
+- Music: the Underground track is too sparse (too few notes). Give it more drive and action, then re-run `npm run audio:render`.
+- Next performance work (from the 6x-throttle profile): enable Matter sleeping plus off-screen NPC update skipping (about +10-15%, needs wake-on-contact checks); a render-resolution option (unmeasured, depends on the box GPU); trim the display list per camera. Matter iteration counts gave no gain.
+- Fallback if TV Bro keeps fighting us: a small Android TV WebView app wrapper.
 
 ### Session 4 follow-ups
 - Farm: tractors sometimes wander onto paved roads.
