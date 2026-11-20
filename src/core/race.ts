@@ -145,6 +145,10 @@ export interface RaceContext {
   paused: boolean;
   /** True while a pause-style question break is up (world frozen, only questions/HUD run). */
   questionBreak: boolean;
+  /** The driving clock has reached zero. Existing questions can still resolve. */
+  timeExpired?: boolean;
+  /** An active question or break must settle before the timer can finalize results. */
+  pendingQuestions?: boolean;
 }
 
 /** Every gameplay system implements this; RaceScene calls init once, update every frame (not while paused). */

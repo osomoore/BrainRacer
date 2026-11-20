@@ -1,23 +1,25 @@
 import Phaser from 'phaser';
-import { collectibleName, type Collectible } from '../config/collectibles';
+import { collectibleName, UNLOCK_GUIDE_IDS, type Collectible, type UnlockGuide, type UnlockVehicle } from '../config/collectibles';
+import { carArt, guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, GOALS, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
-import { nextMap } from '../core/progression';
+import { COMPLETION_OBJECTIVES, MAP_LABEL, nextMap, type CompletionUnlocks } from '../core/progression';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
-import type { PlayerStats, RoundResults, Settings } from '../core/types';
+import type { PlayerStats, RaceMap, RoundResults, Settings } from '../core/types';
 import { starRating } from '../systems/roundStats';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { bigText, carPreview, FONT_BODY, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
 import { starShape } from '../ui/results/starShape';
 import { messageFor } from '../ui/results/messages';
+import { worldKeyArt } from '../ui/results/worldKeyArt';
 import { REG, SCENE } from './keys';
 
 const CX = GAME_WIDTH / 2;
 const CARD_W = 600, CARD_H = 330, CARD_Y = 600;
 const INPUT_GRACE_MS = 1200;
 
-interface ResultsData { settings?: Settings; unlocked?: Collectible }
+interface ResultsData { settings?: Settings; unlocks?: CompletionUnlocks }
 
 /** Celebratory end-of-round screen with the next map preselected. */
 export class ResultsScene extends Phaser.Scene {
@@ -26,14 +28,107 @@ export class ResultsScene extends Phaser.Scene {
   private leaving = false;
   private readyAt = 0;
   private settings!: Settings;
+  private actions?: Phaser.GameObjects.Container;
 
   constructor() { super(SCENE.results); }
 
   create(data: ResultsData = {}) {
     this.buttons = []; this.sel = 0; this.leaving = false;
-    this.readyAt = this.time.now + INPUT_GRACE_MS;
+    this.actions = undefined;
+    this.readyAt = Infinity;
     const results: RoundResults = this.registry.get(REG.results) ?? { teamPoints: 0, players: [], goalsCompleted: 0, seed: 0 };
     this.settings = data.settings ?? this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
+    const summary = () => this.showSummary(results);
+    const { world, reward, rewardPool } = data.unlocks ?? {};
+    const revealReward = () => {
+      if (reward) this.showReward(reward, rewardPool ?? [reward], results.seed, summary);
+      else summary();
+    };
+    if (world) this.showWorld(world, revealReward);
+    else revealReward();
+    this.events.on(Phaser.Scenes.Events.RESUME, this.refreshActions, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.RESUME, this.refreshActions, this);
+    });
+  }
+
+  private showWorld(map: RaceMap, next: () => void): void {
+    const layer = this.add.container().setName('world-unlock-reveal');
+    worldKeyArt(this, layer, map);
+    layer.add(bigText(this, CX, 154, 'WORLD UNLOCKED!', 90, MENU.yellow, { font: FONT_HEAD, stroke: 15 }));
+    const title = bigText(this, CX, 928, MAP_LABEL[map].toUpperCase(), 128, '#ffffff', { font: FONT_HEAD, stroke: 20 });
+    layer.add(title);
+    this.tweens.add({ targets: title, scale: { from: 0.72, to: 1 }, duration: 700, ease: 'Back.Out' });
+    this.cameras.main.flash(400, 255, 230, 164);
+    services.audio.sfx('goal');
+    this.time.delayedCall(3200, () => { layer.destroy(); next(); });
+  }
+
+  private showReward(reward: Collectible, pool: Collectible[], seed: number, next: () => void): void {
+    const layer = this.add.container().setName('collectible-reveal');
+    layer.add(this.drawBackground());
+    layer.add(bigText(this, CX, 170, 'REWARD REEL', 92, MENU.yellow, { font: FONT_HEAD }));
+    const landing = this.add.rectangle(CX, 512, 350, 355, 0x32498c, 0.8).setStrokeStyle(8, 0xffd43b);
+    layer.add(landing);
+    const picks = new Rng(seed ^ 0x36d19c).shuffle(pool.filter(id => id !== reward));
+    const length = Math.min(12, picks.length * 3);
+    const items = [...Array.from({ length }, (_, i) => picks[i % picks.length]), reward];
+    const cards = Array.from({ length: 7 }, () => {
+      const frame = this.add.rectangle(0, 0, 290, 300, 0x27376b, 1).setStrokeStyle(4, 0x7896da);
+      const icon = this.add.image(0, -34, TEX.buddyStar);
+      const label = bigText(this, 0, 99, '', 39, '#ffffff', { font: FONT_HEAD, stroke: 5 });
+      const view = this.add.container(0, 512, [frame, icon, label]);
+      layer.add(view);
+      return { view, icon, label, id: undefined as Collectible | undefined };
+    });
+    const cursor = { position: 0 };
+    let last = -1;
+    const draw = () => {
+      const center = Math.round(cursor.position);
+      cards.forEach((card, i) => {
+        const index = center + i - 3;
+        const id = items[index];
+        card.view.setVisible(!!id);
+        if (!id) return;
+        if (card.id !== id) {
+          card.id = id;
+          const isGuide = UNLOCK_GUIDE_IDS.includes(id as UnlockGuide);
+          const texture = isGuide ? guideArt(id as UnlockGuide) : carArt(id as UnlockVehicle);
+          card.icon.setTexture(texture);
+          card.icon.setScale(Math.min(214 / card.icon.width, 178 / card.icon.height));
+          card.label.setText(collectibleName(id));
+          card.label.setScale(Math.min(1, 266 / card.label.width));
+        }
+        const offset = index - cursor.position;
+        const distance = Math.abs(offset);
+        card.view.setX(CX + offset * 312).setScale(Math.max(0.8, 1 - distance * 0.074))
+          .setAlpha(Phaser.Math.Clamp(1.18 - distance * 0.24, 0, 1));
+      });
+      if (center !== last) {
+        last = center;
+        services.audio.sfx('menuMove', { volume: 0.55 });
+      }
+    };
+    draw();
+    this.tweens.add({
+      targets: cursor, position: length, duration: length ? 5700 : 550, ease: 'Sine.Out',
+      onUpdate: draw,
+      onComplete: () => {
+        draw();
+        landing.setStrokeStyle(12, 0xffdf6a);
+        layer.add(bigText(this, CX, 855, `YOU EARNED ${collectibleName(reward).toUpperCase()}!`, 62, MENU.yellow, { font: FONT_HEAD }));
+        services.audio.sfx('goal');
+        this.time.delayedCall(1800, () => {
+          // The reveal and summary share the scene, so remove all reveal objects before laying out results.
+          layer.destroy();
+          next();
+        });
+      },
+    });
+  }
+
+  private showSummary(results: RoundResults): void {
+    this.readyAt = this.time.now + INPUT_GRACE_MS;
     const roundSec = this.settings.roundLengthSec;
     const stars = starRating(results.teamPoints, roundSec, GOALS.starThresholds);
 
@@ -51,8 +146,11 @@ export class ResultsScene extends Phaser.Scene {
     const msg = bigText(this, CX, 520, messageFor(stars, results.players.length), 56, '#ffffff', { font: FONT_HEAD }).setAlpha(0);
 
     this.buildCards(results);
-    this.buildButtons();
-    if (data.unlocked) bigText(this, CX, 520, `Unlocked: ${collectibleName(data.unlocked)}`, 43, MENU.yellow, { font: FONT_HEAD });
+    this.actions = this.add.container().setName('results-actions');
+    this.refreshActions();
+    if (!this.settings.developerMode && results.goalsCompleted < COMPLETION_OBJECTIVES) {
+      msg.setText(`${results.goalsCompleted} / ${COMPLETION_OBJECTIVES} objectives for world completion`);
+    }
 
     // Count up with ticks, then stars pop in.
     const counter = { v: 0 };
@@ -74,7 +172,7 @@ export class ResultsScene extends Phaser.Scene {
           targets: s, scale: 1, duration: 450, delay: i * 260, ease: 'Back.Out',
           onStart: () => services.audio.sfx(i < stars ? 'goalArrive' : 'pop'),
         }));
-        if (!data.unlocked) this.tweens.add({ targets: msg, alpha: 1, duration: 500, delay: 800 });
+        this.tweens.add({ targets: msg, alpha: 1, duration: 500, delay: 800 });
         if (stars >= 2) this.time.delayedCall(700, () => services.audio.sfx('goal'));
       },
     });
@@ -82,7 +180,7 @@ export class ResultsScene extends Phaser.Scene {
 
   update() {
     services.input.poll();
-    if (this.leaving || this.time.now < this.readyAt) return;
+    if (this.leaving || !this.buttons.length || this.time.now < this.readyAt) return;
     const inp = services.input.any();
     const dir = inp.navX || inp.navY;
     if (dir) {
@@ -94,11 +192,12 @@ export class ResultsScene extends Phaser.Scene {
   }
 
   // ───────────── building blocks ─────────────
-  private drawBackground() {
+  private drawBackground(): Phaser.GameObjects.Graphics {
     const g = this.add.graphics();
     g.fillGradientStyle(0x1b2a5e, 0x1b2a5e, 0x0b1230, 0x0b1230, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     g.fillStyle(0xffffff, 0.04);
     for (let i = 0; i < 14; i++) g.fillCircle(CX, 300, 120 + i * 90);
+    return g;
   }
 
   private confettiRain() {
@@ -147,13 +246,24 @@ export class ResultsScene extends Phaser.Scene {
     this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 500, delay: 300 + i * 200, ease: 'Back.Out' });
   }
 
-  private buildButtons() {
+  private latestSettings(): Settings {
+    return (this.registry.get(REG.settings) as Settings | undefined) ?? this.settings;
+  }
+
+  private followingMap(): RaceMap {
+    return nextMap(this.settings.map, this.latestSettings().developerMode === true);
+  }
+
+  private refreshActions() {
+    if (!this.actions) return;
+    this.actions.removeAll(true);
     const defs = [
-      { label: 'NEXT MAP', x: CX - 500, color: 0x2ecc40 },
+      { label: this.followingMap() === this.settings.map ? 'PLAY AGAIN' : 'NEXT MAP', x: CX - 500, color: 0x2ecc40 },
       { label: 'SETUP', x: CX, color: 0x4dabf7 },
       { label: 'TITLE', x: CX + 500, color: 0x4dabf7 },
     ];
     this.buttons = defs.map((d) => new MenuButton(this, d.x, 1000, 430, 100, d.label, d.color, 52));
+    this.actions.add(this.buttons);
     this.refreshButtons();
   }
 
@@ -169,9 +279,9 @@ export class ResultsScene extends Phaser.Scene {
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (i === 0) {
-        const latest = (this.registry.get(REG.settings) as Settings | undefined) ?? this.settings;
+        const latest = this.latestSettings();
         const seed = randomSeed();
-        this.registry.set(REG.settings, { ...latest, map: nextMap(this.settings.map, new Rng(seed)), seed });
+        this.registry.set(REG.settings, { ...latest, map: this.followingMap(), seed });
         this.scene.start(SCENE.race);
       } else if (i === 1) {
         this.scene.start(SCENE.setup);

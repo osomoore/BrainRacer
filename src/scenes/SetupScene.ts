@@ -3,8 +3,8 @@ import { guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { normalizeQuestionTypes } from '../config/questionsPolicy';
 import { services } from '../core/services';
-import { availableLoadouts, loadUnlocks, selectedLoadout } from '../core/progression';
-import { isRaceMap, loadSettings, RACE_MAPS, saveSettings } from '../core/settings';
+import { availableLoadouts, availableMaps, loadUnlocks, MAP_LABEL, playableMap, selectedLoadout } from '../core/progression';
+import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
 import type { CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, QuestionType, QuestionTypes, RaceMap, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { MenuButton } from '../ui/menu/MenuButton';
@@ -24,10 +24,6 @@ const QUESTIONS: { type: QuestionType; label: string }[] = [
 ];
 const ROW_DIFF = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUEST = 3;
 const ROW_MAP = ROW_QUEST + QUESTIONS.length, ROW_START = ROW_MAP + 1;
-const MAP_LABEL: Record<RaceMap, string> = {
-  city: 'City', industrial: 'Factory', farm: 'Farm', harbor: 'Beach', underground: 'Mine',
-  sky: 'Sky-city', forest: 'Dark Forest', underwater: 'Underwater',
-};
 
 const COL_W = 780;
 const COL_ROW_W = 740;
@@ -52,6 +48,7 @@ export class SetupScene extends Phaser.Scene {
   private cols: Column[] = [];
   private mapRow!: OptionRow;
   private available!: ReturnType<typeof availableLoadouts>;
+  private maps!: readonly RaceMap[];
   private modeLabel!: Phaser.GameObjects.Text;
   private startBtn!: MenuButton;
   private leaving = false;
@@ -83,7 +80,7 @@ export class SetupScene extends Phaser.Scene {
 
     this.buildBackground();
     bigText(this, GAME_WIDTH / 2, 62, 'GET READY!', 96, '#ffd43b', { font: FONT_HEAD, stroke: 14 });
-    this.modeLabel = bigText(this, 36, 62, 'Developer Mode', 40, MENU.dim, { origin: [0, 0.5] });
+    this.modeLabel = bigText(this, 36, 62, 'Admin Mode', 40, MENU.dim, { origin: [0, 0.5] });
 
     const n = players.length;
     players.forEach((_p, i) => {
@@ -197,7 +194,10 @@ export class SetupScene extends Phaser.Scene {
   }
 
   private refreshAvailability() {
-    this.available = availableLoadouts(loadUnlocks(), this.cfg.developerMode === true);
+    const admin = this.cfg.developerMode === true;
+    this.available = availableLoadouts(loadUnlocks(), admin);
+    this.maps = availableMaps(admin);
+    this.cfg.map = playableMap(this.cfg.map, admin);
   }
 
   private loadout(player: number): { car: CarKind; guide: GuideKind } {
@@ -274,7 +274,7 @@ export class SetupScene extends Phaser.Scene {
       if (!enabled && !QUESTIONS.some((q) => q.type !== type && ps.questionTypes[q.type])) return;
       ps.questionTypes[type] = enabled;
       target = this.cols[p].questions[row - ROW_QUEST];
-    } else if (p === 0 && row === ROW_MAP) { c.map = cycle(RACE_MAPS, c.map); target = this.mapRow; }
+    } else if (p === 0 && row === ROW_MAP) { c.map = cycle(this.maps, c.map); target = this.mapRow; }
     if (!target) return;
     services.audio.sfx('menuMove');
     this.refreshAll();

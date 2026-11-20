@@ -158,6 +158,7 @@ test('single gamepad: A, A, A reaches the race', async ({ page }) => {
 test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
+  await page.addInitScript(() => localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] })));
   await page.goto('/');
   await waitScene(page, 'Title');
   await page.keyboard.press('Space');

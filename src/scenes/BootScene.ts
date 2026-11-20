@@ -78,6 +78,8 @@ export class BootScene extends Phaser.Scene {
     this.registry.set(REG.settings, settings);
     services.input.reset();
     settings.players.forEach((p, i) => services.input.assign(i as PlayerId, p.device));
-    this.scene.start(SCENE.race);
+    const previewMap = import.meta.env.DEV || import.meta.env.VITE_QA_QUICK_MAPS === '1'
+      ? (isRaceMap(map) ? map : undefined) : undefined;
+    this.scene.start(SCENE.race, { previewMap });
   }
 }

@@ -86,6 +86,7 @@ test('Setup can select Farm', async ({ page }) => {
   await installGamepadMock(page, 0);
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off', map: 'city' }));
+    localStorage.setItem('brainracer.content.v1', JSON.stringify({ overrides: { industrial: true, farm: true } }));
   });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');

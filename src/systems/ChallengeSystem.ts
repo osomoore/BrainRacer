@@ -25,7 +25,7 @@ export class ChallengeSystem implements GameSystem {
   private near: Set<number>[] = [];
   private guard: number[] = [];
   private pause = false;
-  /** Round over: no more questions (a break in progress is dropped). */
+  /** Results have been finalized. */
   private ended = false;
   private offRoundEnd: (() => void) | null = null;
 
@@ -79,15 +79,22 @@ export class ChallengeSystem implements GameSystem {
   update(dt: number, ctx: RaceContext): void {
     if (this.ended) { ctx.questionBreak = false; return; }
     const now = ctx.elapsedSec;
-    if (this.pause && this.breaks) { this.updateBreaks(dt, ctx, now, this.breaks); return; }
+    if (this.pause && this.breaks) {
+      if (!ctx.timeExpired || this.breaks.active) this.updateBreaks(dt, ctx, now, this.breaks);
+      ctx.pendingQuestions = this.breaks.active;
+      return;
+    }
     this.schedulers.forEach((sched, i) => {
       const player = i as PlayerId;
-      const events = sched.update(now);
+      const events = ctx.timeExpired ? [] : sched.update(now);
       const slot = services.input.get(player).answer;
-      if (slot !== null && slot < 3) events.push(...sched.answer(slot, now));   // A is the gas in drive style
-      for (const word of this.enteredPlaces(player, ctx)) events.push(...sched.notifyPlace(word, now));
+      if (slot !== null && slot < 3) events.push(...sched.answer(slot, now, ctx.timeExpired));
+      if (!ctx.timeExpired) {
+        for (const word of this.enteredPlaces(player, ctx)) events.push(...sched.notifyPlace(word, now));
+      }
       this.forward(events, player, ctx);
     });
+    ctx.pendingQuestions = this.schedulers.some(sched => sched.state === 'active');
   }
 
   destroy(): void {
@@ -134,6 +141,7 @@ export class ChallengeSystem implements GameSystem {
           services.audio.sfx(e.result, { pan: this.pan(e.challenge.player) });
           break;
         case 'resume':
+          if (ctx.timeExpired) break;
           ctx.bus.emit('ui:banner', { text: 'GO!', color: '#7CFC00', durationSec: CHALLENGE.breakGoSec });
           services.audio.sfx('go');
           break;

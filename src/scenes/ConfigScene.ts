@@ -3,7 +3,8 @@ import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } fr
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
-import { developerModeSettings } from '../core/progression';
+import { collectibleName, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../config/collectibles';
+import { contentOverride, developerModeSettings, loadUnlocks, availableMaps, MAP_LABEL, RACE_MAPS, setContentOverride } from '../core/progression';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { Settings } from '../core/types';
@@ -43,6 +44,15 @@ const GAS_LABEL = { a: 'Bottom button', trigger: 'Trigger', auto: 'Auto' } as co
 const KEY_HISTORY = 3;
 const ROUND_SEC = [60, 120, 180, 300, 480, 600];
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
+const CONTENT_PAGES = [
+  { name: 'Worlds', ids: RACE_MAPS.filter(map => map !== 'city') },
+  { name: 'Cars 1 / 4', ids: UNLOCK_VEHICLE_IDS.slice(0, 9) },
+  { name: 'Cars 2 / 4', ids: UNLOCK_VEHICLE_IDS.slice(9, 18) },
+  { name: 'Cars 3 / 4', ids: UNLOCK_VEHICLE_IDS.slice(18, 27) },
+  { name: 'Cars 4 / 4', ids: UNLOCK_VEHICLE_IDS.slice(27) },
+  { name: 'Companions', ids: UNLOCK_GUIDE_IDS },
+];
+const CONTENT_OVERRIDES = [undefined, true, false] as const;
 
 interface Row {
   selectable: Selectable;
@@ -57,6 +67,10 @@ export class ConfigScene extends Phaser.Scene {
   private lastToggle = 0;
   private paused: string[] = [];
   private rows: Row[] = [];
+  private contentRows: Row[] = [];
+  private contentPanel?: Phaser.GameObjects.Container;
+  private contentPage = 0;
+  private adminCursor = 0;
   private cursor = 0;
   private panel!: Phaser.GameObjects.Container;
   private readout!: Phaser.GameObjects.Text;
@@ -98,7 +112,7 @@ export class ConfigScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setDepth(DEPTH);
     this.panel = c;
     c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
-    c.add(bigText(this, GAME_WIDTH / 2, 72, 'ADVANCED SETTINGS', 72, MENU.yellow, { font: FONT_HEAD, stroke: 10 }));
+    c.add(bigText(this, GAME_WIDTH / 2, 72, 'ADMIN SETTINGS', 72, MENU.yellow, { font: FONT_HEAD, stroke: 10 }));
     c.add(bigText(this, 30, 30, `Build ${BUILD_ID}`, 32, MENU.dim, { origin: [0, 0], bold: false, shadow: false, stroke: 4 }));
     const color = hexNum(PLAYER_COLORS[0]);
     const opts = { width: ROW_W, height: ROW_H, fontSize: 40, valueX: 205, arrowSpan: 169 };
@@ -160,7 +174,7 @@ export class ConfigScene extends Phaser.Scene {
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
     option(0, rowY(9), 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
-    option(0, rowY(10), 'Developer Mode', () => onOff(this.settings().developerMode === true),
+    option(0, rowY(10), 'Admin Mode', () => onOff(this.settings().developerMode === true),
       () => this.patchSettings(developerModeSettings(this.settings().developerMode !== true)));
 
     header(1, 155, 'AUDIO');
@@ -179,10 +193,65 @@ export class ConfigScene extends Phaser.Scene {
     header(1, 710, 'ACTIONS');
     action(1, rowY(8), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
     action(1, rowY(9), 'Reset to defaults', () => this.resetAll());
-    action(1, rowY(10), 'Close', () => this.close());
+    action(1, rowY(10), 'Content Locks', () => {
+      this.adminCursor = this.cursor;
+      this.showContent();
+    });
+    action(1, 987, 'Close', () => this.close());
 
     c.add(bigText(this, COL_X[0] - ROW_W / 2 + 8, 987, '* Takes effect after reload', 40, MENU.dim, { origin: [0, 0.5], shadow: false }));
     c.add(bigText(this, GAME_WIDTH / 2, 1040, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
+  }
+
+  private showContent(): void {
+    this.contentPanel?.destroy();
+    this.panel.setVisible(false);
+    const cx = GAME_WIDTH / 2;
+    const panel = this.add.container(0, 0).setDepth(DEPTH);
+    this.contentPanel = panel;
+    this.contentRows = [];
+    panel.add(this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
+    panel.add(bigText(this, cx, 76, 'CONTENT LOCKS', 72, MENU.yellow, { font: FONT_HEAD }));
+    panel.add(bigText(this, cx, 142, 'Normal player access', 40, MENU.dim));
+    const opts = { width: 1180, height: 56, fontSize: 40, valueX: 285, arrowSpan: 245 };
+    const page = CONTENT_PAGES[this.contentPage];
+    const category = new OptionRow(this, cx, 219, 'Category', opts);
+    panel.add(category);
+    category.setValue(page.name);
+    const cyclePage = (dir: 1 | -1) => {
+      this.contentPage = Phaser.Math.Wrap(this.contentPage + dir, 0, CONTENT_PAGES.length);
+      this.showContent();
+    };
+    this.contentRows.push({ selectable: category, change: cyclePage, activate: () => cyclePage(1) });
+    const unlocked = loadUnlocks();
+    page.ids.forEach((id, i) => {
+      const label = id in MAP_LABEL ? MAP_LABEL[id as keyof typeof MAP_LABEL] : collectibleName(id as Parameters<typeof collectibleName>[0]);
+      const row = new OptionRow(this, cx, 290 + i * 70, label, opts);
+      panel.add(row);
+      const refresh = () => {
+        const override = contentOverride(id);
+        const open = page.name === 'Worlds' ? availableMaps(false).some(map => map === id) : unlocked.some(item => item === id);
+        row.setValue(override === undefined ? (open ? 'Auto (Open)' : 'Auto (Locked)') : override ? 'Open' : 'Locked');
+      };
+      const change = (dir: 1 | -1) => {
+        const index = CONTENT_OVERRIDES.indexOf(contentOverride(id));
+        setContentOverride(id, CONTENT_OVERRIDES[Phaser.Math.Wrap(index + dir, 0, CONTENT_OVERRIDES.length)]);
+      };
+      this.contentRows.push({ selectable: row, refresh, change, activate: () => { change(1); this.refreshRows(); } });
+    });
+    panel.add(bigText(this, cx, 1010, 'Up / Down to move    Left / Right to change    Back to Admin Settings', 40, MENU.dim));
+    this.cursor = 0;
+    services.audio.sfx('menuSelect');
+    this.refreshRows();
+  }
+
+  private closeContent(): void {
+    this.contentPanel?.destroy();
+    this.contentPanel = undefined;
+    this.contentRows = [];
+    this.panel.setVisible(true);
+    this.cursor = this.adminCursor;
+    this.refreshRows();
   }
 
   // ───────────────────────── settings helpers ─────────────────────────
@@ -212,7 +281,7 @@ export class ConfigScene extends Phaser.Scene {
 
   private refreshRows(): void {
     const color = hexNum(PLAYER_COLORS[0]);
-    this.rows.forEach((r, i) => {
+    (this.contentPanel ? this.contentRows : this.rows).forEach((r, i) => {
       r.refresh?.();
       r.selectable.setSelected(i === this.cursor, color);
     });
@@ -247,6 +316,7 @@ export class ConfigScene extends Phaser.Scene {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.lastToggle = performance.now();
+    if (this.contentPanel) this.closeContent();
     this.panel.setVisible(false);
     for (const key of this.paused) {
       try { this.scene.resume(key); } catch { /* scene may be gone */ }
@@ -271,12 +341,14 @@ export class ConfigScene extends Phaser.Scene {
 
   private updateOpen(): void {
     const inp = services.input.any();
+    if (inp.back && this.contentPanel) { this.closeContent(); return; }
     if (inp.pause || inp.back) { this.toggle(); return; }
+    const rows = this.contentPanel ? this.contentRows : this.rows;
     if (inp.navY) {
-      const n = Phaser.Math.Wrap(this.cursor + inp.navY, 0, this.rows.length);
+      const n = Phaser.Math.Wrap(this.cursor + inp.navY, 0, rows.length);
       if (n !== this.cursor) { this.cursor = n; services.audio.sfx('menuMove'); this.refreshRows(); }
     }
-    const row = this.rows[this.cursor];
+    const row = rows[this.cursor];
     if (inp.navX && row?.change) {
       row.change(inp.navX > 0 ? 1 : -1);
       services.audio.sfx('menuMove');

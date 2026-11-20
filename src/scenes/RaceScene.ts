@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
-import { availableLoadouts, awardMapCompletion, loadUnlocks, selectedLoadout } from '../core/progression';
+import { availableLoadouts, awardMapCompletion, loadUnlocks, playableMap, selectedLoadout } from '../core/progression';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { MusicTrack, PlayerId, RaceMap, RoundResults, Settings, WorldData } from '../core/types';
@@ -57,7 +57,7 @@ export class RaceScene extends Phaser.Scene {
 
   constructor() { super(SCENE.race); }
 
-  create() {
+  create(data: { previewMap?: RaceMap } = {}) {
     const params = new URLSearchParams(location.search);
     const settings: Settings = structuredClone(this.registry.get(REG.settings) ?? DEFAULT_SETTINGS);
     // Questions are mandatory unless the app was started with the questions-off option (see questionsPolicy.ts).
@@ -67,6 +67,7 @@ export class RaceScene extends Phaser.Scene {
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
     Object.assign(settings, currentLaunchOverrides());
     const developerMode = settings.developerMode === true;
+    settings.map = data.previewMap ?? playableMap(settings.map, developerMode);
     const available = availableLoadouts(loadUnlocks(), developerMode);
     settings.players = settings.players.map((player, i) => ({ ...player, ...selectedLoadout(player, i, developerMode, available) }));
     const roundLengthSec = settings.roundLengthSec;
@@ -108,6 +109,8 @@ export class RaceScene extends Phaser.Scene {
       roundLengthSec,
       paused: false,
       questionBreak: false,
+      timeExpired: false,
+      pendingQuestions: false,
     };
     this.registry.set(REG.race, this.ctx);
 
@@ -154,14 +157,13 @@ export class RaceScene extends Phaser.Scene {
     }
     if (this.ctx.paused) { this.rig.update(0); return; }
 
-    // Question break (pause style): the world is frozen; only the challenge system, the round clock (and HUD) run.
-    // The round clock keeps counting down during breaks.
-    if (this.ctx.questionBreak && this.started && !this.ended) {
+    if (this.started && (this.ctx.questionBreak || this.ctx.timeExpired)) {
       this.setBreak(true);
-      this.ctx.elapsedSec += dt;
-      for (const s of this.systems) if (s.name === 'challenge' || s.name === 'roundTimer') s.update(dt, this.ctx);
-      if (this.ended) this.ctx.questionBreak = false;
-      if (!this.ctx.questionBreak) this.setBreak(false);
+      if (!this.ended) {
+        if (!this.ctx.timeExpired) this.ctx.elapsedSec += dt;
+        for (const s of this.systems) if (s.name === 'challenge' || s.name === 'roundTimer') s.update(dt, this.ctx);
+        if (!this.ctx.questionBreak && !this.ctx.timeExpired) this.setBreak(false);
+      }
       this.rig.update(0);
       return;
     }
@@ -171,10 +173,13 @@ export class RaceScene extends Phaser.Scene {
 
     for (const car of this.players) car.update(services.input.get(car.player), dt);
     this.skids.update(dt);
-    if (this.started) for (const s of this.systems) s.update(dt, this.ctx);
+    if (this.started) for (const s of this.systems) {
+      s.update(dt, this.ctx);
+      if (this.ctx.timeExpired) break;
+    }
     if (this.started && !this.ended && !this.ctx.questionBreak) this.built.update?.(dt);
     // A system (challenge) may have just started a break: freeze right away.
-    if (this.ctx.questionBreak) this.setBreak(true);
+    if (this.ctx.questionBreak || this.ctx.timeExpired) this.setBreak(true);
     this.rig.update(dt);
   }
 
@@ -219,13 +224,14 @@ export class RaceScene extends Phaser.Scene {
     this.ended = true;
     this.registry.set(REG.results, results);
     const settings = this.ctx.settings;
-    const unlocked = awardMapCompletion(settings.developerMode === true, new Rng(results.seed ^ 0x391bf724));
+    const admin = settings.developerMode === true || this.registry.get(REG.settings)?.developerMode === true;
+    const unlocks = awardMapCompletion(settings.map, results.goalsCompleted, admin, new Rng(results.seed ^ 0x391bf724));
     for (const car of this.players) car.setControlEnabled(false);
     services.audio.music('results', 0.5);
     bus.emit('ui:banner', { text: "TIME'S UP!", color: '#FFD700', durationSec: 3 });
     this.time.delayedCall(4000, () => {
       this.scene.stop(SCENE.hud);
-      this.scene.start(SCENE.results, { settings, unlocked });
+      this.scene.start(SCENE.results, { settings, unlocks });
     });
   }
 

@@ -72,9 +72,9 @@ export class ChallengeScheduler {
     return events;
   }
 
-  answer(slot: AnswerSlot, now: number): SchedulerEvent[] {
+  answer(slot: AnswerSlot, now: number, timeExpired = false): SchedulerEvent[] {
     const events: SchedulerEvent[] = [];
-    this.advance(now, events);
+    if (!timeExpired) this.advance(now, events);
     const c = this._current;
     if (this._state !== 'active' || !c) return events;
     this._state = 'resolved';

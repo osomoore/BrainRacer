@@ -109,7 +109,10 @@ export class HudScene extends Phaser.Scene {
   private bind() {
     this.on('camera:layout', (e) => this.applyLayout(e.layout, false));
     this.on('score:changed', (e) => this.scoreboard.setScore(e.team, e.perPlayer));
-    this.on('round:tick', (e) => this.scoreboard.setRemaining(e.remainingSec));
+    this.on('round:tick', (e) => {
+      this.scoreboard.setRemaining(e.remainingSec);
+      if (e.remainingSec === 0) for (const bar of this.bars) bar.stop();
+    });
 
     this.on('challenge:shown', ({ challenge }) => {
       const p = challenge.player;

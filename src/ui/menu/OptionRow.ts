@@ -69,4 +69,9 @@ export class OptionRow extends Phaser.GameObjects.Container implements Selectabl
     this.cursor.x = -this.rw / 2 - 40;
     if (selected) this.cursorTween = this.scene.tweens.add({ targets: this.cursor, x: this.cursor.x + 12, duration: 350, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
+
+  override destroy(fromScene?: boolean): void {
+    this.cursorTween?.remove();
+    super.destroy(fromScene);
+  }
 }

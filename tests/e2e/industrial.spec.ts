@@ -63,6 +63,7 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
   await installGamepadMock(page, 0);
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off' }));
+    localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] }));
   });
   await page.goto('/?questions=off');
   await openSetup(page);
@@ -76,7 +77,7 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
     await page.keyboard.press('KeyW', { delay: 80 }); // Wrap from Resume to Quit to Title.
     await page.keyboard.press('Space');
     await openSetup(page);
-    await chooseNextMap(page, map === 'city' ? 'KeyA' : 'KeyD'); // Map row: City, Factory, Farm
+    await chooseNextMap(page, map === 'city' ? 'KeyA' : 'KeyD'); // Map row: City and unlocked Factory.
     await page.keyboard.press('Space');
     await assertMap(page, map);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!).map)).toBe(map);

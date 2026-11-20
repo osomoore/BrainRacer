@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, UNLOCK_VEHICLES, WORLD_GUIDES, WORLD_VEHICLE_IDS, type UnlockGuide, type UnlockVehicle, type WorldVehicle } from '../config/collectibles';
 import { TEX } from '../core/assetKeys';
+import { paintBomb } from './homingBombArt';
 import { bodyGrad, ellipse, fillStroke, glossHighlight, lin, makeCanvas, OUTLINE, poly, rr, star, type Ctx } from './draw';
 
 function box(ctx: Ctx, x: number, y: number, w: number, h: number, radius: number, color: string | CanvasGradient) {
@@ -209,14 +210,9 @@ function drawGuide(scene: Phaser.Scene, id: UnlockGuide) {
       oval(ctx, 29, 24, 9, 9, '#56cff2');
       oval(ctx, 27, 21, 3.5, 2.2, '#e3faff');
       break;
-    case 'comet':
-      poly(ctx, [18, 22, 3, 43, 17, 38, 7, 53, 36, 44, 47, 28]);
-      fillStroke(ctx, '#3ca4de', OUTLINE, 2.5);
-      poly(ctx, [20, 24, 11, 43, 36, 37, 41, 24]);
-      fillStroke(ctx, '#95edff', OUTLINE, 2);
-      star(ctx, 36, 24, 19, 10, 5, -0.85);
-      fillStroke(ctx, '#baf6ff', OUTLINE, 2.5);
-      guideFace(ctx, 36, 22);
+    case 'bombBuddy':
+      ctx.scale(58 / 220, 58 / 220);
+      paintBomb(ctx);
       break;
   }
   done();

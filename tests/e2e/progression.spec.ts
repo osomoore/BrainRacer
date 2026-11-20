@@ -12,10 +12,20 @@ async function tap(page: Page, key: string) {
   await page.waitForTimeout(65);
 }
 
-async function finishRound(page: Page) {
+async function finishRound(page: Page, objectives = 3) {
   await page.waitForFunction(() => window.__race?.elapsedSec > 0);
-  await page.evaluate(() => { window.__race.elapsedSec = window.__race.roundLengthSec; });
+  await page.evaluate(count => {
+    const race = window.__race;
+    for (let i = 0; i < count; i++) {
+      race.bus.emit('goal:completed', { goal: race.goal!, arrived: race.players.map(player => player.player) });
+    }
+    race.elapsedSec = race.roundLengthSec;
+  }, objectives);
   await waitScene(page, 'Results');
+}
+
+async function waitSummary(page: Page) {
+  await page.waitForFunction(() => window.__game.scene.getScene('Results').children.getByName('results-actions'));
   await page.waitForTimeout(1300);
 }
 
@@ -24,21 +34,34 @@ const raceLoadouts = (page: Page) => page.evaluate(() => window.__race.settings.
   guide: player.guide,
 })));
 
-test('map completion grants one unlock and Confirm advances to a different map', async ({ page }) => {
+test('two objectives replay the City and three reveal Factory before the collectible', async ({ page }) => {
   await page.goto('/?race=1&seed=3&questions=off');
   await waitScene(page, 'Race');
   const startingUnlocks = await unlocks(page);
   expect(startingUnlocks).toHaveLength(1);
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
 
+  await finishRound(page, 2);
+  await waitSummary(page);
+  expect(await unlocks(page)).toEqual(startingUnlocks);
+  await tap(page, 'Space');
+  await waitScene(page, 'Race');
+  expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
+
   await finishRound(page);
+  expect(await page.evaluate(() => !!window.__game.scene.getScene('Results').children.getByName('world-unlock-reveal'))).toBe(true);
+  await page.waitForFunction(() => {
+    const children = window.__game.scene.getScene('Results').children;
+    return !children.getByName('world-unlock-reveal') && children.getByName('collectible-reveal');
+  });
+  await waitSummary(page);
   const after = await unlocks(page);
   expect(after).toHaveLength(2);
   expect(after).toContain(startingUnlocks[0]);
 
   await tap(page, 'Space');
   await waitScene(page, 'Race');
-  expect(await page.evaluate(() => window.__race.settings.map)).not.toBe('city');
+  expect(await page.evaluate(() => window.__race.settings.map)).toBe('industrial');
   expect(await unlocks(page)).toEqual(after);
 });
 
@@ -51,6 +74,7 @@ test('both players can use the same collection after a solo map and a reload', a
   await page.goto('/?race=1&seed=50&questions=off');
   await waitScene(page, 'Race');
   await finishRound(page);
+  await waitSummary(page);
   await expect.poll(() => unlocks(page)).toEqual(['owl', 'towTruck']);
 
   await tap(page, 'KeyD'); // Results → Setup.
@@ -82,6 +106,7 @@ test('both players can use the same collection after a solo map and a reload', a
   expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }, { car: 'towTruck', guide: 'owl' }]);
 
   await finishRound(page);
+  await waitSummary(page);
   expect(await unlocks(page)).toHaveLength(3);
   await tap(page, 'KeyD'); // Results → Setup.
   await tap(page, 'Space');
@@ -93,7 +118,7 @@ test('both players can use the same collection after a solo map and a reload', a
   expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }, { car: 'dino', guide: 'owl' }]);
 });
 
-test('Developer Mode previews and plays locked loadouts without granting completion rewards', async ({ page }) => {
+test('Admin Mode previews locked loadouts and Content Locks can open a world for normal play', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('brainracer.unlocks.v1', JSON.stringify(['owl'])));
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');
@@ -127,8 +152,20 @@ test('Developer Mode previews and plays locked loadouts without granting complet
   }))).toEqual({ round: 60, car: 'motorTrike', guide: 'bumblebee', guideVisible: true });
 
   await finishRound(page);
+  await waitSummary(page);
   expect(await unlocks(page)).toEqual(['owl']);
   await toggleDeveloperMode('Results');
+  await page.waitForTimeout(500);
+  await tap(page, 'F9');
+  await page.waitForFunction(() => window.__game.scene.isPaused('Results'));
+  await tap(page, 'KeyW'); // Close.
+  await tap(page, 'KeyW'); // Content Locks.
+  await tap(page, 'Space');
+  await tap(page, 'KeyS'); // Factory.
+  await tap(page, 'KeyD'); // Auto (Locked) to Open.
+  await tap(page, 'Backspace'); // Back to Admin Settings.
+  await tap(page, 'Escape'); // Back to Results.
+  await waitScene(page, 'Results');
   await tap(page, 'KeyD'); // Setup lets players manually choose the next map.
   await tap(page, 'Space');
   await waitScene(page, 'Setup');

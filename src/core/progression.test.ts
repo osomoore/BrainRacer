@@ -1,22 +1,53 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_GUIDES, WORLD_VEHICLES } from '../config/collectibles';
-import { availableLoadouts, developerModeSettings, drawUnlock, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout } from './progression';
+import { availableLoadouts, availableMaps, awardMapCompletion, developerModeSettings, drawUnlock, loadUnlocks, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout, setContentOverride } from './progression';
 import { Rng } from './rng';
 import type { PlayerSettings } from './types';
 
 describe('map progression', () => {
-  it('picks each other map and never repeats the map that finished', () => {
-    for (const current of RACE_MAPS) {
-      const rng = new Rng(31);
-      const maps = new Set(Array.from({ length: 80 }, () => nextMap(current, rng)));
-      expect(maps).toEqual(new Set(RACE_MAPS.filter(map => map !== current)));
-    }
+  beforeEach(() => {
+    const store = new Map([['brainracer.content.v1', '{}'], ['brainracer.unlocks.v1', '["owl"]']]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key), setItem: (key: string, value: string) => store.set(key, value) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('starts on City and unlocks successors after three completed objectives', () => {
+    const rng = new Rng(31);
+    expect(availableMaps(false)).toEqual(['city']);
+    expect(awardMapCompletion('city', 2, false, rng)).toEqual({});
+    expect(awardMapCompletion('industrial', 3, false, rng)).toEqual({});
+    expect(awardMapCompletion('city', 3, true, rng)).toEqual({});
+    expect(loadUnlocks()).toEqual(['owl']);
+    expect(nextMap('city', false)).toBe('city');
+    expect(awardMapCompletion('city', 3, false, rng)).toMatchObject({ world: 'industrial' });
+    expect(nextMap('city', false)).toBe('industrial');
+    expect(awardMapCompletion('city', 3, false, rng).world).toBeUndefined();
+    expect(awardMapCompletion('industrial', 3, false, rng).world).toBe('harbor');
+    expect(availableMaps(true)).toEqual(RACE_MAPS);
+  });
+
+  it('applies persistent admin overrides without erasing earned progress', () => {
+    setContentOverride('industrial', false);
+    setContentOverride('harbor', true);
+    setContentOverride('owl', false);
+    setContentOverride('bombBuddy', true);
+    const result = awardMapCompletion('city', 3, false, new Rng(10));
+    expect(result.world).toBeUndefined();
+    expect(result.rewardPool).not.toContain('bombBuddy');
+    expect(availableMaps(false)).toEqual(['city', 'harbor']);
+    expect(availableLoadouts(loadUnlocks(), false).guides).toEqual(['dino', 'star', 'bombBuddy']);
+    expect(availableLoadouts(loadUnlocks(), true).guides).toContain('owl');
+    setContentOverride('industrial', undefined);
+    setContentOverride('owl', undefined);
+    expect(availableMaps(false)).toEqual(['city', 'industrial', 'harbor']);
+    expect(availableLoadouts(loadUnlocks(), false).guides).toContain('owl');
   });
 
   it('keeps valid unlock IDs and draws items once from the catalog', () => {
     expect(UNLOCK_VEHICLE_IDS).toHaveLength(35);
     expect(UNLOCK_GUIDE_IDS).toHaveLength(8);
     expect(parseUnlocks(['motorbike', null, 'motorbike', 'missing', 'owl'])).toEqual(['motorbike', 'owl']);
+    expect(parseUnlocks(['comet', 'bombBuddy'])).toEqual(['bombBuddy']);
     const rng = new Rng(5);
     const locked = COLLECTIBLES.at(-1)!;
     expect(drawUnlock(COLLECTIBLES.slice(0, -1), rng)).toBe(locked);

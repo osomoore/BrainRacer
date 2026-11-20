@@ -48,4 +48,9 @@ export class MenuButton extends Phaser.GameObjects.Container implements Selectab
 
   /** Quick "pressed" squash. */
   pulse() { this.scene.tweens.add({ targets: this, scale: { from: 0.95, to: 1.07 }, duration: 160, ease: 'Back.Out' }); }
+
+  override destroy(fromScene?: boolean): void {
+    this.arrowTween?.remove();
+    super.destroy(fromScene);
+  }
 }

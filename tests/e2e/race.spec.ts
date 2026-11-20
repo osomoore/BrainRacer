@@ -73,7 +73,7 @@ test('quick race runs: countdown, driving, challenges, no errors', async ({ page
   expect(errors).toEqual([]);
 });
 
-test('short round ends and reaches the results screen', async ({ page }) => {
+test('stop-and-answer questions stay on screen after time expires and both answers count', async ({ page }) => {
   const errors: string[] = [];
   const warns: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -82,23 +82,39 @@ test('short round ends and reaches the results screen', async ({ page }) => {
     if (m.type() === 'warning' && m.text().includes('[race teardown]')) warns.push(m.text());
   });
   await page.goto('/?race=2&seed=5&round=12');
-  // Question breaks freeze the round clock, so answer them (correctly) as they come.
   const KEYS = [['Digit1', 'Digit2', 'Digit3', 'Digit4'], ['Comma', 'Period', 'Slash', 'KeyM']];
-  for (let i = 0; i < 400; i++) {
-    const st = await page.evaluate(() => {
-      const w = window as any;
-      if (w.__game?.scene.isActive('Results')) return { done: true };
-      const c = w.__challenge;
-      if (!w.__race?.questionBreak || !c) return { done: false };
-      return { done: false, slots: [0, 1].map((p) => (c.state(p) === 'asking' ? c.current(p)?.correct : null)) };
-    });
-    if (st.done) break;
-    for (const [p, slot] of (st.slots ?? []).entries()) if (slot !== null && slot !== undefined) await page.keyboard.press(KEYS[p][slot]);
-    await page.waitForTimeout(300);
-  }
+  await page.waitForFunction(() => window.__race?.questionBreak);
+  const questions = () => page.evaluate(() => [0, 1].map(p => (window as any).__challenge.current(p)));
+  const final = await questions();
+  await page.evaluate(() => { window.__race.elapsedSec = window.__race.roundLengthSec; });
+  await page.waitForFunction(() => window.__race?.timeExpired);
+  await page.waitForTimeout(4400);
+  expect(await questions()).toEqual(final);
+  expect(await page.evaluate(() => window.__game.scene.isActive('Race'))).toBe(true);
+  await page.keyboard.press(KEYS[0][final[0].correct]);
+  await page.waitForFunction(() => (window as any).__challenge.state(0) === 'done');
+  expect(await page.evaluate(() => window.__race.pendingQuestions)).toBe(true);
+  await page.keyboard.press(KEYS[1][final[1].correct]);
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Results'), null, { timeout: 20_000 });
+  expect(await page.evaluate(() => window.__game.registry.get('results').players.map((p: { correct: number }) => p.correct))).toEqual([1, 1]);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: 'test-results/results.png' });
   expect(errors).toEqual([]);
   expect(warns).toEqual([]);
+});
+
+test('a while-driving question can be answered past its original deadline when the round ends', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('brainracer.settings.v1', JSON.stringify({ questionStyle: 'drive' })));
+  await page.goto('/?race=1&seed=5&round=30&questions=math');
+  const question = () => page.evaluate(() => (window as any).__challenge.current(0));
+  await page.waitForFunction(() => (window as any).__challenge?.current(0));
+  const final = await question();
+  await page.evaluate(() => {
+    window.__race.elapsedSec = window.__race.roundLengthSec;
+  });
+  await page.waitForFunction(() => window.__race?.timeExpired);
+  await page.waitForTimeout(4400);
+  expect(await question()).toEqual(final);
+  await page.keyboard.press(['Digit1', 'Digit2', 'Digit3'][final.correct]);
+  await page.waitForFunction(() => window.__game?.scene.isActive('Results'));
 });

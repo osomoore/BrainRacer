@@ -65,7 +65,7 @@ export const UNLOCK_GUIDES = {
   bumblebee: { name: 'Bumblebee', glow: 0xffda5b },
   owl: { name: 'Night Owl', glow: 0xe2b0ff },
   rocket: { name: 'Rocket', glow: 0xff9259 },
-  comet: { name: 'Comet', glow: 0x70e5ff },
+  bombBuddy: { name: 'Bomb Buddy', glow: 0xffb349 },
   cloudPuff: { name: 'Cloud Puff', glow: 0xb7eaff },
   firefly: { name: 'Firefly', glow: 0xe8ff83 },
   jelly: { name: 'Jelly', glow: 0x96f4ff },
