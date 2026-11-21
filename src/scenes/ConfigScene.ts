@@ -5,12 +5,14 @@ import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
 import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
 import { developerModeSettings, MAP_LABEL, RACE_MAPS } from '../core/progression';
-import { earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
-import { RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles, withRacerProfile } from '../core/racerProfiles';
+import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
+import { deleteRacer, isBuiltinRacerId, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
-import type { Difficulty, QuestionType, Settings } from '../core/types';
+import type { Difficulty, QuestionType, RacerProfile, RacerProfileId, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
+import { LetterPicker } from '../ui/menu/LetterPicker';
+import { clampPage, pageCount, pageItems } from '../ui/menu/paging';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/style';
@@ -72,6 +74,7 @@ const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
   { type: 'multiplication', label: 'Multiplication' },
   { type: 'spelling', label: 'Spelling' },
 ];
+const PROFILES_PER_PAGE = 2;
 const CONTENT_OVERRIDES = [undefined, true, false] as const;
 
 interface Row {
@@ -91,6 +94,8 @@ export class ConfigScene extends Phaser.Scene {
   private subPanel?: Phaser.GameObjects.Container;
   private contentPage = 0;
   private contentRacer = 0;
+  private profilePage = 0;
+  private modal?: { container: Phaser.GameObjects.Container; id: RacerProfileId; picker?: LetterPicker; msg?: Phaser.GameObjects.Text; rows?: Row[]; cursor?: number };
   private adminCursor = 0;
   private cursor = 0;
   private panel!: Phaser.GameObjects.Container;
@@ -236,32 +241,39 @@ export class ConfigScene extends Phaser.Scene {
     return panel;
   }
 
-  private showProfiles(): void {
+  private showProfiles(page = this.profilePage, cursor = 0): void {
+    const ids = racerIds(this.settings());
+    const pages = pageCount(ids.length, PROFILES_PER_PAGE);
+    this.profilePage = clampPage(page, pages);
     const panel = this.openSub('RACER PROFILES', '', 'Up / Down move    Left / Right change    Back to Admin Settings');
     const color = hexNum(PLAYER_COLORS[0]);
-    // 2 x 2 grid of racer blocks (name + Level + 3 question types + race Time each).
-    const colW = 760;
-    const xs = [520, 1400];
-    const blockY = [172, 528];
-    const rowStep = 64;
-    const opts = { width: colW, height: 56, fontSize: 40, valueX: 130, arrowSpan: 105 };
-    const save = (id: typeof RACER_PROFILE_IDS[number], mutate: (p: ReturnType<typeof racerProfiles>[typeof id]) => void): void => {
+    const colW = 840;
+    const xs = [490, 1430];
+    const y0 = 215;
+    const rowStep = 78;
+    const opts = { width: colW, height: 60, fontSize: 40, valueX: 130, arrowSpan: 105 };
+    const save = (id: RacerProfileId, mutate: (p: RacerProfile) => void): void => {
       const cur = racerProfiles(this.settings())[id];
-      const next = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec };
+      const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec };
       mutate(next);
       this.patchSettings(withRacerProfile(this.settings(), id, next));
     };
-    // Rows are pushed column by column so Up/Down walks one racer at a time.
-    RACER_PROFILE_IDS.forEach((id, col) => {
-      const x = xs[col % 2], y0 = blockY[Math.floor(col / 2)];
-      panel.add(bigText(this, x, y0, RACER_PROFILE_NAME[id].toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
-      const rowOpts = { ...opts, width: colW };
-      const diff = new OptionRow(this, x, y0 + 66, 'Level', { ...rowOpts, valueX: 115, arrowSpan: 150 });
+    // Page row first, then one racer block per column; Up/Down walks one racer at a time.
+    const pageRow = new OptionRow(this, GAME_WIDTH / 2, 148, 'Page', { ...opts, width: 700, valueX: 150, arrowSpan: 130 });
+    panel.add(pageRow);
+    const changePage = (dir: 1 | -1) => this.showProfiles(Phaser.Math.Wrap(this.profilePage + dir, 0, pages), 0);
+    this.subRows.push({ selectable: pageRow, refresh: () => pageRow.setValue(`${this.profilePage + 1} / ${pages}`), change: changePage, activate: () => changePage(1), bump: d => pageRow.bump(d) });
+    pageItems(ids, this.profilePage, PROFILES_PER_PAGE).forEach((id, col) => {
+      const x = xs[col];
+      panel.add(bigText(this, x, y0, racerName(this.settings(), id).toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
+      let n = 0;
+      const rowY = () => y0 + 70 + (n++) * rowStep;
+      const diff = new OptionRow(this, x, rowY(), 'Level', { ...opts, valueX: 115, arrowSpan: 150 });
       panel.add(diff);
       const changeDiff = (dir: 1 | -1) => save(id, p => { p.difficulty = DIFFICULTIES[Phaser.Math.Wrap(DIFFICULTIES.indexOf(p.difficulty) + dir, 0, DIFFICULTIES.length)]; });
       this.subRows.push({ selectable: diff, refresh: () => diff.setValue(DIFFICULTY_LABEL[racerProfiles(this.settings())[id].difficulty]), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
-      PROFILE_TYPES.forEach(({ type, label }, i) => {
-        const row = new OptionRow(this, x, y0 + 66 + (i + 1) * rowStep, label, { ...rowOpts, valueX: 150, arrowSpan: 105 });
+      for (const { type, label } of PROFILE_TYPES) {
+        const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 150, arrowSpan: 105 });
         panel.add(row);
         // Ignore the toggle that would turn off the last remaining question type.
         const toggle = () => save(id, p => {
@@ -269,19 +281,114 @@ export class ConfigScene extends Phaser.Scene {
           if (!on && PROFILE_TYPES.filter(t => p.questionTypes[t.type]).length <= 1) return;
           p.questionTypes[type] = on;
         });
-      const time = new OptionRow(this, x, y0 + 66 + (PROFILE_TYPES.length + 1) * rowStep, 'Race time', { ...rowOpts, valueX: 150, arrowSpan: 105 });
+        this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
+      }
+      const time = new OptionRow(this, x, rowY(), 'Race time', { ...opts, valueX: 150, arrowSpan: 105 });
       panel.add(time);
       const changeTime = (dir: 1 | -1) => save(id, p => { p.roundSec = cycleNum(RACER_ROUND_SEC, p.roundSec, dir); });
       this.subRows.push({ selectable: time, refresh: () => time.setValue(minutes(racerProfiles(this.settings())[id].roundSec)), change: changeTime, activate: () => changeTime(1), bump: d => time.bump(d) });
-        this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
-      });
+      const rename = new MenuButton(this, x, rowY(), colW, 60, 'Rename', color, 44, false);
+      panel.add(rename);
+      this.subRows.push({ selectable: rename, activate: () => this.openRename(id) });
+      if (!isBuiltinRacerId(id)) {
+        const del = new MenuButton(this, x, rowY(), colW, 60, 'Delete', color, 44, false);
+        panel.add(del);
+        this.subRows.push({ selectable: del, activate: () => this.openDelete(id) });
+      }
     });
     const back = new MenuButton(this, GAME_WIDTH / 2, 935, 600, ROW_H, 'Back', color, 44, false);
     panel.add(back);
     this.subRows.push({ selectable: back, activate: () => this.closeSub() });
-    this.cursor = 0;
+    this.cursor = Math.min(cursor, this.subRows.length - 1);
     services.audio.sfx('menuSelect');
     this.refreshRows();
+  }
+
+  private openRename(id: RacerProfileId): void {
+    this.closeModal();
+    const color = hexNum(PLAYER_COLORS[0]);
+    const c = this.add.container(0, 0).setDepth(DEPTH + 1);
+    c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
+    const picker = new LetterPicker(this, GAME_WIDTH / 2, 20, {
+      title: `RENAME ${racerName(this.settings(), id).toUpperCase()}`,
+      initial: racerName(this.settings(), id).toUpperCase(),
+      keyboardTyping: false, // the keyboard is also the nav device here
+      color,
+    });
+    c.add(picker);
+    const msg = bigText(this, GAME_WIDTH / 2, 1030, '', 40, MENU.yellow);
+    c.add(msg);
+    this.modal = { container: c, picker, msg, id };
+  }
+
+  private openDelete(id: RacerProfileId): void {
+    this.closeModal();
+    const color = hexNum(PLAYER_COLORS[0]);
+    const c = this.add.container(0, 0).setDepth(DEPTH + 1);
+    c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
+    c.add(bigText(this, GAME_WIDTH / 2, 330, `Delete ${racerName(this.settings(), id).toUpperCase()}?`, 72, MENU.yellow, { font: FONT_HEAD }));
+    c.add(bigText(this, GAME_WIDTH / 2, 430, 'Their unlocks are lost.', 52, MENU.white));
+    const yes = new MenuButton(this, GAME_WIDTH / 2, 600, 600, 80, 'Yes, delete', color, 52, false);
+    const no = new MenuButton(this, GAME_WIDTH / 2, 710, 600, 80, 'No', color, 52, false);
+    c.add([yes, no]);
+    const rows: Row[] = [
+      { selectable: yes, activate: () => this.deleteRacerNow(id) },
+      { selectable: no, activate: () => this.closeModal() },
+    ];
+    this.modal = { container: c, rows, cursor: 1, id };
+    this.refreshModal();
+  }
+
+  private refreshModal(): void {
+    const m = this.modal;
+    if (!m?.rows) return;
+    const color = hexNum(PLAYER_COLORS[0]);
+    m.rows.forEach((r, i) => r.selectable.setSelected(i === m.cursor, color));
+  }
+
+  private closeModal(): void {
+    this.modal?.container.destroy();
+    this.modal = undefined;
+  }
+
+  private deleteRacerNow(id: RacerProfileId): void {
+    const s = this.settings();
+    const players = s.players.map(p => (p.profile === id ? { ...p, profile: undefined } : p)) as Settings['players'];
+    this.patchSettings({ ...deleteRacer(s, id), players });
+    deleteRacerProgress(id);
+    this.closeModal();
+    this.showProfiles(this.profilePage, 0);
+  }
+
+  /** Returns true while a modal (rename picker / delete confirm) swallows input. */
+  private updateModal(inp: ReturnType<typeof services.input.any>): boolean {
+    const m = this.modal;
+    if (!m) return false;
+    if (m.picker) {
+      const r = m.picker.handle(inp);
+      if (r === 'cancel') this.closeModal();
+      else if (r === 'done') {
+        const name = validRacerName(m.picker.value);
+        const s = this.settings();
+        const taken = name && racerIds(s).some(o => o !== m.id && racerName(s, o).toLowerCase() === name.toLowerCase());
+        if (!name) m.msg?.setText('Use letters only.');
+        else if (taken) { m.msg?.setText(`${name.toUpperCase()} is already taken.`); services.audio.sfx('menuMove'); }
+        else {
+          this.patchSettings(renameRacer(s, m.id, name));
+          this.closeModal();
+          this.showProfiles(this.profilePage, this.cursor);
+        }
+      }
+      return true;
+    }
+    if (inp.back) { this.closeModal(); return true; }
+    if (inp.navY && m.rows) {
+      m.cursor = Phaser.Math.Wrap((m.cursor ?? 0) + inp.navY, 0, m.rows.length);
+      services.audio.sfx('menuMove');
+      this.refreshModal();
+    }
+    if (inp.confirm && m.rows) m.rows[m.cursor ?? 0].activate?.();
+    return true;
   }
 
   private showContent(cursor = 0): void {
@@ -289,12 +396,14 @@ export class ConfigScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const opts = { width: 1180, height: 56, fontSize: 40, valueX: 285, arrowSpan: 245 };
     const page = CONTENT_PAGES[this.contentPage];
-    const racer = RACER_PROFILE_IDS[this.contentRacer];
+    const ids = racerIds(this.settings());
+    this.contentRacer = clampPage(this.contentRacer, ids.length);
+    const racer = ids[this.contentRacer];
     const racerRow = new OptionRow(this, cx, 219, 'Racer', opts);
     panel.add(racerRow);
-    racerRow.setValue(RACER_PROFILE_NAME[racer]);
+    racerRow.setValue(racerName(this.settings(), racer));
     const cycleRacer = (dir: 1 | -1) => {
-      this.contentRacer = Phaser.Math.Wrap(this.contentRacer + dir, 0, RACER_PROFILE_IDS.length);
+      this.contentRacer = Phaser.Math.Wrap(this.contentRacer + dir, 0, racerIds(this.settings()).length);
       this.showContent(0);
     };
     this.subRows.push({ selectable: racerRow, change: cycleRacer, activate: () => cycleRacer(1) });
@@ -356,10 +465,17 @@ export class ConfigScene extends Phaser.Scene {
       musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
       challengeIntervalSec: d.challengeIntervalSec,
       questionStyle: d.questionStyle,
-      racerProfiles: undefined,
+      ...this.presetReset(),
     });
     services.audio.sfx('menuSelect');
     this.refreshRows();
+  }
+
+  /** Resets built-in presets only; custom racers (and their names) stay. */
+  private presetReset(): Pick<Settings, 'racerProfiles'> {
+    const s = this.settings();
+    const custom = Object.fromEntries(Object.entries(racerProfiles(s)).filter(([id]) => !isBuiltinRacerId(id)));
+    return { racerProfiles: Object.keys(custom).length ? custom : undefined };
   }
 
   private refreshRows(): void {
@@ -399,6 +515,7 @@ export class ConfigScene extends Phaser.Scene {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.lastToggle = performance.now();
+    this.closeModal();
     if (this.subPanel) this.closeSub();
     this.panel.setVisible(false);
     for (const key of this.paused) {
@@ -424,6 +541,7 @@ export class ConfigScene extends Phaser.Scene {
 
   private updateOpen(): void {
     const inp = services.input.any();
+    if (this.updateModal(inp)) return;
     if (inp.back && this.subPanel) { this.closeSub(); return; }
     if (inp.pause || inp.back) { this.toggle(); return; }
     const rows = this.subPanel ? this.subRows : this.rows;
