@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAR_SPECS, CAT, DEPTH, POLICE, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
+import { CAT, DEPTH, POLICE, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
 import { UNLOCK_VEHICLES } from '../config/collectibles';
 import { carArt } from '../art/loadoutKeys';
 import { TEX } from '../core/assetKeys';
@@ -9,6 +9,7 @@ import type { CarKind, PlayerId, PlayerInput, StarterCar, Vec2 } from '../core/t
 import type { SkidMarks } from '../fx/SkidMarks';
 import { PLAYER_MASK_ALL, STEP_HZ, Vehicle } from './Vehicle';
 import { isPoliceTexture } from './policeLights';
+import { CAR_SPECS } from './vehicleStats';
 import { rotateToward, unstickHeading, updateUnstick, type UnstickState } from './vehicleModel';
 
 const MASK_GHOST = PLAYER_MASK_ALL & ~(CAT.traffic | CAT.police);
@@ -102,7 +103,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.view.add([this.shadow, this.sprite]);
     this.view.setDepth(DEPTH.vehicle);
     this.shadow.setPosition(3, 4);
-    this.pivotRate = VEHICLE_MODEL.pivotRate;
+    this.pivotRate = spec.pivotRate ?? VEHICLE_MODEL.pivotRate;
     scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_ACTIVE, this.onContact);
     scene.matter.world.on(Phaser.Physics.Matter.Events.COLLISION_START, this.onContact);
   }
@@ -210,6 +211,7 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.setAirborne(false);
     this.setTurbo(turbo);
     this.slowLeft = 0;
+    this.pivotRate = spec.pivotRate ?? VEHICLE_MODEL.pivotRate;
     this.refreshMults();
     this.unstick = { stuckSec: 0, cooldownSec: 0 };
     this.contactNormal = null;

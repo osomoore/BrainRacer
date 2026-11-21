@@ -90,7 +90,7 @@ export class Vehicle implements IVehicle {
     const v = this.velocity;
     // Detect a collision: Matter changed the velocity we set last frame by a large amount.
     if (this.lastSet && Math.hypot(v.x - this.lastSet.x, v.y - this.lastSet.y) > VEHICLE_MODEL.recoilTriggerSpeed) {
-      this.recoil = VEHICLE_MODEL.recoilSec;
+      this.recoil = VEHICLE_MODEL.recoilSec * (this.spec.recoilMult ?? 1);
     }
     const rc = this.recoil > 0;
     if (rc) this.recoil = Math.max(0, this.recoil - dt);

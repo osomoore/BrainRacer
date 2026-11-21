@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CAR_SPECS, REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
+import { REWARDS, VEHICLE_MODEL } from '../config/gameConfig';
+import { CAR_SPECS } from './vehicleStats';
 import { rotateToward, steerFactor, steerRate, stepVehicle, unstickHeading, updateUnstick, type UnstickState, type VehicleControls, type VehicleState } from './vehicleModel';
 
 const spec = CAR_SPECS.dino;

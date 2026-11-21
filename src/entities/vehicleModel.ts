@@ -79,13 +79,13 @@ export function stepVehicle(
 
   // Lateral grip, frame-rate independent: remove `g` of sideways velocity per 1/60 s.
   const speedFrac = Math.min(1, Math.abs(f) / spec.maxSpeed);
-  const g = clamp(spec.grip * (m.grip ?? 1) * (1 - M.highSpeedGripLoss * speedFrac * speedFrac), 0, 0.999);
+  const g = clamp(spec.grip * (m.grip ?? 1) * (1 - (spec.driftLoss ?? M.highSpeedGripLoss) * speedFrac * speedFrac), 0, 0.999);
   l *= Math.pow(1 - g, dt * 60);
 
   // Steering. Reversed when reversing; none when stopped.
   const dir = f >= 0 ? 1 : -1;
   const target = clamp(c.steer, -1, 1) * steerRate(f, spec, m.pivotRate) * dir;
-  const k = Math.abs(s.angularVel) > spec.turnRate * 1.3 ? M.spinDecay : M.steerResponse;
+  const k = Math.abs(s.angularVel) > spec.turnRate * 1.3 ? M.spinDecay : (spec.steerResponse ?? M.steerResponse);
   const angularVel = s.angularVel + (target - s.angularVel) * (1 - Math.exp(-k * dt));
 
   return {
