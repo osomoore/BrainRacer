@@ -1,4 +1,4 @@
-import { ANSWER_COLORS, ANSWER_LABELS } from '../config/gameConfig';
+import { ANSWER_COLORS } from '../config/gameConfig';
 import type { AnswerSlot, ControllerFamily } from '../core/types';
 import { KEY_TABLES, type KeyLayout } from './keyboardMap';
 
@@ -19,11 +19,11 @@ export function identifyController(id: string): ControllerFamily {
   return 'other';
 }
 
-/** Appearance only. Each position uses the same input mapping across both controller families. */
+/** Xbox shows colored caps with no letter (label ''). Appearance only. Each position uses the same input mapping across both controller families. */
 export function faceButton(family: ControllerFamily, position: FacePosition): { label: string; color: string } {
   const slot = ANSWER_POSITIONS.indexOf(position);
   if (family === 'nintendo') return { label: SWITCH_LABELS[slot], color: '#343846' };
-  if (family === 'xbox') return { label: ANSWER_LABELS[slot], color: ANSWER_COLORS[slot] };
+  if (family === 'xbox') return { label: '', color: ANSWER_COLORS[slot] };
   return { label: '', color: '#485c85' };
 }
 
