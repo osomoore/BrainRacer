@@ -144,7 +144,9 @@ export class SetupScene extends Phaser.Scene {
     if (questionTypes.addition) examples.push(`Sums like ${DIFF_EXAMPLE[d]}`);
     if (questionTypes.multiplication) examples.push(`Tables up to ${DIFFICULTY[d].multiplication.maxFactor}`);
     const lines = [`${DIFF_LABEL[d]} · ${names.join(' + ')}`];
-    if (examples.length) lines.push(examples.join(' · '));
+    const sec = racerProfiles(this.cfg)[playerRacer(p, this.cfg.players.indexOf(p))].roundSec;
+    examples.push(`${sec % 60 ? (sec / 60).toFixed(1) : sec / 60} min races`);
+    lines.push(examples.join(' · '));
     if (this.cfg.questionStyle !== 'pause') {
       lines.push(`${Number((this.cfg.challengeIntervalSec * DIFFICULTY[d].periodMultiplier).toFixed(1))} s per question`);
     }

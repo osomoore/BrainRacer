@@ -1,13 +1,13 @@
 import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
-import { DEFAULT_SETTINGS, DINO, QUEUED_FEATURES, VEHICLE_MODEL } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL } from '../config/gameConfig';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { selectedLoadout } from '../core/progression';
-import { playerRacer } from '../core/racerProfiles';
+import { playerRacer, teamRoundSec } from '../core/racerProfiles';
 import { awardRacers, loadAllProgress, racerLoadouts, teamPlayableMap } from '../core/racerProgress';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
@@ -69,8 +69,11 @@ export class RaceScene extends Phaser.Scene {
       settings, params.get('questions'), import.meta.env.VITE_QUESTIONS, questionsOffAllowed()));
     const seed = Number(params.get('seed')) || settings.seed || randomSeed();
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
-    Object.assign(settings, currentLaunchOverrides());
+    const launch = currentLaunchOverrides();
+    Object.assign(settings, launch);
     const developerMode = settings.developerMode === true;
+    // Race length: ?round= wins, then Admin Mode's short test rounds, else the longer of the racers' times.
+    settings.roundLengthSec = launch.roundLengthSec ?? (developerMode ? DEVELOPER_ROUND_SEC : teamRoundSec(settings.players, settings));
     const progress = loadAllProgress();
     const team = settings.players.map((p, i) => progress[playerRacer(p, i)]);
     settings.map = data.previewMap ?? teamPlayableMap(settings.map, team, developerMode);

@@ -18,7 +18,9 @@ function normalizeProfile(raw: unknown, fallback: RacerProfile): RacerProfile {
   const questionTypes = q
     ? Object.fromEntries(TYPES.map(t => [t, q[t] === true])) as QuestionTypes
     : { ...fallback.questionTypes };
-  return { difficulty, questionTypes: TYPES.some(t => questionTypes[t]) ? questionTypes : { ...fallback.questionTypes } };
+  const roundSec = typeof r.roundSec === 'number' && Number.isFinite(r.roundSec) && r.roundSec >= 30 && r.roundSec <= 3600
+    ? Math.round(r.roundSec) : fallback.roundSec;
+  return { difficulty, questionTypes: TYPES.some(t => questionTypes[t]) ? questionTypes : { ...fallback.questionTypes }, roundSec };
 }
 
 /** All three profiles, with saved edits applied over the defaults (always at least one question type on). */
@@ -42,4 +44,10 @@ export function applyRacerProfile<P extends PlayerSettings>(player: P, slot: num
 /** Returns a settings patch that replaces one profile (normalized). */
 export function withRacerProfile(settings: Pick<Settings, 'racerProfiles'>, id: RacerProfileId, profile: RacerProfile): Pick<Settings, 'racerProfiles'> {
   return { racerProfiles: { ...racerProfiles(settings), [id]: normalizeProfile(profile, DEFAULT_RACER_PROFILES[id]) } };
+}
+
+/** Race length for a team: the longest time among the players' racers. */
+export function teamRoundSec(players: readonly Pick<PlayerSettings, 'profile'>[], settings: Pick<Settings, 'racerProfiles'>): number {
+  const profiles = racerProfiles(settings);
+  return Math.max(...players.map((p, i) => profiles[playerRacer(p, i)].roundSec));
 }

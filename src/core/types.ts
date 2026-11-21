@@ -121,7 +121,7 @@ export type QuestionTypes = Record<QuestionType, boolean>;
 
 /** Named racer presets picked in Setup. Each sets difficulty + question types; edited in Admin Settings. */
 export type RacerProfileId = 'abe' | 'gideon' | 'helen' | 'daddy';
-export interface RacerProfile { difficulty: Difficulty; questionTypes: QuestionTypes; }
+export interface RacerProfile { difficulty: Difficulty; questionTypes: QuestionTypes; roundSec: number; }
 
 /** Legacy question presets, also accepted as launch overrides. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';

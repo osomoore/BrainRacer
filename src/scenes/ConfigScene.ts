@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
-import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS, RACER_ROUND_SEC } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
 import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
@@ -44,7 +44,13 @@ const TRAFFIC_LABEL = { normal: 'Normal', reduced: 'Reduced', minimal: 'Minimal'
 const GAS_MODES: readonly GasMode[] = ['a', 'trigger', 'auto'];
 const GAS_LABEL = { a: 'Bottom button', trigger: 'Trigger', auto: 'Auto' } as const;
 const KEY_HISTORY = 3;
-const ROUND_SEC = [60, 120, 180, 300, 480, 600];
+/** Step to the neighbour of the closest list value. */
+function cycleNum(list: readonly number[], v: number, dir: 1 | -1): number {
+  let idx = 0;
+  list.forEach((x, i) => { if (Math.abs(x - v) < Math.abs(list[idx] - v)) idx = i; });
+  return list[Phaser.Math.Wrap(idx + dir, 0, list.length)];
+}
+const minutes = (sec: number): string => sec % 60 ? `${(sec / 60).toFixed(1)} min` : `${sec / 60} min`;
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
 const CONTENT_ROWS = 8;
 function contentPages(name: string, ids: readonly Content[]) {
@@ -148,11 +154,6 @@ export class ConfigScene extends Phaser.Scene {
       this.rows.push({ selectable: b, activate: fn });
     };
     const cycle = <T,>(list: readonly T[], v: T, dir: 1 | -1): T => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
-    const cycleNum = (list: readonly number[], v: number, dir: 1 | -1): number => {
-      let idx = 0;
-      list.forEach((x, i) => { if (Math.abs(x - v) < Math.abs(list[idx] - v)) idx = i; });
-      return list[Phaser.Math.Wrap(idx + dir, 0, list.length)];
-    };
     const onOff = (b: boolean): string => (b ? 'On' : 'Off');
     const vol = (key: 'musicVolume' | 'sfxVolume') => (dir: 1 | -1): void => {
       const v = Math.min(1, Math.max(0, Math.round((this.settings()[key] + dir * 0.1) * 10) / 10));
@@ -163,11 +164,10 @@ export class ConfigScene extends Phaser.Scene {
     header(0, 155, 'NEXT RACE');
     option(0, rowY(0), 'Answer mode', () => this.settings().questionStyle === 'drive' ? 'While Driving' : 'Stop & Answer',
       () => this.patchSettings({ questionStyle: this.settings().questionStyle === 'drive' ? 'pause' : 'drive' }));
-    option(0, rowY(1), 'Round length', () => `${Math.round(this.settings().roundLengthSec / 60)} min`,
-      (d) => this.patchSettings({ roundLengthSec: cycleNum(ROUND_SEC, this.settings().roundLengthSec, d) }));
-    option(0, rowY(2), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
+    // Race length is per racer now (Racer Profiles → Race time); the longer of the two players' times is used.
+    option(0, rowY(1), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
-    option(0, rowY(3), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
+    option(0, rowY(2), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
       (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
 
     header(0, 500, 'GAMEPAD');
@@ -239,15 +239,15 @@ export class ConfigScene extends Phaser.Scene {
   private showProfiles(): void {
     const panel = this.openSub('RACER PROFILES', '', 'Up / Down move    Left / Right change    Back to Admin Settings');
     const color = hexNum(PLAYER_COLORS[0]);
-    // 2 x 2 grid of racer blocks (name + Level + 3 question types each).
+    // 2 x 2 grid of racer blocks (name + Level + 3 question types + race Time each).
     const colW = 760;
     const xs = [520, 1400];
-    const blockY = [185, 550];
-    const rowStep = 72;
+    const blockY = [172, 528];
+    const rowStep = 64;
     const opts = { width: colW, height: 56, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: typeof RACER_PROFILE_IDS[number], mutate: (p: ReturnType<typeof racerProfiles>[typeof id]) => void): void => {
       const cur = racerProfiles(this.settings())[id];
-      const next = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes } };
+      const next = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec };
       mutate(next);
       this.patchSettings(withRacerProfile(this.settings(), id, next));
     };
@@ -269,6 +269,10 @@ export class ConfigScene extends Phaser.Scene {
           if (!on && PROFILE_TYPES.filter(t => p.questionTypes[t.type]).length <= 1) return;
           p.questionTypes[type] = on;
         });
+      const time = new OptionRow(this, x, y0 + 66 + (PROFILE_TYPES.length + 1) * rowStep, 'Race time', { ...rowOpts, valueX: 150, arrowSpan: 105 });
+      panel.add(time);
+      const changeTime = (dir: 1 | -1) => save(id, p => { p.roundSec = cycleNum(RACER_ROUND_SEC, p.roundSec, dir); });
+      this.subRows.push({ selectable: time, refresh: () => time.setValue(minutes(racerProfiles(this.settings())[id].roundSec)), change: changeTime, activate: () => changeTime(1), bump: d => time.bump(d) });
         this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
       });
     });
