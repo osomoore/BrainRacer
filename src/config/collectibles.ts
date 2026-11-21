@@ -1,4 +1,4 @@
-import type { VehicleSpec } from '../core/types';
+import type { RaceMap, VehicleSpec } from '../core/types';
 
 const flyweight = { mass: 8, maxSpeed: 302, reverseSpeed: 96, accel: 226, brake: 1160, turnRate: 3.15, grip: 0.87, drag: 0.69 };
 const standard = { mass: 13, maxSpeed: 306, reverseSpeed: 100, accel: 195, brake: 1110, turnRate: 2.8, grip: 0.84, drag: 0.64 };
@@ -123,4 +123,33 @@ export const COLLECTIBLES: readonly Collectible[] = [...UNLOCK_VEHICLE_IDS, ...U
 
 export function collectibleName(id: Collectible): string {
   return Object.hasOwn(UNLOCK_VEHICLES, id) ? UNLOCK_VEHICLES[id as UnlockVehicle].name : UNLOCK_GUIDES[id as UnlockGuide].name;
+}
+
+/**
+ * What each world can reward: its cars and its one buddy. Every unlockable car and buddy belongs to
+ * exactly one world (checked by collectibles.test.ts). Starter cars/buddies (dino, kart, star) are not listed.
+ */
+export const WORLD_REWARDS: Record<RaceMap, { cars: readonly UnlockVehicle[]; buddy: UnlockGuide }> = {
+  city: { cars: ['taxi', 'bus', 'ambulance', 'sports'], buddy: 'rocket' },
+  industrial: { cars: ['towTruck', 'van', 'pickup', 'dragster'], buddy: 'owl' },
+  harbor: { cars: ['buggy', 'scooter', 'camper', 'roadster'], buddy: 'fairy' },
+  underground: { cars: ['monsterTruck', 'jeep', 'snowcat', 'motorTrike'], buddy: 'bombBuddy' },
+  farm: { cars: ['tractor', 'hotRod', 'rally', 'motorbike'], buddy: 'bumblebee' },
+  sky: { cars: WORLD_VEHICLES.sky, buddy: 'cloudPuff' },
+  forest: { cars: WORLD_VEHICLES.forest, buddy: 'firefly' },
+  underwater: { cars: WORLD_VEHICLES.underwater, buddy: 'jelly' },
+  brickworks: { cars: WORLD_VEHICLES.brickworks, buddy: 'puffCub' },
+  mushroom: { cars: WORLD_VEHICLES.mushroom, buddy: 'sporeSprout' },
+  tundra: { cars: WORLD_VEHICLES.tundra, buddy: 'squareSnowman' },
+  volcano: { cars: WORLD_VEHICLES.volcano, buddy: 'ember' },
+  candy: { cars: WORLD_VEHICLES.candy, buddy: 'sugarSprite' },
+  castle: { cars: WORLD_VEHICLES.castle, buddy: 'crownSquire' },
+  airport: { cars: WORLD_VEHICLES.airport, buddy: 'paperPlane' },
+  house: { cars: WORLD_VEHICLES.house, buddy: 'yarnBall' },
+};
+
+/** Everything a world can reward (cars, then its buddy). */
+export function worldRewards(map: RaceMap): Collectible[] {
+  const w = WORLD_REWARDS[map];
+  return [...w.cars, w.buddy];
 }

@@ -6,7 +6,9 @@ import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
-import { availableLoadouts, awardMapCompletion, loadUnlocks, playableMap, selectedLoadout } from '../core/progression';
+import { selectedLoadout } from '../core/progression';
+import { playerRacer } from '../core/racerProfiles';
+import { awardRacers, loadAllProgress, racerLoadouts, teamPlayableMap } from '../core/racerProgress';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { MusicTrack, PlayerId, RaceMap, RoundResults, Settings, WorldData } from '../core/types';
@@ -69,9 +71,12 @@ export class RaceScene extends Phaser.Scene {
     // Round length / question interval / volumes are launch options (src/config/launchOptions.ts), applied on top of any saved value.
     Object.assign(settings, currentLaunchOverrides());
     const developerMode = settings.developerMode === true;
-    settings.map = data.previewMap ?? playableMap(settings.map, developerMode);
-    const available = availableLoadouts(loadUnlocks(), developerMode);
-    settings.players = settings.players.map((player, i) => ({ ...player, ...selectedLoadout(player, i, developerMode, available) }));
+    const progress = loadAllProgress();
+    const team = settings.players.map((p, i) => progress[playerRacer(p, i)]);
+    settings.map = data.previewMap ?? teamPlayableMap(settings.map, team, developerMode);
+    settings.players = settings.players.map((player, i) => ({
+      ...player, ...selectedLoadout(player, i, developerMode, racerLoadouts(team[i], developerMode)),
+    }));
     const roundLengthSec = settings.roundLengthSec;
     services.audio.setVolumes(settings.musicVolume, settings.sfxVolume);
 
@@ -230,13 +235,14 @@ export class RaceScene extends Phaser.Scene {
     this.registry.set(REG.results, results);
     const settings = this.ctx.settings;
     const admin = settings.developerMode === true || this.registry.get(REG.settings)?.developerMode === true;
-    const unlocks = awardMapCompletion(settings.map, results.goalsCompleted, admin, new Rng(results.seed ^ 0x391bf724));
+    const racers = settings.players.map((p, i) => playerRacer(p, i));
+    const rewards = awardRacers(settings.map, results.goalsCompleted, racers, admin, new Rng(results.seed ^ 0x391bf724));
     for (const car of this.players) car.setControlEnabled(false);
     services.audio.music('results', 0.5);
     bus.emit('ui:banner', { text: "TIME'S UP!", color: '#FFD700', durationSec: 3 });
     this.time.delayedCall(4000, () => {
       this.scene.stop(SCENE.hud);
-      this.scene.start(SCENE.results, { settings, unlocks });
+      this.scene.start(SCENE.results, { settings, rewards });
     });
   }
 

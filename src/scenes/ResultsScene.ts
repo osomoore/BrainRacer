@@ -3,7 +3,8 @@ import { collectibleName, UNLOCK_GUIDE_IDS, type Collectible, type UnlockGuide, 
 import { carArt, guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, GOALS, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
-import { COMPLETION_OBJECTIVES, MAP_LABEL, nextMap, type CompletionUnlocks } from '../core/progression';
+import { COMPLETION_OBJECTIVES, MAP_LABEL, nextMap } from '../core/progression';
+import type { RacerReward } from '../core/racerProgress';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerStats, RaceMap, RoundResults, Settings } from '../core/types';
@@ -19,7 +20,8 @@ const CX = GAME_WIDTH / 2;
 const CARD_W = 600, CARD_H = 330, CARD_Y = 600;
 const INPUT_GRACE_MS = 1200;
 
-interface ResultsData { settings?: Settings; unlocks?: CompletionUnlocks }
+/** `rewards`: one entry per player slot (RaceScene → awardRacers). */
+interface ResultsData { settings?: Settings; rewards?: RacerReward[] }
 
 /** Celebratory end-of-round screen with the next map preselected. */
 export class ResultsScene extends Phaser.Scene {
@@ -39,7 +41,8 @@ export class ResultsScene extends Phaser.Scene {
     const results: RoundResults = this.registry.get(REG.results) ?? { teamPoints: 0, players: [], goalsCompleted: 0, seed: 0 };
     this.settings = data.settings ?? this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
     const summary = () => this.showSummary(results);
-    const { world, reward, rewardPool } = data.unlocks ?? {};
+    // Interim: shows player 1's reward only; per-racer reveal is a follow-up.
+    const { world, reward, rewardPool } = data.rewards?.[0] ?? {};
     const revealReward = () => {
       if (reward) this.showReward(reward, rewardPool ?? [reward], results.seed, summary);
       else summary();
