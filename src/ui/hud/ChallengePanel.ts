@@ -15,7 +15,7 @@ import { easeInOut, easeOutBack, lerp } from './hudMath';
 const CARD_W = 270, CARD_H = 160;
 const D_CARD_W = 330, D_CARD_H = 150, D_GAP = 10;   // diamond (pause style) cards
 const PROMPT_H = 190;
-const DIVIDER_GAP = 72;   // space between question card and answers; holds the divider band + 'Pick one' pill
+const DIVIDER_GAP = 48;   // space between question card and answers; holds the divider bar
 const QUESTION_FILL = 0xfff1b8;
 const BADGE_DY = CARD_H / 2 + 22;
 const NAVY = HUD.colors.navy;
@@ -233,7 +233,7 @@ export class ChallengePanel {
     resizeRR(this.glow, w, h);
   }
 
-  /** Question-area tint + bold divider bar + "Pick one" pill, so question and answers read as two zones. */
+  /** Question-area tint + bold divider bar, so question and answers read as two zones. */
   private buildDivider(): Phaser.GameObjects.Container {
     const c = this.scene.add.container(0, 0);
     const w = this.dockW, pad = 14;
@@ -241,12 +241,9 @@ export class ChallengePanel {
     const qH = pad + PROMPT_H + DIVIDER_GAP / 2 - 4;
     // tinted question zone (hugging the top of the panel inside its border)
     c.add(rrectImage(this.scene, { r: 28, fill: hexNum(this.color), fillA: 0.28 }, 0, top + 8 + (qH - 8) / 2, w - 16, qH - 8));
-    // bold divider bar and centered pill
+    // bold divider bar
     const by = top + pad + PROMPT_H + DIVIDER_GAP / 2;
     c.add(rrectImage(this.scene, { r: 6, fill: 0xffffff, fillA: 1 }, 0, by, w - 40, 12));
-    const t = bigText(this.scene, 0, by, 'PICK ONE', 40, '#14213d', { font: FONT_BODY, stroke: 0, shadow: false });
-    c.add(rrectImage(this.scene, { r: 26, fill: 0xffffff, stroke: hexNum(this.color), strokeW: 6 }, 0, by, t.width + 56, 52));
-    c.add(t);
     return c;
   }
 

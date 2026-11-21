@@ -9,7 +9,7 @@ import { RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles, withRacerProfile 
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { Difficulty, QuestionType, Settings } from '../core/types';
-import { faceButton } from '../input/buttonPrompts';
+import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/style';
@@ -169,7 +169,7 @@ export class ConfigScene extends Phaser.Scene {
         const mode = getTuning().gas[p];
         const device = this.settings().players[p]?.device;
         const family = device ? services.input.controllerFamily?.(device) : undefined;
-        const label = family && faceButton(family, 'bottom').label;
+        const label = family === 'xbox' ? xboxFaceLetter('bottom') : family && faceButton(family, 'bottom').label;
         return mode === 'a' && label ? `${label} button` : GAS_LABEL[mode];
       }, (d) => {
         const gas: DeviceTuning['gas'] = [...getTuning().gas];

@@ -1,4 +1,4 @@
-import { ANSWER_COLORS } from '../config/gameConfig';
+import { ANSWER_COLORS, ANSWER_LABELS } from '../config/gameConfig';
 import type { AnswerSlot, ControllerFamily } from '../core/types';
 import { KEY_TABLES, type KeyLayout } from './keyboardMap';
 
@@ -25,6 +25,11 @@ export function faceButton(family: ControllerFamily, position: FacePosition): { 
   if (family === 'nintendo') return { label: SWITCH_LABELS[slot], color: '#343846' };
   if (family === 'xbox') return { label: '', color: ANSWER_COLORS[slot] };
   return { label: '', color: '#485c85' };
+}
+
+/** Letter on an Xbox face button, for admin/setup text only (kids' answer prompts show colors, never letters). */
+export function xboxFaceLetter(position: FacePosition): string {
+  return ANSWER_LABELS[ANSWER_POSITIONS.indexOf(position)];
 }
 
 export function keyboardAnswerLabel(layout: KeyLayout, slot: AnswerSlot): string {
