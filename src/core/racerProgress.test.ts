@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, WORLD_REWARDS, worldRewards } from '../config/collectibles';
 import { RACE_MAPS } from './progression';
 import {
-  awardRacers, loadAllProgress, migrateLegacy, planAwards, racerLoadouts, rewardPool, setRacerOverride, teamMaps, teamNextMap,
+  awardRacers, deleteRacerProgress, loadAllProgress, loadRacerProgress, racerProgressOf, updateRacerProgress, migrateLegacy, planAwards, racerLoadouts, rewardPool, setRacerOverride, teamMaps, teamNextMap,
   type RacerProgress,
 } from './racerProgress';
 import { Rng } from './rng';
@@ -114,5 +114,21 @@ describe('per-racer progress', () => {
     expect(progress.helen!.worlds).toEqual(['farm', 'sky']);
     expect(progress.gideon!.worlds).toContain('sky');
     expect(rewards.map(r => r.world)).toEqual(['sky', 'sky']);
+  });
+
+  it('keeps custom racer progress, empty for unknown ids, and deletes it', () => {
+    expect(loadRacerProgress('u1')).toEqual(fresh());
+    expect(racerProgressOf({}, 'u7')).toEqual(fresh());
+    updateRacerProgress('u1', p => ({ ...p, worlds: ['industrial'], items: ['taxi'] }));
+    setRacerOverride('u1', 'farm', true);
+    expect(loadRacerProgress('u1')).toEqual({ worlds: ['industrial'], items: ['taxi'], overrides: { farm: true } });
+    expect(JSON.parse(store.get('brainracer.racers.v1')!).u1.worlds).toEqual(['industrial']);
+    expect(loadAllProgress().abe).toEqual(fresh());
+    awardRacers('industrial', 3, ['u1', 'u2'], false, new Rng(1));
+    expect(loadRacerProgress('u2').worlds.length).toBeGreaterThan(0);
+    deleteRacerProgress('u1');
+    expect('u1' in loadAllProgress()).toBe(false);
+    deleteRacerProgress('abe');
+    expect('abe' in loadAllProgress()).toBe(true);
   });
 });

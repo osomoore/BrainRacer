@@ -8,7 +8,7 @@ import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { selectedLoadout } from '../core/progression';
 import { playerRacer, teamRoundSec } from '../core/racerProfiles';
-import { awardRacers, loadAllProgress, racerLoadouts, teamPlayableMap } from '../core/racerProgress';
+import { awardRacers, loadAllProgress, racerProgressOf, racerLoadouts, teamPlayableMap } from '../core/racerProgress';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { MusicTrack, PlayerId, RaceMap, RoundResults, Settings, WorldData } from '../core/types';
@@ -75,7 +75,7 @@ export class RaceScene extends Phaser.Scene {
     // Race length: ?round= wins, then Admin Mode's short test rounds, else the longer of the racers' times.
     settings.roundLengthSec = launch.roundLengthSec ?? (developerMode ? DEVELOPER_ROUND_SEC : teamRoundSec(settings.players, settings));
     const progress = loadAllProgress();
-    const team = settings.players.map((p, i) => progress[playerRacer(p, i)]);
+    const team = settings.players.map((p, i) => racerProgressOf(progress, playerRacer(p, i)));
     settings.map = data.previewMap ?? teamPlayableMap(settings.map, team, developerMode);
     settings.players = settings.players.map((player, i) => ({
       ...player, ...selectedLoadout(player, i, developerMode, racerLoadouts(team[i], developerMode)),

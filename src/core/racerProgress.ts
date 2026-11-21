@@ -8,9 +8,9 @@
  */
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_REWARDS, worldRewards, type Collectible } from '../config/collectibles';
 import { BUDDY_EVERY_REWARDS, COMPLETION_OBJECTIVES, parseUnlocks, RACE_MAPS, rewardsSinceBuddy } from './progression';
-import { RACER_PROFILE_IDS } from './racerProfiles';
+import { BUILTIN_RACER_IDS } from './racerProfiles';
 import type { Rng } from './rng';
-import type { CarKind, GuideKind, RaceMap, RacerProfileId, StarterCar } from './types';
+import type { BuiltinRacerId, CarKind, GuideKind, RaceMap, RacerProfileId, StarterCar } from './types';
 
 export type Content = RaceMap | Collectible;
 export interface RacerProgress {
@@ -18,7 +18,13 @@ export interface RacerProgress {
   items: Collectible[];                            // earned cars/buddies, in earned order
   overrides: Partial<Record<Content, boolean>>;    // admin: true = Open, false = Locked
 }
-export type AllProgress = Record<RacerProfileId, RacerProgress>;
+/** Built-ins always present; custom racers ('u1', ...) when they have saved progress. */
+export type AllProgress = Record<BuiltinRacerId, RacerProgress> & Partial<Record<RacerProfileId, RacerProgress>>;
+
+/** Progress for any racer; unknown/new racers get empty progress (City + starters only). */
+export function racerProgressOf(all: Partial<Record<RacerProfileId, RacerProgress>>, id: RacerProfileId): RacerProgress {
+  return all[id] ?? emptyProgress();
+}
 
 /** What one racer got at the end of a race. */
 export interface RacerReward {
@@ -36,7 +42,7 @@ const LEGACY_ACCESS = 'brainracer.content.v1';
 const CONTENT: readonly Content[] = [...RACE_MAPS, ...COLLECTIBLES];
 let volatile: AllProgress | undefined;
 
-const emptyProgress = (): RacerProgress => ({ worlds: [], items: [], overrides: {} });
+function emptyProgress(): RacerProgress { return { worlds: [], items: [], overrides: {} }; }
 
 export function parseProgress(raw: unknown): RacerProgress {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof RacerProgress, unknown>>;
@@ -69,7 +75,8 @@ export function loadAllProgress(): AllProgress {
   const saved = readJson(KEY);
   if (saved && typeof saved === 'object') {
     const s = saved as Record<string, unknown>;
-    return Object.fromEntries(RACER_PROFILE_IDS.map(id => [id, parseProgress(s[id])])) as AllProgress;
+    const ids = [...BUILTIN_RACER_IDS, ...Object.keys(s).filter(k => /^u\d+$/.test(k))] as RacerProfileId[];
+    return Object.fromEntries(ids.map(id => [id, parseProgress(s[id])])) as AllProgress;
   }
   if (volatile && !hasStorage()) return structuredClone(volatile);
   const migrated = migrateLegacy(readJson(LEGACY_UNLOCKS), readJson(LEGACY_ACCESS));
@@ -83,14 +90,24 @@ export function saveAllProgress(all: AllProgress): void {
 }
 
 export function loadRacerProgress(id: RacerProfileId): RacerProgress {
-  return loadAllProgress()[id];
+  return racerProgressOf(loadAllProgress(), id);
+}
+
+/** Removes a deleted custom racer's saved progress (built-ins are never removed). */
+export function deleteRacerProgress(id: RacerProfileId): void {
+  if (!/^u\d+$/.test(id)) return;
+  const all = loadAllProgress();
+  if (!(id in all)) return;
+  delete all[id];
+  saveAllProgress(all);
 }
 
 export function updateRacerProgress(id: RacerProfileId, fn: (p: RacerProgress) => RacerProgress): RacerProgress {
   const all = loadAllProgress();
-  all[id] = parseProgress(fn(all[id]));
+  const next = parseProgress(fn(racerProgressOf(all, id)));
+  all[id] = next;
   saveAllProgress(all);
-  return all[id];
+  return next;
 }
 
 /** Admin override for one racer: true = Open, false = Locked, undefined = Auto (earned). */
@@ -191,7 +208,7 @@ export function planAwards(
 export function awardRacers(map: RaceMap, goals: number, racers: readonly RacerProfileId[], admin: boolean, rng: Rng): RacerReward[] {
   const all = loadAllProgress();
   const unique = racers.filter((r, i) => racers.indexOf(r) === i);
-  const { rewards, progress } = planAwards(map, goals, unique.map(racer => ({ racer, progress: all[racer] })), admin, rng);
+  const { rewards, progress } = planAwards(map, goals, unique.map(racer => ({ racer, progress: racerProgressOf(all, racer) })), admin, rng);
   saveAllProgress({ ...all, ...progress });
   return racers.map(r => rewards.find(x => x.racer === r) ?? { racer: r });
 }

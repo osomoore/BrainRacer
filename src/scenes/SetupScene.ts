@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import { guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
-import { applyRacerProfile, playerRacer, RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles } from '../core/racerProfiles';
+import { applyRacerProfile, playerRacer, RACER_PROFILE_IDS, racerName, racerProfiles } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { MAP_LABEL, selectedLoadout } from '../core/progression';
-import { loadAllProgress, racerLoadouts, teamMaps, teamPlayableMap, type AllProgress } from '../core/racerProgress';
+import { loadAllProgress, racerProgressOf, racerLoadouts, teamMaps, teamPlayableMap, type AllProgress } from '../core/racerProgress';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
-import type { CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, QuestionTypes, RaceMap, Settings } from '../core/types';
+import type { BuiltinRacerId, RacerProfileId, CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, QuestionTypes, RaceMap, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
@@ -164,7 +164,7 @@ export class SetupScene extends Phaser.Scene {
     this.cols.forEach((col, i) => {
       const p = c.players[i];
       const { car, guide } = this.loadout(i);
-      col.racer.setValue(RACER_PROFILE_NAME[playerRacer(p, i)]);
+      col.racer.setValue(racerName(this.cfg, playerRacer(p, i, this.cfg)));
       col.hint.setText(this.hintText(p));
       col.car.setValue(carName(car));
       col.guide.setValue(guideName(guide));
@@ -199,7 +199,7 @@ export class SetupScene extends Phaser.Scene {
   private refreshAvailability() {
     const admin = this.cfg.developerMode === true;
     this.progress = loadAllProgress();
-    const team = this.cfg.players.map((p, i) => this.progress[playerRacer(p, i)]);
+    const team = this.cfg.players.map((p, i) => racerProgressOf(this.progress, playerRacer(p, i)));
     this.available = team.map((rp) => racerLoadouts(rp, admin));
     this.maps = teamMaps(team, admin);
     this.cfg.map = teamPlayableMap(this.cfg.map, team, admin);
@@ -209,8 +209,8 @@ export class SetupScene extends Phaser.Scene {
   private dedupeRacers() {
     const used: string[] = [];
     this.cfg.players = this.cfg.players.map((p, i): SetupPlayer => {
-      let r = playerRacer(p, i);
-      for (let k = 0; used.includes(r) && k < RACER_PROFILE_IDS.length; k++) r = RACER_PROFILE_IDS[(RACER_PROFILE_IDS.indexOf(r) + 1) % RACER_PROFILE_IDS.length];
+      let r: RacerProfileId = playerRacer(p, i);
+      for (let k = 0; used.includes(r) && k < RACER_PROFILE_IDS.length; k++) r = RACER_PROFILE_IDS[(RACER_PROFILE_IDS.indexOf(r as BuiltinRacerId) + 1) % RACER_PROFILE_IDS.length];
       used.push(r);
       return r === playerRacer(p, i) ? p as SetupPlayer : applyRacerProfile({ ...p, profile: r }, i, this.cfg);
     });

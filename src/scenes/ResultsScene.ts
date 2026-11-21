@@ -4,8 +4,8 @@ import { carArt, guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, GOALS, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { COMPLETION_OBJECTIVES, MAP_LABEL } from '../core/progression';
-import { loadAllProgress, teamNextMap, type RacerReward } from '../core/racerProgress';
-import { playerRacer, RACER_PROFILE_NAME } from '../core/racerProfiles';
+import { loadAllProgress, racerProgressOf, teamNextMap, type RacerReward } from '../core/racerProgress';
+import { playerRacer, racerName } from '../core/racerProfiles';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerStats, RaceMap, RoundResults, Settings } from '../core/types';
@@ -51,7 +51,7 @@ export class ResultsScene extends Phaser.Scene {
     const reveal = (i: number) => {
       const r = earners[i];
       if (!r) { if (nothing) this.showFoundAll(world0, summary); else summary(); return; }
-      this.showReward(r.reward!, r.rewardPool ?? [r.reward!], results.seed + i, () => reveal(i + 1), RACER_PROFILE_NAME[r.racer], earners.length > 1);
+      this.showReward(r.reward!, r.rewardPool ?? [r.reward!], results.seed + i, () => reveal(i + 1), racerName(this.latestSettings(), r.racer), earners.length > 1);
     };
     if (world) this.showWorld(world, () => reveal(0));
     else reveal(0);
@@ -271,7 +271,7 @@ export class ResultsScene extends Phaser.Scene {
   private followingMap(): RaceMap {
     const latest = this.latestSettings();
     const all = loadAllProgress();
-    const team = this.settings.players.map((p, i) => all[playerRacer(p, i)]);
+    const team = this.settings.players.map((p, i) => racerProgressOf(all, playerRacer(p, i)));
     return teamNextMap(this.settings.map, team, latest.developerMode === true);
   }
 
