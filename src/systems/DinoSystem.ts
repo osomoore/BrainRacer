@@ -128,15 +128,16 @@ export class DinoSystem implements GameSystem {
         walking = this.guard(dt, ctx);
         break;
       case 'leaving': {
+        // Slowly lumbers away but stays fully interactive: it can still be rammed, beaten, tamed and boarded.
         if (this.modeT < DINO.leaveSec) break;
-        if (this.guardsOnRoad) {
-          const sink = Math.min(1, (this.modeT - DINO.leaveSec) / DINO.shrinkSec);
-          d.setMult(1 - sink * 0.9);
-          if (sink >= 1) { this.poofOut(ctx, d); return; }
-          break;
-        }
+        const { x, y } = this.walk;
         const res = steer(this.walk, this.target, dt, { speed: DINO.guardSpeed, turnRate: DINO.turnRate, arriveRadius: 1, pauseSec: 0 });
         walking = res === 'walking';
+        if (this.guardsOnRoad && !this.hasGuardGround(this.walk)) {
+          // road/bridge worlds: it can only walk where it can stand; it stops at the edge instead of vanishing
+          this.walk.x = x; this.walk.y = y;
+          walking = false;
+        }
         if (this.modeT > DINO.leaveTimeoutSec || this.offscreen(ctx)) { this.removeNow(); return; }
         break;
       }
@@ -385,7 +386,7 @@ export class DinoSystem implements GameSystem {
     const d = this.dino;
     if (!d) return;
     this.mode = 'leaving'; this.modeT = 0;
-    d.setHealth(1);
+    d.setHealth(healthFrac(this.hits, this.hitsToDefeat));
     const away = dist(this.walk, this.center) > 30 ? Math.atan2(this.walk.y - this.center.y, this.walk.x - this.center.x) : this.walk.angle;
     this.target = { x: this.walk.x + Math.cos(away) * 6000, y: this.walk.y + Math.sin(away) * 6000 };
     this.playRoar(this.ctx, 0.8, 1.3);
@@ -436,14 +437,15 @@ export class DinoSystem implements GameSystem {
   private contacts(dt: number, ctx: RaceContext, d: Dino): void {
     const cap = this.contactCapsule();
     const canHurt = this.mode === 'guard' && this.modeT >= DINO.graceSec;
+    const canRam = canHurt || this.mode === 'leaving';
     for (const car of ctx.players) {
       if (car.airborne || car.disabled || car.boardingPosition || !capsuleHit(cap, car.x, car.y, CAR_RADIUS)) continue;
       const normal = this.contactNormal(cap, car);
       const v = car.velocity;
       const closing = -(v.x * normal.x + v.y * normal.y);
-      if (canHurt && this.hitCooldown[car.player] <= 0 && closing >= DINO.ramMinSpeed) {
+      if (canRam && this.hitCooldown[car.player] <= 0 && closing >= DINO.ramMinSpeed) {
         this.ram(ctx, d, car.player, closing, normal.x, normal.y);
-        if (this.mode !== 'guard') return;
+        if (this.mode !== 'guard' && this.mode !== 'leaving') return;
       } else if (closing < DINO.ramMinSpeed) {
         if (canHurt && !car.ghost && this.tossCooldown[car.player] <= 0 && this.hitCooldown[car.player] <= 0) {
           this.tossPlayer(ctx, d, car, normal);

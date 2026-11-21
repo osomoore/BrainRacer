@@ -36,10 +36,6 @@ export class JumpSystem implements GameSystem {
     if (!car || car.airborne || car.disabled || car.riding || car.boardingPosition || this.flights.has(car)) return;
     const dur = Math.max(0.3, airSec);
     car.setAirborne(true);
-    if (!boost) {
-      car.setControlEnabled(false);
-      this.ctx.scene.matter.body.setAngularVelocity(car.body, 0);
-    }
     this.flights.set(car, { start: this.ctx.elapsedSec, dur, spin: false, vx: car.body.velocity.x, vy: car.body.velocity.y, boost, trailAcc: 0 });
     this.ctx.bus.emit('jump:start', { player: car.player, x: car.x, y: car.y, airSec: dur });
     services.audio.sfx('jump');
@@ -114,8 +110,6 @@ export class JumpSystem implements GameSystem {
       })) continue;
       const dur = airTime(car.forwardSpeed, WORLD.airSecPerSpeed, WORLD.airMinSec, WORLD.airMaxSec);
       car.setAirborne(true);
-      car.setControlEnabled(false);
-      this.ctx.scene.matter.body.setAngularVelocity(car.body, 0);
       const spin = Math.abs(car.forwardSpeed) >= WORLD.spinSpeedFrac * car.spec.maxSpeed;
       this.flights.set(car, { start: now, dur, spin, vx: car.body.velocity.x, vy: car.body.velocity.y, boost: false, trailAcc: 0 });
       this.ctx.bus.emit('jump:start', { player: car.player, x: car.x, y: car.y, airSec: dur });
@@ -134,8 +128,9 @@ export class JumpSystem implements GameSystem {
       this.flightStars(car, f, dt);
       return;
     }
-    this.ctx.scene.matter.body.setVelocity(car.body, { x: f.vx, y: f.vy }); // fly straight, no drag
-    this.ctx.scene.matter.body.setAngularVelocity(car.body, 0);
+    // Players keep steering in the air: the takeoff speed is held (no drag) but follows the heading.
+    const speed = Math.hypot(f.vx, f.vy);
+    this.ctx.scene.matter.body.setVelocity(car.body, { x: Math.cos(car.angle) * speed, y: Math.sin(car.angle) * speed });
     car.view.setScale(1 + WORLD.jumpPeakScale * altitude(t));
     if (f.spin) {
       car.chassis.setRotation(Math.PI * 2 * Phaser.Math.Easing.Sine.InOut(t));
