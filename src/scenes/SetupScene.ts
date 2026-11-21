@@ -3,7 +3,8 @@ import { guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { applyRacerProfile, playerRacer, RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles } from '../core/racerProfiles';
 import { services } from '../core/services';
-import { availableLoadouts, availableMaps, loadUnlocks, MAP_LABEL, playableMap, selectedLoadout } from '../core/progression';
+import { MAP_LABEL, selectedLoadout } from '../core/progression';
+import { loadAllProgress, racerLoadouts, teamMaps, teamPlayableMap, type AllProgress } from '../core/racerProgress';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
 import type { CarKind, Difficulty, GuideKind, PlayerId, PlayerSettings, QuestionTypes, RaceMap, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
@@ -39,7 +40,8 @@ export class SetupScene extends Phaser.Scene {
   private cursors: number[] = [0, 0];
   private cols: Column[] = [];
   private mapRow!: OptionRow;
-  private available!: ReturnType<typeof availableLoadouts>;
+  private progress!: AllProgress;
+  private available: ReturnType<typeof racerLoadouts>[] = [];
   private maps!: readonly RaceMap[];
   private modeLabel!: Phaser.GameObjects.Text;
   private startBtn!: MenuButton;
@@ -64,6 +66,7 @@ export class SetupScene extends Phaser.Scene {
       challengeMode: 'words',
       questionStyle: base.questionStyle === 'drive' ? 'drive' : DEFAULT_SETTINGS.questionStyle,
     };
+    this.dedupeRacers();
     this.refreshAvailability();
     services.input.reset();
     players.forEach((p, i) => services.input.assign(i as PlayerId, p.device));
@@ -186,19 +189,33 @@ export class SetupScene extends Phaser.Scene {
     this.cfg.developerMode = latest.developerMode;
     this.cfg.racerProfiles = racerProfiles(latest);
     this.applyRacers();
+    this.dedupeRacers();
     this.refreshAvailability();
     this.refreshAll();
   }
 
   private refreshAvailability() {
     const admin = this.cfg.developerMode === true;
-    this.available = availableLoadouts(loadUnlocks(), admin);
-    this.maps = availableMaps(admin);
-    this.cfg.map = playableMap(this.cfg.map, admin);
+    this.progress = loadAllProgress();
+    const team = this.cfg.players.map((p, i) => this.progress[playerRacer(p, i)]);
+    this.available = team.map((rp) => racerLoadouts(rp, admin));
+    this.maps = teamMaps(team, admin);
+    this.cfg.map = teamPlayableMap(this.cfg.map, team, admin);
+  }
+
+  /** Two players can't be the same racer: move later players to the next free racer. */
+  private dedupeRacers() {
+    const used: string[] = [];
+    this.cfg.players = this.cfg.players.map((p, i): SetupPlayer => {
+      let r = playerRacer(p, i);
+      for (let k = 0; used.includes(r) && k < RACER_PROFILE_IDS.length; k++) r = RACER_PROFILE_IDS[(RACER_PROFILE_IDS.indexOf(r) + 1) % RACER_PROFILE_IDS.length];
+      used.push(r);
+      return r === playerRacer(p, i) ? p as SetupPlayer : applyRacerProfile({ ...p, profile: r }, i, this.cfg);
+    });
   }
 
   private loadout(player: number): { car: CarKind; guide: GuideKind } {
-    return selectedLoadout(this.cfg.players[player], player, this.cfg.developerMode === true, this.available);
+    return selectedLoadout(this.cfg.players[player], player, this.cfg.developerMode === true, this.available[player]);
   }
 
   private refreshCursors() {
@@ -256,16 +273,19 @@ export class SetupScene extends Phaser.Scene {
     const cycle = <T,>(list: readonly T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
     let target: OptionRow | undefined;
     if (row === ROW_RACER) {
-      const profile = cycle(RACER_PROFILE_IDS, playerRacer(ps, p));
+      const other = c.players.length > 1 ? playerRacer(c.players[1 - p], 1 - p) : undefined;
+      const free = RACER_PROFILE_IDS.filter((r) => r !== other);
+      const profile = cycle(free, playerRacer(ps, p));
       c.players[p] = applyRacerProfile({ ...ps, profile }, p, c);
+      this.refreshAvailability();
       target = this.cols[p].racer;
     }
     else if (row === ROW_CAR) {
-      const value = cycle(this.available.cars, this.loadout(p).car);
+      const value = cycle(this.available[p].cars, this.loadout(p).car);
       if (c.developerMode) ps.devCar = value; else ps.car = value;
       target = this.cols[p].car;
     } else if (row === ROW_GUIDE) {
-      const value = cycle(this.available.guides, this.loadout(p).guide);
+      const value = cycle(this.available[p].guides, this.loadout(p).guide);
       if (c.developerMode) ps.devGuide = value; else ps.guide = value;
       target = this.cols[p].guide;
     } else if (p === 0 && row === ROW_MAP) { c.map = cycle(this.maps, c.map); target = this.mapRow; }
