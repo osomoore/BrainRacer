@@ -15,7 +15,7 @@ describe('letterGrid', () => {
   });
   it('maps columns onto wide keys', () => {
     const last = rows.length - 1;
-    expect(rows[last][moveCursor(rows, { row: last - 1, idx: 4 }, 0, 1).idx].kind).toBe('delete');
+    expect(rows[last][moveCursor(rows, { row: last - 1, idx: 4 }, 0, 1).idx].kind).toBe('done');
     expect(rows[last][moveCursor(rows, { row: last - 1, idx: 0 }, 0, 1).idx].kind).toBe('space');
   });
   it('edits text', () => {
