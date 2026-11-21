@@ -12,6 +12,7 @@ import { bakedImage, rrectImage } from '../ui/hud/bake';
 import { ChallengePanel } from '../ui/hud/ChallengePanel';
 import { HUD } from '../ui/hud/hudConfig';
 import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
+import { COMPLETION_OBJECTIVES } from '../core/progression';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
@@ -38,6 +39,7 @@ export class HudScene extends Phaser.Scene {
   private dividerAlpha = 0;
   private dividerKey = '';
   private scoreboard!: Scoreboard;
+  private goalsDone = 0;
   private panels: (ChallengePanel | null)[] = [null, null];
   private bars: TimerBar[] = [];
   private banners!: Banners;
@@ -85,6 +87,8 @@ export class HudScene extends Phaser.Scene {
     this.dim = [0, 1].map(() => this.add.rectangle(0, 0, 1, 1, 0x0b1226).setOrigin(0, 0).setDepth(0.5).setVisible(false));
     this.scoreboard = new Scoreboard(this, this.nPlayers, D.scoreboard);
     this.scoreboard.setRemaining(ctx.roundLengthSec);
+    this.goalsDone = 0;
+    this.scoreboard.setGoals(0, COMPLETION_OBJECTIVES);
     for (let p = 0; p < this.nPlayers; p++) {
       this.bars.push(new TimerBar(this, PLAYER_COLORS[p], D.bars));
       this.waitCards.push(this.buildWaitCard(PLAYER_COLORS[p]));
@@ -140,6 +144,7 @@ export class HudScene extends Phaser.Scene {
       if (waitSec > 0 && player < this.nPlayers && this.nPlayers > 1) this.waitBanner(player);
     });
     this.on('goal:completed', ({ arrived }) => {
+      this.scoreboard.setGoals(++this.goalsDone, COMPLETION_OBJECTIVES);
       const pts = (this.ctx.settings.goalPointsPerCar ?? 3) * arrived.length;
       this.kindBanner('goal', `GOAL! +${pts}`, '#7dff8a');
     });

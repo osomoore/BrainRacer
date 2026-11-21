@@ -4,7 +4,7 @@ import type { Rect } from '../../core/types';
 /** HUD tunables (package I). */
 export const HUD = {
   margin: 20,
-  scoreboard: { w: 400, h: 250, top: 10, clearHalf: 220 },
+  scoreboard: { w: 440, h: 250, top: 10, clearHalf: 220, timerX: -108, goalsX: 28 },
   timerWarnSec: 30,
   timerBar: { h: 26, bottomMargin: 26, flashSec: 1, gap: 14 },
   panel: {
