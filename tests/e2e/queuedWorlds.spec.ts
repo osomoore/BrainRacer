@@ -5,6 +5,7 @@ import { CAT, DINO, QUEUED_FEATURES } from '../../src/config/gameConfig';
 import { TEX } from '../../src/core/assetKeys';
 import { WORLD_VEHICLES } from '../../src/config/collectibles';
 import type { RaceContext } from '../../src/core/race';
+import { Tile } from '../../src/core/types';
 import { installGamepadMock, setPad } from './gamepadMock';
 
 type TestWindow = Window & { __race: RaceContext };
@@ -161,4 +162,35 @@ test('two drivers leave tracks in the snow as a Tundra front travels', async ({ 
   await setPad(page, 0, { buttons: { 7: 0 } });
   await setPad(page, 1, { buttons: { 7: 0 } });
   await page.screenshot({ path: info.outputPath('snow-tracks.png') });
+});
+
+test('cars leave themed impressions on soft ground in four later worlds', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  for (const map of ['brickworks', 'volcano', 'house', 'candy'] as const) {
+    await page.goto(`/?race=1&map=${map}&seed=3&questions=off`);
+    await page.waitForFunction(() => (window as TestWindow).__race?.elapsedSec > 0.3, undefined, WAIT);
+    await page.evaluate(parkTile => {
+      const race = (window as TestWindow).__race;
+      const { world, scene, players } = race;
+      const ts = world.tileSize, w = world.widthTiles;
+      let target: { x: number; y: number } | undefined;
+      // Find a roomy Park patch so both wheels remain on the eligible surface while sampling.
+      for (let y = 2; y < world.heightTiles - 3 && !target; y++) for (let x = 2; x < w - 3; x++) {
+        const patch = [0, 1, 2, 3].every(dy => [0, 1, 2, 3].every(dx => world.tiles[(y + dy) * w + x + dx] === parkTile));
+        if (patch) { target = { x: (x + 1.5) * ts, y: (y + 1.5) * ts }; break; }
+      }
+      if (!target) throw new Error(`No open Park patch found for ${race.settings.map}`);
+      scene.matter.body.setPosition(players[0].body, target);
+      scene.matter.body.setAngle(players[0].body, 0);
+      scene.matter.body.setVelocity(players[0].body, { x: 4, y: 0 });
+    }, Tile.Park);
+    await page.waitForFunction(({ name, parkTile }) => {
+      const { scene, world } = (window as TestWindow).__race;
+      const marks = scene.children.getAll('name', `${name}-park-track`) as Phaser.GameObjects.Image[];
+      const visible = marks.filter(mark => mark.visible);
+      return visible.length >= 4 && visible.every(mark =>
+        world.tiles[Math.floor(mark.y / world.tileSize) * world.widthTiles + Math.floor(mark.x / world.tileSize)] === parkTile);
+    }, { name: map, parkTile: Tile.Park }, WAIT);
+    if (map === 'brickworks') await page.screenshot({ path: info.outputPath('brickworks-park-tracks.png') });
+  }
 });

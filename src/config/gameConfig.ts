@@ -1122,6 +1122,7 @@ export const WORLD_MUSIC = {
 export const QUEUED_ATMOSPHERE = {
   wrapPad: 960,
   snowTracks: { max: 220, spacing: 20, fadeSec: 10, width: 9, minSpeed: 20, resetDistance: 96 },
+  parkTracks: { max: 180, spacing: 20, fadeSec: 8, width: 11, minSpeed: 20, resetDistance: 96 },
   fronts: {
     brickworks: { columns: 4, rows: 5, speed: 90, scale: 1.4, alpha: .65, angle: -.12, period: 15 },
     mushroom: { columns: 4, rows: 5, speed: 74, scale: 1.4, alpha: .44, angle: .09, period: 23 },

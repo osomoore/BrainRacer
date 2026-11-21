@@ -53,6 +53,18 @@ function tileSource(map: QueuedMap, size: number): (index: number) => HTMLCanvas
 
 function paintFloorDetail(c: Ctx, map: QueuedMap, index: number): void {
   const p = QUEUED_PALETTES[map];
+  if (map === 'brickworks' && index === 3) {
+    // Quarry parks are compacted dust and worn aggregate rather than fresh brick studs.
+    for (let y = 0; y < 128; y += 32) {
+      box(c, '#5a514744', 0, y, 128, 1);
+      box(c, '#d2b99a2d', 0, y + 1, 128, 2);
+    }
+    for (let i = 0; i < 48; i++) {
+      const x = 4 + 120 * hash(i, 71), y = 4 + 120 * hash(i, 72);
+      box(c, i % 2 ? '#d8c6a275' : '#4f483f69', x, y, 2 + hash(i, 73) * 4, 1 + hash(i, 74) * 2);
+    }
+    return;
+  }
   if (index === 0) {
     const tint = map === 'volcano' ? '#ffc45399' : '#ecf3d937';
     for (let row = 0; row < 8; row++) {

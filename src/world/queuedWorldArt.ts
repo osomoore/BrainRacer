@@ -13,7 +13,7 @@ export type Palette = {
 
 export const QUEUED_PALETTES: Record<QueuedMap, Palette> = {
   brickworks: {
-    floor: ['#2f7396', '#6b9760', '#b0a079', '#729f56', '#be9769', '#a47750'],
+    floor: ['#2f7396', '#6b9760', '#b0a079', '#a9916b', '#be9769', '#a47750'],
     road: '#927454', curb: '#62472f', lane: '#f4cb86', shade: '#293941', light: '#fff1b0',
     colors: ['#bc6645', '#62a466', '#d7ae64', '#5a8d9e', '#a09572', '#a66980'],
   },
