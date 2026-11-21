@@ -9,7 +9,7 @@ import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type 
 import { deleteRacer, isBuiltinRacerId, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
-import type { Difficulty, QuestionType, RacerProfile, RacerProfileId, Settings } from '../core/types';
+import type { Difficulty, QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { LetterPicker } from '../ui/menu/LetterPicker';
 import { clampPage, pageCount, pageItems } from '../ui/menu/paging';
@@ -97,6 +97,8 @@ export class ConfigScene extends Phaser.Scene {
   private profilePage = 0;
   private modal?: { container: Phaser.GameObjects.Container; id: RacerProfileId; picker?: LetterPicker; msg?: Phaser.GameObjects.Text; rows?: Row[]; cursor?: number };
   private adminCursor = 0;
+  private perfMap: RaceMap = 'city';
+  private perfViews: 2 | 4 = 4;
   private cursor = 0;
   private panel!: Phaser.GameObjects.Container;
   private readout!: Phaser.GameObjects.Text;
@@ -174,6 +176,11 @@ export class ConfigScene extends Phaser.Scene {
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
     option(0, rowY(2), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
       (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
+
+    action(0, rowY(3), 'Performance test', () => {
+      this.adminCursor = this.cursor;
+      this.showPerf();
+    });
 
     header(0, 500, 'GAMEPAD');
     for (const p of [0, 1] as const) {
@@ -434,6 +441,37 @@ export class ConfigScene extends Phaser.Scene {
     this.cursor = cursor;
     services.audio.sfx('menuSelect');
     this.refreshRows();
+  }
+
+  /** Perf spike page: pick a map and 2 / 4 views, then A starts src/scenes/dev/FourViewPerf.ts (Back there returns to the title). */
+  private showPerf(cursor = 0): void {
+    const panel = this.openSub('PERFORMANCE TEST', 'Runs a 30 s auto-driven race and shows the FPS on screen', 'Up / Down move    Left / Right change    A starts    Back to Admin Settings');
+    const opts = { width: 1180, height: 56, fontSize: 40, valueX: 285, arrowSpan: 245 };
+    const cx = GAME_WIDTH / 2;
+    const mapRow = new OptionRow(this, cx, 289, 'Map', opts);
+    const viewsRow = new OptionRow(this, cx, 359, 'Views', opts);
+    panel.add(mapRow); panel.add(viewsRow);
+    const changeMap = (d: 1 | -1) => { this.perfMap = RACE_MAPS[Phaser.Math.Wrap(RACE_MAPS.indexOf(this.perfMap) + d, 0, RACE_MAPS.length)]; };
+    const changeViews = () => { this.perfViews = this.perfViews === 4 ? 2 : 4; };
+    this.subRows.push({ selectable: mapRow, change: changeMap, activate: () => changeMap(1), refresh: () => mapRow.setValue(MAP_LABEL[this.perfMap]), bump: d => mapRow.bump(d) });
+    this.subRows.push({ selectable: viewsRow, change: changeViews, activate: changeViews, refresh: () => viewsRow.setValue(`${this.perfViews} views`), bump: d => viewsRow.bump(d) });
+    const start = new MenuButton(this, cx, 459, 820, ROW_H, 'Start test', hexNum(PLAYER_COLORS[0]), 44, false);
+    panel.add(start);
+    this.subRows.push({ selectable: start, activate: () => this.startPerf() });
+    this.cursor = cursor;
+    this.refreshRows();
+  }
+
+  private startPerf(): void {
+    const keep = this.scene.key;
+    const running = this.scene.manager.getScenes(true).map((s) => s.scene.key).filter((k) => k !== keep);
+    for (const key of this.paused) { try { this.scene.resume(key); } catch { /* gone */ } }
+    this.paused = [];
+    this.isOpen = false;
+    this.closeSub();
+    this.panel.setVisible(false);
+    for (const key of running) { try { this.scene.stop(key); } catch { /* ignore */ } }
+    this.scene.run('FourViewPerf', { map: this.perfMap, views: this.perfViews });
   }
 
   private closeSub(): void {
