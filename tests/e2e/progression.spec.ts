@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { UNLOCK_VEHICLE_IDS } from '../../src/config/collectibles';
 import { installGamepadMock, tapPad } from './gamepadMock';
 
 const unlocks = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.unlocks.v1') ?? '[]') as string[]);
@@ -66,6 +67,7 @@ test('two objectives replay the City and three reveal Factory before the collect
 });
 
 test('both players can use the same collection after a solo map and a reload', async ({ page }) => {
+  const earnedCar = 'brickBuggy';
   await installGamepadMock(page, 2);
   await page.addInitScript(() => {
     const key = 'brainracer.unlocks.v1';
@@ -75,18 +77,18 @@ test('both players can use the same collection after a solo map and a reload', a
   await waitScene(page, 'Race');
   await finishRound(page);
   await waitSummary(page);
-  await expect.poll(() => unlocks(page)).toEqual(['owl', 'towTruck']);
+  await expect.poll(() => unlocks(page)).toEqual(['owl', earnedCar]);
 
   await tap(page, 'KeyD'); // Results → Setup.
   await tap(page, 'Space');
   await waitScene(page, 'Setup');
   await tapPad(page, 0, 13); // Car.
-  await tapPad(page, 0, 14); // Wrap from Dino to the new Tow Truck.
+  await tapPad(page, 0, 14); // Wrap from Dino to the newly unlocked car.
   await tapPad(page, 0, 13); // Guide.
   await tapPad(page, 0, 15); // Star → Night Owl.
   await tapPad(page, 0, 0);
   await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }]);
+  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }]);
 
   await page.goto('/?seed=4&questions=off');
   await waitScene(page, 'Title');
@@ -95,27 +97,29 @@ test('both players can use the same collection after a solo map and a reload', a
   await page.waitForTimeout(800);
   await tapPad(page, 0, 0);
   await waitScene(page, 'Setup');
-  expect(await unlocks(page)).toEqual(['owl', 'towTruck']);
+  expect(await unlocks(page)).toEqual(['owl', earnedCar]);
 
   await tapPad(page, 1, 13); // P2 Car.
-  await tapPad(page, 1, 14); // Dino → Tow Truck, already equipped by P1.
+  await tapPad(page, 1, 14); // Equip P1's car for P2 as well.
   await tapPad(page, 1, 13); // P2 Guide.
   await tapPad(page, 1, 15); // Star → Night Owl, already equipped by P1.
   await tapPad(page, 1, 0);
   await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }, { car: 'towTruck', guide: 'owl' }]);
+  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }, { car: earnedCar, guide: 'owl' }]);
 
   await finishRound(page);
   await waitSummary(page);
-  expect(await unlocks(page)).toHaveLength(3);
+  const unlocked = await unlocks(page);
+  expect(unlocked).toHaveLength(3);
+  const cars = ['dino', 'kart', ...UNLOCK_VEHICLE_IDS.filter(id => unlocked.includes(id))];
   await tap(page, 'KeyD'); // Results → Setup.
   await tap(page, 'Space');
   await waitScene(page, 'Setup');
   await tapPad(page, 1, 13); // P2 Car.
-  await tapPad(page, 1, 15); // Wrap from Tow Truck to Dino for P2 only.
+  for (let i = 0; i < cars.indexOf(earnedCar); i++) await tapPad(page, 1, 14); // Return P2 to Dino.
   await tapPad(page, 1, 0);
   await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: 'towTruck', guide: 'owl' }, { car: 'dino', guide: 'owl' }]);
+  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }, { car: 'dino', guide: 'owl' }]);
 });
 
 test('Admin Mode previews locked loadouts and Content Locks can open a world for normal play', async ({ page }) => {

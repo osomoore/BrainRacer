@@ -86,7 +86,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 
 ## Future worlds (ideas, not started)
 Each would follow the map kickoff template below (contracts → generator/art/audio → renderer/systems → wiring). Every world gets a boss; keep bosses kid-friendly (bounce, squash, poof; no gore).
-- **#52 Scary Ghost World**: haunted lanes, drifting lanterns, and secret doors that open and close. Boss idea: a giant sheet ghost. Aim for spooky atmosphere and playful scares for ages 5–9.
+- **#52 Scary Ghost World** would have haunted lanes, drifting lanterns, and secret doors that open and close. A giant sheet ghost could guard the course. Aim for spooky atmosphere and playful scares for ages 5–9.
 
 Brickworks, Mushroom Island, Frozen Tundra, Volcano, Candyland, Castle, Airport, and In My House are on the queued-worlds feature branch. See [STATUS.md](STATUS.md#new-worlds) for their race features and preview URLs.
 
