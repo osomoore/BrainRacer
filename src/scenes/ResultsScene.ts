@@ -3,8 +3,9 @@ import { collectibleName, UNLOCK_GUIDE_IDS, type Collectible, type UnlockGuide, 
 import { carArt, guideArt } from '../art/loadoutKeys';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, GOALS, PLAYER_COLORS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
-import { COMPLETION_OBJECTIVES, MAP_LABEL, nextMap } from '../core/progression';
-import type { RacerReward } from '../core/racerProgress';
+import { COMPLETION_OBJECTIVES, MAP_LABEL } from '../core/progression';
+import { loadAllProgress, teamNextMap, type RacerReward } from '../core/racerProgress';
+import { playerRacer, RACER_PROFILE_NAME } from '../core/racerProfiles';
 import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerStats, RaceMap, RoundResults, Settings } from '../core/types';
@@ -41,14 +42,19 @@ export class ResultsScene extends Phaser.Scene {
     const results: RoundResults = this.registry.get(REG.results) ?? { teamPoints: 0, players: [], goalsCompleted: 0, seed: 0 };
     this.settings = data.settings ?? this.registry.get(REG.settings) ?? DEFAULT_SETTINGS;
     const summary = () => this.showSummary(results);
-    // Interim: shows player 1's reward only; per-racer reveal is a follow-up.
-    const { world, reward, rewardPool } = data.rewards?.[0] ?? {};
-    const revealReward = () => {
-      if (reward) this.showReward(reward, rewardPool ?? [reward], results.seed, summary);
-      else summary();
+    const rewards = data.rewards ?? [];
+    const world = rewards.find(r => r.world)?.world;
+    const earners = rewards.filter(r => r.reward);
+    const world0 = MAP_LABEL[this.settings.map];
+    const nothing = !world && !earners.length && results.goalsCompleted >= COMPLETION_OBJECTIVES && !this.settings.developerMode && rewards.length > 0;
+    // Racers reveal one after another; with several reels each runs faster so the screen stays about as long as before.
+    const reveal = (i: number) => {
+      const r = earners[i];
+      if (!r) { if (nothing) this.showFoundAll(world0, summary); else summary(); return; }
+      this.showReward(r.reward!, r.rewardPool ?? [r.reward!], results.seed + i, () => reveal(i + 1), RACER_PROFILE_NAME[r.racer], earners.length > 1);
     };
-    if (world) this.showWorld(world, revealReward);
-    else revealReward();
+    if (world) this.showWorld(world, () => reveal(0));
+    else reveal(0);
     this.events.on(Phaser.Scenes.Events.RESUME, this.refreshActions, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.RESUME, this.refreshActions, this);
@@ -67,10 +73,19 @@ export class ResultsScene extends Phaser.Scene {
     this.time.delayedCall(3200, () => { layer.destroy(); next(); });
   }
 
-  private showReward(reward: Collectible, pool: Collectible[], seed: number, next: () => void): void {
+  private showFoundAll(world: string, next: () => void): void {
+    const layer = this.add.container().setName('found-everything');
+    layer.add(this.drawBackground());
+    layer.add(bigText(this, CX, 440, 'YOU FOUND EVERYTHING', 84, MENU.yellow, { font: FONT_HEAD }));
+    layer.add(bigText(this, CX, 570, `in ${world}!`, 84, '#ffffff', { font: FONT_HEAD, stroke: 12 }));
+    services.audio.sfx('goal');
+    this.time.delayedCall(2200, () => { layer.destroy(); next(); });
+  }
+
+  private showReward(reward: Collectible, pool: Collectible[], seed: number, next: () => void, racer = '', quick = false): void {
     const layer = this.add.container().setName('collectible-reveal');
     layer.add(this.drawBackground());
-    layer.add(bigText(this, CX, 170, 'REWARD REEL', 92, MENU.yellow, { font: FONT_HEAD }));
+    layer.add(bigText(this, CX, 170, racer ? `${racer.toUpperCase()}'S REWARD REEL` : 'REWARD REEL', 92, MENU.yellow, { font: FONT_HEAD }));
     const landing = this.add.rectangle(CX, 512, 350, 355, 0x32498c, 0.8).setStrokeStyle(8, 0xffd43b);
     layer.add(landing);
     const picks = new Rng(seed ^ 0x36d19c).shuffle(pool.filter(id => id !== reward));
@@ -114,14 +129,14 @@ export class ResultsScene extends Phaser.Scene {
     };
     draw();
     this.tweens.add({
-      targets: cursor, position: length, duration: length ? 5700 : 550, ease: 'Sine.Out',
+      targets: cursor, position: length, duration: length ? (quick ? 3600 : 5700) : 550, ease: 'Sine.Out',
       onUpdate: draw,
       onComplete: () => {
         draw();
         landing.setStrokeStyle(12, 0xffdf6a);
-        layer.add(bigText(this, CX, 855, `YOU EARNED ${collectibleName(reward).toUpperCase()}!`, 62, MENU.yellow, { font: FONT_HEAD }));
+        layer.add(bigText(this, CX, 855, `${racer ? racer.toUpperCase() + ' GOT' : 'YOU EARNED'} ${collectibleName(reward).toUpperCase()}!`, 62, MENU.yellow, { font: FONT_HEAD }));
         services.audio.sfx('goal');
-        this.time.delayedCall(1800, () => {
+        this.time.delayedCall(quick ? 1300 : 1800, () => {
           // The reveal and summary share the scene, so remove all reveal objects before laying out results.
           layer.destroy();
           next();
@@ -254,7 +269,10 @@ export class ResultsScene extends Phaser.Scene {
   }
 
   private followingMap(): RaceMap {
-    return nextMap(this.settings.map, this.latestSettings().developerMode === true);
+    const latest = this.latestSettings();
+    const all = loadAllProgress();
+    const team = this.settings.players.map((p, i) => all[playerRacer(p, i)]);
+    return teamNextMap(this.settings.map, team, latest.developerMode === true);
   }
 
   private refreshActions() {
