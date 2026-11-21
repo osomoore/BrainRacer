@@ -589,7 +589,6 @@ export class DinoSystem implements GameSystem {
     this.claimedBy = claim.claimedBy as PlayerId;
     if (claim.firstClaim) {
       ctx.bus.emit('dino:claimed', { player, x: crystalAt.x, y: crystalAt.y });
-      ctx.bus.emit('ui:banner', { text: `P${player + 1} CLAIMED IT!`, color: PLAYER_COLORS[player], durationSec: DINO_RIDE.claimBannerSec });
     }
     const md = new Dino(ctx.scene, car.x, car.y, car.angle, ctx.settings.map);
     md.setHealth(1);

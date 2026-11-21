@@ -628,7 +628,6 @@ export const DINO_RIDE = {
   crystalPulseHz: 0.9,         // breathing rate of the crystal
   crystalPulseScale: 0.07,     // +- scale of the breathing
   crystalGlowScale: 2.6,       // glow halo size relative to the crystal
-  claimBannerSec: 2.2,
   // rider laser eyes (press the vehicle-switch button while riding)
   laserChargeSec: 0.45,
   laserFireSec: 1.5,
