@@ -19,7 +19,8 @@ function buildTime(): string {
 
 export default defineConfig({
   base: './',
-  server: { port: 5173 },
+  cacheDir: '.vite-cache',
+  server: { port: 5173, watch: { ignored: ['**/.worktrees/**'] } },
   build: { chunkSizeWarningLimit: 4000 },
   define: {
     __BUILD_ID__: JSON.stringify(gitHash()),

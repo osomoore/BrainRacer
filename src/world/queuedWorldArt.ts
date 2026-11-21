@@ -102,10 +102,205 @@ function windows(c: Ctx, p: Palette, y: number, n = 4): void {
   }
 }
 
+function mushroomTower(c: Ctx, x: number, y: number, width: number, height: number, color: string, p: Palette): void {
+  c.save();
+  c.translate(x, y);
+  c.scale(width / 100, height / 100);
+  rounded(c, '#f0bd9e', -18, -57, 36, 57, 10, p.shade);
+  rounded(c, p.shade, -8, -26, 16, 25, 5);
+  oval(c, '#ffdf9c', -6, -42, 5, 6, p.shade);
+  oval(c, '#a35b71', 0, -64, 47, 12, p.shade);
+  c.beginPath();
+  c.moveTo(-49, -64);
+  c.quadraticCurveTo(-30, -103, 7, -99);
+  c.quadraticCurveTo(36, -97, 49, -64);
+  c.bezierCurveTo(24, -53, -23, -51, -49, -64);
+  fillStroke(c, bodyGrad(c, -51, -99, 102, 45, color, '#8e527b'), p.shade, 4);
+  for (const [dx, dy, radius] of [[-24, -75, 8], [8, -86, 10], [30, -72, 6]]) oval(c, '#ffe6b9', dx, dy, radius, radius * 0.65);
+  c.restore();
+}
+
+function mushroomBuildings(c: Ctx, style: number, p: Palette, color: string): void {
+  if (style === 1 || style === 7) {
+    rounded(c, '#dca991', 39, 71, 123, 75, 22, p.shade);
+    oval(c, '#ffdbad', 100, 111, 80, 34, p.shade);
+    for (const x of [40, 66, 134, 159]) rounded(c, '#a25e72', x, 87, 9, 42, 4, p.shade);
+    mushroomTower(c, 100, 133, 191, 128, color, p);
+    for (const x of [27, 174]) oval(c, '#ffe2a3', x, 121, 9, 11, p.shade);
+    return;
+  }
+  if (style === 4 || style === 8) {
+    rounded(c, '#cdafa3', 31, 75, 138, 69, 22, p.shade);
+    oval(c, bodyGrad(c, 20, 18, 160, 117, '#fff2bc', color), 100, 74, 79, 54, p.shade);
+    for (const x of [-46, -23, 0, 23, 46]) {
+      line(c, '#ac6d84', 3, [100 + x / 2, 28, 100 + x, 70, 100 + x * 0.65, 114]);
+    }
+    oval(c, '#ffd99a', 100, 78, 85, 9, p.shade);
+    rounded(c, '#665065', 83, 110, 34, 32, 9);
+    for (const x of [51, 148]) oval(c, '#fff0a4', x, 115, 7, 9, p.shade);
+    return;
+  }
+  mushroomTower(c, 44, 137, 72, style === 2 ? 112 : 89, p.colors[(style + 3) % 6], p);
+  mushroomTower(c, 155, 135, 76, style === 2 ? 101 : 105, p.colors[(style + 2) % 6], p);
+  mushroomTower(c, 100, 149, style === 9 ? 110 : 96, style === 6 ? 113 : 141, color, p);
+  if (style === 9) {
+    line(c, p.shade, 4, [101, 19, 101, 6]);
+    polygon(c, '#ffef9a', [105, 6, 140, 10, 138, 26, 105, 20], p.shade);
+    for (const x of [47, 156]) oval(c, '#ffd886', x, 138, 14, 7, p.shade);
+  }
+}
+
+function paintLandmark(c: Ctx, map: QueuedMap, style: number, p: Palette, color: string): void {
+  switch (map) {
+    case 'brickworks':
+      bevel(c, 9, 61, 183, 74, '#b18a63', p.shade);
+      for (const x of [19, 65, 116, 157]) bevel(c, x, 83, 23, 31, color, p.shade, 6);
+      if (style === 6 || style === 9) {
+        const mast = style === 9 ? 87 : 36;
+        bevel(c, mast, 16, 26, 104, '#d68053', p.shade);
+        bevel(c, 19, 19, 166, 18, '#ecc872', p.shade, 8);
+        for (let x = 26; x < 176; x += 19) box(c, '#ad5b4b', x, 21, 10, 12);
+        line(c, p.shade, 4, [151, 43, 151, 73]);
+        bevel(c, 130, 75, 41, 21, '#58a79b', p.shade, 7);
+      } else {
+        for (const [x, y, w, h] of [[26, 41, 48, 55], [73, 16, 58, 82], [130, 34, 48, 59]]) {
+          bevel(c, x, y, w, h, p.colors[(style + x) % 6], p.shade);
+          for (const side of [x + 5, x + 22]) box(c, '#fff2a9', side, y + 12, 8, 14);
+        }
+      }
+      for (const x of [26, 70, 116, 161]) box(c, '#ffe9a8', x, 120, 14, 7);
+      return;
+    case 'mushroom':
+      mushroomBuildings(c, style, p, color);
+      return;
+    case 'tundra':
+      if (style === 6 || style === 9) {
+        bevel(c, 14, 63, 175, 74, color, p.shade);
+        for (const [x, ridge, w] of [[9, 44, 64], [67, 13, 69], [128, 37, 63]]) {
+          polygon(c, '#a1c3d4', [x, ridge + 42, x + w / 2, ridge, x + w, ridge + 42, x + w, 111, x, 113], p.shade);
+          polygon(c, '#f0faf2', [x, ridge + 42, x + w / 2, ridge, x + w / 2, 98, x, 113]);
+        }
+        windows(c, p, 116);
+      } else {
+        for (const [x, y, w] of [[51, 87, 42], [145, 85, 45], [100, 68, 53]]) {
+          oval(c, p.shade, x, y + 16, w, 38);
+          oval(c, bodyGrad(c, x - w, y - 36, w * 2, 79, '#e8f8ee', color), x, y, w, 43, '#6f94a8');
+          line(c, '#8bb2c7', 2, [x - w * 0.75, y, x, y + 7, x + w * 0.75, y]);
+        }
+        rounded(c, '#638a9c', 78, 93, 44, 42, 13, p.shade);
+        rounded(c, '#ffe5a4', 93, 112, 15, 21, 5, p.shade);
+      }
+      return;
+    case 'volcano':
+      if (style === 6 || style === 8) {
+        bevel(c, 11, 63, 179, 64, color, p.shade);
+        for (const [x, y, w] of [[31, 34, 55], [113, 15, 59]]) {
+          rounded(c, '#6f4852', x, y, w, 98 - y, 12, p.shade);
+          oval(c, '#e69653', x + w / 2, y + 10, w / 2 - 3, 14, p.shade);
+          oval(c, '#ffe884', x + w / 2, y + 12, w / 3 - 3, 8, p.shade);
+        }
+      } else {
+        polygon(c, '#806072', [11, 124, 24, 62, 74, 39, 106, 16, 177, 49, 190, 122, 148, 145, 45, 145], p.shade);
+        rounded(c, p.shade, 37, 73, 128, 62, 22);
+        rounded(c, '#e39868', 45, 80, 112, 42, 16);
+        rounded(c, '#392e43', 54, 89, 94, 34, 13);
+        for (const x of [67, 99, 131]) oval(c, '#ffd282', x, 99, 6, 8);
+      }
+      windows(c, p, 125, 3);
+      return;
+    case 'candy':
+      if (style === 6 || style === 9) {
+        rounded(c, '#b6776e', 15, 64, 170, 76, 16, p.shade);
+        rounded(c, '#f6cfb1', 21, 44, 158, 76, 12, p.shade);
+        for (const x of [26, 72, 118]) {
+          rounded(c, p.colors[(style + x) % 6], x, 65, 37, 48, 7, p.shade);
+          oval(c, '#fff0aa', x + 18, 87, 8, 11);
+        }
+        for (const x of [43, 100, 157]) {
+          oval(c, color, x, 44, 25, 28, p.shade);
+          c.beginPath(); c.ellipse(x, 44, 14, 16, 0, 0.25, 5.6);
+          c.strokeStyle = '#fff2c1'; c.lineWidth = 4; c.stroke();
+        }
+      } else {
+        rounded(c, color, 12, 40, 175, 95, 26, p.shade);
+        rounded(c, '#ffe0bc', 30, 61, 140, 62, 23, p.shade);
+        for (const [i, x] of [45, 83, 120, 155].entries()) {
+          oval(c, p.colors[(style + i) % 6], x, 52 + (i % 2) * 4, 25, 27, p.shade);
+          oval(c, '#ffffff87', x - 7, 45, 8, 5);
+        }
+        rounded(c, '#aa6678', 82, 91, 35, 40, 12, p.shade);
+      }
+      return;
+    case 'castle':
+      bevel(c, 13, 50, 174, 95, color, p.shade, 8);
+      if (style === 7 || style === 9) {
+        for (const x of [28, 81, 134]) {
+          bevel(c, x, x === 81 ? 29 : 53, 36, 63, '#cfb18f', p.shade, 9);
+          for (const sx of [x, x + 14, x + 28]) box(c, '#ead0a6', sx, x === 81 ? 24 : 48, 9, 12);
+          rounded(c, '#773c53', x + 9, 69, 18, 32, 4, p.shade);
+        }
+        rounded(c, '#515066', 80, 99, 43, 42, 15, p.shade);
+      } else {
+        polygon(c, '#813d55', [16, 55, 52, 21, 100, 40, 146, 19, 182, 53, 164, 121, 34, 121], p.shade);
+        for (const x of [42, 82, 122]) {
+          rounded(c, '#d3ab91', x, 62, 30, 48, 13, p.shade);
+          line(c, '#bd6b70', 4, [x + 15, 65, x + 15, 105]);
+        }
+      }
+      return;
+    case 'airport':
+      bevel(c, 11, 55, 177, 84, color, p.shade);
+      if (style === 6 || style === 9) {
+        rounded(c, '#546f80', 23, 34, 152, 76, 31, p.shade);
+        for (let x = 42; x < 172; x += 17) box(c, '#b1d1d4', x, 62, 10, 28);
+        bevel(c, 82, 48, 36, 63, '#a9b5a9', p.shade);
+        oval(c, '#668990', 100, 43, 33, 19, p.shade);
+        oval(c, '#dbead5', 100, 33, 30, 15, p.shade);
+        line(c, p.shade, 3, [100, 30, 106, 8, 122, 8]);
+      } else {
+        for (const x of [24, 105]) {
+          rounded(c, '#769999', x, 32, 70, 98, 17, p.shade);
+          for (const y of [45, 63, 81]) box(c, '#d2ded0', x + 9, y, 51, 4);
+          rounded(c, '#465b72', x + 8, 92, 53, 31, 5, p.shade);
+          box(c, '#f8d38c', x + 11, 117, 47, 4);
+        }
+      }
+      return;
+    case 'house':
+      if (style === 6 || style === 9) {
+        rounded(c, '#736080', 11, 28, 177, 111, 20, p.shade);
+        rounded(c, '#a88395', 21, 42, 158, 85, 12, p.shade);
+        rounded(c, '#443b63', 35, 53, 130, 62, 7, p.shade);
+        for (const [x, y, i] of [[45, 67, 0], [81, 73, 2], [125, 60, 5], [131, 94, 3]]) {
+          bevel(c, x, y, 23, 11, p.colors[i], p.shade, 4);
+        }
+        line(c, '#f7dea6', 3, [84, 29, 69, 12, 61, 13]);
+        line(c, '#f7dea6', 3, [116, 29, 136, 8]);
+      } else {
+        rounded(c, '#c1a97c', 18, 35, 164, 108, 17, p.shade);
+        for (const [x, y, i] of [[44, 68, 1], [96, 59, 0], [145, 75, 3], [76, 115, 4], [133, 114, 5]]) {
+          rounded(c, p.colors[i], x - 20, y - 17, 38, 29, style === 8 ? 12 : 4, p.shade);
+          oval(c, '#ffeed5', x - 2, y - 5, 7, 5);
+        }
+        roundKnob(c, 101, 31, p);
+      }
+      return;
+  }
+}
+
+function roundKnob(c: Ctx, x: number, y: number, p: Palette): void {
+  rounded(c, p.shade, x - 21, y - 19, 42, 24, 9);
+  rounded(c, p.light, x - 14, y - 14, 28, 15, 7, p.shade);
+}
+
 /** All roof art uses a 200 × 160 coordinate system and scales to the lot footprint. */
 export function paintQueuedBuilding(c: Ctx, map: QueuedMap, style: number): void {
   const p = QUEUED_PALETTES[map], color = p.colors[style % p.colors.length];
   oval(c, '#22203338', 104, 126, 93, 31);
+  if ((style >= 6 && (map !== 'castle' || style !== 6)) || (map === 'mushroom' && style !== 0 && style !== 3)) {
+    paintLandmark(c, map, style, p, color);
+    return;
+  }
   switch (map) {
     case 'brickworks': {
       bevel(c, 10, 41, 181, 93, p.floor[5], p.shade);

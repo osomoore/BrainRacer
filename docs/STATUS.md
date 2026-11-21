@@ -8,16 +8,20 @@ Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [
 
 | World | Quick-launch map | Boss | Race features | Music |
 | --- | --- | --- | --- | --- |
-| Brickworks | `brickworks` | Puff Golem | Block-built quarry, minecart shuttle, retracting shortcut | Studs and Steam |
-| Mushroom Island | `mushroom` | Spore Queen | Giant mushrooms, spore ferries, mushroom bridge | Spore Ferry |
-| Frozen Tundra | `tundra` | Yeti | Slippery ice, skiers, snow gate | First Snow, Last Run |
-| Volcano | `volcano` | Lava Monster | Eruption temporarily blocks a shortcut | Magma Switchback |
-| Candyland | `candy` | Killer Cone | Sweet shops, conveyor carts, candy gate | The Taffy Trot |
+| Brickworks | `brickworks` | Puff Golem | Block-built quarry, minecart loop, drifting dust | Studs and Steam |
+| Mushroom Island | `mushroom` | Spore Queen | Shore boardwalk, glowing spore garden, tram loop, lifting bridge | Spore Ferry |
+| Frozen Tundra | `tundra` | Yeti | Tire tracks in snow, slippery ice, skiers, traveling blizzards | First Snow, Last Run |
+| Volcano | `volcano` | Lava Monster | Lit tunnel, traveling ash, eruption that temporarily blocks a shortcut | Magma Switchback |
+| Candyland | `candy` | Killer Cone | Sweet shops, looping candy carts, candy gate | The Taffy Trot |
 | Castle | `castle` | Wooden Horse | Trotting knights, drawbridge | Banner Parade |
 | Airport | `airport` | Giant Helicopter | Baggage train, low-flying plane, runway barrier | Runway Lights |
 | In My House | `house` | House Cat | Oversize furniture, toy train, pet flap | Under the Sofa Express |
 
-Each world adds three cars and one companion to the shared collection. Brickworks adds Puff Cub and Frozen Tundra adds Square Snowman. Complete Underwater to unlock Brickworks. Subsequent wins with three completed destination objectives unlock worlds in the order shown above.
+Each world adds five cars and one companion to the shared collection. Brickworks adds Puff Cub and Frozen Tundra adds Square Snowman. Complete Underwater to unlock Brickworks. Completing three destination objectives in a race unlocks the next world in the order shown above.
+
+Factory, Mine, Dark Forest, Brickworks, Mushroom Island, Candyland, Airport, and In My House have closed rail loops. Their cars use the same Matter collision and derailment rules. Crossing lights warn before the train arrives, and the roads offer detours.
+
+Each new track has a contrasting second section. The race mix brightens during turbo and the final stretch, and softens during question breaks and pauses. Mushroom Island and Castle both have two-leaf bridges that rise and lower on a timer.
 
 For a quick check, use `/?race=2&map=brickworks&seed=3&feature=now&dino=now` in dev. Set `map` from the table to preview any world. `feature=now` brings the first shortcut warning forward to one second of driving. The route closes for six seconds after the warning if the crossing is clear. Each world has an open alternate route. The shortcuts and movers pause during Stop & Answer breaks.
 
@@ -36,7 +40,7 @@ For a quick check, use `/?race=2&map=brickworks&seed=3&feature=now&dino=now` in 
 ## Map progression and bosses
 
 - The campaign starts in City and advances through Factory, Beach, Mine, Farm, Sky City, Dark Forest, and Underwater before reaching Brickworks. Complete three shared destination objectives in one race to unlock the next world. Results shows the new world's poster first, then a slowing reel lands on the earned collectible. Confirm advances to an available successor or plays the current world again. **Setup** returns to world and loadout selection.
-- Each player chooses a car and companion from their racer's own collection (see "Per-racer unlocks" above). Existing Comet unlocks and equipped selections carry over to Bomb Buddy.
+- Each player chooses a car and companion from their racer's own collection (see "Per-racer unlocks" above). All racers can equip the two starter cars and two starter companions. A three-objective race can award one of the world's cars or its companion, from a catalog of 75 unlockable vehicles and 16 companions. Existing Comet unlocks and equipped selections carry over to Bomb Buddy.
 - Open hidden **Admin Settings** with F9 or hold LT+RT and press Start. **Racer Unlocks** sets each world, vehicle, and companion to Auto, Open, or Locked per racer. Auto follows earned progress. **Admin Mode** opens the full catalog for play, defaults rounds to 60 seconds, and grants no completion unlocks. Switching it off restores normal access and the racers' own race times. Explicit time overrides still apply.
 - **Bosses by map** are Dino in City, Rock Monster in Mine, Octopus in Beach & Harbor, Robot in Factory, Giant Chicken on Farm, Thundercloud in Sky-city, Walking Tree in Dark Forest, and Landshark Underwater. All use the same twin-beam, ram, and boarding rules. After three qualifying hits, press the right face button nearby to control the boss for 20 seconds of driving. A police swarm drives toward the ridden boss. Remaining cruisers drive away when the ride ends. Use `&dino=now&laser=now` to check any boss.
 - The striped Harbor lighthouse stands beside the northeast waterfront road. The tower stays upright per camera and its stronger beam sweeps from the lantern. Factory headlights are aligned to the chassis, and the player cruiser siren plays at half its previous gain with the same bright tone.

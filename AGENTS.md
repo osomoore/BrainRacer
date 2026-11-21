@@ -4,7 +4,7 @@ Read `CLAUDE.md` first: it holds the project conventions and rules, and they app
 
 ## Codex as the driver (replaces the "orchestrator + sub-agents" split)
 - You are the orchestrator for this session, so the "contracts are orchestrator-owned" rule (`src/core/types.ts`, `events.ts`, `race.ts`, `services.ts`, `assetKeys.ts`) now means: you may edit them, but only deliberately and with tests/typecheck passing, since every system depends on them.
-- **Use your own branch for each task** (e.g. `feature/<task>` from `dev`). Do not work directly on `dev`, and do not edit or switch branches in a checkout another agent is using. When the work is checked (typecheck, unit tests, e2e) and complete, merge it into `dev` and push `dev` (that deploys GitHub Pages). Do not merge into `main` unless the user asks.
+- **Use your own branch for each task** (e.g. `feature/<task>` from `dev`). Do not work directly on `dev`, and do not edit or switch branches in a checkout another agent is using. Commit and test on that task branch. Get explicit user approval before merging it into another branch; push only with separate authorization. Do not merge into `main` unless the user asks.
 - Commit in small steps with clear messages. The user's CLAUDE-side sessions append a `Co-Authored-By` trailer; for Codex commits use your own trailer or none.
 - Before every commit: `npm run typecheck && npm test`. Before declaring a feature done: `npm run e2e` (it does a full production build, which also catches file-encoding problems that typecheck and tests miss).
 - Files must be UTF-8. On Windows PowerShell, `Set-Content`/`Out-File` can write Windows-1252 and silently break `vite build` (this happened in session 2 with a "…" character). Prefer your editor's file writes, or pass `-Encoding utf8`.
@@ -17,8 +17,11 @@ Read `CLAUDE.md` first: it holds the project conventions and rules, and they app
 - Visual checks: Playwright with Edge (`chromium.launch({ channel: 'msedge' })`) at 1920×1080. The bundled headless shell is software-rendered and very slow.
 - Vite "Outdated Optimize Dep" after big changes: restart the dev server with `--force`.
 
-## Parallel work with Claude sub-agents (optional)
-If the user also runs Claude sub-agents in git worktrees under `.worktrees/<pkg>` (procedure in `docs/NEXT.md`), never delete the `node_modules` junction inside a worktree before removing the link itself with `cmd /c rmdir`, or the real `node_modules` is wiped (recover with `npm ci`).
+## Parallel checkouts
+
+- Run `git worktree list` and check the current checkout's branch and status before editing. Assign each parallel writer an exclusive checkout and branch, usually `.worktrees/<task>`. Tell agents their absolute checkout paths and owned files.
+- Run builds and tests in the assigned checkout. Use a distinct Vite `--port` or `BRAINRACER_E2E_PORT` for each active checkout. Keep generated assets, caches, and test output in the checkout that owns them. Coordinate shared contracts with the driver.
+- For worktree setup and cleanup, follow `docs/NEXT.md`. Use an independent `node_modules` installation for dependency or lockfile changes. Unlink any `node_modules` junction before removing its worktree so the target installation is preserved.
 
 ## State at handoff (2026-11-19)
 - Branch `dev`, clean tree, HEAD at the "STATUS/NEXT: session 2 items done" commit. 272 unit tests + 7 e2e tests pass.

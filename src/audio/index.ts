@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import type { AudioLoopOptions, IAudio, IEngineSound } from '../core/services';
+import type { AudioLoopOptions, IAudio, IEngineSound, MusicMix } from '../core/services';
 import type { MusicTrack, PlayerId, SfxName } from '../core/types';
 import { getTuning, onTuningChange } from '../config/deviceTuning';
 import { renderQueue } from './bufferUtils';
@@ -95,6 +95,7 @@ class AudioImpl implements IAudio {
   private musicPlayer: MusicPlayer | null = null;
   private readonly engines = new Map<PlayerId, LazyEngine>();
   private volumes = { music: 0.7, sfx: 0.8 };
+  private musicMix: MusicMix = 'normal';
   private pendingMusic: { track: MusicTrack | null; fade: number } | null = null;
   private unlocking: Promise<void> | null = null;
 
@@ -225,6 +226,7 @@ class AudioImpl implements IAudio {
         this.mixer = new Mixer();
         this.mixer.setDynamics(tuning.compressor);
         this.mixer.setVolumes(this.volumes.music, this.volumes.sfx);
+        this.mixer.setMusicMix(this.musicMix);
         this.sfxEngine = new SfxEngine(this.mixer);
         this.musicPlayer = new MusicPlayer(this.mixer);
         this.unlocked = true;
@@ -279,6 +281,12 @@ class AudioImpl implements IAudio {
       return;
     }
     try { this.musicPlayer?.play(track, crossfadeSec); } catch { /* never throw */ }
+  }
+
+  setMusicMix(mix: MusicMix): void {
+    if (this.musicMix === mix) return;
+    this.musicMix = mix;
+    try { this.mixer?.setMusicMix(mix); } catch { /* ignore */ }
   }
 
   setVolumes(music: number, sfx: number): void {

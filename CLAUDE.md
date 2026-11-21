@@ -5,6 +5,10 @@ Top-down 2-player co-op racer for kids 5–9 with picture/word/math question bre
 
 Codex or another agent driving instead of Claude? Read `AGENTS.md` too (driver-specific differences).
 
+## Branches and checkouts
+
+Start each task on its own branch, usually from `dev`. Test and commit in the assigned checkout. Give each parallel writer a separate worktree, an agreed file scope, and separate server ports. Get explicit user approval before merging. Push only with separate authorization. See `AGENTS.md` and `docs/NEXT.md` for the checkout procedure.
+
 ## Stack
 TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest · Playwright. Node 24, Windows.
 

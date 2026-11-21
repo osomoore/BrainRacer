@@ -8,3 +8,4 @@ public/scenes/
 test-results/
 playwright-report/
 .worktrees/
+.vite-cache/

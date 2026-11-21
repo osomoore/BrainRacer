@@ -1,7 +1,7 @@
 import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
-import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD_MUSIC } from '../config/gameConfig';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
@@ -193,6 +193,7 @@ export class RaceScene extends Phaser.Scene {
     if (this.started && !this.ended && !this.ctx.questionBreak) this.built.update?.(dt);
     // A system (challenge) may have just started a break: freeze right away.
     if (this.ctx.questionBreak || this.ctx.timeExpired) this.setBreak(true);
+    if (this.started && !this.ended) this.updateMusicMix();
     this.rig.update(dt);
   }
 
@@ -206,6 +207,15 @@ export class RaceScene extends Phaser.Scene {
     } else if (!this.ctx.paused) {
       this.matter.world.resume();
     }
+    if (!this.ended) this.updateMusicMix();
+  }
+
+  private updateMusicMix(): void {
+    const { settings, paused, elapsedSec, roundLengthSec } = this.ctx;
+    if (!isQueuedMap(settings.map)) return;
+    const finalStretch = roundLengthSec - elapsedSec <= Math.min(WORLD_MUSIC.finalSeconds, roundLengthSec * WORLD_MUSIC.finalFraction);
+    const rushing = finalStretch || this.players.some(car => car.turbo);
+    services.audio.setMusicMix(paused || this.inBreak ? 'quiet' : rushing ? 'rush' : 'driving');
   }
 
   private runCountdown(dt: number) {
@@ -230,6 +240,7 @@ export class RaceScene extends Phaser.Scene {
     if (this.ctx.paused === on) return;
     this.ctx.paused = on;
     if (on) this.matter.world.pause(); else if (!this.inBreak) this.matter.world.resume();
+    this.updateMusicMix();
   }
 
   private endRound(results: RoundResults) {
@@ -241,6 +252,7 @@ export class RaceScene extends Phaser.Scene {
     const racers = settings.players.map((p, i) => playerRacer(p, i));
     const rewards = awardRacers(settings.map, results.goalsCompleted, racers, admin, new Rng(results.seed ^ 0x391bf724));
     for (const car of this.players) car.setControlEnabled(false);
+    services.audio.setMusicMix('normal');
     services.audio.music('results', 0.5);
     bus.emit('ui:banner', { text: "TIME'S UP!", color: '#FFD700', durationSec: 3 });
     this.time.delayedCall(4000, () => {
@@ -262,6 +274,7 @@ export class RaceScene extends Phaser.Scene {
     safe(() => this.rig.destroy());
     safe(() => this.skids.destroy());
     safe(() => this.built.destroy());
+    services.audio.setMusicMix('normal');
     bus.clear();
   }
 }

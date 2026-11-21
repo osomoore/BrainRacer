@@ -4,7 +4,7 @@ import { DEPTH } from '../config/gameConfig';
 import type { QueuedMap } from '../config/queuedMaps';
 import { Rng } from '../core/rng';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, Tile, type BuildingLot, type WorldData } from '../core/types';
-import { queuedRunway, queuedVolcanoTunnel } from './gen/queuedWorlds';
+import { QUEUED_SHOWCASE_STYLE, queuedBuildingQuarterTurns, queuedMushroomFeatures, queuedRunway, queuedVolcanoTunnel } from './gen/queuedWorlds';
 import { box, paintQueuedBuilding, paintQueuedPlane, paintQueuedScenery, QUEUED_PALETTES } from './queuedWorldArt';
 
 type Objects = Phaser.GameObjects.GameObject[];
@@ -105,6 +105,17 @@ function paintRoad(c: Ctx, map: QueuedMap, mask: number): void {
     c.translate(-64, -64);
     box(c, p.curb, 0, 0, 128, 11);
     box(c, '#ffefe655', 0, 10, 128, 2);
+    if (map === 'brickworks' || map === 'castle' || map === 'house') {
+      for (let x = 8; x < 128; x += 16) {
+        box(c, p.shade, x, 0, 1, 9);
+        box(c, '#fffad840', x + 2, 3, 10, 2);
+      }
+    } else if (map === 'mushroom' || map === 'candy' || map === 'volcano') {
+      for (let x = 9; x < 128; x += 22) {
+        ellipse(c, x, 6, 3, 2);
+        fillStroke(c, map === 'volcano' ? '#ee9c53' : '#f1abc2', null);
+      }
+    }
     // With two-tile roads, a line on the opposite edge reads as a continuous center stripe.
     const opposite = EDGE[(i + 2) % 4];
     if (mask & opposite) {
@@ -130,8 +141,11 @@ function addBuilding(scene: Phaser.Scene, world: WorldData, lot: BuildingLot, ob
     paintQueuedBuilding(c, map, lot.style);
   });
   const ts = world.tileSize;
+  const turns = queuedBuildingQuarterTurns(map, world, lot), sideways = turns % 2 === 1;
+  const name = lot.style === QUEUED_SHOWCASE_STYLE ? 'showcase' : 'landmark';
   objects.push(scene.add.image((lot.tx + lot.tw / 2) * ts, (lot.ty + lot.th / 2) * ts, key)
-    .setDisplaySize(lot.tw * ts, lot.th * ts).setDepth(DEPTH.building).setName(`${map}-landmark`));
+    .setDisplaySize((sideways ? lot.th : lot.tw) * ts, (sideways ? lot.tw : lot.th) * ts)
+    .setAngle(turns * 90).setDepth(DEPTH.building).setName(`${map}-${name}`));
 }
 
 export function queuedWorldTileset(map: QueuedMap) {
@@ -191,6 +205,63 @@ function addAirportRunway(scene: Phaser.Scene, world: WorldData, objects: Object
   };
 }
 
+function addMushroomSites(scene: Phaser.Scene, world: WorldData, objects: Objects): void {
+  const { boardwalk, garden, cove } = queuedMushroomFeatures(world.seed);
+  const ts = world.tileSize;
+  const board = texture(scene, 'queued_mushroom_boardwalk', 128, 128, c => {
+    box(c, '#493958', 0, 0, 128, 128);
+    for (let y = 4; y < 125; y += 16) {
+      box(c, y % 3 ? '#9a5f76' : '#b27585', 0, y, 128, 14);
+      box(c, '#ebb6a4', 0, y, 128, 2);
+      for (const x of [8, 117]) box(c, '#f7c696', x, y + 5, 3, 3);
+    }
+  });
+  for (const [x, y, w, h] of boardwalk) {
+    objects.push(scene.add.tileSprite((x + w / 2) * ts, (y + h / 2) * ts, w * ts, h * ts, board)
+      .setDepth(DEPTH.ground + 1).setName('mushroom-boardwalk'));
+  }
+  const spore = texture(scene, 'queued_mushroom_spore_garden', 128, 128, c => {
+    const haze = c.createRadialGradient(64, 64, 7, 64, 64, 62);
+    haze.addColorStop(0, '#fff3a1a8');
+    haze.addColorStop(0.5, '#fbb6cd67');
+    haze.addColorStop(1, '#fbb6cd00');
+    box(c, haze, 0, 0, 128, 128);
+    for (const [x, y, r] of [[45, 39, 11], [92, 53, 13], [57, 86, 16], [25, 76, 6], [98, 92, 8]]) {
+      box(c, '#f9d099', x - 2, y + 1, 4, r);
+      ellipse(c, x, y, r, Math.max(4, r * 0.5));
+      fillStroke(c, r > 10 ? '#e297bd' : '#a4ece0', '#613e6e', 1.5);
+      ellipse(c, x - r * 0.25, y - 2, r * 0.4, 2);
+      fillStroke(c, '#fff5ce', null);
+    }
+  });
+  const [gx, gy, gw, gh] = garden;
+  for (let y = gy; y < gy + gh; y++) for (let x = gx; x < gx + gw; x++) {
+    if (world.tiles[y * world.widthTiles + x] !== Tile.Plaza) continue;
+    if ((x + y) % 3 === 0 || y === gy || y === gy + gh - 1) {
+      objects.push(scene.add.image((x + 0.5) * ts, (y + 0.5) * ts, spore)
+        .setAngle((x * 47 + y * 83) % 360).setDepth(DEPTH.decal - 1).setName('mushroom-spore-garden'));
+    }
+  }
+  const ripple = texture(scene, 'queued_mushroom_cove_ripple', 96, 96, c => {
+    for (const r of [22, 37]) {
+      ellipse(c, 48, 48, r, r * 0.63);
+      c.strokeStyle = '#caf2bb55';
+      c.lineWidth = 2;
+      c.stroke();
+    }
+    ellipse(c, 48, 48, 15, 10);
+    fillStroke(c, '#8fccaf', '#474764', 2);
+    ellipse(c, 46, 47, 6, 5);
+    fillStroke(c, '#f9d3ad', null);
+  });
+  const [cx, cy, cw, ch] = cove[0];
+  for (let y = cy; y < cy + ch; y += 2) for (let x = cx; x < cx + cw - 1; x += 2) {
+    if (world.tiles[y * world.widthTiles + x] !== Tile.Water) continue;
+    objects.push(scene.add.image((x + 0.35) * ts, (y + 0.52) * ts, ripple)
+      .setDepth(DEPTH.ground + 1).setName('mushroom-cove-lilies'));
+  }
+}
+
 function addVolcanoTunnel(scene: Phaser.Scene, world: WorldData, objects: Objects): void {
   const { x, y } = queuedVolcanoTunnel(world), ts = world.tileSize;
   const key = texture(scene, 'queued_volcano_tunnel', 192, 408, c => {
@@ -242,6 +313,7 @@ export function addQueuedWorld(scene: Phaser.Scene, world: WorldData, objects: O
     if (map === 'tundra' && style >= 2) life.push({ img, x: px, y: py, phase: rng.range(0, Math.PI * 2) });
   }
   if (map === 'volcano') addVolcanoTunnel(scene, world, objects);
+  if (map === 'mushroom') addMushroomSites(scene, world, objects);
   const runway = map === 'airport' ? addAirportRunway(scene, world, objects) : undefined;
   let clock = 0;
   return dt => {

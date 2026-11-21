@@ -6,8 +6,8 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
 - **Own branch per task (every agent, Claude or Codex):** do each task on its own branch, created for that task from `dev` (Claude uses a worktree under `.worktrees/<task>`). Never edit, commit in, or switch branches in a checkout another agent is using. When the work is checked (typecheck, unit tests, e2e) and complete, merge it into `dev` and push `dev` (pushing `dev` deploys GitHub Pages, which the TV box loads).
 - **Main session = orchestrator (Opus):** owns contracts (`src/core/*`), `RaceScene`, merging, review, small glue fixes, docs.
 - **Implementation = Sonnet sub-agents** (Haiku for mechanical chores), run in parallel with **disjoint file ownership**. The user prefers this to save usage.
-- **Codex as driver:** if the user hands the wheel to Codex for a while, see `AGENTS.md` at the repo root (it acts as orchestrator and may commit on `dev`).
-- **Codex (user runs it in another VS Code panel):** give it self-contained jobs that touch files nobody else is editing (data/JSON content such as music tracks or `wordMeta.json`). Codex must not run git; the orchestrator validates and commits its output.
+- **Codex as driver** follows `AGENTS.md`, including the task branch and approval rules.
+- Give agents in separate VS Code panels their own worktree paths and self-contained jobs. The driver reviews each task branch before integration.
 - **Worktrees (manual, because the Agent tool's built-in `isolation: "worktree"` fails on this machine with a c:/C: drive-letter mismatch):**
   ```powershell
   git worktree add -q ".worktrees\X" -b "pkg/X" dev
@@ -16,7 +16,7 @@ Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current st
   ```
   Agent prompt must say: work only inside `.worktrees\X` with absolute paths, a unique dev-server port, one commit on `pkg/X`, never delete the junction, **never `git stash`** (shared across worktrees).
   **Removal (order matters!):** stop the agent's dev server, `cmd /c rmdir .worktrees\X\node_modules` (deletes the link only), THEN `git worktree remove --force .worktrees\X; git branch -D pkg/X`. Removing a worktree with the junction still present wipes the real `node_modules` (recover with `npm ci`).
-- **Merge loop:** `git merge --no-ff pkg/X` → `npx tsc --noEmit` → `npm test` → `npm run e2e` → screenshot check via Playwright on Edge (`chromium.launch({ channel: 'msedge' })`) → update STATUS.
+- Run typecheck, unit tests, e2e, and visual checks on the task branch before requesting merge approval. After approval, the driver integrates the branch in the designated checkout and reruns the checks.
 - Vite "Outdated Optimize Dep" after big merges → restart the dev server with `--force`.
 
 Use the numbered IDs when referring to queue items. Keep IDs stable as items move or are completed.
@@ -89,7 +89,7 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 Each would follow the map kickoff template below (contracts → generator/art/audio → renderer/systems → wiring). Every world gets a boss; keep bosses kid-friendly (bounce, squash, poof; no gore).
 - **#52 Scary Ghost World** would have haunted lanes, drifting lanterns, and secret doors that open and close. A giant sheet ghost could guard the course. Aim for spooky atmosphere and playful scares for ages 5–9.
 
-Brickworks, Mushroom Island, Frozen Tundra, Volcano, Candyland, Castle, Airport, and In My House are on the queued-worlds feature branch. See [STATUS.md](STATUS.md#new-worlds) for their race features and preview URLs.
+Brickworks, Mushroom Island, Frozen Tundra, Volcano, Candyland, Castle, Airport, and In My House are playable. See [STATUS.md](STATUS.md#new-worlds) for their race features and preview URLs.
 
 ## Map kickoff plans (done)
 

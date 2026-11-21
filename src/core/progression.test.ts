@@ -5,8 +5,8 @@ import { developerModeSettings, parseUnlocks, rewardsSinceBuddy, selectedLoadout
 import type { PlayerSettings } from './types';
 
 describe('progression helpers', () => {
-  it('keeps valid unlock IDs', () => {
-    expect(UNLOCK_VEHICLE_IDS).toHaveLength(59);
+  it('keeps only valid unlock IDs in the catalog', () => {
+    expect(UNLOCK_VEHICLE_IDS).toHaveLength(75);
     expect(UNLOCK_GUIDE_IDS).toHaveLength(16);
     expect(parseUnlocks(['motorbike', null, 'motorbike', 'missing', 'owl'])).toEqual(['motorbike', 'owl']);
     expect(parseUnlocks(['comet', 'bombBuddy'])).toEqual(['bombBuddy']);
@@ -18,7 +18,7 @@ describe('progression helpers', () => {
   });
 
   it('includes the themed cars and companions in the reward catalog', () => {
-    for (const map of QUEUED_MAPS) expect(WORLD_VEHICLES[map]).toHaveLength(3);
+    for (const map of QUEUED_MAPS) expect(WORLD_VEHICLES[map]).toHaveLength(5);
     expect(WORLD_GUIDES).toHaveLength(11);
     for (const item of [...Object.values(WORLD_VEHICLES).flat(), ...WORLD_GUIDES]) expect(COLLECTIBLES).toContain(item);
   });
