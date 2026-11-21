@@ -1,6 +1,8 @@
 import * as Tone from 'tone';
 import { Midi } from '@tonejs/midi';
 import type { MusicTrack } from '../core/types';
+import { QUEUED_MAPS } from '../config/queuedMaps';
+import { QUEUED_TRACKS } from './music/queuedTracks';
 import type { Mixer } from './mixer';
 import { foldTail, loopOffsetSec, planChunks, renderQueue } from './bufferUtils';
 import {
@@ -35,6 +37,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   underwater: underwater as TrackData,
   dino: dino as TrackData,
   results: results as TrackData,
+  ...QUEUED_TRACKS,
 };
 
 const LOOKAHEAD_SEC = 0.25;
@@ -47,7 +50,7 @@ const MAX_LEAD_SEC = 4.5;
 const ONESHOT_TAIL_SEC = 2.5;
 const SWAP_FADE_SEC = 0.3;
 /** Background render order: title first, then the race tracks. */
-export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results', 'sky', 'forest', 'underwater'];
+export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results', 'sky', 'forest', 'underwater', ...QUEUED_MAPS];
 const TICK_SEC = 0.1;
 
 type NoteFn = (note: { p: number; d: number; v: number }, time: number) => void;

@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { CAMERA, CAT, CITY_NIGHT_LIGHTING, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { roadTex, TEX } from '../core/assetKeys';
+import { isQueuedMap } from '../config/queuedMaps';
 import type { BodyOwner } from '../core/race';
 import { Tile, type Prop, type RaceMap, type Rect, type WorldData } from '../core/types';
 import { BUILDING_3D, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
@@ -14,6 +15,7 @@ import { addHarborWorld, harborRoadTile, harborSandTile } from './harborWorld';
 import { addUndergroundWorld } from './undergroundWorld';
 import { undergroundTileIndex, undergroundTileSource } from './undergroundTiles';
 import { addSkyBuilding, addSkyWorld, skyTileIndex, skyTileSource } from './skyWorld';
+import { addQueuedWorld, queuedWorldTileset } from './queuedWorlds';
 import { FOREST_TILESET_KEY, addForestBuilding, addForestWorld, forestTileSource } from './forestWorld';
 import { UNDERWATER_TILESET_KEY, addUnderwaterBuilding, addUnderwaterWorld, underwaterTileIndex, underwaterTileSource } from './underwaterWorld';
 import {
@@ -127,7 +129,8 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
   const night = raceMap === 'industrial';
   const harbor = raceMap === 'harbor';
   const underground = raceMap === 'underground';
-  const themed = raceMap === 'sky' || raceMap === 'forest' || raceMap === 'underwater' ? WORLD_TILESETS[raceMap] : undefined;
+  const themed = isQueuedMap(raceMap) ? queuedWorldTileset(raceMap)
+    : raceMap === 'sky' || raceMap === 'forest' || raceMap === 'underwater' ? WORLD_TILESETS[raceMap] : undefined;
   const ts = world.tileSize;
   const W = world.widthTiles * ts, H = world.heightTiles * ts;
   const L = BUILDING_LOOK;
@@ -231,6 +234,8 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
     update = dt => handle.update(dt);
   } else if (raceMap === 'underwater') {
     update = addUnderwaterWorld(scene, world, objs);
+  } else if (isQueuedMap(raceMap)) {
+    update = addQueuedWorld(scene, world, objs, raceMap);
   }
   addStaticRect(W / 2, -T / 2, W + 2 * T, T, bnd);
   addStaticRect(W / 2, H + T / 2, W + 2 * T, T, bnd);

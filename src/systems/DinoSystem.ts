@@ -1,5 +1,6 @@
 import { DINO, DINO_LASER, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
 import { MAP_BOSSES } from '../art/boss';
+import { isQueuedMap } from '../config/queuedMaps';
 import { Dino } from '../entities/Dino';
 import { HayWagon } from '../entities/HayWagon';
 import { STEP_HZ } from '../entities/Vehicle';
@@ -65,7 +66,7 @@ export class DinoSystem implements GameSystem {
   init(ctx: RaceContext): void {
     this.ctx = ctx;
     this.rockMonster = ctx.settings.map === 'underground';
-    this.guardsOnRoad = this.rockMonster || ctx.settings.map === 'sky' || ctx.settings.map === 'underwater';
+    this.guardsOnRoad = this.rockMonster || ctx.settings.map === 'sky' || ctx.settings.map === 'underwater' || isQueuedMap(ctx.settings.map);
     const q = new URLSearchParams(location.search);
     this.devNow = q.get('dino') === 'now';
     this.laserDev = q.get('laser') === 'now';

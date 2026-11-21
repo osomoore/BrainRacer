@@ -86,7 +86,7 @@ export class Vehicle implements IVehicle {
   get currentMaxSpeed() { return this.spec.maxSpeed * this.maxSpeedMult; }
 
   /** Run the tire model for one frame and push the result into Matter. dt in seconds. */
-  drive(controls: VehicleControls, dt: number): void {
+  drive(controls: VehicleControls, dt: number, surfaceGrip = 1): void {
     const v = this.velocity;
     // Detect a collision: Matter changed the velocity we set last frame by a large amount.
     if (this.lastSet && Math.hypot(v.x - this.lastSet.x, v.y - this.lastSet.y) > VEHICLE_MODEL.recoilTriggerSpeed) {
@@ -94,7 +94,12 @@ export class Vehicle implements IVehicle {
     }
     const rc = this.recoil > 0;
     if (rc) this.recoil = Math.max(0, this.recoil - dt);
-    const mults: VehicleMults = { maxSpeed: this.maxSpeedMult, accel: this.accelMult, grip: rc ? VEHICLE_MODEL.recoilGrip : 1, pivotRate: this.pivotRate };
+    const mults: VehicleMults = {
+      maxSpeed: this.maxSpeedMult,
+      accel: this.accelMult,
+      grip: surfaceGrip * (rc ? VEHICLE_MODEL.recoilGrip : 1),
+      pivotRate: this.pivotRate,
+    };
     const ctl = rc ? { ...controls, throttle: controls.throttle * VEHICLE_MODEL.recoilThrottle } : controls;
     const r = stepVehicle(
       { vx: v.x, vy: v.y, angle: this.angle, angularVel: this.body.angularVelocity * STEP_HZ },

@@ -46,6 +46,30 @@ export const UNLOCK_VEHICLES = {
   coralBuggy: vehicle('Coral Buggy', 'open', ['#ff9c9a', '#be496e', '#ffe2a7'], 72, 45, flyweight),
   stingrayGT: vehicle('Stingray GT', 'racer', ['#79e4e7', '#276b96', '#fbf78f'], 81, 41, standard),
   nautilusVan: vehicle('Nautilus Van', 'van', ['#f1c4aa', '#a75a72', '#a1f6ff'], 85, 46, heavy),
+  brickBuggy: vehicle('Brick Buggy', 'open', ['#9adf5d', '#487c38', '#ffea97'], 73, 45, flyweight),
+  studCoupe: vehicle('Stud Coupe', 'closed', ['#e99e66', '#a85230', '#ffdf91'], 76, 42, standard),
+  quarryTruck: vehicle('Quarry Truck', 'utility', ['#80b9bd', '#416873', '#fff1ac'], 86, 50, heavy),
+  toadstoolKart: vehicle('Toadstool Kart', 'open', ['#ff7767', '#ae2d4a', '#fff2c6'], 70, 43, flyweight),
+  sporeCoupe: vehicle('Spore Coupe', 'closed', ['#dda4ff', '#763daa', '#ffe6a3'], 76, 42, standard),
+  capWagon: vehicle('Cap Wagon', 'van', ['#ffcb6a', '#ac6538', '#e9fff1'], 84, 48, heavy),
+  skiSled: vehicle('Ski Sled', 'open', ['#fa8e5b', '#b6363e', '#d0f7ff'], 75, 41, flyweight),
+  iceCoupe: vehicle('Ice Coupe', 'closed', ['#c8faff', '#397aa9', '#ffffff'], 76, 43, standard),
+  glacierCrawler: vehicle('Glacier Crawler', 'tracked', ['#eeebff', '#7177b2', '#ffd97c'], 84, 50, heavy),
+  cinderBuggy: vehicle('Cinder Buggy', 'open', ['#ffb243', '#c74c37', '#fff1a9'], 73, 44, flyweight),
+  magmaGT: vehicle('Magma GT', 'racer', ['#fd7854', '#992d49', '#fff284'], 83, 42, standard),
+  basaltHauler: vehicle('Basalt Hauler', 'utility', ['#8982a2', '#40364f', '#ffad61'], 88, 51, heavy),
+  waferKart: vehicle('Wafer Kart', 'open', ['#ffda9b', '#a76051', '#ef94cd'], 71, 42, flyweight),
+  gumdropGT: vehicle('Gumdrop GT', 'racer', ['#d3a1ff', '#8655bc', '#aaffc1'], 80, 43, standard),
+  sundaeVan: vehicle('Sundae Van', 'van', ['#ffb9d2', '#c65b97', '#fff4c6'], 84, 47, heavy),
+  joustKart: vehicle('Joust Kart', 'open', ['#7bc7ff', '#3a64b9', '#ffe385'], 71, 42, flyweight),
+  heraldCoupe: vehicle('Herald Coupe', 'closed', ['#ff858e', '#a74265', '#ffde81'], 77, 42, standard),
+  timberCoach: vehicle('Timber Coach', 'van', ['#dca56b', '#774b46', '#efcf86'], 88, 49, heavy),
+  runwayRacer: vehicle('Runway Racer', 'racer', ['#ebfbff', '#587abe', '#fa7666'], 79, 41, flyweight),
+  jetBuggy: vehicle('Jet Buggy', 'open', ['#6fe1de', '#267c98', '#ffdf73'], 78, 46, standard),
+  bagTug: vehicle('Baggage Tug', 'utility', ['#ffda6c', '#c67d32', '#f5fbff'], 82, 48, heavy),
+  springRacer: vehicle('Spring Racer', 'racer', ['#fe996f', '#b73b6a', '#ffeaa7'], 76, 41, flyweight),
+  sockBuggy: vehicle('Sock Buggy', 'open', ['#aef1cc', '#409189', '#ffb5da'], 75, 45, standard),
+  toyTruck: vehicle('Toy Truck', 'utility', ['#85c5ff', '#4c53a2', '#fff090'], 86, 48, heavy),
 } as const;
 
 export type UnlockVehicle = keyof typeof UNLOCK_VEHICLES;
@@ -55,6 +79,14 @@ export const WORLD_VEHICLES = {
   sky: ['skyTaxi', 'cloudCoupe', 'galeRoadster', 'propellerBuggy', 'courierPod'],
   forest: ['leafRacer', 'twigBuggy', 'acornCoupe', 'mossRover', 'barkWagon'],
   underwater: ['mantaRacer', 'bubbleSub', 'coralBuggy', 'stingrayGT', 'nautilusVan'],
+  brickworks: ['brickBuggy', 'studCoupe', 'quarryTruck'],
+  mushroom: ['toadstoolKart', 'sporeCoupe', 'capWagon'],
+  tundra: ['skiSled', 'iceCoupe', 'glacierCrawler'],
+  volcano: ['cinderBuggy', 'magmaGT', 'basaltHauler'],
+  candy: ['waferKart', 'gumdropGT', 'sundaeVan'],
+  castle: ['joustKart', 'heraldCoupe', 'timberCoach'],
+  airport: ['runwayRacer', 'jetBuggy', 'bagTug'],
+  house: ['springRacer', 'sockBuggy', 'toyTruck'],
 } as const satisfies Record<string, readonly UnlockVehicle[]>;
 
 export type WorldVehicle = (typeof WORLD_VEHICLES)[keyof typeof WORLD_VEHICLES][number];
@@ -69,11 +101,22 @@ export const UNLOCK_GUIDES = {
   cloudPuff: { name: 'Cloud Puff', glow: 0xb7eaff },
   firefly: { name: 'Firefly', glow: 0xe8ff83 },
   jelly: { name: 'Jelly', glow: 0x96f4ff },
+  puffCub: { name: 'Puff Cub', glow: 0xc6ff8f },
+  sporeSprout: { name: 'Spore Sprout', glow: 0xffb4ea },
+  squareSnowman: { name: 'Square Snowman', glow: 0xbafaff },
+  ember: { name: 'Ember', glow: 0xffb670 },
+  sugarSprite: { name: 'Sugar Sprite', glow: 0xffa7d9 },
+  crownSquire: { name: 'Crown Squire', glow: 0xffe17f },
+  paperPlane: { name: 'Paper Plane', glow: 0xb8eeff },
+  yarnBall: { name: 'Yarn Ball', glow: 0xffbd9f },
 } as const;
 
 export type UnlockGuide = keyof typeof UNLOCK_GUIDES;
 export const UNLOCK_GUIDE_IDS = Object.keys(UNLOCK_GUIDES) as UnlockGuide[];
-export const WORLD_GUIDES: readonly UnlockGuide[] = ['cloudPuff', 'firefly', 'jelly'];
+export const WORLD_GUIDES: readonly UnlockGuide[] = [
+  'cloudPuff', 'firefly', 'jelly', 'puffCub', 'sporeSprout', 'squareSnowman', 'ember',
+  'sugarSprite', 'crownSquire', 'paperPlane', 'yarnBall',
+];
 
 export type Collectible = UnlockVehicle | UnlockGuide;
 export const COLLECTIBLES: readonly Collectible[] = [...UNLOCK_VEHICLE_IDS, ...UNLOCK_GUIDE_IDS];

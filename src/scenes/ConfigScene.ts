@@ -7,7 +7,7 @@ import { collectibleName, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../config
 import { contentOverride, developerModeSettings, loadUnlocks, availableMaps, MAP_LABEL, RACE_MAPS, setContentOverride } from '../core/progression';
 import { RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
-import { loadSettings, saveSettings } from '../core/settings';
+import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
 import type { Difficulty, QuestionType, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { MenuButton } from '../ui/menu/MenuButton';
@@ -45,13 +45,18 @@ const GAS_LABEL = { a: 'Bottom button', trigger: 'Trigger', auto: 'Auto' } as co
 const KEY_HISTORY = 3;
 const ROUND_SEC = [60, 120, 180, 300, 480, 600];
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
+const CONTENT_ROWS = 9;
+function contentPages<T extends string>(name: string, ids: readonly T[]) {
+  const total = Math.ceil(ids.length / CONTENT_ROWS);
+  return Array.from({ length: total }, (_, i) => ({
+    name: total > 1 ? `${name} ${i + 1} / ${total}` : name,
+    ids: ids.slice(i * CONTENT_ROWS, (i + 1) * CONTENT_ROWS),
+  }));
+}
 const CONTENT_PAGES = [
-  { name: 'Worlds', ids: RACE_MAPS.filter(map => map !== 'city') },
-  { name: 'Cars 1 / 4', ids: UNLOCK_VEHICLE_IDS.slice(0, 9) },
-  { name: 'Cars 2 / 4', ids: UNLOCK_VEHICLE_IDS.slice(9, 18) },
-  { name: 'Cars 3 / 4', ids: UNLOCK_VEHICLE_IDS.slice(18, 27) },
-  { name: 'Cars 4 / 4', ids: UNLOCK_VEHICLE_IDS.slice(27) },
-  { name: 'Companions', ids: UNLOCK_GUIDE_IDS },
+  ...contentPages('Worlds', RACE_MAPS.filter(map => map !== 'city')),
+  ...contentPages('Cars', UNLOCK_VEHICLE_IDS),
+  ...contentPages('Companions', UNLOCK_GUIDE_IDS),
 ];
 const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
@@ -285,12 +290,12 @@ export class ConfigScene extends Phaser.Scene {
     this.subRows.push({ selectable: category, change: cyclePage, activate: () => cyclePage(1) });
     const unlocked = loadUnlocks();
     page.ids.forEach((id, i) => {
-      const label = id in MAP_LABEL ? MAP_LABEL[id as keyof typeof MAP_LABEL] : collectibleName(id as Parameters<typeof collectibleName>[0]);
+      const label = isRaceMap(id) ? MAP_LABEL[id] : collectibleName(id);
       const row = new OptionRow(this, cx, 290 + i * 70, label, opts);
       panel.add(row);
       const refresh = () => {
         const override = contentOverride(id);
-        const open = page.name === 'Worlds' ? availableMaps(false).some(map => map === id) : unlocked.some(item => item === id);
+        const open = isRaceMap(id) ? availableMaps(false).includes(id) : unlocked.includes(id);
         row.setValue(override === undefined ? (open ? 'Auto (Open)' : 'Auto (Locked)') : override ? 'Open' : 'Locked');
       };
       const change = (dir: 1 | -1) => {

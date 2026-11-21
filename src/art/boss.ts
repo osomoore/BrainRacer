@@ -3,6 +3,7 @@ import { TEX } from '../core/assetKeys';
 import type { RaceMap } from '../core/types';
 import { bodyGrad, ellipse, fillStroke, lin, makeCanvas, poly, radial, rr, type Ctx } from './draw';
 import { ROCK_MONSTER_RIG } from './rockMonster';
+import { QUEUED_BOSSES } from './queuedBosses';
 
 const OCTOPUS_RIG = { ...ROCK_MONSTER_RIG, headX: 100, eyeFwd: 157, armY: 79, footX: -114, footY: 74 };
 const ROBOT_RIG = { ...ROCK_MONSTER_RIG, headX: 120, eyeFwd: 177, armY: 96 };
@@ -24,6 +25,7 @@ export const MAP_BOSSES = {
     rig: { ...ROCK_MONSTER_RIG, headX: 112, eyeFwd: 157, tex: TEX.walkingTree }, tint: 0xb8f37a, color: '#d7f991' },
   underwater: { name: 'Landshark', objectName: 'landshark', head: TEX.landshark.head,
     rig: { ...ROCK_MONSTER_RIG, headX: 116, eyeFwd: 161, armY: 72, footX: -104, tex: TEX.landshark }, tint: 0x7ff5fa, color: '#a6fcff' },
+  ...QUEUED_BOSSES,
 } satisfies Record<RaceMap, { name: string; objectName: string; head: string;
   rig: (Record<keyof typeof ROCK_MONSTER_RIG, number> & { tex: Record<keyof typeof TEX.rockMonster, string> }) | null;
   tint: number; color: string }>;

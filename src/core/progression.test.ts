@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_GUIDES, WORLD_VEHICLES } from '../config/collectibles';
+import { QUEUED_MAPS } from '../config/queuedMaps';
 import { availableLoadouts, availableMaps, awardMapCompletion, BUDDY_EVERY_REWARDS, developerModeSettings, drawUnlock, loadUnlocks, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout, setContentOverride } from './progression';
 import { Rng } from './rng';
-import type { PlayerSettings } from './types';
+import type { PlayerSettings, RaceMap } from './types';
 
 describe('map progression', () => {
   beforeEach(() => {
@@ -46,7 +47,7 @@ describe('map progression', () => {
   it('guarantees a companion at least every three completion rewards', () => {
     const store = new Map([['brainracer.content.v1', '{}'], ['brainracer.unlocks.v1', JSON.stringify([UNLOCK_VEHICLE_IDS[0]])]]);
     vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key), setItem: (key: string, value: string) => store.set(key, value) });
-    for (let seed = 0; seed < 40; seed++) awardMapCompletion('city', 3, false, new Rng(seed));
+    for (let seed = 0; seed < COLLECTIBLES.length; seed++) awardMapCompletion('city', 3, false, new Rng(seed));
     const order = loadUnlocks();
     let run = 0;
     for (const id of order) {
@@ -58,8 +59,8 @@ describe('map progression', () => {
   });
 
   it('keeps valid unlock IDs and draws items once from the catalog', () => {
-    expect(UNLOCK_VEHICLE_IDS).toHaveLength(35);
-    expect(UNLOCK_GUIDE_IDS).toHaveLength(8);
+    expect(UNLOCK_VEHICLE_IDS).toHaveLength(59);
+    expect(UNLOCK_GUIDE_IDS).toHaveLength(16);
     expect(parseUnlocks(['motorbike', null, 'motorbike', 'missing', 'owl'])).toEqual(['motorbike', 'owl']);
     expect(parseUnlocks(['comet', 'bombBuddy'])).toEqual(['bombBuddy']);
     const rng = new Rng(5);
@@ -68,12 +69,24 @@ describe('map progression', () => {
     expect(drawUnlock(COLLECTIBLES, rng)).toBeUndefined();
   });
 
-  it('adds five cars and a companion from each world to the shared reward pool', () => {
-    expect(Object.values(WORLD_VEHICLES).map(cars => cars.length)).toEqual([5, 5, 5]);
-    expect(WORLD_GUIDES).toHaveLength(3);
+  it('includes the themed cars and companions in the shared reward pool', () => {
+    for (const map of QUEUED_MAPS) expect(WORLD_VEHICLES[map]).toHaveLength(3);
+    expect(WORLD_GUIDES).toHaveLength(11);
     for (const item of [...Object.values(WORLD_VEHICLES).flat(), ...WORLD_GUIDES]) {
       expect(drawUnlock(COLLECTIBLES.filter(id => id !== item), new Rng(2))).toBe(item);
     }
+  });
+
+  it('extends the campaign from Underwater through the eight new worlds', () => {
+    const rng = new Rng(419);
+    setContentOverride('underwater', true);
+    let previous: RaceMap = 'underwater';
+    for (const map of QUEUED_MAPS) {
+      expect(awardMapCompletion(previous, 3, false, rng).world).toBe(map);
+      expect(nextMap(previous, false)).toBe(map);
+      previous = map;
+    }
+    expect(awardMapCompletion(previous, 3, false, rng).world).toBeUndefined();
   });
 
   it('uses a separate checkout of each loadout and restores the player-mode time', () => {

@@ -1,12 +1,14 @@
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, type Collectible } from '../config/collectibles';
 import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC } from '../config/gameConfig';
+import { QUEUED_MAP_LABEL, QUEUED_MAPS } from '../config/queuedMaps';
 import { Rng, randomSeed } from './rng';
 import type { CarKind, GuideKind, PlayerSettings, RaceMap, Settings, StarterCar } from './types';
 
-export const RACE_MAPS: readonly RaceMap[] = ['city', 'industrial', 'harbor', 'underground', 'farm', 'sky', 'forest', 'underwater'];
+export const RACE_MAPS: readonly RaceMap[] = ['city', 'industrial', 'harbor', 'underground', 'farm', 'sky', 'forest', 'underwater', ...QUEUED_MAPS];
 export const MAP_LABEL: Record<RaceMap, string> = {
   city: 'City', industrial: 'Factory', harbor: 'Beach', underground: 'Mine', farm: 'Farm',
   sky: 'Sky City', forest: 'Dark Forest', underwater: 'Underwater',
+  ...QUEUED_MAP_LABEL,
 };
 export const COMPLETION_OBJECTIVES = 3;
 /** A companion (buddy) is guaranteed at least once every this many completion rewards, while any are left. */

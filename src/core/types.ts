@@ -9,6 +9,7 @@
  */
 
 import type { UnlockGuide, UnlockVehicle } from '../config/collectibles';
+import type { QueuedMap } from '../config/queuedMaps';
 
 // ───────────────────────── basics ─────────────────────────
 export interface Vec2 { x: number; y: number }
@@ -20,7 +21,7 @@ export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type StarterCar = 'dino' | 'kart';
 export type CarKind = StarterCar | UnlockVehicle;
 export type GuideKind = 'dino' | 'star' | UnlockGuide;
-export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor' | 'underground' | 'sky' | 'forest' | 'underwater';
+export type RaceMap = 'city' | 'industrial' | 'farm' | 'harbor' | 'underground' | 'sky' | 'forest' | 'underwater' | QueuedMap;
 export type ControllerFamily = 'xbox' | 'nintendo' | 'other';
 /**
  * 0 = left, 1 = top, 2 = right, 3 = bottom. The display letters depend on controller layout.
@@ -315,7 +316,7 @@ export type SfxName =
   | 'menuMove' | 'menuSelect' | 'join' | 'crossing'
   | 'moo' | 'baa' | 'oink' | 'neigh' | 'cluck' | 'quack' | 'cornRustle' | 'mudSplash';
 
-export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results';
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 export type CameraMode = 'single' | 'merged' | 'split';

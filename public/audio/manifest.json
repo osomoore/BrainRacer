@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "530f96d6886e0406",
+ "sourceHash": "5c5b7418e89840eb",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -395,6 +395,94 @@
   },
   "underwater": {
    "file": "music/underwater.ogg",
+   "sampleRate": 32000,
+   "length": 529655,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 116,
+   "lengthBeats": 32,
+   "loopSeconds": 16.551724137931036
+  },
+  "brickworks": {
+   "file": "music/brickworks.ogg",
+   "sampleRate": 32000,
+   "length": 495484,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 124,
+   "lengthBeats": 32,
+   "loopSeconds": 15.483870967741936
+  },
+  "mushroom": {
+   "file": "music/mushroom.ogg",
+   "sampleRate": 32000,
+   "length": 585143,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 105,
+   "lengthBeats": 32,
+   "loopSeconds": 18.285714285714285
+  },
+  "tundra": {
+   "file": "music/tundra.ogg",
+   "sampleRate": 32000,
+   "length": 404211,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 114,
+   "lengthBeats": 24,
+   "loopSeconds": 12.631578947368421
+  },
+  "volcano": {
+   "file": "music/volcano.ogg",
+   "sampleRate": 32000,
+   "length": 426667,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 144,
+   "lengthBeats": 32,
+   "loopSeconds": 13.333333333333334
+  },
+  "candy": {
+   "file": "music/candy.ogg",
+   "sampleRate": 32000,
+   "length": 465455,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 132,
+   "lengthBeats": 32,
+   "loopSeconds": 14.545454545454545
+  },
+  "castle": {
+   "file": "music/castle.ogg",
+   "sampleRate": 32000,
+   "length": 384000,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 120,
+   "lengthBeats": 24,
+   "loopSeconds": 12
+  },
+  "airport": {
+   "file": "music/airport.ogg",
+   "sampleRate": 32000,
+   "length": 451765,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 136,
+   "lengthBeats": 32,
+   "loopSeconds": 14.117647058823529
+  },
+  "house": {
+   "file": "music/house.ogg",
    "sampleRate": 32000,
    "length": 529655,
    "channels": 2,

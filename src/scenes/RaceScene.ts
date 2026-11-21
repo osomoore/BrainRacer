@@ -1,8 +1,9 @@
 import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
-import { DEFAULT_SETTINGS, DINO, VEHICLE_MODEL } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, DINO, QUEUED_FEATURES, VEHICLE_MODEL } from '../config/gameConfig';
 import { currentLaunchOverrides } from '../config/launchOptions';
+import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
 import type { GameSystem, RaceContext } from '../core/race';
 import { availableLoadouts, awardMapCompletion, loadUnlocks, playableMap, selectedLoadout } from '../core/progression';
@@ -19,11 +20,12 @@ import { generateUnderground } from '../world/gen/underground';
 import { generateSky } from '../world/gen/sky';
 import { generateForest } from '../world/gen/forest';
 import { generateUnderwater } from '../world/gen/underwater';
+import { generateQueuedWorld, queuedIceAt } from '../world/gen/queuedWorlds';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
 const COUNTDOWN_SEC = 3;
-const RACE_WORLDS: Record<RaceMap, { generate: (seed: number) => WorldData; music: MusicTrack }> = {
+const RACE_WORLDS: Record<Exclude<RaceMap, QueuedMap>, { generate: (seed: number) => WorldData; music: MusicTrack }> = {
   city: { generate: cityGen, music: 'race' },
   industrial: { generate: generateIndustrial, music: 'industrial' },
   farm: { generate: generateFarm, music: 'farm' },
@@ -78,9 +80,9 @@ export class RaceScene extends Phaser.Scene {
     engine.velocityIterations = VEHICLE_MODEL.velocityIterations;
     if (params.get('debug') === '1') this.matter.world.createDebugGraphic();
 
-    const { generate, music } = RACE_WORLDS[settings.map];
-    this.raceMusic = music;
-    const world = generate(seed);
+    const map = settings.map;
+    const world = isQueuedMap(map) ? generateQueuedWorld(map, seed) : RACE_WORLDS[map].generate(seed);
+    this.raceMusic = isQueuedMap(map) ? map : RACE_WORLDS[map].music;
     this.built = buildWorld(this, world, settings.map);
     this.skids = new SkidMarks(this);
 
@@ -171,7 +173,10 @@ export class RaceScene extends Phaser.Scene {
     if (!this.started) this.runCountdown(dt);
     else if (!this.ended) this.ctx.elapsedSec += dt;
 
-    for (const car of this.players) car.update(services.input.get(car.player), dt);
+    for (const car of this.players) {
+      const onIce = this.ctx.settings.map === 'tundra' && queuedIceAt(this.ctx.world, car.x, car.y);
+      car.update(services.input.get(car.player), dt, onIce ? QUEUED_FEATURES.iceGrip : 1);
+    }
     this.skids.update(dt);
     if (this.started) for (const s of this.systems) {
       s.update(dt, this.ctx);
