@@ -3,6 +3,7 @@ import { DEPTH, WORLD } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import { services } from '../core/services';
+import { ParticlePool } from '../fx/ParticlePool';
 import { isDrivable, nearestRoadPoint } from '../world/geometry';
 import { airTime, altitude, canLaunch, insideRamp, landingCorrection } from './jumpMath';
 
@@ -18,9 +19,14 @@ export class JumpSystem implements GameSystem {
   private hops = new Map<INpcVehicle, Hop>();
 
   private off: (() => void) | null = null;
+  private pool!: ParticlePool;
 
   init(ctx: RaceContext): void {
     this.ctx = ctx;
+    this.pool = new ParticlePool(ctx.scene, WORLD.boostFxMaxParticles).prewarm(TEX.fxStar, [
+      { depth: DEPTH.fx, add: true, count: WORLD.boostFxMaxParticles * 0.75 },
+      { depth: DEPTH.fx, add: false, count: WORLD.boostFxMaxParticles * 0.25 },
+    ]);
     this.off = ctx.bus.on('jump:request', (e) => this.request(e.player, e.airSec, !!e.boost));
   }
 
@@ -54,27 +60,25 @@ export class JumpSystem implements GameSystem {
   }
 
   private takeoffDust(car: IPlayerCar): void {
-    const s = this.ctx.scene;
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
-      const d = s.add.image(car.x, car.y, TEX.fxDust).setTint(0xd8c8a8).setAlpha(0.9).setDepth(DEPTH.fx).setScale(1);
-      s.tweens.add({
-        targets: d, x: car.x + Math.cos(a) * 130, y: car.y + Math.sin(a) * 130, scale: 2.6, alpha: 0,
-        duration: 500, ease: 'Cubic.easeOut', onComplete: () => d.destroy(),
+      this.pool.spawn({
+        key: TEX.fxDust, x: car.x, y: car.y, vx: Math.cos(a) * 820, vy: Math.sin(a) * 820, drag: 6,
+        life: 0.5, s0: 1, s1: 2.6, a0: 0.9, a1: 0, tint: 0xd8c8a8,
       });
     }
   }
 
   private flightStars(car: IPlayerCar, f: Flight, dt: number): void {
     f.trailAcc += dt * 40;
-    const s = this.ctx.scene;
     while (f.trailAcc >= 1) {
       f.trailAcc -= 1;
-      const a = Math.random() * Math.PI * 2;
-      const st = s.add.image(car.x + Math.cos(a) * 20, car.y + Math.sin(a) * 20, TEX.fxStar)
-        .setBlendMode(Phaser.BlendModes.ADD).setTint([0xffd60a, 0xffffff, 0x7fd8ff][Math.floor(Math.random() * 3)])
-        .setDepth(DEPTH.fx).setScale(0.9);
-      s.tweens.add({ targets: st, scale: 0, alpha: 0, angle: 180, duration: 450, onComplete: () => st.destroy() });
+      const a = Math.random() * Math.PI * 2; // cosmetic only
+      this.pool.spawn({
+        key: TEX.fxStar, x: car.x + Math.cos(a) * 20, y: car.y + Math.sin(a) * 20, life: 0.45,
+        s0: 0.9, s1: 0, a0: 1, a1: 0, spin: Math.PI / 0.45, add: true,
+        tint: [0xffd60a, 0xffffff, 0x7fd8ff][Math.floor(Math.random() * 3)],
+      });
     }
   }
 
@@ -86,6 +90,7 @@ export class JumpSystem implements GameSystem {
       else if (!car.airborne && !car.disabled && !car.riding && !car.boardingPosition) this.tryLaunch(car, now);
     }
     this.updateNpcs(now);
+    this.pool.update(dt);
   }
 
   destroy(): void {
@@ -96,6 +101,7 @@ export class JumpSystem implements GameSystem {
     }
     this.flights.clear();
     this.hops.clear();
+    this.pool.destroy();
     this.off?.();
   }
 

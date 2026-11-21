@@ -258,6 +258,8 @@ export const REWARDS = {
   turboMaxSec: 8,           // cap when correct answers stack
   flavorWeights: { rainbow: 3, shockwave: 3, ghost: 2, magnet: 2 },
   fxMaxParticles: 520,
+  // particle slots created at race start, per layer, so turbo FX never add or re-layer objects mid-race
+  fxPrewarm: { vehicleAdd: 90, vehicleNormal: 110, fxAdd: 160, fxNormal: 50 },
   crashSparkMin: 125,
   crashSmokeMin: 250,
   shockwaveSec: 0.4,
@@ -299,6 +301,7 @@ export const WORLD = {
   boostLandSearchPx: 350,    // how far ahead a boost jump looks for drivable ground when it lands on a building
   boostJumpMinSpeed: 210,    // boost jumps always launch at least this fast along the heading (frees stuck cars)
   boostJumpPeakScale: 0.55,  // bigger arc for the correct-answer boost jump
+  boostFxMaxParticles: 80,   // pooled takeoff dust + flight stars (pre-created so a boost never adds objects mid-race)
   jumpPeakScale: 0.3,        // extra view scale at the peak of the arc
   npcHopScale: 0.12,
   npcHopSec: 0.4,

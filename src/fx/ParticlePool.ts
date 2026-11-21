@@ -24,6 +24,11 @@ interface P {
   s0: number; s1: number; a0: number; a1: number; spin: number; drag: number; sx: number;
 }
 
+const ADD_DEPTH_OFFSET = 0.5;
+const layerDepth = (depth: number, add: boolean) => depth + (add ? ADD_DEPTH_OFFSET : 0);
+
+export interface PrewarmLayer { depth: number; add: boolean; count: number }
+
 /** Fixed-size pool of image particles. When full, the oldest slot is recycled. */
 export class ParticlePool {
   private readonly items: P[] = [];
@@ -32,20 +37,45 @@ export class ParticlePool {
 
   constructor(private readonly scene: Phaser.Scene, readonly max: number) {}
 
-  spawn(o: SpawnOpts): void {
-    let p: P | undefined;
-    for (let i = 0; i < this.items.length; i++) {
-      const c = this.items[(this.cursor + i) % this.items.length];
-      if (!c.alive) { p = c; break; }
+  /**
+   * Create hidden slots up front on the layer they will be used on: adding an image or changing a
+   * depth mid-race re-sorts the whole display list.
+   */
+  prewarm(key: string, layers: readonly PrewarmLayer[]): this {
+    for (const l of layers) {
+      const depth = layerDepth(l.depth, l.add);
+      const blend = l.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
+      for (let i = 0; i < l.count && this.items.length < this.max; i++) {
+        this.make(key).img.setDepth(depth).setBlendMode(blend);
+      }
     }
+    return this;
+  }
+
+  private make(key: string): P {
+    const p: P = { img: this.scene.add.image(0, 0, key).setVisible(false), alive: false, vx: 0, vy: 0, t: 0, life: 1, s0: 1, s1: 1, a0: 1, a1: 0, spin: 0, drag: 0, sx: 1 };
+    this.items.push(p);
+    return p;
+  }
+
+  spawn(o: SpawnOpts): void {
+    const depth = layerDepth(o.depth ?? DEPTH.fx, !!o.add);
+    // Prefer a free slot already on this layer (no depth change -> no display-list sort).
+    let p: P | undefined;
+    let free: P | undefined;
+    const n = this.items.length;
+    for (let i = 0; i < n; i++) {
+      const c = this.items[(this.cursor + i) % n];
+      if (c.alive) continue;
+      if (c.img.depth === depth) { p = c; break; }
+      free ??= c;
+    }
+    p ??= free;
     if (!p) {
-      if (this.items.length < this.max) {
-        const img = this.scene.add.image(0, 0, o.key).setVisible(false);
-        p = { img, alive: false, vx: 0, vy: 0, t: 0, life: 1, s0: 1, s1: 1, a0: 1, a1: 0, spin: 0, drag: 0, sx: 1 };
-        this.items.push(p);
-      } else {
+      if (n < this.max) p = this.make(o.key);
+      else {
         p = this.items[this.cursor];
-        this.cursor = (this.cursor + 1) % this.items.length;
+        this.cursor = (this.cursor + 1) % n;
       }
     }
     if (!p.alive) this.alive++;
@@ -53,9 +83,14 @@ export class ParticlePool {
     p.t = 0; p.life = o.life; p.vx = o.vx ?? 0; p.vy = o.vy ?? 0;
     p.s0 = o.s0 ?? 1; p.s1 = o.s1 ?? p.s0; p.a0 = o.a0 ?? 1; p.a1 = o.a1 ?? 0;
     p.spin = o.spin ?? 0; p.drag = o.drag ?? 0; p.sx = o.sx ?? 1;
-    p.img.setTexture(o.key).setPosition(o.x, o.y).setRotation(o.rot ?? 0)
-      .setDepth(o.depth ?? DEPTH.fx).setBlendMode(o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL)
-      .setVisible(true);
+    // Additive particles sit on their own half-step sub-layer so they batch together instead of
+    // alternating with normal ones (each blend switch is a GPU flush, per camera). Depth and blend
+    // are only touched when they change: setDepth always queues a full display-list sort.
+    const blend = o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
+    if (p.img.depth !== depth) p.img.setDepth(depth);
+    if (p.img.blendMode !== blend) p.img.setBlendMode(blend);
+    if (p.img.texture.key !== o.key) p.img.setTexture(o.key);
+    p.img.setPosition(o.x, o.y).setRotation(o.rot ?? 0).setVisible(true);
     p.img.cameraFilter = o.cameraFilter ?? 0;
     if (o.tint !== undefined) p.img.setTint(o.tint); else p.img.clearTint();
     p.img.setScale(p.s0 * p.sx, p.s0).setAlpha(p.a0);

@@ -43,7 +43,11 @@ export class RewardSystem implements GameSystem {
   init(ctx: RaceContext): void {
     this.ctx = ctx;
     this.rng = ctx.rng.fork(0x4d52);
-    this.pool = new ParticlePool(ctx.scene, REWARDS.fxMaxParticles);
+    const W = REWARDS.fxPrewarm;
+    this.pool = new ParticlePool(ctx.scene, REWARDS.fxMaxParticles).prewarm(TEX.fxFlame, [
+      { depth: DEPTH.vehicle - 1, add: true, count: W.vehicleAdd }, { depth: DEPTH.vehicle - 1, add: false, count: W.vehicleNormal },
+      { depth: DEPTH.fx, add: true, count: W.fxAdd }, { depth: DEPTH.fx, add: false, count: W.fxNormal },
+    ]);
     this.states = ctx.players.map((car, i) => ({
       turboLeft: 0, flavor: null, flavorLeft: 0, lastFlavor: null,
       aura: ctx.scene.add.image(car.x, car.y, TEX.fxDust).setBlendMode(Phaser.BlendModes.ADD)
