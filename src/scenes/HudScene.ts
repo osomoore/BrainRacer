@@ -18,7 +18,7 @@ import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
 import { rideSecondsShown } from '../entities/dinoRide';
 
-const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 20, fly: 30 };
+const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 5.5, fly: 30 }; // banners/popups sit BEHIND the question panel (panel 6) so they never hide an active question
 const CENTER_Y = 430;
 /** Dino ride countdown card (bottom centre of the rider's view): dino head, seconds, shrinking bar. */
 const RIDE = { w: 520, h: 132, barW: 250, barH: 38, fromBottom: 100 };
