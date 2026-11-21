@@ -219,7 +219,7 @@ export class RewardSystem implements GameSystem {
       st.aura.setVisible(turbo || magnet || ready);
       if (st.aura.visible) {
         const pulse = 1 + 0.12 * Math.sin(this.clock * 18);
-        st.aura.setPosition(car.x, car.y).setScale((turbo ? 13 : 8) * pulse).setAlpha(turbo ? 1 : ready ? 0.5 : 0.7);
+        st.aura.setPosition(car.x, car.y).setScale((turbo ? REWARDS.turboAuraScale : 8) * pulse).setAlpha(turbo ? 1 : ready ? 0.5 : 0.7);
         st.aura.setTint(turbo || ready ? this.color(p) : 0xffd24a);
       }
 
@@ -244,7 +244,7 @@ export class RewardSystem implements GameSystem {
   private turboFx(car: IPlayerCar, st: PState, dt: number): void {
     const r = this.rear(car);
     const v = car.velocity;
-    st.flameAcc += dt * 90;
+    st.flameAcc += dt * REWARDS.turboFlamesPerSec;
     while (st.flameAcc >= 1) {
       st.flameAcc -= 1;
       const sp = this.rng.range(250, 520);
@@ -257,7 +257,7 @@ export class RewardSystem implements GameSystem {
         add: true, depth: DEPTH.vehicle - 1,
       });
     }
-    st.lineAcc += dt * 40;
+    st.lineAcc += dt * REWARDS.turboLinesPerSec;
     while (st.lineAcc >= 1) {
       st.lineAcc -= 1;
       const side = this.rng.range(-170, 170);

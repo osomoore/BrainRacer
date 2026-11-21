@@ -287,6 +287,10 @@ export const REWARDS = {
   punchKeepFrac: 0.9,        // restore the pre-hit speed if it dropped below this fraction
   punchRadius: 150,
   punchCooldownSec: 0.2,
+  // --- turbo FX load (low-end TV box) ---
+  turboFlamesPerSec: 50,
+  turboLinesPerSec: 24,
+  turboAuraScale: 10,
 };
 
 // ───────────────────────── world (package C/G) ─────────────────────────
@@ -656,6 +660,10 @@ export const GUIDE = {
   trailPool: 56,             // pooled trail particles per buddy
   trailEverySec: 0.035,
   trailLife: 0.75,
+  // calm mode while the player's turbo is on: fewer, cheaper particles
+  boostTrailEverySec: 0.14,
+  boostSparkles: false,
+  boostTwinkle: false,
   dinoFlapFps: 10,
   dinoFlapFpsHappy: 18,
   starBlinkHz: 8,
