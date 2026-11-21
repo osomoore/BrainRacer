@@ -42,6 +42,7 @@ Open:
 - **#56** Police cars hit by a monster the player rides fly too far, too suddenly. Tone the knock-away down by one third.
 - **#57** Police Station art is missing (the "park" question showed a "? police stati" placeholder tile). Add the image and check `images/scenes/manifest.csv` / `scenes.json`.
 - **#58** Underwater world repeats the same art all over the screen at once (the same coral/shell cluster tiled). Spread it out and add more variety.
+- **#59** New feature: while a player controls a boss, pressing B fires its laser eyes to blast stuff (comic effect, kid-friendly: things poof or get knocked back, nothing gets destroyed or hurt).
 
 ### Session 4 follow-ups
 - **#13** Farm: tractors sometimes wander onto paved roads.
