@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { PLAYER_COLORS } from '../../config/gameConfig';
+import { COMPLETION_OBJECTIVES } from '../../core/progression';
 import { bigText, FONT_HEAD } from '../menu/style';
-import { rrectImage } from './bake';
+import { bakedImage, rrectImage } from './bake';
 import { HUD, scoreboardRect } from './hudConfig';
 import { formatTime } from './hudMath';
 
@@ -17,6 +18,11 @@ export class Scoreboard {
   private team = 0;
   private numPlayers: number;
   private plusY = 0;
+  private goals = 0;
+  private goalsMax = COMPLETION_OBJECTIVES;
+  private flagOff!: Phaser.GameObjects.Image;
+  private flagOn!: Phaser.GameObjects.Image;
+  private goalText!: Phaser.GameObjects.Text;
 
   constructor(private scene: Phaser.Scene, numPlayers: number, depth: number) {
     this.numPlayers = numPlayers;
@@ -27,8 +33,14 @@ export class Scoreboard {
     this.teamText = bigText(scene, w / 2 - 28, 66, '0', 104, '#ffffff', { font: FONT_HEAD, stroke: 12, origin: [1, 0.5] });
     this.plusText = bigText(scene, 0, h + 40, '', 64, '#7dff8a', { font: FONT_HEAD, stroke: 9 }).setAlpha(0);
     const y2 = 138, y3 = two ? 208 : 152;
-    this.timer = bigText(scene, 0, y3, '00:00', 60, '#ffffff', { font: FONT_HEAD, stroke: 9 });
-    const items: Phaser.GameObjects.GameObject[] = [bg, label, this.teamText, this.timer];
+    this.timer = bigText(scene, 0, y3, '00:00', 56, '#ffffff', { font: FONT_HEAD, stroke: 9 });
+    // Timer sits left, world-goal counter (flag + n/3) right, on the same row.
+    this.timer.setX(HUD.scoreboard.timerX);
+    const gx = HUD.scoreboard.goalsX;
+    this.flagOff = this.makeFlag(gx, y3, 0xffd43b);
+    this.flagOn = this.makeFlag(gx, y3, 0x7dff8a).setVisible(false);
+    this.goalText = bigText(scene, gx + 26, y3, `0/${this.goalsMax}`, 56, '#ffffff', { font: FONT_HEAD, stroke: 9, origin: [0, 0.5] });
+    const items: Phaser.GameObjects.GameObject[] = [bg, label, this.teamText, this.timer, this.flagOff, this.flagOn, this.goalText];
     if (numPlayers > 1) {
       for (let p = 0; p < numPlayers; p++) {
         const sign = p === 0 ? -1 : 1;
@@ -51,6 +63,34 @@ export class Scoreboard {
     this.teamText.setText(String(team));
     this.pText.forEach((t, p) => t.setText(`P${p + 1} ${perPlayer[p] ?? 0}`)); // Phaser skips unchanged text
     if (d > 0) this.bump(d);
+  }
+
+  /** World-completion goals done this race (clamped to max; shown green once complete). */
+  setGoals(n: number, max = COMPLETION_OBJECTIVES) {
+    const v = Math.min(n, max);
+    if (v === this.goals && max === this.goalsMax) return;
+    const up = v > this.goals;
+    this.goals = v;
+    this.goalsMax = max;
+    const done = v >= max;
+    this.goalText.setText(`${v}/${max}`).setColor(done ? '#7dff8a' : '#ffffff');
+    this.flagOff.setVisible(!done);
+    this.flagOn.setVisible(done);
+    if (up) {
+      const targets = [this.goalText, done ? this.flagOn : this.flagOff];
+      this.scene.tweens.killTweensOf(targets);
+      this.scene.tweens.add({ targets, scale: { from: 1.5, to: 1 }, duration: 420, ease: 'Back.easeOut' });
+    }
+  }
+
+  private makeFlag(x: number, y: number, color: number) {
+    const img = bakedImage(this.scene, `goalflag:${color}`, 36, 48, x, y, (g, k) => {
+      g.fillStyle(0x0b1226, 1).fillRect(4 * k, 2 * k, 6 * k, 44 * k); // outline pole
+      g.fillStyle(0xffffff, 1).fillRect(5.5 * k, 3 * k, 3 * k, 42 * k);
+      g.fillStyle(0x0b1226, 1).fillTriangle(8 * k, 2 * k, 34 * k, 14 * k, 8 * k, 28 * k);
+      g.fillStyle(color, 1).fillTriangle(9 * k, 6 * k, 28 * k, 14 * k, 9 * k, 24 * k);
+    });
+    return img;
   }
 
   bump(delta: number) {
