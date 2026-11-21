@@ -159,6 +159,7 @@ test('Admin Mode previews locked loadouts and Content Locks can open a world for
   await tap(page, 'F9');
   await page.waitForFunction(() => window.__game.scene.isPaused('Results'));
   await tap(page, 'KeyW'); // Close.
+  await tap(page, 'KeyW'); // Racer Profiles.
   await tap(page, 'KeyW'); // Content Locks.
   await tap(page, 'Space');
   await tap(page, 'KeyS'); // Factory.

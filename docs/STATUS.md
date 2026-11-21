@@ -4,10 +4,20 @@
 
 Next work is planned in **[docs/NEXT.md](NEXT.md)**. The original design is in [docs/PLAN.md](PLAN.md), which this file supersedes where they differ.
 
+## Racer presets, question panel, boost FX (2026-11-20)
+
+- **Setup** has one **Racer** row per player instead of Difficulty plus question toggles: **Abe** (Easy, Addition + Spelling), **Gideon** (Normal, Addition + Spelling), **Helen** (Hard, Multiplication + Spelling). P1 defaults to Gideon, P2 to Abe. The pick is `PlayerSettings.profile`; `applyRacerProfile` (`src/core/racerProfiles.ts`) copies the preset into `difficulty`/`questionTypes` for ChallengeSystem. Defaults: `DEFAULT_RACER_PROFILES` / `DEFAULT_PLAYER_RACERS` in gameConfig.
+- **Admin Settings → Racer Profiles** edits each preset (Level, Addition, Multiplication, Spelling; one type always stays on), stored in `Settings.racerProfiles`. Reset to defaults restores them. Close moved to the left column.
+- **Question panel:** the question area is tinted and separated from the answers by a divider bar with a "PICK ONE" pill. **Xbox** face buttons show colors only (no letters); Switch keeps its letters.
+- **Scoreboard** shows a flag and **n/3** world-completion goals for this race (green at 3/3, stays there).
+- **Picture signs on place buildings are gone** (WorldBuilder `addSign` removed); the guide buddy and goal ring mark destinations.
+- **Buddy guarantee:** completion rewards give a companion at least every `BUDDY_EVERY_REWARDS` (3) rewards while any are locked. Unlocks are now stored and parsed in earned order.
+- **Boost FX:** during turbo the guide buddy goes calm (`GUIDE.boostTrailEverySec`, `boostSparkles`, `boostTwinkle`), and turbo flames/lines/aura are tunable (`REWARDS.turboFlamesPerSec` 50, `turboLinesPerSec` 24, `turboAuraScale` 10). A rough 2x-throttle check still showed a large fps drop during turbo in both old and new builds, so the main boost cost is probably elsewhere (boost jump, camera, flavor reward); not yet profiled.
+
 ## Map progression and bosses
 
 - The campaign starts in City and advances through Factory, Beach, Mine, Farm, Sky City, Dark Forest, and Underwater. Complete three shared destination objectives in one race to unlock the next world. Results shows the new world's poster first, then a slowing reel lands on the earned collectible. Confirm advances to an available successor or plays the current world again. **Setup** returns to world and loadout selection.
-- Each player independently chooses a car and companion from a browser-local collection shared by solo and two-player races. It starts with one random item. A three-objective race draws another available item from the 35 vehicles and 8 companions. Existing Comet unlocks and equipped selections carry over to Bomb Buddy.
+- Each player independently chooses a car and companion from a browser-local collection shared by solo and two-player races. It starts with one random item. A three-objective race draws another available item from the 35 vehicles and 8 companions (a companion at least every third reward). Existing Comet unlocks and equipped selections carry over to Bomb Buddy.
 - Open hidden **Admin Settings** with F9 or hold LT+RT and press Start. **Content Locks** sets each unlockable world, vehicle, and companion to Auto, Open, or Locked for normal players. Auto follows earned progress. **Admin Mode** opens the full catalog for play, defaults rounds to 60 seconds, and grants no completion unlocks. Switching it off restores normal access and the 300-second default. Explicit time overrides still apply.
 - **Bosses by map** are Dino in City, Rock Monster in Mine, Octopus in Beach & Harbor, Robot in Factory, Giant Chicken on Farm, Thundercloud in Sky-city, Walking Tree in Dark Forest, and Landshark Underwater. All use the same twin-beam, ram, and boarding rules. After three qualifying hits, press the right face button nearby to control the boss for 20 seconds of driving. A police swarm drives toward the ridden boss. Remaining cruisers drive away when the ride ends. Use `&dino=now&laser=now` to check any boss.
 - The striped Harbor lighthouse stands beside the northeast waterfront road. The tower stays upright per camera and its stronger beam sweeps from the lantern. Factory headlights are aligned to the chassis, and the player cruiser siren plays at half its previous gain with the same bright tone.
