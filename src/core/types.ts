@@ -120,8 +120,14 @@ export type QuestionType = 'addition' | 'multiplication' | 'spelling';
 export type QuestionTypes = Record<QuestionType, boolean>;
 
 /** Named racer presets picked in Setup. Each sets difficulty + question types; edited in Admin Settings. */
-export type RacerProfileId = 'abe' | 'gideon' | 'helen' | 'daddy';
-export interface RacerProfile { difficulty: Difficulty; questionTypes: QuestionTypes; roundSec: number; }
+export type BuiltinRacerId = 'abe' | 'gideon' | 'helen' | 'daddy';
+/** A built-in racer, or a custom one created in Setup ("New Profile"), id 'u1', 'u2', ... */
+export type RacerProfileId = BuiltinRacerId | `u${number}`;
+export interface RacerProfile {
+  difficulty: Difficulty; questionTypes: QuestionTypes; roundSec: number;
+  /** Display name; required for custom racers, optional rename for built-ins. */
+  name?: string;
+}
 
 /** Legacy question presets, also accepted as launch overrides. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';
@@ -143,6 +149,8 @@ export interface Settings {
   developerMode?: boolean;
   /** Admin-edited racer presets; missing/invalid entries fall back to DEFAULT_RACER_PROFILES (see core/racerProfiles). */
   racerProfiles?: Partial<Record<RacerProfileId, RacerProfile>>;
+  /** Custom racers in creation order (their presets live in racerProfiles). */
+  customRacers?: RacerProfileId[];
 }
 
 export interface PlayerStats {
