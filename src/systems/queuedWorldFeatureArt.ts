@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { bodyGrad, ellipse, fillStroke, makeCanvas, poly, rr, type Ctx } from '../art/draw';
+import { ellipse, fillStroke, makeCanvas, poly, rr, type Ctx } from '../art/draw';
 import { TEX } from '../core/assetKeys';
 import type { QueuedMap } from '../config/queuedMaps';
 
@@ -44,6 +44,15 @@ function disc(c: Ctx, fill: string, x: number, y: number, rx: number, ry = rx): 
   fillStroke(c, fill, null);
 }
 
+export function queuedSignalTexture(scene: Phaser.Scene): string {
+  return bake(scene, TEX.queuedFeature.signal, 45, 45, c => {
+    round(c, '#454353', 4, 4, 37, 37, 11);
+    disc(c, '#c6c8cf', 22, 22, 14);
+    disc(c, '#fffdf8', 22, 22, 11);
+    disc(c, '#ffffff', 19, 18, 4);
+  });
+}
+
 export function queuedFeatureTextures(scene: Phaser.Scene, map: QueuedMap) {
   const p = PALETTES[map];
   const keys = TEX.queuedFeature;
@@ -64,15 +73,17 @@ export function queuedFeatureTextures(scene: Phaser.Scene, map: QueuedMap) {
     }
   });
   const gate = bake(scene, keys.gate(map), 54, 256, c => drawGate(c, map, p));
-  const signal = bake(scene, keys.signal, 45, 45, c => {
-    round(c, '#454353', 4, 4, 37, 37, 11);
-    disc(c, '#c6c8cf', 22, 22, 14);
-    disc(c, '#fffdf8', 22, 22, 11);
-    disc(c, '#ffffff', 19, 18, 4);
-  });
-  const track = bake(scene, keys.track(map), 192, 78, c => drawTrack(c, map, p));
-  const mover = bake(scene, keys.mover(map), 140, 84, c => drawMover(c, map, p));
-  return { deck, gate, signal, track, mover };
+  const signal = queuedSignalTexture(scene);
+  return { deck, gate, signal };
+}
+
+type ShuttleMap = 'tundra' | 'volcano' | 'castle';
+
+export function queuedShuttleTextures(scene: Phaser.Scene, map: ShuttleMap) {
+  const p = PALETTES[map];
+  const track = bake(scene, TEX.queuedFeature.track(map), 192, 78, c => drawTrack(c, map, p));
+  const mover = bake(scene, TEX.queuedFeature.mover(map), 140, 84, c => drawMover(c, map, p));
+  return { track, mover };
 }
 
 function drawGate(c: Ctx, map: QueuedMap, p: Palette): void {
@@ -123,40 +134,19 @@ function drawGate(c: Ctx, map: QueuedMap, p: Palette): void {
   for (const y of [5, 236]) round(c, p.trim, 3, y, 48, 15, 3);
 }
 
-function drawTrack(c: Ctx, map: QueuedMap, p: Palette): void {
+function drawTrack(c: Ctx, map: ShuttleMap, p: Palette): void {
   if (map === 'volcano') {
     poly(c, [0, 29, 30, 25, 64, 29, 94, 19, 136, 28, 168, 21, 192, 29, 192, 51, 165, 56, 139, 49, 100, 61, 64, 50, 37, 55, 0, 51]);
     fillStroke(c, '#3f2534', '#5c3548', 4);
     return;
   }
-  if (map === 'tundra' || map === 'castle') {
-    const snow = map === 'tundra';
-    box(c, snow ? '#d4f0fa' : '#99815f', 0, 9, 192, 60);
-    for (const y of [19, 55]) box(c, snow ? '#a0cfe4' : '#70533e', 0, y, 192, 4);
-    for (let x = 4; x < 192; x += 24) for (const y of [13, 63]) box(c, p.trim, x, y, 6, 3);
-    return;
-  }
-  if (map === 'candy') {
-    box(c, p.deck, 0, 9, 192, 60);
-    for (const y of [13, 62]) box(c, p.trim, 0, y, 192, 3);
-    for (let x = 0; x < 192; x += 32) {
-      poly(c, [x, 17, x + 9, 17, x + 22, 40, x + 9, 61, x, 61, x + 13, 40]);
-      fillStroke(c, '#d98dbd', null);
-    }
-    return;
-  }
-  box(c, p.dark, 0, 1, 192, 76);
-  for (let x = 4; x < 192; x += 24) {
-    box(c, p.deck, x, 8, 13, 62);
-    box(c, p.light, x, 8, 3, 62);
-  }
-  for (const y of [19, 54]) {
-    box(c, INK, 0, y, 192, 8);
-    box(c, p.trim, 0, y + 1, 192, 4);
-  }
+  const snow = map === 'tundra';
+  box(c, snow ? '#d4f0fa' : '#99815f', 0, 9, 192, 60);
+  for (const y of [19, 55]) box(c, snow ? '#a0cfe4' : '#70533e', 0, y, 192, 4);
+  for (let x = 4; x < 192; x += 24) for (const y of [13, 63]) box(c, p.trim, x, y, 6, 3);
 }
 
-function drawMover(c: Ctx, map: QueuedMap, p: Palette): void {
+function drawMover(c: Ctx, map: ShuttleMap, p: Palette): void {
   disc(c, '#191c2e55', 72, 50, 61, 28);
   if (map === 'volcano') {
     for (const [x, y, rx, ry] of [[32, 42, 19, 12], [63, 44, 23, 17], [91, 38, 27, 18], [116, 49, 15, 10]]) {
@@ -189,40 +179,6 @@ function drawMover(c: Ctx, map: QueuedMap, p: Palette): void {
     disc(c, '#445975', 73, 44, 8, 8);
     return;
   }
-  if (map === 'candy') {
-    poly(c, [11, 23, 34, 30, 33, 58, 12, 65, 17, 45]);
-    fillStroke(c, '#78d9d2', INK, 3);
-    poly(c, [107, 30, 133, 21, 127, 43, 133, 66, 106, 57]);
-    fillStroke(c, '#78d9d2', INK, 3);
-    round(c, bodyGrad(c, 36, 19, 72, 52, '#fbb2eb', '#aa478e'), 33, 19, 74, 51, 18);
-    disc(c, p.trim, 70, 44, 17, 17);
-    disc(c, '#f29acc', 71, 43, 10, 10);
-    disc(c, p.trim, 70, 43, 4, 4);
-    return;
-  }
-  round(c, p.dark, 14, 19, 108, 50, map === 'brickworks' ? 0 : 8);
-  for (const x of [31, 99]) for (const y of [15, 61]) round(c, INK, x, y, 19, 13, 4);
-  round(c, bodyGrad(c, 18, 21, 102, 44, p.trim, p.deck), 18, 21, 102, 44, map === 'brickworks' ? 0 : 5);
-  if (map === 'brickworks') {
-    box(c, p.dark, 25, 29, 72, 28);
-    for (const [x, y, fill] of [[35, 36, '#5adcc0'], [51, 28, '#70ef9d'], [65, 38, '#71a4ec'], [78, 31, '#94edce']] as const) {
-      box(c, fill, x, y, 15, 15);
-      box(c, '#aaf5c8', x, y, 9, 4);
-    }
-  } else if (map === 'mushroom') {
-    round(c, '#b13e67', 26, 11, 82, 62, 26);
-    for (const [x, y, r] of [[45, 32, 7], [63, 21, 5], [75, 52, 10], [93, 36, 6]]) disc(c, '#fff0ce', x, y, r);
-  } else if (map === 'house') {
-    round(c, '#f36d5e', 28, 21, 42, 44, 9);
-    round(c, '#4eb8c6', 69, 32, 45, 24, 10);
-    disc(c, '#fff0a7', 95, 44, 10);
-    box(c, '#f4d587', 35, 33, 23, 20);
-  } else {
-    round(c, '#79b5d7', 24, 27, 61, 34, 6);
-    for (const x of [30, 51, 72]) box(c, '#d1eaf1', x, 28, 12, 30);
-    round(c, '#252f53', 93, 28, 24, 31, 5);
-  }
-  for (const y of [28, 54]) disc(c, '#fff3b8', 122, y, 6, 4);
 }
 
 export function queuedPlaneTexture(scene: Phaser.Scene): string {

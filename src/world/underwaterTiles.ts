@@ -12,8 +12,10 @@ export function underwaterTileIndex(world: WorldData, i: number): number {
     const x = (tx + 0.5) * tileSize, y = (ty + 0.5) * tileSize;
     return isUnderwaterCrossing(x, y, tileSize) || isUnderwaterGlassRoad(tx, ty) ? 0 : 6 + (world.roadMask[i] & 15);
   }
-  if (tile === Tile.Plaza && isUnderwaterGlassPlaza(tx, ty)) return 3;
-  return tile === Tile.Water ? 0 : tile === Tile.Building ? 2 : 4;
+  if (tile === Tile.Water) return 0;
+  if (tile === Tile.Building) return 2;
+  if (isUnderwaterGlassPlaza(tx, ty)) return 3;
+  return tx % 2 === ty % 2 ? 4 : hash(tx, ty) > .46 ? 1 : 5;
 }
 
 export function paintDeepWater(c: Ctx, s: number): void {
@@ -83,6 +85,31 @@ function road(c: Ctx, s: number, mask: number): void {
   c.restore();
 }
 
+function metalDeck(c: Ctx, s: number, index: number): void {
+  c.save();
+  c.scale(s / 128, s / 128);
+  const dark = index === 5 ? '#24485f' : index === 2 ? '#294c65' : '#315a6d';
+  const light = index === 5 ? '#396b7c' : index === 2 ? '#345b73' : '#3b6b7c';
+  c.fillStyle = lin(c, 0, 0, 128, 128, [[0, light], [1, dark]]);
+  c.fillRect(0, 0, 128, 128);
+  c.strokeStyle = '#22485d';
+  c.lineWidth = 2;
+  c.strokeRect(3, 3, 122, 122);
+  c.strokeStyle = '#5b879366';
+  c.lineWidth = 1;
+  c.strokeRect(7, 7, 114, 114);
+  for (const [x, y] of [[13, 13], [115, 13], [13, 115], [115, 115]]) {
+    ellipse(c, x, y, 2.4, 2.4);
+    fillStroke(c, '#78a1a0', '#284c61', 1.1);
+  }
+  if (index === 1 || index === 5) {
+    c.fillStyle = index === 1 ? '#87b8a5' : '#dabd86';
+    c.fillRect(51, 6, 26, 2);
+    c.fillRect(51, 120, 26, 2);
+  }
+  c.restore();
+}
+
 export function underwaterTileSource(size: number): (index: number) => HTMLCanvasElement {
   return index => {
     const canvas = document.createElement('canvas');
@@ -92,13 +119,7 @@ export function underwaterTileSource(size: number): (index: number) => HTMLCanva
     if (index >= 6) road(c, size, index - 6);
     else if (index === 0) return canvas;
     else if (index === 3) glassFloor(c, size);
-    else {
-      c.fillStyle = '#31596e';
-      c.fillRect(0, 0, size, size);
-      c.strokeStyle = '#365f72';
-      c.strokeRect(0, 0, size, size);
-      c.strokeRect(size * 0.14, size * 0.14, size * 0.72, size * 0.72);
-    }
+    else metalDeck(c, size, index);
     return canvas;
   };
 }

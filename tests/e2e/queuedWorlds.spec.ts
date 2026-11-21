@@ -25,6 +25,20 @@ for (const [i, map] of QUEUED_MAPS.entries()) {
         && traffic.every(key => race.scene.textures.exists(key))
         && [...race.npcs].some(npc => traffic.includes(npc.appearanceKey));
     }, { map, boss: bossNames[i], ready: DINO.devSpawnDelaySec + DINO.dropSec, traffic: WORLD_VEHICLES[map].map(id => TEX.unlockVehicles[id]) }, WAIT);
+    const detail = await page.evaluate(map => {
+      const { world, scene } = (window as TestWindow).__race;
+      const lot = world.buildings.find(building => building.style === 9)!;
+      const bodies = scene.matter.world.getAllBodies().filter(body => body.label === `world-building-${lot.id}`);
+      const props = scene.children.getAll('name', `${map}-scenery`) as Phaser.GameObjects.Image[];
+      const corner = { x: lot.tx * world.tileSize + 2, y: lot.ty * world.tileSize + 2 };
+      return {
+        artVariants: new Set(props.map(prop => prop.texture.key)).size,
+        movingVariants: [0, 1, 2].filter(i => scene.children.getByName(`${map}-ambient-${i}`)).length,
+        solid: bodies.length > 0,
+        clearCorner: scene.matter.query.point(bodies, corner).length === 0,
+      };
+    }, map);
+    expect(detail).toEqual({ artVariants: 12, movingVariants: 3, solid: true, clearCorner: true });
     if (map in QUEUED_FEATURES.rail) {
       const train = await page.evaluate(() => {
         const { scene } = (window as TestWindow).__race;
@@ -36,11 +50,13 @@ for (const [i, map] of QUEUED_MAPS.entries()) {
             sensor: body.isSensor,
             mask: body.collisionFilter.mask,
             aligned: Math.hypot(sprite.x - body.position.x, sprite.y - body.position.y) < 0.01,
+            texture: sprite.texture.key,
           };
         });
       });
       expect(train).toHaveLength(QUEUED_FEATURES.rail[map as keyof typeof QUEUED_FEATURES.rail].count);
-      for (const car of train) expect(car).toEqual({
+      expect(new Set(train.map(car => car.texture)).size).toBe(train.length);
+      for (const { texture, ...car } of train) expect(car).toEqual({
         owner: 'train', static: true, sensor: false, mask: CAT.player | CAT.traffic | CAT.police, aligned: true,
       });
     }

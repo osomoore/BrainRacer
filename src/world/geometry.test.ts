@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Tile, type WorldData } from '../core/types';
-import { isDrivable, mergeRects, nearestRoadPoint, pointInRamp, pxToTile, tileCenter, tileToPx } from './geometry';
+import { isDrivable, mergeRects, nearestRoadPoint, pointInRamp, pxToTile, registerBuildingFootprints, tileCenter, tileToPx } from './geometry';
 
 function mk(rows: number[][]): WorldData {
   const h = rows.length, w = rows[0].length;
@@ -25,6 +25,20 @@ describe('geometry', () => {
     expect(isDrivable(w, 300, 10)).toBe(false);
     expect(isDrivable(w, 400, 10)).toBe(true);
     expect(isDrivable(w, -5, 10)).toBe(false);
+  });
+  it('admits unpainted lot corners and passages between solid building parts', () => {
+    const world = mk([[Tile.Building, Tile.Building, Tile.Water]]);
+    world.buildings.push({ id: 7, tx: 0, ty: 0, tw: 2, th: 1, style: 0 });
+    const wings = [0, 128].map(dx => [
+      { x: 16 + dx, y: 28 }, { x: 88 + dx, y: 28 }, { x: 109 + dx, y: 52 },
+      { x: 109 + dx, y: 104 }, { x: 16 + dx, y: 104 },
+    ]);
+    registerBuildingFootprints(world, new Map([[7, wings]]));
+    expect(isDrivable(world, 108, 30)).toBe(true);
+    expect(isDrivable(world, 128, 62)).toBe(true);
+    expect(isDrivable(world, 32, 62)).toBe(false);
+    expect(isDrivable(world, 228, 62)).toBe(false);
+    expect(isDrivable(world, 256, 62)).toBe(false);
   });
   it('mergeRects covers exactly the set', () => {
     const g = [1, 1, 0, 1, 1, 1, 0, 1, 1];

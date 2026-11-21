@@ -29,7 +29,7 @@ test('Marine life swims past as the road tunnel retracts for a submarine', async
 
   const swimmers = await page.evaluate(() => {
     const { scene } = window.__race;
-    return ['underwater-whale', 'underwater-giant-fish'].map(name => {
+    return ['underwater-whale', 'underwater-giant-fish', 'underwater-manta-ray', 'underwater-sea-turtle'].map(name => {
       const image = scene.children.getByName(name) as Phaser.GameObjects.Image;
       return { name, x: image.x };
     });

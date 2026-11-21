@@ -1,32 +1,25 @@
 import type Phaser from 'phaser';
-import { ellipse, fillStroke, lin, radial, type Ctx } from '../art/draw';
+import { radial, type Ctx } from '../art/draw';
 import { DEPTH } from '../config/gameConfig';
 import { Rng } from '../core/rng';
-import { Tile, type BuildingLot, type WorldData } from '../core/types';
+import { type BuildingLot, type WorldData } from '../core/types';
 import { UNDERWATER_GLASS_ROADS, UNDERWATER_VIEWING_POOLS } from './gen/underwater';
+import { paintUnderwaterBuilding, underwaterBuildingKind } from './underwaterBuildings';
 import { addUnderwaterLife } from './underwaterLife';
-import { paintCoral, paintDome, paintKelp, paintTube, underwaterTexture } from './underwaterPaint';
+import { paintTube, underwaterTexture } from './underwaterPaint';
+import { addUnderwaterReefs } from './underwaterReefs';
 import { paintDeepWater } from './underwaterTiles';
 
 export { UNDERWATER_TILESET_KEY, underwaterTileIndex, underwaterTileSource } from './underwaterTiles';
 
 type Objects = Phaser.GameObjects.GameObject[];
 
-const domes = [
-  ['#326883', '#3e909f', '#b5f5de'],
-  ['#445d91', '#6f86b1', '#bdd9f2'],
-  ['#376f77', '#5da694', '#ccf7dd'],
-  ['#5c5883', '#9a76a7', '#f7cbe3'],
-  ['#63746d', '#91b49a', '#edf8c0'],
-  ['#38547e', '#5486ac', '#c2e0fc'],
-] as const;
-
 export function addUnderwaterBuilding(scene: Phaser.Scene, world: WorldData, lot: BuildingLot, objects: Objects): void {
-  const [base, glass, glint] = domes[lot.style % domes.length];
-  const key = underwaterTexture(scene, `dome_${lot.style}`, 256, 256, c => paintDome(c, base, glass, glint));
+  const kind = underwaterBuildingKind(lot);
+  const key = underwaterTexture(scene, `building_${kind}`, 256, 256, c => paintUnderwaterBuilding(c, lot));
   const ts = world.tileSize;
   objects.push(scene.add.image((lot.tx + lot.tw / 2) * ts, (lot.ty + lot.th / 2) * ts, key)
-    .setDisplaySize(lot.tw * ts, lot.th * ts).setDepth(DEPTH.building).setName('underwater-city-dome'));
+    .setDisplaySize(lot.tw * ts, lot.th * ts).setDepth(DEPTH.building).setName(`underwater-building-${kind}`));
 }
 
 function paintCaustics(c: Ctx): void {
@@ -80,26 +73,8 @@ export function addUnderwaterWorld(scene: Phaser.Scene, world: WorldData, object
       .setDepth(DEPTH.ground + 1).setName('underwater-viewing-pool'));
   }
 
-  const garden = [
-    underwaterTexture(scene, 'kelp', 158, 159, paintKelp),
-    underwaterTexture(scene, 'coral', 158, 159, c => paintCoral(c, '#cf758c')),
-    underwaterTexture(scene, 'seafern', 158, 159, c => paintCoral(c, '#b18fd3')),
-    underwaterTexture(scene, 'seafloor', 158, 159, c => {
-      ellipse(c, 75, 86, 74, 57);
-      fillStroke(c, radial(c, 73, 83, 5, 76, [[0, '#58727a'], [0.67, '#42647986'], [1, '#3b5c7000']]), null);
-      for (const [x, y] of [[66, 56], [76, 79], [104, 89], [45, 97], [86, 113]]) {
-        ellipse(c, x, y, 15, 8);
-        fillStroke(c, lin(c, x - 10, y - 7, x + 12, y + 8, [[0, '#789c9c'], [1, '#354d66']]), '#436276', 2);
-      }
-    }),
-  ];
+  const reefs = addUnderwaterReefs(scene, world, objects);
   const rng = new Rng(world.seed ^ 0x19395);
-  for (let y = 2; y < world.heightTiles - 2; y += 2) for (let x = 2; x < world.widthTiles - 2; x += 2) {
-    if (!rng.chance(0.29) || world.tiles[y * world.widthTiles + x] !== Tile.Water) continue;
-    const scale = rng.range(0.5, 1.15);
-    objects.push(scene.add.image((x + 0.5) * ts, (y + 0.5) * ts, rng.pick(garden))
-      .setScale(scale).setRotation(rng.range(0, Math.PI * 2)).setDepth(DEPTH.ground - 3));
-  }
   const caustic = underwaterTexture(scene, 'caustics', 500, 500, paintCaustics);
   const glimmers = Array.from({ length: 45 }, () => {
     const x = rng.range(2, 44) * ts, y = rng.range(3, 43) * ts, phase = rng.range(0, 6.28);
@@ -112,6 +87,7 @@ export function addUnderwaterWorld(scene: Phaser.Scene, world: WorldData, object
   return dt => {
     clock += dt;
     life(dt);
+    reefs(dt);
     for (const { img, x, y, phase } of glimmers) {
       const t = clock * 0.58 + phase;
       img.setPosition(x + Math.cos(t) * 46, y + Math.sin(t) * 32).setAlpha(0.6 + Math.sin(t * 1.4) * 0.29);

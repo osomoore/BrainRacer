@@ -8,7 +8,7 @@ import { ParticlePool } from '../fx/ParticlePool';
 import { hasQueuedRail, queuedFeatureSites, queuedVolcanoPeak } from '../world/gen/queuedWorlds';
 import { QUEUED_PALETTES } from '../world/queuedWorldArt';
 import { advanceGate, overlapsGate, shuttlePosition, type GateCycle } from './queuedWorldCycle';
-import { queuedEruptionTexture, queuedFeatureTextures, queuedLavaDropTexture, queuedPlaneTexture } from './queuedWorldFeatureArt';
+import { queuedEruptionTexture, queuedFeatureTextures, queuedLavaDropTexture, queuedShuttleTextures } from './queuedWorldFeatureArt';
 
 type Sites = ReturnType<typeof queuedFeatureSites>;
 type Mover = {
@@ -33,7 +33,6 @@ export class QueuedWorldSystem implements GameSystem {
   private barrier!: Phaser.GameObjects.Image;
   private eruption?: Phaser.GameObjects.Image;
   private lavaDrips?: { pool: ParticlePool; key: string; previous?: Vec2; next: number; side: number };
-  private plane?: Phaser.GameObjects.Image;
   private gate?: MatterJS.BodyType;
   private clock = 0;
   private cycle: GateCycle = { mode: 'open', elapsed: 0 };
@@ -62,7 +61,7 @@ export class QueuedWorldSystem implements GameSystem {
       const edge = pointAlong(gate, 0, side * (span / 2 - 15));
       this.signals.push(this.addImage(edge, art.signal, DEPTH.prop + 1, 'queued-shortcut-signal'));
     }
-    this.addShuttle(mover, art);
+    this.addShuttle(mover);
     if (this.map === 'volcano') {
       this.eruption = this.addImage(queuedVolcanoPeak(world), queuedEruptionTexture(scene), DEPTH.fx - 4, 'queued-volcano-eruption')
         .setOrigin(.5, .84);
@@ -70,9 +69,6 @@ export class QueuedWorldSystem implements GameSystem {
       const pool = new ParticlePool(scene, F.lavaDrips.count)
         .prewarm(key, [{ depth: DEPTH.dino + 1, add: false, count: F.lavaDrips.count }]);
       this.lavaDrips = { key, pool, next: 0, side: 1 };
-    }
-    if (this.map === 'airport') {
-      this.plane = this.addImage(mover, queuedPlaneTexture(scene), DEPTH.airborne + 1, 'queued-airport-plane');
     }
     this.drawGate();
     this.drawMovers();
@@ -133,9 +129,11 @@ export class QueuedWorldSystem implements GameSystem {
     }
   }
 
-  private addShuttle(mover: Sites['mover'], art: ReturnType<typeof queuedFeatureTextures>): void {
+  private addShuttle(mover: Sites['mover']): void {
     if (hasQueuedRail(this.map)) return;
-    const track = this.ctx!.scene.add.tileSprite(mover.x, mover.y, mover.length + 126, 78, art.track)
+    const { scene } = this.ctx!;
+    const art = queuedShuttleTextures(scene, this.map);
+    const track = scene.add.tileSprite(mover.x, mover.y, mover.length + 126, 78, art.track)
       .setDepth(DEPTH.decal - 2).setRotation(mover.angle).setName('queued-mover-track');
     this.objects.push(track);
     const config = F.movers[this.map];
@@ -217,13 +215,6 @@ export class QueuedWorldSystem implements GameSystem {
 
   private drawMovers(): void {
     const route = this.sites.mover;
-    if (this.plane) {
-      const progress = (this.clock % F.airportPlanePeriodSec) / F.airportPlanePeriodSec;
-      const position = pointAlong(route, (progress - .5) * (route.length + 320), 148);
-      this.plane.setPosition(position.x, position.y).setRotation(route.angle)
-        .setAlpha(Math.min(1, progress * 10, (1 - progress) * 10) * .92)
-        .setScale(.78 + Math.sin(progress * Math.PI) * .32);
-    }
     if (hasQueuedRail(this.map)) return;
     const config = F.movers[this.map];
     const travel = Math.max(0, (route.length - (config.count - 1) * config.spacing) / 2);

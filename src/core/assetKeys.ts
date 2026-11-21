@@ -13,6 +13,7 @@ export const TEX = {
     gate: (map: string) => `queued_gate_${map}`,
     track: (map: string) => `queued_track_${map}`,
     mover: (map: string) => `queued_mover_${map}`,
+    railCar: (map: string, variant: number) => `queued_rail_car_${map}_${variant}`,
     signal: 'queued_feature_signal',
     eruption: 'queued_volcano_eruption',
   },

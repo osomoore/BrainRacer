@@ -1077,7 +1077,7 @@ export const QUEUED_FEATURES = {
   moverTouchRadius: 38,
   moverBumpSpeed: 115,
   moverBumpCooldownSec: 0.8,
-  airportPlanePeriodSec: 14,
+  airportPlanePeriodSec: 28,
   castleScatterSec: .95,
   castleScatterPx: 72,
   lavaDrips: { count: 10, intervalSec: .13, lifeSec: .7, moveSpeed: 16, fallSpeed: 72 },
@@ -1093,6 +1093,17 @@ export const QUEUED_FEATURES = {
     volcano: { count: 3, spacing: 96, scale: 1.12, periodSec: 10 },
     castle: { count: 4, spacing: 92, scale: .76, periodSec: 9 },
   },
+} as const;
+
+export const QUEUED_SCENERY = {
+  // Big objects and their smaller companions stay contained in one 128 px ground tile.
+  parkDensity: 0.68,
+  roadsideDensity: 0.32,
+  fieldDensity: 0.17,
+  companionChance: 0.52,
+  motionChance: 0.23,
+  minAmbientSpacing: 240,
+  ambientLimit: 54,
 } as const;
 
 export const WORLD_MUSIC = {
@@ -1113,7 +1124,7 @@ export const QUEUED_ATMOSPHERE = {
   snowTracks: { max: 220, spacing: 20, fadeSec: 10, width: 9, minSpeed: 20, resetDistance: 96 },
   fronts: {
     brickworks: { columns: 4, rows: 5, speed: 90, scale: 1.4, alpha: .65, angle: -.12, period: 15 },
-    mushroom: { columns: 5, rows: 6, speed: 74, scale: 1.55, alpha: .86, angle: .09, period: 23 },
+    mushroom: { columns: 4, rows: 5, speed: 74, scale: 1.4, alpha: .44, angle: .09, period: 23 },
     tundra: { columns: 5, rows: 7, speed: 205, scale: 2.7, alpha: .78, angle: -.34, period: 17 },
     volcano: { columns: 5, rows: 6, speed: 118, scale: 1.8, alpha: .6, angle: -.22, period: 20 },
     candy: { columns: 4, rows: 5, speed: 76, scale: 1.3, alpha: .73, angle: -.08, period: 16 },
