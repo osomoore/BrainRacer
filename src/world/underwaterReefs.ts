@@ -99,12 +99,35 @@ function paintReef(c: Ctx, variant: number): void {
     ['#cb9ed6', '#d99a8f', '#94b2e4'],
     ['#d3948e', '#e1bc8d', '#97d5c8'],
   ];
-  const [primary, secondary, tertiary] = palettes[variant];
-  fan(c, 87, 87, rng.range(-.85, .75), primary);
-  fan(c, 148, 73, rng.range(.75, 2.1), tertiary);
-  sponges(c, 153, 124, 26, secondary);
-  anemone(c, 107, 141, primary, rng);
-  sponges(c, 66, 123, 13, tertiary);
+  const [primary, secondary, tertiary] = palettes[variant % palettes.length];
+  // Each garden has a different silhouette as well as a different palette.
+  // This keeps neighboring gardens from looking like rotated copies.
+  switch (variant % 4) {
+    case 0:
+      fan(c, 87, 87, rng.range(-.85, .75), primary);
+      fan(c, 148, 73, rng.range(.75, 2.1), tertiary);
+      sponges(c, 153, 124, 26, secondary);
+      anemone(c, 107, 141, primary, rng);
+      break;
+    case 1:
+      sponges(c, 94, 96, 30, secondary);
+      sponges(c, 157, 145, 23, tertiary);
+      fan(c, 151, 75, -.5, primary);
+      anemone(c, 82, 155, tertiary, rng);
+      break;
+    case 2:
+      anemone(c, 87, 102, primary, rng);
+      anemone(c, 157, 143, tertiary, rng);
+      fan(c, 155, 76, 1.2, secondary);
+      shell(c, 80, 166, .8);
+      break;
+    default:
+      fan(c, 85, 91, -.6, primary);
+      fan(c, 155, 91, .8, secondary);
+      fan(c, 121, 153, 2.7, tertiary);
+      sponges(c, 177, 157, 15, secondary);
+      break;
+  }
   shell(c, 179, 154, rng.range(0, Math.PI * 2));
   shell(c, 134, 177, rng.range(0, Math.PI * 2));
   star(c, 82, 166, 12, 5, 5, .23);
@@ -134,13 +157,22 @@ function paintSeagrass(c: Ctx): void {
 export function addUnderwaterReefs(scene: Phaser.Scene, world: WorldData, objects: Phaser.GameObjects.GameObject[]): (dt: number) => void {
   const rng = new Rng(world.seed ^ 0x19395);
   const { tileSize: ts, widthTiles: w, heightTiles: h } = world;
-  const reef = Array.from({ length: 4 }, (_, i) => underwaterTexture(scene, `reef_${i}`, REEF_SIZE, REEF_SIZE, c => paintReef(c, i)));
+  const reefs = Array.from({ length: 8 }, (_, i) => ({
+    key: underwaterTexture(scene, `reef_${i}`, REEF_SIZE, REEF_SIZE, c => paintReef(c, i)),
+    silhouette: i % 4,
+  }));
+  const gardens: { x: number; y: number; silhouette: number }[] = [];
   const grassKey = underwaterTexture(scene, 'seagrass', 144, 146, paintSeagrass);
   const grass: { image: Phaser.GameObjects.Image; rotation: number; scale: number; phase: number }[] = [];
   const addReef = (x: number, y: number, scale: number) => {
-    objects.push(scene.add.image(x * ts, y * ts, rng.pick(reef)).setDepth(DEPTH.ground - 3)
+    const nearby = gardens.filter(p => Math.hypot(p.x - x, p.y - y) < 6);
+    const available = reefs.filter(reef => nearby.every(p => p.silhouette !== reef.silhouette));
+    if (available.length === 0) return;
+    const reef = rng.pick(available);
+    gardens.push({ x, y, silhouette: reef.silhouette });
+    objects.push(scene.add.image(x * ts, y * ts, reef.key).setDepth(DEPTH.ground - 3)
       .setScale(scale).setRotation(rng.range(0, Math.PI * 2)).setName('underwater-reef-garden'));
-    if (rng.chance(.48)) return;
+    if (!rng.chance(.32)) return;
     const rotation = rng.range(0, Math.PI * 2);
     const image = scene.add.image((x + rng.range(-.6, .6)) * ts, (y + rng.range(-.6, .6)) * ts, grassKey)
       .setDepth(DEPTH.ground - 2).setRotation(rotation).setName('underwater-seagrass');
@@ -156,8 +188,10 @@ export function addUnderwaterReefs(scene: Phaser.Scene, world: WorldData, object
     const openWater = tile === Tile.Water;
     const transparent = tile === Tile.Road && isUnderwaterGlassRoad(x, y) || tile === Tile.Plaza && isUnderwaterGlassPlaza(x, y);
     const reefBelt = x >= 19 && x < 30 && y >= 12 && y < 36;
-    if (!(openWater || transparent) || !rng.chance(reefBelt ? .71 : transparent ? .55 : .5)) continue;
-    addReef(x + rng.range(.2, .95), y + rng.range(.2, .95), rng.range(.55, 1.13));
+    if (!(openWater || transparent) || !rng.chance(reefBelt ? .40 : transparent ? .30 : .24)) continue;
+    const rx = x + rng.range(.2, .95), ry = y + rng.range(.2, .95);
+    if (gardens.some(p => Math.hypot(p.x - rx, p.y - ry) < 2.4)) continue;
+    addReef(rx, ry, rng.range(.48, 1.3));
   }
   let clock = 0;
   return dt => {

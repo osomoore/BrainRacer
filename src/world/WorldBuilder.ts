@@ -19,6 +19,7 @@ import { addSkyBuilding, addSkyWorld, skyTileIndex, skyTileSource } from './skyW
 import { addQueuedWorld, queuedWorldTileset } from './queuedWorlds';
 import { FOREST_TILESET_KEY, addForestBuilding, addForestWorld, forestTileSource } from './forestWorld';
 import { UNDERWATER_TILESET_KEY, addUnderwaterBuilding, addUnderwaterWorld, underwaterTileIndex, underwaterTileSource } from './underwaterWorld';
+import { addUnderwaterProps } from './underwaterProps';
 import {
   FARM_TILESET_COUNT, FARM_TILESET_KEY, addFarmBuilding, addFarmWorld, farmTileIndices, farmWorldTileSource,
   type FarmBlade, type FarmWorldHandle,
@@ -249,6 +250,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
     update = dt => handle.update(dt);
   } else if (raceMap === 'underwater') {
     update = addUnderwaterWorld(scene, world, objs);
+    addUnderwaterProps(scene, world, dynamicProps, bodies);
   } else if (isQueuedMap(raceMap)) {
     update = addQueuedWorld(scene, world, objs, raceMap);
   }

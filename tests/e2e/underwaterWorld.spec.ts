@@ -15,6 +15,25 @@ test('Marine life swims past as the road tunnel retracts for a submarine', async
   await page.waitForFunction(() => window.__race?.elapsedSec > 0.2, undefined, WAIT);
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('underwater');
 
+  const scenery = await page.evaluate(() => {
+    const { scene, world } = window.__race;
+    const gardens = scene.children.getAll('name', 'underwater-reef-garden') as Phaser.GameObjects.Image[];
+    const silhouette = (garden: Phaser.GameObjects.Image) => Number(garden.texture.key.split('_').at(-1)) % 4;
+    const props = scene.matter.world.getAllBodies().filter(body => {
+      const owner = body.plugin?.owner;
+      return owner?.kind === 'prop' && owner.prop.name === 'underwater-loose-prop' && !body.isStatic && !body.isSensor;
+    });
+    return {
+      varieties: new Set(gardens.map(garden => garden.texture.key)).size,
+      closeMatches: gardens.some((a, i) => gardens.slice(i + 1).some(b =>
+        silhouette(a) === silhouette(b) && Math.hypot(a.x - b.x, a.y - b.y) < 6 * world.tileSize - 0.01)),
+      looseProps: props.length,
+    };
+  });
+  expect(scenery.varieties).toBe(8);
+  expect(scenery.closeMatches).toBe(false);
+  expect(scenery.looseProps).toBeGreaterThan(5);
+
   const { left, right, top, bottom } = UNDERWATER_CROSSING;
   const crossing = { x: (left + right) / 2, y: (top + bottom) / 2 };
   const lane = await page.evaluate(({ x, y }) => {
