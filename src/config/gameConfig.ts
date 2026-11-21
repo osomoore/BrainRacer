@@ -3,7 +3,7 @@
  * and may ADD new keys only inside the section for their own package (mark with the package id),
  * never rename/remove existing keys.
  */
-import type { ChallengeKind, Difficulty, Settings, StarterCar, VehicleSpec } from '../core/types';
+import type { ChallengeKind, Difficulty, RacerProfile, RacerProfileId, Settings, StarterCar, VehicleSpec } from '../core/types';
 
 export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
@@ -83,6 +83,15 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const DEVELOPER_ROUND_SEC = 60;
+
+/** Racer presets (Setup "Racer" row). Admin Settings can change them; these are the defaults. */
+export const DEFAULT_RACER_PROFILES: Record<RacerProfileId, RacerProfile> = {
+  abe: { difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } },
+  gideon: { difficulty: 'normal', questionTypes: { addition: true, multiplication: false, spelling: true } },
+  helen: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true } },
+};
+/** Default racer per player slot. */
+export const DEFAULT_PLAYER_RACERS: readonly RacerProfileId[] = ['abe', 'gideon'];
 
 // ───────────────────────── challenges (package B) ─────────────────────────
 export interface DifficultyProfile {

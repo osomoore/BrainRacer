@@ -106,8 +106,9 @@ export interface PlayerInput {
 // ───────────────────────── settings / results ─────────────────────────
 export interface PlayerSettings {
   device: InputDevice;
-  difficulty: Difficulty;
-  questionTypes?: QuestionTypes;
+  difficulty: Difficulty;          // effective value for the race (copied from the racer profile)
+  questionTypes?: QuestionTypes;   // effective value for the race (copied from the racer profile)
+  profile?: RacerProfileId;        // racer preset picked in Setup
   car: CarKind;
   guide?: GuideKind;
   devCar?: CarKind;
@@ -116,6 +117,10 @@ export interface PlayerSettings {
 
 export type QuestionType = 'addition' | 'multiplication' | 'spelling';
 export type QuestionTypes = Record<QuestionType, boolean>;
+
+/** Named racer presets picked in Setup. Each sets difficulty + question types; edited in Admin Settings. */
+export type RacerProfileId = 'abe' | 'gideon' | 'helen';
+export interface RacerProfile { difficulty: Difficulty; questionTypes: QuestionTypes; }
 
 /** Legacy question presets, also accepted as launch overrides. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';
@@ -135,6 +140,8 @@ export interface Settings {
   musicVolume: number;            // 0..1
   sfxVolume: number;              // 0..1
   developerMode?: boolean;
+  /** Admin-edited racer presets; missing/invalid entries fall back to DEFAULT_RACER_PROFILES (see core/racerProfiles). */
+  racerProfiles?: Partial<Record<RacerProfileId, RacerProfile>>;
 }
 
 export interface PlayerStats {
