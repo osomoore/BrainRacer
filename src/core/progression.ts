@@ -9,6 +9,8 @@ export const MAP_LABEL: Record<RaceMap, string> = {
   sky: 'Sky City', forest: 'Dark Forest', underwater: 'Underwater',
 };
 export const COMPLETION_OBJECTIVES = 3;
+/** A companion (buddy) is guaranteed at least once every this many completion rewards, while any are left. */
+export const BUDDY_EVERY_REWARDS = 3;
 
 const PROGRESS_KEY = 'brainracer.unlocks.v1';
 const ACCESS_KEY = 'brainracer.content.v1';
@@ -83,10 +85,24 @@ export function developerModeSettings(developerMode: boolean): Partial<Settings>
   return { developerMode, roundLengthSec: defaultRoundLength(developerMode) };
 }
 
+/** Valid, de-duplicated unlock IDs in the order they were earned (legacy 'comet' = bombBuddy). */
 export function parseUnlocks(raw: unknown): Collectible[] {
-  return Array.isArray(raw)
-    ? COLLECTIBLES.filter(id => raw.includes(id) || (id === 'bombBuddy' && raw.includes('comet')))
-    : [];
+  if (!Array.isArray(raw)) return [];
+  const out: Collectible[] = [];
+  for (const v of raw) {
+    const id = v === 'comet' ? 'bombBuddy' : v;
+    if ((COLLECTIBLES as readonly unknown[]).includes(id) && !out.includes(id as Collectible)) out.push(id as Collectible);
+  }
+  return out;
+}
+
+const isGuide = (id: Collectible): boolean => (UNLOCK_GUIDE_IDS as readonly Collectible[]).includes(id);
+
+/** Unlocks are stored in the order they were earned: count the trailing non-companion rewards. */
+export function rewardsSinceBuddy(unlocked: readonly Collectible[]): number {
+  let n = 0;
+  for (let i = unlocked.length - 1; i >= 0 && !isGuide(unlocked[i]); i--) n++;
+  return n;
 }
 
 export function drawUnlock(unlocked: readonly Collectible[], rng: Rng): Collectible | undefined {
@@ -129,7 +145,9 @@ export function awardMapCompletion(map: RaceMap, goals: number, admin: boolean, 
     saveAccess({ ...access, worlds: [...access.worlds, successor] });
   }
   const unlocked = loadUnlocks();
-  const pool = COLLECTIBLES.filter(id => !unlocked.includes(id) && access.overrides[id] === undefined);
+  const open = COLLECTIBLES.filter(id => !unlocked.includes(id) && access.overrides[id] === undefined);
+  const buddies = open.filter(isGuide);
+  const pool = buddies.length && rewardsSinceBuddy(unlocked) >= BUDDY_EVERY_REWARDS - 1 ? buddies : open;
   if (pool.length) {
     prizes.reward = rng.pick(pool);
     prizes.rewardPool = pool;

@@ -5,11 +5,10 @@
  */
 import Phaser from 'phaser';
 import { CAMERA, CAT, CITY_NIGHT_LIGHTING, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
-import { roadTex, sceneTex, TEX } from '../core/assetKeys';
+import { roadTex, TEX } from '../core/assetKeys';
 import type { BodyOwner } from '../core/race';
 import { Tile, type Prop, type RaceMap, type Rect, type WorldData } from '../core/types';
-import { signSceneFor } from '../data/places';
-import { BUILDING_3D, bevelFor, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
+import { BUILDING_3D, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
 import { mergeRects } from './geometry';
 import { addHarborWorld, harborRoadTile, harborSandTile } from './harborWorld';
 import { addUndergroundWorld } from './undergroundWorld';
@@ -45,8 +44,6 @@ export const BUILDING_LOOK = {
   lightFrictionAir: 0.2,
   parkedMass: 10,
   parkedFrictionAir: 0.15,
-  signMax: 150,
-  signMin: 90,
 };
 
 const TILESET_KEY = 'world_tileset';
@@ -183,11 +180,10 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
   for (const b of world.buildings) {
     const fx = b.tx * ts, fy = b.ty * ts, fw = b.tw * ts, fh = b.th * ts;
     if (world.farm || themed) {
-      // Farm lots: barn/silo/windmill/... looks and long low-sun shadows (farmWorld.ts); same body + sign.
+      // Farm lots: barn/silo/windmill/... looks and long low-sun shadows (farmWorld.ts); same body.
       if (world.farm) addFarmBuilding(scene, world, b, objs, farmBlades);
       else themed?.building(scene, world, b, objs);
       addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
-      if (b.placeWord) addSign(scene, fx + fw / 2, fy + fh / 2, fw - 24, fh - 24, b.placeWord, objs);
       continue;
     }
     const sk = ensureShadowTexture(scene, fw, fh);
@@ -200,10 +196,6 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
     else if (night) building.setTint(CITY_NIGHT_LIGHTING.buildingTint);
     objs.push(building);
     addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
-    if (b.placeWord) {
-      const bv = Math.min(bevelFor(b.style), Math.floor(Math.min(fw, fh) / 4));
-      addSign(scene, fx + fw / 2, fy + fh / 2, fw - bv * 2, fh - bv * 2, b.placeWord, objs);
-    }
   }
 
   // ── water + boundary bodies
@@ -268,15 +260,6 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
       bodies.length = 0; dynamicProps.length = 0; objs.length = 0;
     },
   };
-}
-
-function addSign(scene: Phaser.Scene, cx: number, cy: number, rw: number, rh: number, word: string, objs: Phaser.GameObjects.GameObject[]): void {
-  const L = BUILDING_LOOK;
-  const S = Phaser.Math.Clamp(Math.min(rw, rh) - 24, L.signMin, L.signMax);
-  const frame = scene.add.image(cx, cy, TEX.signFrame).setDisplaySize(S, S).setDepth(DEPTH.sign);
-  const pic = scene.add.image(cx, cy, sceneTex(signSceneFor(word)));
-  pic.setScale((S * 0.87) / Math.max(pic.width, pic.height)).setDepth(DEPTH.sign + 0.1);
-  objs.push(frame, pic);
 }
 
 function addProp(

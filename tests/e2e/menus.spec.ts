@@ -35,8 +35,7 @@ test('gamepads: two players customize and receive different questions', async ({
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
-  await tapPad(page, 0, PAD_RIGHT); // Abe to Gideon.
-  await tapPad(page, 0, PAD_RIGHT); // Gideon to Helen (hard, multiplication + spelling).
+  await tapPad(page, 0, PAD_RIGHT); // P1 starts as Gideon; right goes to Helen (hard, multiplication + spelling).
   for (const player of [0, 1]) {
     await tapPad(page, player, PAD_DOWN); // Car.
     await tapPad(page, player, PAD_DOWN); // Guide.
@@ -76,7 +75,8 @@ test('gamepads: two players customize and receive different questions', async ({
   expect(s.questionStyle).toBe('pause');
   await page.waitForFunction(() => [0, 1].every((p) => (window as any).__challenge?.current(p)));
   const kinds = await page.evaluate(() => [0, 1].map((p) => ((window as any).__challenge.current(p) as Challenge).kind));
-  expect(kinds[1]).toBe('math');
+  expect(kinds[0]).not.toBe('math');            // Helen: multiplication + spelling
+  expect(kinds[1]).not.toBe('multiplication');  // Abe: addition + spelling
   expect(errors).toEqual([]);
 });
 

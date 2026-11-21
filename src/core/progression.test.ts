@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_GUIDES, WORLD_VEHICLES } from '../config/collectibles';
-import { availableLoadouts, availableMaps, awardMapCompletion, developerModeSettings, drawUnlock, loadUnlocks, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout, setContentOverride } from './progression';
+import { availableLoadouts, availableMaps, awardMapCompletion, BUDDY_EVERY_REWARDS, developerModeSettings, drawUnlock, loadUnlocks, nextMap, parseUnlocks, RACE_MAPS, selectedLoadout, setContentOverride } from './progression';
 import { Rng } from './rng';
 import type { PlayerSettings } from './types';
 
@@ -41,6 +41,20 @@ describe('map progression', () => {
     setContentOverride('owl', undefined);
     expect(availableMaps(false)).toEqual(['city', 'industrial', 'harbor']);
     expect(availableLoadouts(loadUnlocks(), false).guides).toContain('owl');
+  });
+
+  it('guarantees a companion at least every three completion rewards', () => {
+    const store = new Map([['brainracer.content.v1', '{}'], ['brainracer.unlocks.v1', JSON.stringify([UNLOCK_VEHICLE_IDS[0]])]]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key), setItem: (key: string, value: string) => store.set(key, value) });
+    for (let seed = 0; seed < 40; seed++) awardMapCompletion('city', 3, false, new Rng(seed));
+    const order = loadUnlocks();
+    let run = 0;
+    for (const id of order) {
+      run = (UNLOCK_GUIDE_IDS as readonly string[]).includes(id) ? 0 : run + 1;
+      // only while companions remain locked can the guarantee hold
+      if (UNLOCK_GUIDE_IDS.some(g => !order.slice(0, order.indexOf(id) + 1).includes(g))) expect(run).toBeLessThan(BUDDY_EVERY_REWARDS);
+    }
+    expect(UNLOCK_GUIDE_IDS.every(g => order.includes(g))).toBe(true);
   });
 
   it('keeps valid unlock IDs and draws items once from the catalog', () => {
