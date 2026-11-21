@@ -5,9 +5,10 @@ import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
 import { collectibleName, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../config/collectibles';
 import { contentOverride, developerModeSettings, loadUnlocks, availableMaps, MAP_LABEL, RACE_MAPS, setContentOverride } from '../core/progression';
+import { RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
-import type { Settings } from '../core/types';
+import type { Difficulty, QuestionType, Settings } from '../core/types';
 import { faceButton } from '../input/buttonPrompts';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
@@ -52,6 +53,13 @@ const CONTENT_PAGES = [
   { name: 'Cars 4 / 4', ids: UNLOCK_VEHICLE_IDS.slice(27) },
   { name: 'Companions', ids: UNLOCK_GUIDE_IDS },
 ];
+const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
+const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
+const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
+  { type: 'addition', label: 'Addition' },
+  { type: 'multiplication', label: 'Multiplication' },
+  { type: 'spelling', label: 'Spelling' },
+];
 const CONTENT_OVERRIDES = [undefined, true, false] as const;
 
 interface Row {
@@ -67,8 +75,8 @@ export class ConfigScene extends Phaser.Scene {
   private lastToggle = 0;
   private paused: string[] = [];
   private rows: Row[] = [];
-  private contentRows: Row[] = [];
-  private contentPanel?: Phaser.GameObjects.Container;
+  private subRows: Row[] = [];
+  private subPanel?: Phaser.GameObjects.Container;
   private contentPage = 0;
   private adminCursor = 0;
   private cursor = 0;
@@ -169,7 +177,7 @@ export class ConfigScene extends Phaser.Scene {
         setTuning({ gas });
       });
     }
-    header(0, 710, 'DISPLAY');
+    header(0, 710, 'DISPLAY   (* needs reload)');
     option(0, rowY(8), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
     option(0, rowY(9), 'Debug readout', () => onOff(getTuning().debugReadout),
@@ -197,22 +205,74 @@ export class ConfigScene extends Phaser.Scene {
       this.adminCursor = this.cursor;
       this.showContent();
     });
-    action(1, 987, 'Close', () => this.close());
+    action(1, 987, 'Racer Profiles', () => {
+      this.adminCursor = this.cursor;
+      this.showProfiles();
+    });
+    action(0, 987, 'Close', () => this.close());
 
-    c.add(bigText(this, COL_X[0] - ROW_W / 2 + 8, 987, '* Takes effect after reload', 40, MENU.dim, { origin: [0, 0.5], shadow: false }));
     c.add(bigText(this, GAME_WIDTH / 2, 1040, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
   }
 
-  private showContent(): void {
-    this.contentPanel?.destroy();
+  /** Replaces the main panel with a fresh full-screen sub-page (Content Locks, Racer Profiles). */
+  private openSub(title: string, subtitle: string, hint: string): Phaser.GameObjects.Container {
+    this.subPanel?.destroy();
     this.panel.setVisible(false);
     const cx = GAME_WIDTH / 2;
     const panel = this.add.container(0, 0).setDepth(DEPTH);
-    this.contentPanel = panel;
-    this.contentRows = [];
+    this.subPanel = panel;
+    this.subRows = [];
     panel.add(this.add.rectangle(cx, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
-    panel.add(bigText(this, cx, 76, 'CONTENT LOCKS', 72, MENU.yellow, { font: FONT_HEAD }));
-    panel.add(bigText(this, cx, 142, 'Normal player access', 40, MENU.dim));
+    panel.add(bigText(this, cx, 76, title, 72, MENU.yellow, { font: FONT_HEAD }));
+    if (subtitle) panel.add(bigText(this, cx, 142, subtitle, 40, MENU.dim));
+    panel.add(bigText(this, cx, 1030, hint, 40, MENU.dim));
+    return panel;
+  }
+
+  private showProfiles(): void {
+    const panel = this.openSub('RACER PROFILES', '', 'Up / Down move    Left / Right change    Back to Admin Settings');
+    const color = hexNum(PLAYER_COLORS[0]);
+    const colW = 580;
+    const xs = [360, 960, 1560];
+    const opts = { width: colW, height: 56, fontSize: 40, valueX: 130, arrowSpan: 105 };
+    const save = (id: typeof RACER_PROFILE_IDS[number], mutate: (p: ReturnType<typeof racerProfiles>[typeof id]) => void): void => {
+      const cur = racerProfiles(this.settings())[id];
+      const next = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes } };
+      mutate(next);
+      this.patchSettings(withRacerProfile(this.settings(), id, next));
+    };
+    // Rows are pushed column by column so Up/Down walks one racer at a time.
+    RACER_PROFILE_IDS.forEach((id, col) => {
+      const x = xs[col];
+      panel.add(bigText(this, x, 200, RACER_PROFILE_NAME[id].toUpperCase(), 56, MENU.yellow, { font: FONT_HEAD }));
+      const rowOpts = { ...opts, width: colW };
+      const diff = new OptionRow(this, x, 290, 'Level', { ...rowOpts, valueX: 115, arrowSpan: 150 });
+      panel.add(diff);
+      const changeDiff = (dir: 1 | -1) => save(id, p => { p.difficulty = DIFFICULTIES[Phaser.Math.Wrap(DIFFICULTIES.indexOf(p.difficulty) + dir, 0, DIFFICULTIES.length)]; });
+      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(DIFFICULTY_LABEL[racerProfiles(this.settings())[id].difficulty]), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
+      PROFILE_TYPES.forEach(({ type, label }, i) => {
+        const row = new OptionRow(this, x, 380 + i * 90, label, { ...rowOpts, valueX: 150, arrowSpan: 105 });
+        panel.add(row);
+        // Ignore the toggle that would turn off the last remaining question type.
+        const toggle = () => save(id, p => {
+          const on = !p.questionTypes[type];
+          if (!on && PROFILE_TYPES.filter(t => p.questionTypes[t.type]).length <= 1) return;
+          p.questionTypes[type] = on;
+        });
+        this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
+      });
+    });
+    const back = new MenuButton(this, GAME_WIDTH / 2, 900, 600, ROW_H, 'Back', color, 44, false);
+    panel.add(back);
+    this.subRows.push({ selectable: back, activate: () => this.closeSub() });
+    this.cursor = 0;
+    services.audio.sfx('menuSelect');
+    this.refreshRows();
+  }
+
+  private showContent(): void {
+    const panel = this.openSub('CONTENT LOCKS', 'Normal player access', 'Up / Down to move    Left / Right to change    Back to Admin Settings');
+    const cx = GAME_WIDTH / 2;
     const opts = { width: 1180, height: 56, fontSize: 40, valueX: 285, arrowSpan: 245 };
     const page = CONTENT_PAGES[this.contentPage];
     const category = new OptionRow(this, cx, 219, 'Category', opts);
@@ -222,7 +282,7 @@ export class ConfigScene extends Phaser.Scene {
       this.contentPage = Phaser.Math.Wrap(this.contentPage + dir, 0, CONTENT_PAGES.length);
       this.showContent();
     };
-    this.contentRows.push({ selectable: category, change: cyclePage, activate: () => cyclePage(1) });
+    this.subRows.push({ selectable: category, change: cyclePage, activate: () => cyclePage(1) });
     const unlocked = loadUnlocks();
     page.ids.forEach((id, i) => {
       const label = id in MAP_LABEL ? MAP_LABEL[id as keyof typeof MAP_LABEL] : collectibleName(id as Parameters<typeof collectibleName>[0]);
@@ -237,18 +297,17 @@ export class ConfigScene extends Phaser.Scene {
         const index = CONTENT_OVERRIDES.indexOf(contentOverride(id));
         setContentOverride(id, CONTENT_OVERRIDES[Phaser.Math.Wrap(index + dir, 0, CONTENT_OVERRIDES.length)]);
       };
-      this.contentRows.push({ selectable: row, refresh, change, activate: () => { change(1); this.refreshRows(); } });
+      this.subRows.push({ selectable: row, refresh, change, activate: () => { change(1); this.refreshRows(); } });
     });
-    panel.add(bigText(this, cx, 1010, 'Up / Down to move    Left / Right to change    Back to Admin Settings', 40, MENU.dim));
     this.cursor = 0;
     services.audio.sfx('menuSelect');
     this.refreshRows();
   }
 
-  private closeContent(): void {
-    this.contentPanel?.destroy();
-    this.contentPanel = undefined;
-    this.contentRows = [];
+  private closeSub(): void {
+    this.subPanel?.destroy();
+    this.subPanel = undefined;
+    this.subRows = [];
     this.panel.setVisible(true);
     this.cursor = this.adminCursor;
     this.refreshRows();
@@ -274,6 +333,7 @@ export class ConfigScene extends Phaser.Scene {
       musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
       challengeIntervalSec: d.challengeIntervalSec,
       questionStyle: d.questionStyle,
+      racerProfiles: undefined,
     });
     services.audio.sfx('menuSelect');
     this.refreshRows();
@@ -281,7 +341,7 @@ export class ConfigScene extends Phaser.Scene {
 
   private refreshRows(): void {
     const color = hexNum(PLAYER_COLORS[0]);
-    (this.contentPanel ? this.contentRows : this.rows).forEach((r, i) => {
+    (this.subPanel ? this.subRows : this.rows).forEach((r, i) => {
       r.refresh?.();
       r.selectable.setSelected(i === this.cursor, color);
     });
@@ -316,7 +376,7 @@ export class ConfigScene extends Phaser.Scene {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.lastToggle = performance.now();
-    if (this.contentPanel) this.closeContent();
+    if (this.subPanel) this.closeSub();
     this.panel.setVisible(false);
     for (const key of this.paused) {
       try { this.scene.resume(key); } catch { /* scene may be gone */ }
@@ -341,9 +401,9 @@ export class ConfigScene extends Phaser.Scene {
 
   private updateOpen(): void {
     const inp = services.input.any();
-    if (inp.back && this.contentPanel) { this.closeContent(); return; }
+    if (inp.back && this.subPanel) { this.closeSub(); return; }
     if (inp.pause || inp.back) { this.toggle(); return; }
-    const rows = this.contentPanel ? this.contentRows : this.rows;
+    const rows = this.subPanel ? this.subRows : this.rows;
     if (inp.navY) {
       const n = Phaser.Math.Wrap(this.cursor + inp.navY, 0, rows.length);
       if (n !== this.cursor) { this.cursor = n; services.audio.sfx('menuMove'); this.refreshRows(); }
