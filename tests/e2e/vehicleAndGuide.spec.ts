@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import { TEX } from '../../src/core/assetKeys';
 import { BOARDING_DRIVE, CAR_SPECS, VEHICLE_CONDITION } from '../../src/config/gameConfig';
+import { isPoliceTexture } from '../../src/entities/policeLights';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 
 const WAIT = { timeout: 20_000 };
@@ -89,7 +90,9 @@ test('a battered car smokes, catches fire, breaks down, and can be replaced usin
       const left = scene.children.list.filter((child) => child.name === 'abandoned-car-0').at(-1) as Phaser.GameObjects.Container;
       return { spec: players[0].spec, parkedTexture: (left.list[1] as Phaser.GameObjects.Image).texture.key };
     });
-    expect(after.parkedTexture).toBe(expected.texture);
+    // The cruiser can advance its light-bar animation before the player leaves it.
+    if (isPoliceTexture(expected.texture)) expect(isPoliceTexture(after.parkedTexture)).toBe(true);
+    else expect(after.parkedTexture).toBe(expected.texture);
     if (kind === 'police') expect(after.spec.maxSpeed).toBeGreaterThan(CAR_SPECS.dino.maxSpeed);
     else {
       expect(after.spec.mass).toBeGreaterThanOrEqual(BOARDING_DRIVE.heavyMass);

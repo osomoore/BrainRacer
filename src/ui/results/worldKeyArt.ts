@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { TEX } from '../../core/assetKeys';
+import { QUEUED_BOSSES } from '../../art/queuedBosses';
 import { Rng } from '../../core/rng';
 import type { RaceMap } from '../../core/types';
 
@@ -19,6 +20,14 @@ const ART: Record<RaceMap, Artwork> = {
   sky: { colors: [0x3d70c7, 0x29346e, 0xb6faff], landmark: TEX.unlockGuides.cloudPuff, boss: TEX.thundercloud.head, car: TEX.unlockVehicles.galeRoadster },
   forest: { colors: [0x216457, 0x142839, 0x99f5ae], landmark: TEX.farm.pines, boss: TEX.walkingTree.head, car: TEX.unlockVehicles.mossRover },
   underwater: { colors: [0x126eb3, 0x092a65, 0x78ffd9], landmark: TEX.unlockGuides.jelly, boss: TEX.landshark.head, car: TEX.unlockVehicles.mantaRacer },
+  brickworks: { colors: [0x608d3e, 0x223824, 0xdaed9b], landmark: TEX.unlockGuides.puffCub, boss: QUEUED_BOSSES.brickworks.head, car: TEX.unlockVehicles.brickBuggy },
+  mushroom: { colors: [0x8e4d91, 0x362546, 0xffc491], landmark: TEX.unlockGuides.sporeSprout, boss: QUEUED_BOSSES.mushroom.head, car: TEX.unlockVehicles.toadstoolKart },
+  tundra: { colors: [0x3875a6, 0x192c52, 0xc7fdff], landmark: TEX.unlockGuides.squareSnowman, boss: QUEUED_BOSSES.tundra.head, car: TEX.unlockVehicles.skiSled },
+  volcano: { colors: [0x8f4138, 0x301a33, 0xffbd59], landmark: TEX.unlockGuides.ember, boss: QUEUED_BOSSES.volcano.head, car: TEX.unlockVehicles.magmaGT },
+  candy: { colors: [0xb35c9c, 0x59346f, 0xffe1ad], landmark: TEX.unlockGuides.sugarSprite, boss: QUEUED_BOSSES.candy.head, car: TEX.unlockVehicles.waferKart },
+  castle: { colors: [0x34679a, 0x342442, 0xffe091], landmark: TEX.unlockGuides.crownSquire, boss: QUEUED_BOSSES.castle.head, car: TEX.unlockVehicles.joustKart },
+  airport: { colors: [0x357a9f, 0x192f59, 0xa6effe], landmark: TEX.unlockGuides.paperPlane, boss: QUEUED_BOSSES.airport.head, car: TEX.unlockVehicles.runwayRacer },
+  house: { colors: [0xb57055, 0x4e354f, 0xffdf9e], landmark: TEX.unlockGuides.yarnBall, boss: QUEUED_BOSSES.house.head, car: TEX.unlockVehicles.springRacer },
 };
 
 /** A poster composition made with the destination's game art, drawn into the reveal layer. */

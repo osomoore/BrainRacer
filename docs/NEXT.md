@@ -86,12 +86,9 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 
 ## Future worlds (ideas, not started)
 Each would follow the map kickoff template below (contracts → generator/art/audio → renderer/systems → wiring). Every world gets a boss; keep bosses kid-friendly (bounce, squash, poof; no gore).
-- **Frozen Tundra**: icicles, snow tracks, penguins, skiers, icy patches where cars slide. Boss: yeti.
-- **Volcano**: tunnels and lava flows. Partway through the race the volcano erupts and lava temporarily blocks some routes. Fire-based and rock-based vehicles. Boss: a lava monster that drips lava.
-- **Candyland**: lollipops, cupcakes, and other sweets. Boss: "Killer Cone", an ice cream cone monster (keep it silly, not scary).
-- **Castle**: walls, knights, horses, a drawbridge. An army attack rush that players can ride through and scatter. Boss: a giant wooden horse.
-- **Airport**: terminals, runways, helicopters and planes flying low and landing, little luggage trains roaming about. Boss: a giant helicopter.
-- **In My House**: matchbox-sized cars driving past beds, stuffed animals, chairs, books, etc. Boss: a full-size cat.
+- **#52 Scary Ghost World** would have haunted lanes, drifting lanterns, and secret doors that open and close. A giant sheet ghost could guard the course. Aim for spooky atmosphere and playful scares for ages 5–9.
+
+Brickworks, Mushroom Island, Frozen Tundra, Volcano, Candyland, Castle, Airport, and In My House are on the queued-worlds feature branch. See [STATUS.md](STATUS.md#new-worlds) for their race features and preview URLs.
 
 ## Map kickoff plans (done)
 

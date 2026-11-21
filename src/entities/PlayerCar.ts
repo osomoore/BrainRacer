@@ -243,14 +243,14 @@ export class PlayerCar extends Vehicle implements IPlayerCar {
     this.body.collisionFilter.mask = this._airborne || this._riding ? 0 : this._ghost ? MASK_GHOST : PLAYER_MASK_ALL;
   }
 
-  update(input: PlayerInput, dt: number): void {
+  update(input: PlayerInput, dt: number, surfaceGrip = 1): void {
     if (this.slowLeft > 0) {
       this.slowLeft -= dt;
       if (this.slowLeft <= 0) { this.slowLeft = 0; this.refreshMults(); }
     }
     const on = this.controlEnabled && !this._disabled && !this.boarding;
     if (on) this.updateUnstick(input, dt);
-    this.drive({ throttle: on ? input.throttle : 0, brake: on ? input.brake : 0, steer: on ? input.steer : 0 }, dt);
+    this.drive({ throttle: on ? input.throttle : 0, brake: on ? input.brake : 0, steer: on ? input.steer : 0 }, dt, surfaceGrip);
     this.syncView();
     this.updateVisual(dt);
     this.updateSkids(on ? input.brake : 0);

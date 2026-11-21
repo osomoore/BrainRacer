@@ -8,6 +8,7 @@ import underground from './music/tracks/underground.json';
 import sky from './music/tracks/sky.json';
 import forest from './music/tracks/forest.json';
 import underwater from './music/tracks/underwater.json';
+import { QUEUED_TRACKS } from './music/queuedTracks';
 import results from './music/tracks/results.json';
 import {
   beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
@@ -35,7 +36,7 @@ describe('units', () => {
 });
 
 describe('validateTrack', () => {
-  for (const [name, t] of Object.entries({ title, race, industrial, farm, underground, sky, forest, underwater, dino, results })) {
+  for (const [name, t] of Object.entries({ title, race, industrial, farm, underground, sky, forest, underwater, dino, results, ...QUEUED_TRACKS })) {
     it(`${name}.json is well-formed`, () => {
       expect(validateTrack(t)).toEqual([]);
     });

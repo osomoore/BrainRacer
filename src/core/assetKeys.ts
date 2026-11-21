@@ -1,4 +1,5 @@
 import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, type UnlockGuide, type UnlockVehicle } from '../config/collectibles';
+import { QUEUED_BOSS_TEXTURES } from '../art/queuedBossKeys';
 
 /**
  * Texture keys produced by src/art (package E) at boot and consumed everywhere else.
@@ -6,6 +7,15 @@ import { UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, type UnlockGuide, type UnlockVehi
  * Sizes are the intended texture pixel sizes (consumers may scale).
  */
 export const TEX = {
+  queuedBosses: QUEUED_BOSS_TEXTURES,
+  queuedFeature: {
+    deck: (map: string) => `queued_deck_${map}`,
+    gate: (map: string) => `queued_gate_${map}`,
+    track: (map: string) => `queued_track_${map}`,
+    mover: (map: string) => `queued_mover_${map}`,
+    signal: 'queued_feature_signal',
+    eruption: 'queued_volcano_eruption',
+  },
   // hero cars (length x width)
   carDino: 'car_dino',          // 72 x 40, green dino roadster
   carKart: 'car_kart',          // 60 x 36, red kart, driver cap with white circle + gold star

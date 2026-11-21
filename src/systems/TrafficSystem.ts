@@ -1,6 +1,7 @@
 import { BOARDING_DRIVE, FARM_TRAFFIC, HARBOR, INDUSTRIAL_TRAFFIC, TRAFFIC, UNDERGROUND_TRAFFIC } from '../config/gameConfig';
 import { getTuning, scaledCount } from '../config/deviceTuning';
 import { WORLD_VEHICLES, type WorldVehicle } from '../config/collectibles';
+import { isQueuedMap } from '../config/queuedMaps';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -47,7 +48,7 @@ export class TrafficSystem implements GameSystem {
     this.rng = ctx.rng.fork(0x7aff1c);
     this.offCrash = ctx.bus.on('vehicle:crash', (e) => this.shove(e));
     const map = ctx.settings.map;
-    if (map === 'sky' || map === 'forest' || map === 'underwater') {
+    if (isQueuedMap(map) || map === 'sky' || map === 'forest' || map === 'underwater') {
       this.worldVehicleOrder = [...WORLD_VEHICLES[map]];
       this.rng.shuffle(this.worldVehicleOrder);
     }

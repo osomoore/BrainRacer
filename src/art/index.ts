@@ -19,6 +19,8 @@ import { drawSkyCollectibles, drawThundercloud } from './sky';
 import { drawForestBoss, drawForestLoadouts } from './forestArt';
 import { drawLandshark, drawUnderwaterLoadouts } from './underwaterArt';
 import { ensureUndergroundOreArt, ensureUndergroundVehicleArt } from './undergroundVehicles';
+import { drawQueuedBosses } from './queuedBosses';
+import { drawQueuedLoadouts } from './queuedLoadouts';
 
 export { allTextureKeys } from './keys';
 export { DINO_RIG } from './dinoRig';
@@ -31,6 +33,7 @@ export function generateTextures(scene: Phaser.Scene): void {
   drawCarDino(scene); drawCarKart(scene); drawCarShadow(scene);
   drawCollectibles(scene);
   drawSkyCollectibles(scene); drawForestLoadouts(scene); drawUnderwaterLoadouts(scene);
+  drawQueuedLoadouts(scene);
   drawTraffic(scene); drawConvertibles(scene); drawTruck(scene); drawPolice(scene); drawBrakeLights(scene);
   drawDinoBody(scene); drawDinoHead(scene); drawDinoTail(scene); drawDinoLegs(scene); drawDinoShadow(scene);
   drawWater(scene); drawGrass(scene); drawSidewalk(scene); drawPark(scene); drawPlaza(scene); drawDirt(scene);
@@ -41,4 +44,5 @@ export function generateTextures(scene: Phaser.Scene): void {
   ensureRockMonsterArt(scene); ensureUndergroundVehicleArt(scene); ensureUndergroundOreArt(scene);
   drawNewBosses(scene);
   drawThundercloud(scene); drawForestBoss(scene); drawLandshark(scene);
+  drawQueuedBosses(scene);
 }

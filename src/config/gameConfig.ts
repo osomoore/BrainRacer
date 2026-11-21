@@ -1022,3 +1022,35 @@ export const UNDERWATER_TUNNEL = {
   testLeadSec: 1.5,
   soundRadius: 1050,
 } as const;
+
+/** Optional shortcut gates use seconds of active driving. */
+export const QUEUED_FEATURES = {
+  openSec: 24,
+  warningSec: 3,
+  closedSec: 6,
+  animationSec: 0.7,
+  testLeadSec: 1,
+  gateSpanTiles: 2,
+  gateDepthPx: 46,
+  clearancePx: 30,
+  soundRadius: 1000,
+  signalBlinkHz: 3,
+  iceGrip: 0.14,
+  moverTouchRadius: 38,
+  moverBumpSpeed: 115,
+  moverBumpCooldownSec: 0.8,
+  airportPlanePeriodSec: 14,
+  castleScatterSec: .95,
+  castleScatterPx: 72,
+  lavaDrips: { count: 10, intervalSec: .13, lifeSec: .7, moveSpeed: 16, fallSpeed: 72 },
+  movers: {
+    brickworks: { count: 3, spacing: 91, scale: .74, periodSec: 12 },
+    mushroom: { count: 2, spacing: 104, scale: .84, periodSec: 15 },
+    tundra: { count: 2, spacing: 116, scale: .85, periodSec: 8 },
+    volcano: { count: 3, spacing: 96, scale: 1.12, periodSec: 10 },
+    candy: { count: 3, spacing: 98, scale: .75, periodSec: 12 },
+    castle: { count: 4, spacing: 92, scale: .76, periodSec: 9 },
+    airport: { count: 3, spacing: 84, scale: .73, periodSec: 13 },
+    house: { count: 3, spacing: 99, scale: .83, periodSec: 12 },
+  },
+} as const;
