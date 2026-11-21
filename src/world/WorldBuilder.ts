@@ -10,7 +10,8 @@ import { isQueuedMap } from '../config/queuedMaps';
 import type { BodyOwner } from '../core/race';
 import { Tile, type Prop, type RaceMap, type Rect, type WorldData } from '../core/types';
 import { BUILDING_3D, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
-import { mergeRects } from './geometry';
+import { mergeRects, registerBuildingFootprints } from './geometry';
+import { laterBuildingPolygons } from './laterBuildingFootprints';
 import { addHarborWorld, harborRoadTile, harborSandTile } from './harborWorld';
 import { addUndergroundWorld } from './undergroundWorld';
 import { undergroundTileIndex, undergroundTileSource } from './undergroundTiles';
@@ -180,13 +181,26 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
 
   // ── buildings: baked beveled-block body + baked soft shadow (one image each, no live Graphics)
   const farmBlades: FarmBlade[] = [];
+  const footprints = new Map<number, ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>>();
   for (const b of world.buildings) {
     const fx = b.tx * ts, fy = b.ty * ts, fw = b.tw * ts, fh = b.th * ts;
+    const owner: BodyOwner = { kind: 'building', buildingId: b.id };
     if (world.farm || themed) {
-      // Farm lots: barn/silo/windmill/... looks and long low-sun shadows (farmWorld.ts); same body.
       if (world.farm) addFarmBuilding(scene, world, b, objs, farmBlades);
       else themed?.building(scene, world, b, objs);
-      addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
+      const polygons = laterBuildingPolygons(raceMap, world, b);
+      if (polygons) {
+        footprints.set(b.id, polygons);
+        for (const vertices of polygons) {
+          const center = M.vertices.centre(vertices);
+          const body = M.add.fromVertices(center.x, center.y, vertices, {
+            ...staticOpts(owner), label: `world-building-${b.id}`,
+          });
+          rememberStaticBody(body, owner);
+        }
+      } else {
+        addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, owner);
+      }
       continue;
     }
     const sk = ensureShadowTexture(scene, fw, fh);
@@ -198,8 +212,9 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
     else if (underground) building.setTint(0x9393bd);
     else if (night) building.setTint(CITY_NIGHT_LIGHTING.buildingTint);
     objs.push(building);
-    addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, { kind: 'building', buildingId: b.id });
+    addStaticRect(fx + fw / 2, fy + fh / 2, fw, fh, owner);
   }
+  if (footprints.size) registerBuildingFootprints(world, footprints);
 
   // ── water + boundary bodies
   const water = new Uint8Array(world.widthTiles * world.heightTiles);

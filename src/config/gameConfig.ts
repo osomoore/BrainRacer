@@ -190,10 +190,37 @@ export const CHALLENGE = {
 };
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
-export const CAR_SPECS: Record<StarterCar, VehicleSpec> = {
-  dino: { length: 72, width: 40, mass: 14, maxSpeed: 310, reverseSpeed: 100, accel: 180, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
-  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 285, reverseSpeed: 110, accel: 220, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
+/**
+ * Starter car feel as 1-5 ratings (see VEHICLE_STATS); CAR_SPECS in entities/vehicleStats.ts turns them into specs.
+ * Length/width stay per car. dino = heavier cruiser, kart = zippy and nimble.
+ */
+export const STARTER_CAR_RATINGS: Record<StarterCar, { ratings: { speed: number; zoom: number; turning: number; weight: number; grip: number }; length: number; width: number }> = {
+  dino: { ratings: { speed: 3, zoom: 3, turning: 3, weight: 4, grip: 2 }, length: 72, width: 40 },
+  kart: { ratings: { speed: 2, zoom: 4, turning: 4, weight: 2, grip: 3 }, length: 60, width: 36 },
 };
+
+/**
+ * Hidden per-vehicle feel. Five ratings 1-5 (speed, zoom = acceleration, turning, weight, grip) that must sum to `budget`,
+ * each mapped linearly from rating 1 to rating 5 onto the [lo, hi] ranges below (3 ~ the old "standard" car).
+ */
+export const VEHICLE_STATS = {
+  budget: 15,
+  minRating: 1,
+  maxRating: 5,
+  maxSpeed: { lo: 268, hi: 344 },
+  accel: { lo: 141, hi: 259 },           // px/s^2 (zoom)
+  reverseSpeed: { lo: 90, hi: 108 },     // follows zoom
+  brake: 1150,
+  turnRate: { lo: 2.18, hi: 3.57 },      // rad/s (turning)
+  pivotRate: { lo: 1.7, hi: 2.8 },       // rad/s at ~0 speed (turning)
+  mass: { lo: 7, hi: 30 },               // weight; must stay below BOARDING_DRIVE.heavyMass
+  steerResponse: { lo: 16.2, hi: 7.8 },  // 1/s, weight 1 -> 5 (heavy = slow to start/stop turning)
+  drag: { lo: 0.77, hi: 0.51 },          // coast drag, weight 1 -> 5 (heavy keeps rolling)
+  recoilMult: { lo: 1.3, hi: 0.7 },      // weight 1 -> 5
+  grip: { lo: 0.75, hi: 0.93 },
+  driftLoss: { lo: 0.6, hi: 0.3 },       // grip 1 -> 5 (low grip = drifty at speed)
+};
+
 /** Tunables for the top-down tire model and collision feedback (package F). */
 export const VEHICLE_MODEL = {
   /** Fraction of grip lost at full speed (gentle drift at high speed). */
@@ -261,7 +288,7 @@ export const COLLISION = {
 
 export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 5, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
 export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 255, reverseSpeed: 100, accel: 205, brake: 650, turnRate: 1.6, grip: 0.97, drag: 0.8 };
-export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 340, reverseSpeed: 120, accel: 300, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
+export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 360, reverseSpeed: 120, accel: 300, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
 
 export const BOARDING_DRIVE = {
   sedan: { mass: 11, maxSpeed: 297.5, reverseSpeed: 105, accel: 200, brake: 1100, turnRate: 2.9, grip: 0.86, drag: 0.65 },
@@ -473,11 +500,19 @@ export const POLICE = {
   chaserRespawnCooldownSec: 4,
   sirenVolume: 0.22,         // AI cruisers chasing you (gentle)
   playerSirenVolume: 0.7,    // your own siren while you drive a police cruiser
-  monsterSwarmCount: 5,
-  monsterSwarmSpawnMinDist: 360,
-  monsterSwarmSpawnMaxDist: 1050,
-  monsterSwarmExitDist: 900,
-  monsterSwarmExitSec: 8,
+  monsterSwarmCount: 8,
+  monsterSwarmSpawnMinDist: 320,
+  monsterSwarmSpawnMaxDist: 950,
+  monsterSwarmExitDist: 1400,
+  monsterSwarmExitSec: 2.2,   // swarm cars leave fast once the ride ends
+  monsterSwarmLeaveSpeedFrac: 1, // leave speed (fraction of max) for swarm cars
+  monsterSwarmTopUpSec: 1.5,  // refill the pile this often during the ride
+  monsterSwarmTopUpBatch: 3,  // max cars added per top-up
+  monsterSwarmPlayerClear: 180, // never spawn this close to a player
+  monsterSwarmCarClear: 120,
+  monsterSwarmRecycleDist: 1700, // chasing swarm car this far from the boss is recycled
+  monsterSwarmStuckSec: 3,
+  monsterSwarmStuckMinDist: 450, // ...or wedged this long while not near the boss
   spawnGraceSec: 6,          // freshly spawned (off-screen) cars are exempt from the off-screen despawn
 };
 
@@ -1059,7 +1094,7 @@ export const QUEUED_FEATURES = {
   moverTouchRadius: 38,
   moverBumpSpeed: 115,
   moverBumpCooldownSec: 0.8,
-  airportPlanePeriodSec: 14,
+  airportPlanePeriodSec: 28,
   castleScatterSec: .95,
   castleScatterPx: 72,
   lavaDrips: { count: 10, intervalSec: .13, lifeSec: .7, moveSpeed: 16, fallSpeed: 72 },
@@ -1075,6 +1110,17 @@ export const QUEUED_FEATURES = {
     volcano: { count: 3, spacing: 96, scale: 1.12, periodSec: 10 },
     castle: { count: 4, spacing: 92, scale: .76, periodSec: 9 },
   },
+} as const;
+
+export const QUEUED_SCENERY = {
+  // Big objects and their smaller companions stay contained in one 128 px ground tile.
+  parkDensity: 0.68,
+  roadsideDensity: 0.32,
+  fieldDensity: 0.17,
+  companionChance: 0.52,
+  motionChance: 0.23,
+  minAmbientSpacing: 240,
+  ambientLimit: 54,
 } as const;
 
 export const WORLD_MUSIC = {
@@ -1093,9 +1139,10 @@ export const WORLD_MUSIC = {
 export const QUEUED_ATMOSPHERE = {
   wrapPad: 960,
   snowTracks: { max: 220, spacing: 20, fadeSec: 10, width: 9, minSpeed: 20, resetDistance: 96 },
+  parkTracks: { max: 180, spacing: 20, fadeSec: 8, width: 11, minSpeed: 20, resetDistance: 96 },
   fronts: {
     brickworks: { columns: 4, rows: 5, speed: 90, scale: 1.4, alpha: .65, angle: -.12, period: 15 },
-    mushroom: { columns: 5, rows: 6, speed: 74, scale: 1.55, alpha: .86, angle: .09, period: 23 },
+    mushroom: { columns: 4, rows: 5, speed: 74, scale: 1.4, alpha: .44, angle: .09, period: 23 },
     tundra: { columns: 5, rows: 7, speed: 205, scale: 2.7, alpha: .78, angle: -.34, period: 17 },
     volcano: { columns: 5, rows: 6, speed: 118, scale: 1.8, alpha: .6, angle: -.22, period: 20 },
     candy: { columns: 4, rows: 5, speed: 76, scale: 1.3, alpha: .73, angle: -.08, period: 16 },

@@ -15,8 +15,41 @@ export function isDrivableTile(t: number): boolean {
     || t === Tile.Corn || t === Tile.Mud;
 }
 
+type Footprints = ReadonlyArray<ReadonlyArray<Vec2>>;
+const footprintsByWorld = new WeakMap<WorldData, Map<number, Footprints>>();
+
+/** Register the same geometry used by Matter for point queries such as jump landings. */
+export function registerBuildingFootprints(world: WorldData, lots: ReadonlyMap<number, Footprints>): void {
+  const byTile = new Map<number, Footprints>();
+  for (const { id, tx, ty, tw, th } of world.buildings) {
+    const polygons = lots.get(id);
+    if (!polygons) continue;
+    for (let y = ty; y < ty + th; y++) for (let x = tx; x < tx + tw; x++) {
+      byTile.set(y * world.widthTiles + x, polygons);
+    }
+  }
+  footprintsByWorld.set(world, byTile);
+}
+
+function inConvexFootprint(points: ReadonlyArray<Vec2>, x: number, y: number): boolean {
+  let positive = false, negative = false;
+  for (const [i, a] of points.entries()) {
+    const b = points[(i + 1) % points.length];
+    const side = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+    positive ||= side > 0;
+    negative ||= side < 0;
+    if (positive && negative) return false;
+  }
+  return true;
+}
+
 export function isDrivable(world: WorldData, x: number, y: number): boolean {
-  const t = tileAt(world, pxToTile(x, world.tileSize), pxToTile(y, world.tileSize));
+  const tx = pxToTile(x, world.tileSize), ty = pxToTile(y, world.tileSize);
+  const t = tileAt(world, tx, ty);
+  if (t === Tile.Building) {
+    const footprints = footprintsByWorld.get(world)?.get(ty * world.widthTiles + tx);
+    if (footprints) return !footprints.some(points => inConvexFootprint(points, x, y));
+  }
   return t !== -1 && isDrivableTile(t);
 }
 

@@ -1,22 +1,25 @@
 import Phaser from 'phaser';
+import { UNLOCK_VEHICLE_IDS } from '../../config/collectibles';
 import { CAT, COLLISION, DEFAULT_SETTINGS, DEPTH, VEHICLE_MODEL } from '../../config/gameConfig';
 import { TEX } from '../../core/assetKeys';
 import { bus } from '../../core/events';
 import type { BodyOwner, ICameraRig, RaceContext } from '../../core/race';
 import { Rng } from '../../core/rng';
 import { services } from '../../core/services';
-import type { CameraLayout, PlayerId, PlayerInput, Rect, WorldData } from '../../core/types';
+import type { CameraLayout, CarKind, PlayerId, PlayerInput, Rect, WorldData } from '../../core/types';
 import { PlayerCar } from '../../entities/PlayerCar';
 import { SkidMarks } from '../../fx/SkidMarks';
 import { CollisionSystem } from '../../systems/CollisionSystem';
 
 const W = 4000, H = 3000;
+const ALL_KINDS: CarKind[] = ['dino', 'kart', ...UNLOCK_VEHICLE_IDS];
 const SPAWNS = [{ x: 500, y: 500, a: 0 }, { x: 500, y: 760, a: 0 }];
 
 /**
  * Dev scene (?dev=DriveTest): driving arena. P0 = dino (keyboard WASD or pad 0), P1 = kart (arrows or pad 1).
  * T turbo P0 - G ghost P0 - J airborne 1 s (P0) - R reset.
- * Optional query: ?substeps=N splits each Matter update into N sub-steps.
+ * C / V cycle P0 / P1 through every vehicle (starters + unlocks) to compare handling.
+ * Optional query: ?substeps=N splits each Matter update into N sub-steps; ?car=<id>&car2=<id> pick vehicles (e.g. car=dragster).
  */
 export default class DriveTest extends Phaser.Scene {
   private cars: PlayerCar[] = [];
@@ -25,7 +28,7 @@ export default class DriveTest extends Phaser.Scene {
   private ctx!: RaceContext;
   private hud!: Phaser.GameObjects.Text;
   private crashLog: string[] = [];
-  private keys!: Record<'T' | 'G' | 'J' | 'R', Phaser.Input.Keyboard.Key>;
+  private keys!: Record<'T' | 'G' | 'J' | 'R' | 'C' | 'V', Phaser.Input.Keyboard.Key>;
   private substeps = 1;
 
   constructor() { super('DriveTest'); }
@@ -43,9 +46,10 @@ export default class DriveTest extends Phaser.Scene {
     this.buildArena();
 
     this.skids = new SkidMarks(this);
+    const q = new URLSearchParams(location.search);
     this.cars = [
-      new PlayerCar(this, 0, 'dino', SPAWNS[0].x, SPAWNS[0].y, SPAWNS[0].a, this.skids),
-      new PlayerCar(this, 1, 'kart', SPAWNS[1].x, SPAWNS[1].y, SPAWNS[1].a, this.skids),
+      new PlayerCar(this, 0, this.kindParam(q.get('car'), 'dino'), SPAWNS[0].x, SPAWNS[0].y, SPAWNS[0].a, this.skids),
+      new PlayerCar(this, 1, this.kindParam(q.get('car2'), 'kart'), SPAWNS[1].x, SPAWNS[1].y, SPAWNS[1].a, this.skids),
     ];
 
     // inputs: keyboard layouts by default, gamepads override
@@ -76,7 +80,7 @@ export default class DriveTest extends Phaser.Scene {
 
     const kb = this.input.keyboard!;
     this.keys = {
-      T: kb.addKey('T'), G: kb.addKey('G'), J: kb.addKey('J'), R: kb.addKey('R'),
+      T: kb.addKey('T'), G: kb.addKey('G'), J: kb.addKey('J'), R: kb.addKey('R'), C: kb.addKey('C'), V: kb.addKey('V'),
     };
     this.hud = this.add.text(20, 16, '', { fontFamily: 'monospace', fontSize: '30px', color: '#ffffff', backgroundColor: '#000000aa', lineSpacing: 4 })
       .setScrollFactor(0).setDepth(200);
@@ -84,6 +88,23 @@ export default class DriveTest extends Phaser.Scene {
     this.cameras.main.centerOn(SPAWNS[0].x, SPAWNS[0].y);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.collisions.destroy(); this.skids.destroy(); });
     (window as unknown as { __drive: unknown }).__drive = { scene: this, cars: this.cars, ctx: this.ctx };
+  }
+
+  private kindParam(v: string | null, fallback: CarKind): CarKind {
+    return v && ALL_KINDS.includes(v as CarKind) ? (v as CarKind) : fallback;
+  }
+
+  /** Swap player `i` for a new car of `kind` at the same spot (replaceChassis would keep the old spec's body, so rebuild). */
+  private swapCar(i: number, kind: CarKind) {
+    const old = this.cars[i];
+    const { x, y, angle } = old;
+    old.destroy();
+    this.cars[i] = new PlayerCar(this, i as PlayerId, kind, x, y, angle, this.skids);
+  }
+
+  private cycle(i: number) {
+    const at = ALL_KINDS.indexOf(this.cars[i].kind);
+    this.swapCar(i, ALL_KINDS[(at + 1) % ALL_KINDS.length]);
   }
 
   private buildGround() {
@@ -160,6 +181,8 @@ export default class DriveTest extends Phaser.Scene {
     if (pads[1]) services.input.assign(1, pads[1]);
 
     const J = Phaser.Input.Keyboard.JustDown;
+    if (J(this.keys.C)) this.cycle(0);
+    if (J(this.keys.V)) this.cycle(1);
     const p0 = this.cars[0];
     if (J(this.keys.T)) p0.setTurbo(!p0.turbo);
     if (J(this.keys.G)) p0.setGhost(!p0.ghost);
@@ -184,8 +207,8 @@ export default class DriveTest extends Phaser.Scene {
 
     const lines = this.cars.map((c, i) => {
       const v = c.velocity;
-      return `P${i} ${c.kind}  spd ${Math.hypot(v.x, v.y).toFixed(0).padStart(4)}  fwd ${c.forwardSpeed.toFixed(0).padStart(4)}  frac ${c.speedFrac.toFixed(2)}  slip ${c.lateralSpeed.toFixed(0).padStart(4)}${c.turbo ? ' TURBO' : ''}${c.ghost ? ' GHOST' : ''}${c.airborne ? ' AIR' : ''}`;
+      return `P${i} ${c.kind.padEnd(12)} spd ${Math.hypot(v.x, v.y).toFixed(0).padStart(4)}  fwd ${c.forwardSpeed.toFixed(0).padStart(4)}  frac ${c.speedFrac.toFixed(2)}  slip ${c.lateralSpeed.toFixed(0).padStart(4)}${c.turbo ? ' TURBO' : ''}${c.ghost ? ' GHOST' : ''}${c.airborne ? ' AIR' : ''}`;
     });
-    this.hud.setText([...lines, `[T]urbo [G]host [J]ump [R]eset  crash>${COLLISION.minImpact}`, ...this.crashLog]);
+    this.hud.setText([...lines, `[T]urbo [G]host [J]ump [R]eset [C]/[V] next car  crash>${COLLISION.minImpact}`, ...this.crashLog]);
   }
 }

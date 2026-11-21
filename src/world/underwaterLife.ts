@@ -3,6 +3,7 @@ import { bodyGrad, ellipse, fillStroke, radial, rr, type Ctx } from '../art/draw
 import { DEPTH } from '../config/gameConfig';
 import { Rng } from '../core/rng';
 import type { WorldData } from '../core/types';
+import { paintJelly, paintManta, paintSchoolFish, paintTurtle } from './underwaterCreatures';
 import { underwaterTexture } from './underwaterPaint';
 
 const INK = '#183750';
@@ -99,6 +100,9 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
   const whale = underwaterTexture(scene, 'whale', 400, 190, c => paintSwimmer(c, true));
   const fish = underwaterTexture(scene, 'fish', 400, 190, c => paintSwimmer(c, false));
   const sub = submarineTexture(scene);
+  const turtle = underwaterTexture(scene, 'turtle', 188, 142, paintTurtle);
+  const manta = underwaterTexture(scene, 'manta', 240, 190, paintManta);
+  const jelly = underwaterTexture(scene, 'jellyfish', 100, 118, paintJelly);
   const bubble = underwaterTexture(scene, 'bubble', 40, 40, c => {
     ellipse(c, 20, 20, 17, 17);
     fillStroke(c, radial(c, 20, 20, 4, 18, [[0, '#a5dbde00'], [1, '#bcffeb54']]), '#b8eadb7d', 2);
@@ -112,6 +116,10 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
     { key: fish, name: 'giant-fish', x: 11, y: 26.5, v: 1.46, scale: 1.05, sign: 1 },
     { key: fish, name: 'giant-fish', x: 39, y: 27.4, v: -1.32, scale: 0.92, sign: -1 },
     { key: fish, name: 'giant-fish', x: 34, y: 6.7, v: -1.13, scale: 1.00, sign: -1 },
+    { key: manta, name: 'manta-ray', x: 23.5, y: 19.1, v: -1.45, scale: 1.65, sign: -1 },
+    { key: manta, name: 'manta-ray', x: 8, y: 38.5, v: 1.08, scale: 1.3, sign: 1 },
+    { key: turtle, name: 'sea-turtle', x: 32, y: 26.5, v: 0.65, scale: 1.13, sign: 1 },
+    { key: turtle, name: 'sea-turtle', x: 13, y: 29.2, v: -0.71, scale: 1.23, sign: -1 },
     { key: sub, name: 'patrol-submarine', x: 16, y: 40, v: 1.4, scale: 0.77, sign: 1 },
   ].map((p, i) => {
     const img = scene.add.image(p.x * ts, p.y * ts, p.key).setDepth(DEPTH.ground - 1).setScale(p.scale)
@@ -126,6 +134,29 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
     objects.push(img);
     return { img, x, y, rate, scale, phase: rng.next() };
   });
+  const fishTextures = [
+    underwaterTexture(scene, 'school-amber', 51, 32, c => paintSchoolFish(c, '#ffdd7b', '#ec9066')),
+    underwaterTexture(scene, 'school-purple', 51, 32, c => paintSchoolFish(c, '#d5adff', '#8975c8')),
+    underwaterTexture(scene, 'school-turquoise', 51, 32, c => paintSchoolFish(c, '#aef1da', '#5a9fbd')),
+  ];
+  const schools = [[21, 21], [10.5, 19.4], [14, 27], [37, 20.2], [31, 24], [25, 36.8], [7.5, 30.6]]
+    .map(([x, y], i) => {
+      const phase = rng.range(0, Math.PI * 2);
+      const rate = rng.range(.31, .55) * (i % 2 ? -1 : 1);
+      const fish = Array.from({ length: 8 }, (_, j) => {
+        const image = scene.add.image(x * ts, y * ts, fishTextures[i % fishTextures.length])
+          .setDepth(DEPTH.ground - .8).setScale(rng.range(.57, .87)).setName('underwater-school-fish');
+        objects.push(image);
+        return { image, x: (3.5 - j) * 24, y: (j % 3 - 1) * 35 + rng.range(-9, 9) };
+      });
+      return { x, y, phase, rate, fish };
+    });
+  const jellies = [[23.8, 23.5], [24.5, 20.2], [26.1, 24.4], [30.2, 27.7], [10.8, 26.4], [36.1, 27.4], [29, 18.8]]
+    .map(([x, y]) => {
+      const img = scene.add.image(x * ts, y * ts, jelly).setDepth(DEPTH.ground - .9).setName('underwater-jellyfish');
+      objects.push(img);
+      return { img, x, y, phase: rng.range(0, Math.PI * 2), scale: rng.range(.75, 1.25) };
+    });
   let clock = 0;
   return dt => {
     clock += dt;
@@ -133,9 +164,28 @@ export function addUnderwaterLife(scene: Phaser.Scene, world: WorldData, objects
     for (const beast of beasts) {
       const { img, x, y, v, phase, scale } = beast;
       const xWrapped = (((x + 4 + clock * v) % width) + width) % width - 4;
+      const stroke = beast.key === manta ? .18 : beast.key === turtle ? .12 : .055;
       img.setPosition(xWrapped * ts, (y + Math.sin(clock * 0.42 + phase) * 0.82) * ts)
         .setRotation(Math.cos(clock * 0.42 + phase) * 0.11)
-        .setScale(scale, scale * (1 + Math.sin(clock * 3 + phase) * 0.055));
+        .setScale(scale, scale * (1 + Math.sin(clock * 3 + phase) * stroke));
+    }
+    for (const school of schools) {
+      const t = clock * school.rate + school.phase;
+      const angle = Math.atan2(Math.cos(t) * 0.65 * school.rate, -Math.sin(t) * 1.8 * school.rate);
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      const x = (school.x + 1.8 * Math.cos(t)) * ts, y = (school.y + .65 * Math.sin(t)) * ts;
+      for (const fish of school.fish) {
+        const wiggle = Math.sin(clock * 7 + fish.x / 17);
+        fish.image.setPosition(x + fish.x * cos - fish.y * sin, y + fish.x * sin + fish.y * cos)
+          .setRotation(angle + .12 * wiggle);
+      }
+    }
+    for (const { img, x, y, phase, scale } of jellies) {
+      const t = clock * .66 + phase;
+      const pulse = Math.sin(t * 2);
+      img.setPosition((x + .31 * Math.sin(t)) * ts, (y + .46 * Math.cos(t) + .05 * pulse) * ts)
+        .setRotation(.22 * Math.cos(t)).setScale(scale * (1 + .11 * pulse), scale * (1 - .09 * pulse))
+        .setAlpha(.77 + .13 * pulse);
     }
     for (const { img, x, y, rate, scale, phase } of bubbles) {
       const travel = (phase + clock * rate) % 1;

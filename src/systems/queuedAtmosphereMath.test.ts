@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { QUEUED_PARK_TRACK_MAPS } from '../config/queuedMaps';
 import { Tile } from '../core/types';
-import { snowTrackAlpha, traceWheel, wrapFront } from './queuedAtmosphereMath';
+import type { QueuedMap } from '../config/queuedMaps';
+import { parkTrackAlpha, snowTrackAlpha, traceWheel, wrapFront } from './queuedAtmosphereMath';
 
 describe('queued world atmosphere', () => {
   it('wraps weather completely outside the visible extent in either direction', () => {
@@ -29,5 +31,16 @@ describe('queued world atmosphere', () => {
     expect(alpha(1)).toBeGreaterThan(alpha(2));
     expect(alpha(2)).toBeGreaterThan(0);
     expect([alpha(3), alpha(4), alpha(-1), alpha(5)]).toEqual([0, 0, 0, 0]);
+  });
+
+  it('leaves park impressions only on open Park patches in the four themed worlds', () => {
+    const tiles = new Uint8Array([Tile.Park, Tile.Road, Tile.Sidewalk, Tile.Plaza, Tile.Dirt, Tile.Building, Tile.Water]);
+    const world = { tiles, heightTiles: 1, widthTiles: tiles.length, tileSize: 128 };
+    const alpha = (map: QueuedMap, tile: number) => parkTrackAlpha(map, world, (tile + .5) * world.tileSize, 64);
+    for (const map of QUEUED_PARK_TRACK_MAPS) {
+      expect(alpha(map, 0)).toBeGreaterThan(0);
+      expect([1, 2, 3, 4, 5, 6, -1, 7].map(tile => alpha(map, tile))).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    }
+    expect(alpha('castle', 0)).toBe(0);
   });
 });

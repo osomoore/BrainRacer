@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { ellipse, lin, makeCanvas, poly, radial, star, type Ctx } from '../art/draw';
-import type { QueuedMap } from '../config/queuedMaps';
+import type { QueuedMap, QueuedParkTrackMap } from '../config/queuedMaps';
 import { TEX } from '../core/assetKeys';
 import { Rng } from '../core/rng';
 
@@ -174,4 +174,32 @@ export function snowTrackTexture(scene: Phaser.Scene): string {
       c.fill();
     }
   });
+}
+
+/** A pair of soft wheel impressions, baked per surface to keep the pooled marks cheap. */
+export function parkTrackTexture(scene: Phaser.Scene, map: QueuedParkTrackMap): string {
+  const paints: Record<QueuedParkTrackMap, (c: Ctx) => void> = {
+    brickworks(c) {
+      c.fillStyle = lin(c, 0, 0, 0, 16, [[0, '#5d493a00'], [.2, '#493d34a8'], [.5, '#80684dab'], [.8, '#493d34a8'], [1, '#5d493a00']]);
+      c.fillRect(0, 0, 36, 16);
+      for (let x = 4; x < 36; x += 7) { c.fillStyle = '#b4976d88'; c.fillRect(x, 5, 2, 2); c.fillRect(x + 2, 10, 2, 2); }
+    },
+    volcano(c) {
+      c.fillStyle = lin(c, 0, 0, 0, 16, [[0, '#352f2b00'], [.2, '#302a26c9'], [.5, '#59504ac2'], [.8, '#302a26c9'], [1, '#352f2b00']]);
+      c.fillRect(0, 0, 36, 16);
+      for (let x = 3; x < 36; x += 8) { c.fillStyle = '#c2aaa66e'; c.fillRect(x, 3, 3, 2); c.fillRect(x + 2, 10, 3, 2); }
+    },
+    house(c) {
+      c.fillStyle = lin(c, 0, 0, 0, 16, [[0, '#805e4800'], [.22, '#805e4875'], [.5, '#f8dfae67'], [.78, '#805e4875'], [1, '#805e4800']]);
+      c.fillRect(0, 0, 36, 16);
+      c.fillStyle = '#fff0cf55'; for (let x = 4; x < 36; x += 4) c.fillRect(x, 7, 2, 2);
+    },
+    candy(c) {
+      c.fillStyle = lin(c, 0, 0, 0, 16, [[0, '#e77db200'], [.2, '#cf86a3a8'], [.5, '#fff0ca9c'], [.8, '#cf86a3a8'], [1, '#e77db200']]);
+      c.fillRect(0, 0, 36, 16);
+      const colors = ['#ff547b', '#53b8df', '#f8ce48', '#8dd368'];
+      for (let x = 3; x < 36; x += 6) { c.fillStyle = colors[(x / 3) % colors.length]; c.fillRect(x, 4, 3, 2); c.fillRect(x + 2, 10, 2, 2); }
+    },
+  };
+  return bake(scene, TEX.queuedFeature.mover(`${map}-park-track`), 36, 16, paints[map]);
 }

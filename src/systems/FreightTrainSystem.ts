@@ -18,6 +18,7 @@ interface CarAppearance {
   image: Phaser.GameObjects.Image;
   length: number;
   width: number;
+  cornerRadius?: number;
 }
 
 interface TrainCar extends CarAppearance {
@@ -152,6 +153,7 @@ export class FreightTrainSystem implements GameSystem {
       image.setPosition(pose.x, pose.y).setRotation(pose.angle);
       const body = scene.matter.add.rectangle(pose.x, pose.y, length, width, {
         label: image.name,
+        ...(appearance.cornerRadius ? { chamfer: { radius: appearance.cornerRadius } } : {}),
         isStatic: true,
         angle: pose.angle,
         friction: 0,
@@ -301,9 +303,12 @@ export class FreightTrainSystem implements GameSystem {
       c.smashedAt = this.clock;
       c.image.setVisible(false);
       c.body.collisionFilter.mask = 0; // intact body stops colliding while the slot is empty
-      const image = scene.add.image(c.image.x, c.image.y, c.image.texture.key).setRotation(c.image.rotation).setDepth(DEPTH.vehicle + 1);
+      const image = scene.add.image(c.image.x, c.image.y, c.image.texture.key)
+        .setDisplaySize(c.image.displayWidth, c.image.displayHeight)
+        .setRotation(c.image.rotation).setDepth(DEPTH.vehicle + 1);
       const body = scene.matter.add.rectangle(c.image.x, c.image.y, c.length, c.width, {
         label: `${c.image.name}-debris`,
+        ...(c.cornerRadius ? { chamfer: { radius: c.cornerRadius } } : {}),
         angle: c.image.rotation,
         density: 0.002,
         frictionAir: 0.015,

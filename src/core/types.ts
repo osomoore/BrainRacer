@@ -313,6 +313,11 @@ export interface VehicleSpec {
   turnRate: number;       // rad/s at optimal speed
   grip: number;           // 0..1 fraction of lateral velocity removed per 1/60 s
   drag: number;           // fraction of speed lost per second when coasting
+  /** Optional per-vehicle feel (default = VEHICLE_MODEL globals, so NPC specs are unchanged). */
+  steerResponse?: number; // 1/s: how fast turning starts/stops (lower = heavier, more momentum)
+  driftLoss?: number;     // 0..1: grip lost at full speed (per-car VEHICLE_MODEL.highSpeedGripLoss)
+  pivotRate?: number;     // rad/s turn at ~0 speed (player cars; per-car VEHICLE_MODEL.pivotRate)
+  recoilMult?: number;    // scales post-crash recoil duration (heavy < 1 shrugs hits off, light > 1 bounces)
 }
 
 export type RewardKind = 'turbo' | 'rainbow' | 'shockwave' | 'ghost' | 'magnet';

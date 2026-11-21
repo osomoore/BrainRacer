@@ -1,13 +1,13 @@
 import type Phaser from 'phaser';
 import { DEPTH, QUEUED_ATMOSPHERE as WEATHER } from '../config/gameConfig';
-import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
+import { isQueuedMap, isQueuedParkTrackMap, type QueuedMap } from '../config/queuedMaps';
 import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
 import { Rng } from '../core/rng';
 import { Tile, type Vec2 } from '../core/types';
 import { SkidMarks } from '../fx/SkidMarks';
 import { queuedFeatureSites } from '../world/gen/queuedWorlds';
-import { queuedWeatherTexture, snowTrackTexture } from './queuedAtmosphereArt';
-import { snowTrackAlpha, traceWheel, wrapFront } from './queuedAtmosphereMath';
+import { parkTrackTexture, queuedWeatherTexture, snowTrackTexture } from './queuedAtmosphereArt';
+import { parkTrackAlpha, snowTrackAlpha, traceWheel, wrapFront } from './queuedAtmosphereMath';
 
 type Front = { image: Phaser.GameObjects.Image; x: number; y: number; vx: number; vy: number; phase: number };
 type Track = { previous: Vec2; wheels: [Vec2, Vec2] };
@@ -16,7 +16,7 @@ export class QueuedAtmosphereSystem implements GameSystem {
   readonly name = 'queuedAtmosphere';
   private map?: QueuedMap;
   private fronts: Front[] = [];
-  private snow?: SkidMarks;
+  private tracksPool?: SkidMarks;
   private tracks = new Map<IPlayerCar, Track>();
   private ventTiles: readonly number[] = [];
   private clock = 0;
@@ -29,8 +29,13 @@ export class QueuedAtmosphereSystem implements GameSystem {
     if (map === 'volcano') this.ventTiles = queuedFeatureSites(map, world).gate.tiles;
     if (map === 'tundra') {
       const { max, width, fadeSec } = WEATHER.snowTracks;
-      this.snow = new SkidMarks(scene, max, {
+      this.tracksPool = new SkidMarks(scene, max, {
         key: snowTrackTexture(scene), name: 'tundra-snow-track', width, fadeSec, depth: DEPTH.decal + 1,
+      }).prewarm();
+    } else if (isQueuedParkTrackMap(map)) {
+      const { max, width, fadeSec } = WEATHER.parkTracks;
+      this.tracksPool = new SkidMarks(scene, max, {
+        key: parkTrackTexture(scene, map), name: `${map}-park-track`, width, fadeSec, depth: DEPTH.decal - 2,
       }).prewarm();
     }
 
@@ -60,16 +65,16 @@ export class QueuedAtmosphereSystem implements GameSystem {
     const { world } = ctx;
     const erupting = this.ventTiles.some(i => world.tiles[i] === Tile.Water);
     this.updateFronts(world.widthTiles * world.tileSize, world.heightTiles * world.tileSize, erupting);
-    if (this.snow) {
-      this.snow.update(dt);
-      for (const car of ctx.players) this.updateTracks(car, world, this.snow);
+    if (this.tracksPool) {
+      this.tracksPool.update(dt);
+      for (const car of ctx.players) this.updateTracks(car, world, this.tracksPool);
     }
   }
 
   destroy(): void {
     for (const { image } of this.fronts) image.destroy();
     this.fronts.length = 0;
-    this.snow?.destroy();
+    this.tracksPool?.destroy();
     this.tracks.clear();
   }
 
@@ -112,7 +117,7 @@ export class QueuedAtmosphereSystem implements GameSystem {
       return;
     }
     const lay = (at: Vec2, angle: number) => {
-      const alpha = snowTrackAlpha(world, at.x, at.y);
+      const alpha = this.map === 'tundra' ? snowTrackAlpha(world, at.x, at.y) : parkTrackAlpha(this.map!, world, at.x, at.y);
       if (alpha) marks.add(at.x, at.y, angle, spacing + 2, alpha);
     };
     trail.wheels = [traceWheel(trail.wheels[0], left, spacing, lay), traceWheel(trail.wheels[1], right, spacing, lay)];

@@ -50,6 +50,16 @@ export function isUnderwaterCrossing(x: number, y: number, tileSize: number): bo
   return x >= left * tileSize && x < right * tileSize && y >= top * tileSize && y < bottom * tileSize;
 }
 
+export const UNDERWATER_BUILDING_LOTS = [
+  [8, 11, 'school', 8.65], [11, 11, 'shop', 9.35], [14, 11, 'bakery', 9.35],
+  [8, 17, 'museum', 20.65], [11, 16, 'library', 20.65], [14, 17, 'tower', 20.65],
+  [8, 23, 'restaurant', 21.35], [13, 25, 'house', 29.35], [9, 32, 'park', 36.65],
+  [32, 12, 'school', 11.35], [35, 13, 'hospital', 11.35], [38, 12, 'library', 11.35],
+  [32, 17, 'museum', 20.65], [35, 18, 'restaurant', 20.65], [38, 17, 'tower', 20.65],
+  [34, 24, 'shop', 21.35], [38, 25, 'house', 29.35], [34, 32, 'bakery', 36.65],
+  [38, 33, 'park', 36.65],
+] as const;
+
 /** Two neighborhoods encircle their own plazas. Deep-water tunnels connect them at three levels. */
 export function generateUnderwater(seed: number): WorldData {
   const rng = new Rng(seed);
@@ -94,16 +104,7 @@ export function generateUnderwater(seed: number): WorldData {
   for (const node of laneGraph.nodes) { node.x += ts / 2; node.y += ts / 2; }
 
   const buildings: BuildingLot[] = [], places: PlaceSite[] = [];
-  const lots = [
-    [8, 11, 'school', 8.65], [11, 11, 'shop', 9.35], [14, 11, 'bakery', 9.35],
-    [8, 17, 'museum', 20.65], [11, 16, 'library', 20.65], [14, 17, 'tower', 20.65],
-    [8, 23, 'restaurant', 21.35], [13, 25, 'house', 29.35], [9, 32, 'park', 36.65],
-    [32, 12, 'school', 11.35], [35, 13, 'hospital', 11.35], [38, 12, 'library', 11.35],
-    [32, 17, 'museum', 20.65], [35, 18, 'restaurant', 20.65], [38, 17, 'tower', 20.65],
-    [34, 24, 'shop', 21.35], [38, 25, 'house', 29.35], [34, 32, 'bakery', 36.65],
-    [38, 33, 'park', 36.65],
-  ] as const;
-  for (const [x, y, word, roadY] of lots) {
+  for (const [x, y, word, roadY] of UNDERWATER_BUILDING_LOTS) {
     const id = buildings.length;
     const placeWord = scenesForWord(word).length ? word : undefined;
     buildings.push({ id, tx: x, ty: y, tw: 2, th: 2, style: rng.int(0, 5), placeWord });

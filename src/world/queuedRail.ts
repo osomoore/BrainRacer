@@ -4,8 +4,9 @@ import { DEPTH, FREIGHT, QUEUED_FEATURES as FEATURE } from '../config/gameConfig
 import { TEX } from '../core/assetKeys';
 import type { WorldData } from '../core/types';
 import { carriagePose, measureCircuit, type RailCircuit } from '../systems/freightTiming';
-import { queuedFeatureTextures, queuedRailPalette } from '../systems/queuedWorldFeatureArt';
+import { queuedSignalTexture, queuedRailPalette } from '../systems/queuedWorldFeatureArt';
 import { queuedRailRoute, type QueuedRailMap } from './gen/queuedWorlds';
+import { queuedRailCar } from './queuedRailCars';
 
 const TRACK_HALF_WIDTH = 39;
 const CHUNK_LENGTH = 448;
@@ -40,8 +41,9 @@ function trackArt(scene: Phaser.Scene, map: QueuedRailMap, circuit: RailCircuit)
       ctx.lineWidth = width;
       ctx.stroke();
     };
-    stroke(0, 72, colors.dark);
-    stroke(0, 62, colors.deck);
+    stroke(0, 67, colors.dark);
+    stroke(0, 59, colors.deck);
+    stroke(0, 45, colors.dark);
     for (let mark = Math.ceil(start / sleeperStep); mark * sleeperStep < end; mark++) {
       const { x: px, y: py, angle } = pose(mark * sleeperStep);
       ctx.save();
@@ -51,8 +53,9 @@ function trackArt(scene: Phaser.Scene, map: QueuedRailMap, circuit: RailCircuit)
       ctx.restore();
     }
     for (const offset of [-19, 19]) {
-      stroke(offset, 9, colors.dark);
-      stroke(offset, 4, colors.trim);
+      stroke(offset, 8, colors.dark);
+      stroke(offset, 4.5, colors.trim);
+      stroke(offset - 0.8, 1.4, '#fff7d9ae');
     }
     done();
     const image = scene.add.image(x, y, key).setOrigin(0).setDepth(DEPTH.decal - 2).setName('queued-mover-track');
@@ -79,51 +82,62 @@ function paintSleeper(ctx: Ctx, map: QueuedRailMap, colors: ReturnType<typeof qu
   ctx.fillRect(-6, -29, 12, 58);
   ctx.fillStyle = colors.light;
   ctx.fillRect(-4, -29, 3, 58);
+  ctx.fillStyle = colors.dark;
+  for (const y of [-26, 24]) ctx.fillRect(-5, y, 6, 3);
 }
 
 /** Make rail scenery and poses. FreightTrainSystem attaches and updates the carriage bodies. */
 export function addQueuedRail(scene: Phaser.Scene, map: QueuedRailMap, world: WorldData) {
   const circuit = measureCircuit(queuedRailRoute(map, world));
   const track = trackArt(scene, map, circuit);
-  const textures = queuedFeatureTextures(scene, map);
+  const signalKey = queuedSignalTexture(scene);
   const { count, scale, spacing, speed } = FEATURE.rail[map];
-  const length = (map === 'candy' ? 118 : 111) * scale;
-  const width = (map === 'candy' ? 52 : 62) * scale;
-  const start = circuit.length / 4;
+  const crossing = circuit.crossings.reduce((nearest, other) => {
+    const player = world.playerSpawns[0];
+    const distance = ({ center }: typeof other) => Math.hypot(center.x - player.x, center.y - player.y);
+    return distance(other) < distance(nearest) ? other : nearest;
+  });
+  const preview = new URLSearchParams(location.search).get('train') === 'near';
+  const start = crossing.start - speed * (preview ? FREIGHT.warningLeadSec + 1 : FREIGHT.firstWarningSec + FREIGHT.warningLeadSec);
   const headAt = (elapsed: number) => start + elapsed * speed;
-  const cars = Array.from({ length: count }, (_, i) => ({
-    image: scene.add.image(0, 0, textures.mover).setName(`queued-mover-${i}`).setScale(scale).setDepth(DEPTH.vehicle - 1),
-    length,
-    width,
-  }));
+  const cars = Array.from({ length: count }, (_, i) => {
+    const { key, length, width, cornerRadius } = queuedRailCar(scene, map, i, scale);
+    return { image: scene.add.image(0, 0, key).setName(`queued-mover-${i}`).setScale(scale).setDepth(DEPTH.vehicle - 1),
+      length, width, cornerRadius };
+  });
   const hitchTint = Number.parseInt(queuedRailPalette(map).dark.slice(1), 16);
   const couplers = cars.slice(1).map(() => scene.add.image(0, 0, '__WHITE')
     .setTint(hitchTint).setDepth(DEPTH.vehicle - 2));
   const signals = circuit.crossings.flatMap(crossing => [-1, 1].map(side => {
     const { center, width, dx, dy } = crossing;
     const offset = side * (width / 2 + 14);
-    const image = scene.add.image(center.x + dx * offset - dy * side * 34, center.y + dy * offset + dx * side * 34, textures.signal)
+    const image = scene.add.image(center.x + dx * offset - dy * side * 42, center.y + dy * offset + dx * side * 42, signalKey)
       .setName('queued-rail-signal').setTint(0x88ddd0).setScale(.74).setDepth(DEPTH.prop);
-    return { image, crossing, lit: false };
+    return { image, crossing, side, lit: false };
   }));
+  const length = cars[0].length;
   return {
-    trains: [{ cars, poseAt: (elapsed: number, index: number) => carriagePose(circuit, headAt(elapsed) - index * spacing, length * .56) }],
+    trains: [{ cars, poseAt: (elapsed: number, index: number) => carriagePose(circuit, headAt(elapsed) - index * spacing, 63 * scale) }],
     update(elapsed: number) {
       const lead = FREIGHT.warningLeadSec * speed;
       const trainLength = spacing * (count - 1) + length;
       const front = headAt(elapsed) + length / 2;
       for (const signal of signals) {
         const phase = ((front - signal.crossing.start + lead) % circuit.length + circuit.length) % circuit.length;
-        const lit = phase < lead + signal.crossing.width + trainLength && Math.floor(elapsed / FREIGHT.flashStepSec) % 2 === 0;
-        if (lit !== signal.lit) signal.image.setTint(lit ? 0xffac5d : 0x88ddd0);
+        const lit = phase < lead + signal.crossing.width + trainLength
+          && Math.floor(elapsed / FREIGHT.flashStepSec) % 2 === (signal.side < 0 ? 0 : 1);
+        if (lit !== signal.lit) signal.image.setTint(lit ? 0xff9d5b : 0x88ddd0);
         signal.lit = lit;
       }
       for (const [i, link] of couplers.entries()) {
         const a = cars[i].image, b = cars[i + 1].image;
         link.setVisible(a.visible && b.visible);
         if (!link.visible) continue;
-        link.setPosition((a.x + b.x) / 2, (a.y + b.y) / 2).setRotation(Math.atan2(a.y - b.y, a.x - b.x))
-          .setDisplaySize(Math.hypot(a.x - b.x, a.y - b.y), HITCH_WIDTH);
+        const bumper = length / 2 - 6 * scale;
+        const ax = a.x - Math.cos(a.rotation) * bumper, ay = a.y - Math.sin(a.rotation) * bumper;
+        const bx = b.x + Math.cos(b.rotation) * bumper, by = b.y + Math.sin(b.rotation) * bumper;
+        link.setPosition((ax + bx) / 2, (ay + by) / 2).setRotation(Math.atan2(ay - by, ax - bx))
+          .setDisplaySize(Math.hypot(ax - bx, ay - by), HITCH_WIDTH);
       }
     },
     destroy() {

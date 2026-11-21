@@ -1,11 +1,15 @@
 import type Phaser from 'phaser';
 import { ellipse, fillStroke, hash, makeCanvas, type Ctx } from '../art/draw';
-import { DEPTH } from '../config/gameConfig';
+import { DEPTH, QUEUED_FEATURES } from '../config/gameConfig';
 import type { QueuedMap } from '../config/queuedMaps';
-import { Rng } from '../core/rng';
 import { ROAD_E, ROAD_N, ROAD_S, ROAD_W, Tile, type BuildingLot, type WorldData } from '../core/types';
-import { QUEUED_SHOWCASE_STYLE, queuedBuildingQuarterTurns, queuedMushroomFeatures, queuedRunway, queuedVolcanoTunnel } from './gen/queuedWorlds';
-import { box, paintQueuedBuilding, paintQueuedPlane, paintQueuedScenery, QUEUED_PALETTES } from './queuedWorldArt';
+import { QUEUED_SHOWCASE_STYLE, queuedMushroomFeatures, queuedRunway, queuedVolcanoTunnel } from './gen/queuedWorlds';
+import { queuedPlaneTexture } from '../systems/queuedWorldFeatureArt';
+import { queuedBuildingPose, usesNatureArt } from './laterBuildingFootprints';
+import { laterBuiltBuilding } from './laterBuiltArt';
+import { laterNatureBuilding } from './laterNatureArt';
+import { addQueuedScenery } from './queuedScenery';
+import { box, QUEUED_PALETTES } from './queuedWorldArt';
 
 type Objects = Phaser.GameObjects.GameObject[];
 
@@ -49,6 +53,18 @@ function tileSource(map: QueuedMap, size: number): (index: number) => HTMLCanvas
 
 function paintFloorDetail(c: Ctx, map: QueuedMap, index: number): void {
   const p = QUEUED_PALETTES[map];
+  if (map === 'brickworks' && index === 3) {
+    // Quarry parks are compacted dust and worn aggregate rather than fresh brick studs.
+    for (let y = 0; y < 128; y += 32) {
+      box(c, '#5a514744', 0, y, 128, 1);
+      box(c, '#d2b99a2d', 0, y + 1, 128, 2);
+    }
+    for (let i = 0; i < 48; i++) {
+      const x = 4 + 120 * hash(i, 71), y = 4 + 120 * hash(i, 72);
+      box(c, i % 2 ? '#d8c6a275' : '#4f483f69', x, y, 2 + hash(i, 73) * 4, 1 + hash(i, 74) * 2);
+    }
+    return;
+  }
   if (index === 0) {
     const tint = map === 'volcano' ? '#ffc45399' : '#ecf3d937';
     for (let row = 0; row < 8; row++) {
@@ -64,11 +80,38 @@ function paintFloorDetail(c: Ctx, map: QueuedMap, index: number): void {
     }
     return;
   }
-  if (map === 'house' && index === 1) {
+  if (map === 'house' && index === 3) {
+    for (let y = 0; y < 128; y += 16) for (let x = 0; x < 128; x += 16) {
+      box(c, (x + y) % 32 ? '#927593' : '#806b8e', x, y, 16, 16);
+      box(c, '#d1a79a38', x + 5, y + 5, 6, 6);
+      box(c, '#4b425632', x, y + 15, 16, 1);
+    }
+  } else if (map === 'house' && index === 1) {
     for (let y = 0; y < 128; y += 32) {
       box(c, '#573d4d69', 0, y, 128, 2);
       box(c, '#eaba8a7d', 0, y + 2, 128, 2);
       box(c, '#573d4d50', y % 64 === 0 ? 20 : 84, y, 2, 32);
+    }
+  } else if (map === 'airport' && (index === 3 || index === 4)) {
+    for (const y of [0, 64]) {
+      box(c, '#27374688', 0, y, 128, 1);
+      box(c, '#d8dccc60', 0, y + 1, 128, 1);
+      for (const x of [12, 104]) box(c, '#353f5677', x, y + 45, 12, 4);
+    }
+    box(c, '#27374666', 63, 0, 1, 128);
+  } else if (map === 'castle' && index === 3) {
+    for (let y = 0; y < 128; y += 16) for (let x = -16 + (y % 32); x < 128; x += 32) {
+      box(c, '#62494055', x, y + 1, 29, 14);
+      box(c, '#d7b68858', x + 1, y + 1, 28, 3);
+    }
+  } else if (map === 'candy' && index === 3) {
+    for (let i = 0; i < 18; i++) {
+      const x = 8 + 112 * hash(i, 81), y = 8 + 112 * hash(i, 82);
+      c.save();
+      c.translate(x, y);
+      c.rotate(hash(i, 83) * Math.PI);
+      box(c, p.colors[i % p.colors.length], -5, -1, 10, 2);
+      c.restore();
     }
   } else if (map === 'tundra' && index === 5) {
     for (const [x, y, dx, dy] of [[27, 33, 60, 16], [7, 85, 38, -15], [73, 115, 42, -32], [61, 68, 47, 7]]) {
@@ -80,12 +123,26 @@ function paintFloorDetail(c: Ctx, map: QueuedMap, index: number): void {
       c.lineTo(x + dx, y + dy);
       c.stroke();
     }
+  } else if (map === 'volcano' && index === 3) {
+    for (let i = 0; i < 14; i++) {
+      const x = 124 * hash(i, 83), y = 124 * hash(i, 84);
+      box(c, '#261e2e9c', x, y, 4 + i % 6, 3);
+      box(c, '#e99b594d', x + 1, y, 4, 1);
+    }
   } else if (index === 2 || map === 'brickworks') {
     const step = map === 'brickworks' ? 16 : 32;
     for (let x = 0; x < 128; x += step) {
       box(c, '#27243538', x, 0, 1, 128);
       box(c, '#fff5d539', 0, x + 1, 128, 1);
-      if (map === 'brickworks') box(c, '#fff5d538', x + 1, 0, 1, 128);
+      if (map === 'brickworks') {
+        box(c, '#fff5d538', x + 1, 0, 1, 128);
+        for (let y = 8; y < 128; y += 16) {
+          ellipse(c, x + 8, y, 3.2, 3.2);
+          fillStroke(c, '#422a3336', null);
+          ellipse(c, x + 7, y - 1, 2, 2);
+          fillStroke(c, '#ffe8ab42', null);
+        }
+      }
     }
   } else if (index === 3) {
     for (let i = 0; i < 22; i++) {
@@ -138,14 +195,13 @@ function texture(scene: Phaser.Scene, key: string, w: number, h: number, paint: 
 function addBuilding(scene: Phaser.Scene, world: WorldData, lot: BuildingLot, objects: Objects, map: QueuedMap): void {
   const key = texture(scene, `queued_${map}_building_${lot.style}`, 400, 320, c => {
     c.scale(2, 2);
-    paintQueuedBuilding(c, map, lot.style);
+    const paint = usesNatureArt(map) ? laterNatureBuilding : laterBuiltBuilding;
+    paint(c, map, lot.style);
   });
-  const ts = world.tileSize;
-  const turns = queuedBuildingQuarterTurns(map, world, lot), sideways = turns % 2 === 1;
+  const { x, y, width, height, angle } = queuedBuildingPose(map, world, lot);
   const name = lot.style === QUEUED_SHOWCASE_STYLE ? 'showcase' : 'landmark';
-  objects.push(scene.add.image((lot.tx + lot.tw / 2) * ts, (lot.ty + lot.th / 2) * ts, key)
-    .setDisplaySize((sideways ? lot.th : lot.tw) * ts, (sideways ? lot.tw : lot.th) * ts)
-    .setAngle(turns * 90).setDepth(DEPTH.building).setName(`${map}-${name}`));
+  objects.push(scene.add.image(x, y, key).setDisplaySize(width, height)
+    .setRotation(angle).setDepth(DEPTH.building).setName(`${map}-${name}`));
 }
 
 export function queuedWorldTileset(map: QueuedMap) {
@@ -173,14 +229,7 @@ function addAirportRunway(scene: Phaser.Scene, world: WorldData, objects: Object
     ellipse(c, 12, 12, 5, 5);
     fillStroke(c, '#b6ffe7', null);
   });
-  const planeArt = texture(scene, 'queued_runway_plane', 200, 200, c => {
-    c.scale(2, 2);
-    paintQueuedPlane(c, '#9db9c8', '#3a566a', '#f6d79b');
-  });
-  const shadowArt = texture(scene, 'queued_runway_plane_shadow', 64, 64, c => {
-    ellipse(c, 32, 32, 30, 13);
-    fillStroke(c, '#23313875', null);
-  });
+  const planeArt = queuedPlaneTexture(scene);
   objects.push(scene.add.image((start + end) / 2, y, runway).setDisplaySize(end - start, 1.6 * ts)
     .setDepth(DEPTH.ground + 1).setName('airport-runway'));
   for (let x = start + 0.2 * ts; x < end; x += 2.3 * ts) {
@@ -188,20 +237,21 @@ function addAirportRunway(scene: Phaser.Scene, world: WorldData, objects: Object
       objects.push(scene.add.image(x, y + side * 0.88 * ts, glow).setDepth(DEPTH.ground + 2));
     }
   }
-  const shadow = scene.add.image(start, y, shadowArt).setDepth(DEPTH.decal - 1);
+  const shadow = scene.add.image(start, y, planeArt).setTintFill(0x172634).setDepth(DEPTH.decal - 1);
   const plane = scene.add.image(start, y, planeArt).setDepth(DEPTH.airborne + 1).setName('airport-landing-plane');
   objects.push(shadow, plane);
   return clock => {
-    const time = clock % 34;
-    const departing = time >= 17;
-    const t = (time % 17) / 17;
-    const x = start + (end - start) * t;
-    const altitude = departing ? t ** 3 : Math.max(0, 1 - t * 1.6) ** 2;
-    shadow.setPosition(x, y).setScale(3.2 - altitude).setAlpha(1 - altitude * 0.6);
-    plane.setPosition(x, y - altitude * 340).setScale(1.1 + altitude * 0.75);
-    const endFade = Math.min(1, t * 10, (1 - t) * 10);
+    const cycle = clock / QUEUED_FEATURES.airportPlanePeriodSec;
+    const departing = Math.floor(cycle) % 2 === 1;
+    const time = cycle % 1;
+    const t = Math.min(1, time * 1.2);
+    const x = start + (end - start) * (departing ? t ** 1.55 : 1 - (1 - t) ** 1.55);
+    const altitude = departing ? t ** 4 : (1 - t) ** 5;
+    const endFade = Math.min(1, t * 12, (1 - t) * 12);
+    shadow.setPosition(x + altitude * 65 + 8, y + altitude * 85 + 8).setScale(1.04 + altitude * 0.1);
+    plane.setPosition(x, y).setScale(1.04 + altitude * 0.46);
     plane.setAlpha(endFade);
-    shadow.setAlpha(endFade * (1 - altitude * 0.6));
+    shadow.setAlpha(endFade * (0.42 - altitude * 0.27));
   };
 }
 
@@ -299,19 +349,7 @@ export function addQueuedWorld(scene: Phaser.Scene, world: WorldData, objects: O
   const W = world.widthTiles * ts, H = world.heightTiles * ts;
   objects.push(scene.add.rectangle(W / 2, H / 2, W + 1800, H + 1800, Number.parseInt(palette.floor[0].slice(1), 16))
     .setDepth(DEPTH.ground - 2));
-  const rng = new Rng(world.seed ^ 0xc3b88b1);
-  const life: { img: Phaser.GameObjects.Image; x: number; y: number; phase: number }[] = [];
-  const sprites = Array.from({ length: 3 }, (_, style) => texture(scene, `queued_${map}_scenery_${style}`, 100, 100,
-    c => paintQueuedScenery(c, map, style)));
-  for (let y = 3; y < world.heightTiles - 3; y += 2) for (let x = 3; x < world.widthTiles - 3; x += 2) {
-    const tile = world.tiles[y * world.widthTiles + x];
-    if ((tile !== Tile.Grass && tile !== Tile.Park && tile !== Tile.Dirt) || !rng.chance(tile === Tile.Park ? 0.62 : 0.19)) continue;
-    const px = (x + rng.range(0.3, 0.7)) * ts, py = (y + rng.range(0.3, 0.7)) * ts;
-    const style = rng.int(0, sprites.length - 1);
-    const img = scene.add.image(px, py, sprites[style]).setScale(rng.range(0.57, 1.13)).setDepth(DEPTH.decal - 1);
-    objects.push(img);
-    if (map === 'tundra' && style >= 2) life.push({ img, x: px, y: py, phase: rng.range(0, Math.PI * 2) });
-  }
+  const updateScenery = addQueuedScenery(scene, world, objects, map);
   if (map === 'volcano') addVolcanoTunnel(scene, world, objects);
   if (map === 'mushroom') addMushroomSites(scene, world, objects);
   const runway = map === 'airport' ? addAirportRunway(scene, world, objects) : undefined;
@@ -319,9 +357,6 @@ export function addQueuedWorld(scene: Phaser.Scene, world: WorldData, objects: O
   return dt => {
     clock += dt;
     runway?.(clock);
-    for (const { img, x, y, phase } of life) {
-      const t = clock * 0.8 + phase;
-      img.setPosition(x + Math.sin(t) * 23, y + Math.cos(t) * 7).setRotation(Math.cos(t) * 0.18);
-    }
+    updateScenery(dt);
   };
 }

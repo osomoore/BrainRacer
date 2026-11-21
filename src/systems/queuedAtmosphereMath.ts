@@ -1,4 +1,5 @@
 import { Tile, type Vec2, type WorldData } from '../core/types';
+import { isQueuedParkTrackMap, type QueuedMap } from '../config/queuedMaps';
 
 /** Wrap fronts beyond a padded map edge so they never jump while in view. */
 export function wrapFront(value: number, extent: number, pad: number): number {
@@ -19,6 +20,14 @@ export function snowTrackAlpha(world: Pick<WorldData, 'tileSize' | 'widthTiles' 
     case Tile.Dirt: return .29;
     default: return 0;
   }
+}
+
+/** Later queued-world surfaces leave impressions only on their open themed ground patches. */
+export function parkTrackAlpha(map: QueuedMap, world: Pick<WorldData, 'tileSize' | 'widthTiles' | 'heightTiles' | 'tiles'>, x: number, y: number): number {
+  if (!isQueuedParkTrackMap(map)) return 0;
+  const tx = Math.floor(x / world.tileSize), ty = Math.floor(y / world.tileSize);
+  if (tx < 0 || ty < 0 || tx >= world.widthTiles || ty >= world.heightTiles) return 0;
+  return world.tiles[ty * world.widthTiles + tx] === Tile.Park ? .88 : 0;
 }
 
 /** Sample a wheel's actual path by distance, saving the unused length for the next frame. */
