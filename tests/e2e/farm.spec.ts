@@ -94,7 +94,7 @@ test('Setup can select Farm', async ({ page }) => {
   await page.waitForTimeout(800); // Title allows time for a second player to join.
   await page.keyboard.press('Space');
   await waitScene(page, 'Setup');
-  // From Difficulty, go up to Start and then Map. City → Factory → Farm.
+  // From Racer, go up to Start and then Map. City → Factory → Farm.
   for (let row = 0; row < 2; row++) {
     await page.keyboard.press('KeyW', { delay: 55 });
     await page.waitForTimeout(55);

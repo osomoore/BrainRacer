@@ -34,7 +34,7 @@ async function openSetup(page: Page) {
 }
 
 async function chooseNextMap(page: Page, key: 'KeyD' | 'KeyA' = 'KeyD') {
-  // From Difficulty, go up to Start and then Map.
+  // From Racer, go up to Start and then Map.
   for (let row = 0; row < 2; row++) {
     await page.keyboard.press('KeyW', { delay: 55 });
     await page.waitForTimeout(55);
