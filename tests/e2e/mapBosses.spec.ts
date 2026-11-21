@@ -14,6 +14,7 @@ for (const [map, bossName, beamKey] of [
   ['sky', 'thundercloud', 'thundercloud_beam'],
   ['forest', 'walking-tree', 'walking_tree_beam'],
   ['underwater', 'landshark', 'landshark_beam'],
+  ['castle', 'wooden-horse', 'queued_boss_castle_beam'],
 ] as const) {
   test(`${bossName} fires twin lasers and can be ridden for 20 seconds`, async ({ page }) => {
     await page.goto(`/?race=1&map=${map}&seed=3&questions=off&dino=now&laser=now`);
@@ -34,7 +35,7 @@ for (const [map, bossName, beamKey] of [
       const { scene } = (window as BossWindow).__race;
       return scene.children.list.filter((child) => {
         const beam = child as Phaser.GameObjects.Image;
-        return beam.texture?.key === key && beam.visible && beam.displayHeight > minHeight;
+        return beam.texture?.key === key && beam.visible && beam.displayHeight > minHeight && beam.blendMode === 0;
       }).length === 2;
     }, { key: beamKey, minHeight: DINO_LASER.drawWidth * 0.8 }, WAIT);
     await page.evaluate(() => {

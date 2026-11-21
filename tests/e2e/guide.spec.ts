@@ -34,13 +34,14 @@ async function parkKartByTheFountain(page: Page, dx: number, angle: number) {
 
 test('the kart guide leads up and right toward a clipped destination ring', async ({ page }) => {
   await parkKartByTheFountain(page, -832, -Math.PI / 4);
-  const { car, star, goal, view, nominalRadius, ringRadius } = await page.evaluate(({ starKey, ringKey }) => {
+  const { car, star, goal, view, nominalRadius, ringRadius, glowAtGoal } = await page.evaluate(({ starKey, ringKey, beaconKey }) => {
     const race = (window as RaceWindow).__race!;
     const car = race.players[1];
     const images = race.scene.children.list as Phaser.GameObjects.Image[];
     const guide = images.find((obj) => obj.texture?.key === starKey && obj.visible)!;
     const ring = images.find((obj) => obj.texture?.key === ringKey)!;
     const goal = race.goal!;
+    const beacon = images.find(obj => obj.texture?.key === beaconKey && obj.x === goal.x && obj.y === goal.y)!;
     const project = ({ x, y }: { x: number; y: number }) => race.camera.worldToScreen(1, x, y);
     const screen = project(goal);
     const screenRadius = (radius: number) => {
@@ -50,9 +51,12 @@ test('the kart guide leads up and right toward a clipped destination ring', asyn
     return {
       car: project(car), star: project(guide), goal: screen, view: race.camera.layout().playerViews[1],
       nominalRadius: screenRadius(goal.radius), ringRadius: screenRadius(ring.displayWidth / 2),
+      glowAtGoal: beacon.originX === 0.5 && beacon.originY === 0.5 && beacon.displayWidth === beacon.displayHeight
+        && beacon.displayWidth <= goal.radius * 3,
     };
-  }, { starKey: TEX.buddyStar, ringKey: TEX.goalRing });
+  }, { starKey: TEX.buddyStar, ringKey: TEX.goalRing, beaconKey: TEX.beacon });
 
+  expect(glowAtGoal).toBe(true);
   const distanceFromView = Math.hypot(goal.x - view.x - view.w, goal.y - view.y);
   expect(goal.x).toBeGreaterThan(view.x + view.w);
   expect(goal.y).toBeLessThan(view.y);

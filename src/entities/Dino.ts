@@ -199,7 +199,7 @@ export class Dino {
       return im;
     });
     const tex = this.boss.rig?.tex ?? LASER_TEX;
-    this.laserFx = { glow: mk(tex.glow, 2), beam: mk(tex.beam, 2), tip: mk(tex.glow, 2) };
+    this.laserFx = { glow: mk(tex.glow, 2), beam: mk(tex.beam, 2, false), tip: mk(tex.glow, 2) };
     for (const b of this.laserFx.beam) b.setOrigin(0, 0.5);
     return this.laserFx;
   }

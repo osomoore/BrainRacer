@@ -137,7 +137,7 @@ export class GoalSystem implements GameSystem {
   private buildVisuals(goal: GoalState) {
     const s = this.ctx.scene;
     const ring = s.add.image(goal.x, goal.y, TEX.goalRing).setDepth(DEPTH.decal);
-    const beacon = s.add.image(goal.x, goal.y, TEX.beacon).setOrigin(0.5, 1)
+    const beacon = s.add.image(goal.x, goal.y, TEX.beacon)
       .setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.worldUi).setTint(0xfff1a8);
     const sparkles = Array.from({ length: SPARKLES }, () =>
       s.add.image(goal.x, goal.y, TEX.fxSpark).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.fx).setTint(0xfff3b0));
@@ -170,9 +170,9 @@ export class GoalSystem implements GameSystem {
     const pulse = 1 + Math.sin(t * 3) * 0.06;
     const ringRadius = goal.radius * intro * pulse * (1 + this.flare * 0.15);
     v.ring.setScale(ringRadius * 2 / 360).setRotation(t * 0.5);
-    const k = (GOALS.magnetFlareScale - 1) * this.flare;
-    v.beacon.setScale((4 + 4 * k) * intro * (1 + Math.sin(t * 4) * 0.08), (16 + 16 * k) * intro)
-      .setAlpha(Math.min(1, 0.55 + Math.sin(t * 2.5) * 0.12 + this.flare * 0.35 + bright * 0.45));
+    const beaconDiameter = goal.radius * 2 * pulse * (1 + (GOALS.magnetFlareScale - 1) * this.flare);
+    v.beacon.setDisplaySize(beaconDiameter, beaconDiameter)
+      .setAlpha(0.30 + Math.sin(t * 2.5) * 0.06 + this.flare * 0.20 + bright * 0.08);
     v.sparkles.forEach((sp, i) => {
       const a = t * 1.3 + (i / SPARKLES) * Math.PI * 2;
       const r = goal.radius * intro * (0.85 + 0.12 * Math.sin(t * 2 + i));
