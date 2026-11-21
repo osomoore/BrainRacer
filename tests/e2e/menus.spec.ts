@@ -252,7 +252,7 @@ test('Setup: New Profile asks name, age and settings, then races as the new race
   await tapPad(page, 0, BTN_A);     // START RACE -> creation overlay
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/menus-newracer-name.png' });
-  await page.keyboard.type('Zed', { delay: 80 });
+  await page.keyboard.type('Zed', { delay: 0 });
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-newracer-age.png' });

@@ -72,7 +72,8 @@ export class LetterPicker extends Phaser.GameObjects.Container {
 
     this.refresh();
     scene.add.existing(this);
-    if (opts.keyboardTyping !== false) scene.input.keyboard?.on('keydown', this.onKeyDown);
+    // Native listener: exactly one event per press (Phaser's queued 'keydown' doubled fast typing).
+    if (opts.keyboardTyping !== false) globalThis.addEventListener?.('keydown', this.onKeyDown);
   }
 
   setColor(color: number): this {
@@ -119,7 +120,7 @@ export class LetterPicker extends Phaser.GameObjects.Container {
   }
 
   private typed(e: KeyboardEvent) {
-    if (!this.active) return;
+    if (!this.active || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (/^[a-zA-Z]$/.test(e.key)) this.add1(e.key.toUpperCase());
     else if (e.key === ' ') this.add1(' ');
     else if (e.key === 'Backspace') this.del();
@@ -145,7 +146,7 @@ export class LetterPicker extends Phaser.GameObjects.Container {
   }
 
   override destroy(fromScene?: boolean): void {
-    this.scene?.input?.keyboard?.off('keydown', this.onKeyDown);
+    globalThis.removeEventListener?.('keydown', this.onKeyDown);
     super.destroy(fromScene);
   }
 }
