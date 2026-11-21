@@ -107,9 +107,9 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
 
   await finishRound(page);
   await page.waitForFunction(() => window.__game.scene.getScene('Results').children.getByName('collectible-reveal'));
-  await page.waitForFunction(() => window.__game.scene.getScene('Results').children.list.some(o => 'text' in o && /GIDEON'S REWARD REEL/.test((o as { text: string }).text)));
-  await page.waitForFunction(() => window.__game.scene.getScene('Results').children.list.some(o => 'text' in o && /GIDEON GOT .*!/.test((o as { text: string }).text)));
-  await page.waitForFunction(() => window.__game.scene.getScene('Results').children.list.some(o => 'text' in o && /ABE'S REWARD REEL/.test((o as { text: string }).text)), undefined, { timeout: 20000 });
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON'S REWARD REEL/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON GOT .*!/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /ABE'S REWARD REEL/.test(o.text ?? '')), undefined, { timeout: 20000 });
   await waitSummary(page);
 
   const after = await racers(page);
@@ -140,7 +140,7 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
   const toggleDeveloperMode = async (scene: string) => {
     await tap(page, 'F9');
     await page.waitForFunction(name => window.__game.scene.isPaused(name), scene);
-    for (let i = 0; i < 8; i++) await tap(page, 'KeyS');
+    for (let i = 0; i < 7; i++) await tap(page, 'KeyS');
     await tap(page, 'KeyD');
     await tap(page, 'Space');
     await waitScene(page, scene);
