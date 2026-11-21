@@ -153,7 +153,8 @@ export class PoliceSystem implements GameSystem {
       this.maintainPopulation();
     }
 
-    for (const car of this.cars) { this.driveCar(car, dt); this.checkOffscreen(car, dt); }
+    // skip cars removed earlier this frame (e.g. a recycled swarm car): driving a destroyed sprite throws
+    for (const car of this.cars) { if (!this.isActive(car)) continue; this.driveCar(car, dt); this.checkOffscreen(car, dt); }
     this.updatePlayerSirens();
     this.updateSirens();
   }

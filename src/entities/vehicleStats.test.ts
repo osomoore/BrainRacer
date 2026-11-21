@@ -102,7 +102,7 @@ describe('vehicle ratings', () => {
     expect(slick.driftLoss!).toBeGreaterThan(planted.driftLoss!);
   });
   it('police are never slower than a player; turbo outruns police', () => {
-    const police = Math.max(POLICE_SPEC.maxSpeed, BOARDING_DRIVE.police.maxSpeed);
+    const police = POLICE_SPEC.maxSpeed; // AI cruisers must catch every car without turbo
     for (const e of roster) {
       expect(e.spec.maxSpeed, e.id).toBeLessThanOrEqual(police);
       expect(e.spec.maxSpeed * REWARDS.turboSpeedMult, e.id).toBeGreaterThan(police);
