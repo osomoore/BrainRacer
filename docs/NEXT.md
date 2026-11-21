@@ -3,6 +3,7 @@
 Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current state) and this file.
 
 ## How we work (proven in session 1)
+- **Own branch per task (every agent, Claude or Codex):** do each task on its own branch, created for that task from `dev` (Claude uses a worktree under `.worktrees/<task>`). Never edit, commit in, or switch branches in a checkout another agent is using. When the work is checked (typecheck, unit tests, e2e) and complete, merge it into `dev` and push `dev` (pushing `dev` deploys GitHub Pages, which the TV box loads).
 - **Main session = orchestrator (Opus):** owns contracts (`src/core/*`), `RaceScene`, merging, review, small glue fixes, docs.
 - **Implementation = Sonnet sub-agents** (Haiku for mechanical chores), run in parallel with **disjoint file ownership**. The user prefers this to save usage.
 - **Codex as driver:** if the user hands the wheel to Codex for a while, see `AGENTS.md` at the repo root (it acts as orchestrator and may commit on `dev`).

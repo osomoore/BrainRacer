@@ -4,7 +4,7 @@ Read `CLAUDE.md` first: it holds the project conventions and rules, and they app
 
 ## Codex as the driver (replaces the "orchestrator + sub-agents" split)
 - You are the orchestrator for this session, so the "contracts are orchestrator-owned" rule (`src/core/types.ts`, `events.ts`, `race.ts`, `services.ts`, `assetKeys.ts`) now means: you may edit them, but only deliberately and with tests/typecheck passing, since every system depends on them.
-- Work directly on branch `dev` (local only; `main` has only the old prototype; nothing has been pushed). You may commit on `dev`. Do not push or merge into `main` unless the user asks.
+- **Use your own branch for each task** (e.g. `feature/<task>` from `dev`). Do not work directly on `dev`, and do not edit or switch branches in a checkout another agent is using. When the work is checked (typecheck, unit tests, e2e) and complete, merge it into `dev` and push `dev` (that deploys GitHub Pages). Do not merge into `main` unless the user asks.
 - Commit in small steps with clear messages. The user's CLAUDE-side sessions append a `Co-Authored-By` trailer; for Codex commits use your own trailer or none.
 - Before every commit: `npm run typecheck && npm test`. Before declaring a feature done: `npm run e2e` (it does a full production build, which also catches file-encoding problems that typecheck and tests miss).
 - Files must be UTF-8. On Windows PowerShell, `Set-Content`/`Out-File` can write Windows-1252 and silently break `vite build` (this happened in session 2 with a "…" character). Prefer your editor's file writes, or pass `-Encoding utf8`.
