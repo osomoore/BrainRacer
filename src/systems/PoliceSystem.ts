@@ -1,4 +1,5 @@
 import { POLICE } from '../config/gameConfig';
+import { shouldDestroyLeavingSwarmCar, shouldRecycleSwarmCar, swarmDeficit, swarmSpawnCandidates } from './policeSwarm';
 import type { CrashWith } from '../core/events';
 import type { GameSystem, INpcVehicle, IPlayerCar, RaceContext } from '../core/race';
 import type { Rng } from '../core/rng';
@@ -36,6 +37,8 @@ export class PoliceSystem implements GameSystem {
   private cars: PoliceCar[] = [];
   private monsterSwarm = new Set<PoliceCar>();
   private swarmRider: PlayerId | null = null;
+  private swarmT = 0;
+  private swarmStuck = new Map<PoliceCar, number>();
   private per: PlayerPolice[] = [];
   private spawnT = 0;
   /** Seconds each car has been off every player's view (negative = spawn grace). */
@@ -73,6 +76,7 @@ export class PoliceSystem implements GameSystem {
     for (const c of this.cars) c.destroy();
     this.cars = [];
     this.monsterSwarm.clear();
+    this.swarmStuck.clear();
     this.offSec.clear();
   }
 
@@ -133,8 +137,8 @@ export class PoliceSystem implements GameSystem {
   update(dt: number): void {
     this.cars = this.cars.filter((c) => this.isActive(c));
     for (const k of this.offSec.keys()) if (!this.isActive(k)) this.offSec.delete(k);
-    for (const car of this.monsterSwarm) if (!this.isActive(car)) this.monsterSwarm.delete(car);
-    this.updateMonsterSwarm();
+    for (const car of this.monsterSwarm) if (!this.isActive(car)) { this.monsterSwarm.delete(car); this.swarmStuck.delete(car); }
+    this.updateMonsterSwarm(dt);
 
     for (let pi = 0; pi < this.per.length; pi++) {
       const p = pi as PlayerId;
@@ -220,36 +224,56 @@ export class PoliceSystem implements GameSystem {
     car.brain.path = [];
   }
 
-  private updateMonsterSwarm(): void {
-    const { dino, world } = this.ctx;
+  private updateMonsterSwarm(dt: number): void {
+    const { dino } = this.ctx;
     const rider = this.roundOver ? null : dino.rider ?? null;
-    if (this.swarmRider === rider) return;
-    this.swarmRider = rider;
-    for (const car of this.monsterSwarm) {
-      if (car.mode !== 'chase') continue;
-      const away = Math.atan2(car.y - dino.y, car.x - dino.x);
-      const distance = POLICE.monsterSwarmExitDist;
-      this.sendAway(car, this.index.nearest(car.x + distance * Math.cos(away), car.y + distance * Math.sin(away)));
+    if (this.swarmRider !== rider) {
+      this.swarmRider = rider;
+      this.swarmT = 0;
+      for (const car of this.monsterSwarm) {
+        if (car.mode !== 'chase') continue;
+        this.sendSwarmAway(car);
+      }
     }
     if (rider === null) return;
 
+    // Recycle cars that are lost or wedged far from the boss; the top-up replaces them closer.
+    for (const car of this.monsterSwarm) {
+      if (car.mode !== 'chase') continue;
+      const d = Math.hypot(car.x - dino.x, car.y - dino.y);
+      if (Math.abs(car.forwardSpeed) < POLICE.stuckSpeed) this.swarmStuck.set(car, (this.swarmStuck.get(car) ?? 0) + dt);
+      else this.swarmStuck.set(car, 0);
+      // only recycle out of view so a cruiser never vanishes in front of a player
+      if (this.offscreen(car.x, car.y) && shouldRecycleSwarmCar(d, this.swarmStuck.get(car) ?? 0)) { car.destroy(); this.monsterSwarm.delete(car); this.swarmStuck.delete(car); }
+    }
+
+    this.swarmT -= dt;
+    if (this.swarmT > 0) return;
+    this.swarmT = POLICE.monsterSwarmTopUpSec;
+    let chasing = 0;
+    for (const car of this.monsterSwarm) if (car.mode === 'chase') chasing++;
+    let missing = swarmDeficit(chasing);
+    if (missing === 0) return;
+
     // Pick nearby road lanes all around the monster. Patrols and heat-based chasers keep their usual limits.
-    const nodes = world.laneGraph.nodes;
-    const candidates = nodes.filter((node) => {
-      const distance = Math.hypot(node.x - dino.x, node.y - dino.y);
-      return node.next.length > 0 && distance >= POLICE.monsterSwarmSpawnMinDist && distance <= POLICE.monsterSwarmSpawnMaxDist;
-    });
-    let spawned = 0;
-    while (candidates.length && spawned < POLICE.monsterSwarmCount) {
+    const nodes = this.ctx.world.laneGraph.nodes;
+    const candidates = swarmSpawnCandidates(nodes, dino, this.ctx.players, [...this.ctx.npcs]);
+    while (candidates.length && missing > 0) {
       const [node] = candidates.splice(this.rng.int(0, candidates.length - 1), 1);
-      if (this.ctx.players.some((p) => Math.hypot(p.x - node.x, p.y - node.y) < 180)) continue;
-      if ([...this.ctx.npcs].some((npc) => Math.hypot(npc.x - node.x, npc.y - node.y) < 120)) continue;
       const next = nodes[node.next[0]];
       const car = this.spawn({ x: node.x, y: node.y, angle: Math.atan2(next.y - node.y, next.x - node.x) });
+      car.swarm = true;
       this.monsterSwarm.add(car);
       this.startPursuit(car, rider);
-      spawned++;
+      missing--;
     }
+  }
+
+  private sendSwarmAway(car: PoliceCar): void {
+    const { dino } = this.ctx;
+    const away = Math.atan2(car.y - dino.y, car.x - dino.x);
+    const dist = POLICE.monsterSwarmExitDist;
+    this.sendAway(car, this.index.nearest(car.x + dist * Math.cos(away), car.y + dist * Math.sin(away)));
   }
 
   private driveCar(car: PoliceCar, dt: number): void {
@@ -264,13 +288,14 @@ export class PoliceSystem implements GameSystem {
       car.step({ throttle: 0, brake: 0, steer: 0 }, dt);
       return;
     }
-    const cap = car.spec.maxSpeed * (car.mode === 'chase' ? 1 : car.mode === 'leave' ? POLICE.leaveSpeedFrac : POLICE.patrolSpeedFrac);
+    const cap = car.spec.maxSpeed * (car.mode === 'chase' ? 1 : car.mode === 'leave' ? (this.monsterSwarm.has(car) ? POLICE.monsterSwarmLeaveSpeedFrac : POLICE.leaveSpeedFrac) : POLICE.patrolSpeedFrac);
     car.step(think(car.brain, this.env, car, car.mode, target, cap, dt), dt);
 
     if (car.mode === 'leave') {
       car.leaveSec += dt;
-      if (this.offscreen(car.x, car.y) && (car.leaveSec > 2 || this.nearestPlayerDist(car) > 1000)) car.destroy();
-      else if (this.monsterSwarm.has(car) && car.leaveSec >= POLICE.monsterSwarmExitSec) car.destroy();
+      if (this.monsterSwarm.has(car)) {
+        if (shouldDestroyLeavingSwarmCar(car.leaveSec, this.offscreen(car.x, car.y))) car.destroy();
+      } else if (this.offscreen(car.x, car.y) && (car.leaveSec > 2 || this.nearestPlayerDist(car) > 1000)) car.destroy();
     }
     if (car.mode !== 'chase' && this.nearestPlayerDist(car) > POLICE.despawnDist) car.destroy();
   }
@@ -312,7 +337,7 @@ export class PoliceSystem implements GameSystem {
       const p = pi as PlayerId;
       const st = this.per[p];
       const want = Math.max(1, desiredChasers(st.heat));
-      if (this.hasChaseSlot(p, want) && this.cars.length < POLICE.maxTotal && this.ctx.elapsedSec >= st.respawnUntil) {
+      if (this.hasChaseSlot(p, want) && this.cars.length - this.monsterSwarm.size < POLICE.maxTotal && this.ctx.elapsedSec >= st.respawnUntil) {
         const pl = this.ctx.players[p];
         const spot = this.findSpawn(pl.x, pl.y, POLICE.spawnMinDist, POLICE.spawnMaxDist);
         if (spot) {
@@ -322,7 +347,7 @@ export class PoliceSystem implements GameSystem {
       }
     }
     const patrols = this.cars.filter((c) => c.mode === 'patrol').length;
-    if (patrols < POLICE.patrolCount && this.cars.length < POLICE.maxTotal) {
+    if (patrols < POLICE.patrolCount && this.cars.length - this.monsterSwarm.size < POLICE.maxTotal) {
       const pl = this.rng.pick(this.ctx.players);
       const spot = this.findSpawn(pl.x, pl.y, POLICE.patrolSpawnMinDist, POLICE.spawnMaxDist + 600);
       if (spot) this.spawn(spot);
