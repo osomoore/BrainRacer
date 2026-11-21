@@ -34,6 +34,15 @@ Open:
 - **#10** Listen: loop seams in the title, race, farm and dino music, and in the siren and engine loops.
 - **#12** Next performance work (from the 6x-throttle profile): enable Matter sleeping plus off-screen NPC update skipping (about +10-15%, needs wake-on-contact checks); a render-resolution option (unmeasured, depends on the box GPU); trim the display list per camera. Matter iteration counts gave no gain.
 
+### Session 5 playtest notes (2026-11-21, queued for later)
+- **#52** Airport: far too many random props scattered with no arrangement or order. Lay them out in rows/clusters (stands, cones by the runway, bags near terminals) and make many more of them knockable over.
+- **#53** Later worlds after the dark forest: add more of each world's own interactable props (flags etc.) and make them knockable over.
+- **#54** Text like "<X> Defeated!" is still drawn on top of the question/answer screens (banners should sit behind the panel; see branch `fix/banners-behind-questions`, commit 0596275, to check whether that already covers it).
+- **#55** Giant light beams sometimes show on screen (seen on Castle, a wide yellow-white glow across the road behind the car). Find out what draws them (turbo/boost flavor reward, a light/glow effect, or a bug) and decide whether to keep, shrink or remove.
+- **#56** Police cars hit by a monster the player rides fly too far, too suddenly. Tone the knock-away down by one third.
+- **#57** Police Station art is missing (the "park" question showed a "? police stati" placeholder tile). Add the image and check `images/scenes/manifest.csv` / `scenes.json`.
+- **#58** Underwater world repeats the same art all over the screen at once (the same coral/shell cluster tiled). Spread it out and add more variety.
+
 ### Session 4 follow-ups
 - **#13** Farm: tractors sometimes wander onto paved roads.
 - **#14** Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.
