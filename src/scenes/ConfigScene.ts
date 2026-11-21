@@ -239,8 +239,11 @@ export class ConfigScene extends Phaser.Scene {
   private showProfiles(): void {
     const panel = this.openSub('RACER PROFILES', '', 'Up / Down move    Left / Right change    Back to Admin Settings');
     const color = hexNum(PLAYER_COLORS[0]);
-    const colW = 580;
-    const xs = [360, 960, 1560];
+    // 2 x 2 grid of racer blocks (name + Level + 3 question types each).
+    const colW = 760;
+    const xs = [520, 1400];
+    const blockY = [185, 550];
+    const rowStep = 72;
     const opts = { width: colW, height: 56, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: typeof RACER_PROFILE_IDS[number], mutate: (p: ReturnType<typeof racerProfiles>[typeof id]) => void): void => {
       const cur = racerProfiles(this.settings())[id];
@@ -250,15 +253,15 @@ export class ConfigScene extends Phaser.Scene {
     };
     // Rows are pushed column by column so Up/Down walks one racer at a time.
     RACER_PROFILE_IDS.forEach((id, col) => {
-      const x = xs[col];
-      panel.add(bigText(this, x, 200, RACER_PROFILE_NAME[id].toUpperCase(), 56, MENU.yellow, { font: FONT_HEAD }));
+      const x = xs[col % 2], y0 = blockY[Math.floor(col / 2)];
+      panel.add(bigText(this, x, y0, RACER_PROFILE_NAME[id].toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
       const rowOpts = { ...opts, width: colW };
-      const diff = new OptionRow(this, x, 290, 'Level', { ...rowOpts, valueX: 115, arrowSpan: 150 });
+      const diff = new OptionRow(this, x, y0 + 66, 'Level', { ...rowOpts, valueX: 115, arrowSpan: 150 });
       panel.add(diff);
       const changeDiff = (dir: 1 | -1) => save(id, p => { p.difficulty = DIFFICULTIES[Phaser.Math.Wrap(DIFFICULTIES.indexOf(p.difficulty) + dir, 0, DIFFICULTIES.length)]; });
       this.subRows.push({ selectable: diff, refresh: () => diff.setValue(DIFFICULTY_LABEL[racerProfiles(this.settings())[id].difficulty]), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
       PROFILE_TYPES.forEach(({ type, label }, i) => {
-        const row = new OptionRow(this, x, 380 + i * 90, label, { ...rowOpts, valueX: 150, arrowSpan: 105 });
+        const row = new OptionRow(this, x, y0 + 66 + (i + 1) * rowStep, label, { ...rowOpts, valueX: 150, arrowSpan: 105 });
         panel.add(row);
         // Ignore the toggle that would turn off the last remaining question type.
         const toggle = () => save(id, p => {
@@ -269,7 +272,7 @@ export class ConfigScene extends Phaser.Scene {
         this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
       });
     });
-    const back = new MenuButton(this, GAME_WIDTH / 2, 900, 600, ROW_H, 'Back', color, 44, false);
+    const back = new MenuButton(this, GAME_WIDTH / 2, 935, 600, ROW_H, 'Back', color, 44, false);
     panel.add(back);
     this.subRows.push({ selectable: back, activate: () => this.closeSub() });
     this.cursor = 0;

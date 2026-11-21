@@ -1,7 +1,7 @@
 /**
  * Per-racer progress (Abe / Gideon / Helen): unlocked worlds, earned cars/buddies (in earned order)
  * and admin overrides. Replaces the old shared unlocks (`brainracer.unlocks.v1` / `brainracer.content.v1`),
- * which are copied to Abe and Gideon the first time this loads; Helen starts fresh.
+ * which are copied to Abe and Gideon the first time this loads; Helen and Daddy start fresh.
  *
  * Completing a world (3 goals) rewards every racer in the race: the same next world, plus one car or
  * buddy from the world just played, different for each racer when possible.
@@ -51,7 +51,7 @@ export function migrateLegacy(unlocksRaw: unknown, accessRaw: unknown): AllProgr
   const a = (accessRaw && typeof accessRaw === 'object' ? accessRaw : {}) as { worlds?: unknown; overrides?: unknown };
   const shared = parseProgress({ worlds: a.worlds, items: unlocksRaw, overrides: a.overrides });
   const copy = (): RacerProgress => ({ worlds: [...shared.worlds], items: [...shared.items], overrides: { ...shared.overrides } });
-  return { abe: copy(), gideon: copy(), helen: emptyProgress() };
+  return { abe: copy(), gideon: copy(), helen: emptyProgress(), daddy: emptyProgress() };
 }
 
 function hasStorage(): boolean {

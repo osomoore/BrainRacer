@@ -89,6 +89,7 @@ export const DEFAULT_RACER_PROFILES: Record<RacerProfileId, RacerProfile> = {
   abe: { difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } },
   gideon: { difficulty: 'normal', questionTypes: { addition: true, multiplication: false, spelling: true } },
   helen: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true } },
+  daddy: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true } },
 };
 /** Default racer per player slot. */
 export const DEFAULT_PLAYER_RACERS: readonly RacerProfileId[] = ['gideon', 'abe'];

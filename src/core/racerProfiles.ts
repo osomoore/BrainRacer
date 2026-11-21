@@ -2,8 +2,8 @@
 import { DEFAULT_PLAYER_RACERS, DEFAULT_RACER_PROFILES } from '../config/gameConfig';
 import type { Difficulty, PlayerSettings, QuestionType, QuestionTypes, RacerProfile, RacerProfileId, Settings } from './types';
 
-export const RACER_PROFILE_IDS: readonly RacerProfileId[] = ['abe', 'gideon', 'helen'];
-export const RACER_PROFILE_NAME: Record<RacerProfileId, string> = { abe: 'Abe', gideon: 'Gideon', helen: 'Helen' };
+export const RACER_PROFILE_IDS: readonly RacerProfileId[] = ['abe', 'gideon', 'helen', 'daddy'];
+export const RACER_PROFILE_NAME: Record<RacerProfileId, string> = { abe: 'Abe', gideon: 'Gideon', helen: 'Helen', daddy: 'Daddy' };
 const DIFFS: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const TYPES: readonly QuestionType[] = ['addition', 'multiplication', 'spelling'];
 
