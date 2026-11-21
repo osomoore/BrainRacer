@@ -36,7 +36,7 @@ export class FaceButtonBadge extends Phaser.GameObjects.Container {
     const shown = this.keyLabel ?? label;
     this.cap.setFillStyle(hexNum(color));
     this.label.setText(shown).setVisible(!!shown);
-    this.diamond.setVisible(!shown);
+    this.diamond.setVisible(!shown && family === 'other');  // xbox: plain colored cap, no letter
   }
 }
 

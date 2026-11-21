@@ -15,6 +15,7 @@ import { easeInOut, easeOutBack, lerp } from './hudMath';
 const CARD_W = 270, CARD_H = 160;
 const D_CARD_W = 330, D_CARD_H = 150, D_GAP = 10;   // diamond (pause style) cards
 const PROMPT_H = 190;
+const DIVIDER_GAP = 72;   // space between question card and answers; holds the divider band + 'Pick one' pill
 const QUESTION_FILL = 0xfff1b8;
 const BADGE_DY = CARD_H / 2 + 22;
 const NAVY = HUD.colors.navy;
@@ -186,20 +187,16 @@ export class ChallengePanel {
     }
     inner.add(hint);
     const bx = dia ? -cw / 2 + 52 : 0, by = dia ? 0 : BADGE_DY;
-    if (this.controllerFamily === 'xbox' && this.scene.textures.exists(TEX.buttonBadge[i])) {
-      inner.add(this.scene.add.image(bx, by, TEX.buttonBadge[i]).setScale(0.9));
-    } else {
-      const device = this.hooks.controllerDevice;
-      const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
-      inner.add(new FaceButtonBadge(this.scene, bx, by, 60, ANSWER_POSITIONS[i], this.controllerFamily, key));
-    }
+    const device = this.hooks.controllerDevice;
+    const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
+    inner.add(new FaceButtonBadge(this.scene, bx, by, 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
     this.root.add(root);
     return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
   }
 
   /** Stacked layout (local coords, panel center = 0,0): question on top, three answers below. */
   private layoutPoses() {
-    const pad = 14, gap = 10, cg = 14;
+    const pad = 14, gap = DIVIDER_GAP, cg = 14;
     if (this.diamond) {
       const off = D_CARD_W / 2 + D_GAP / 2;
       const rows = 3 * D_CARD_H + 2 * D_GAP;
@@ -232,7 +229,25 @@ export class ChallengePanel {
     const w = this.dockW, h = this.dockH;
     this.bg = rrectImage(this.scene, { r: 36, fill: NAVY, fillA: 0.97, stroke: hexNum(this.color), strokeW: 8 }, 0, 0, w, h);
     this.root.addAt(this.bg, 1);
+    this.root.addAt(this.buildDivider(), 2);
     resizeRR(this.glow, w, h);
+  }
+
+  /** Question-area tint + bold divider bar + "Pick one" pill, so question and answers read as two zones. */
+  private buildDivider(): Phaser.GameObjects.Container {
+    const c = this.scene.add.container(0, 0);
+    const w = this.dockW, pad = 14;
+    const top = -this.dockH / 2;
+    const qH = pad + PROMPT_H + DIVIDER_GAP / 2 - 4;
+    // tinted question zone (hugging the top of the panel inside its border)
+    c.add(rrectImage(this.scene, { r: 28, fill: hexNum(this.color), fillA: 0.28 }, 0, top + 8 + (qH - 8) / 2, w - 16, qH - 8));
+    // bold divider bar and centered pill
+    const by = top + pad + PROMPT_H + DIVIDER_GAP / 2;
+    c.add(rrectImage(this.scene, { r: 6, fill: 0xffffff, fillA: 1 }, 0, by, w - 40, 12));
+    const t = bigText(this.scene, 0, by, 'PICK ONE', 40, '#14213d', { font: FONT_BODY, stroke: 0, shadow: false });
+    c.add(rrectImage(this.scene, { r: 26, fill: 0xffffff, stroke: hexNum(this.color), strokeW: 6 }, 0, by, t.width + 56, 52));
+    c.add(t);
+    return c;
   }
 
   /** Big fills the region (width- or height-limited); docked is slightly smaller, same top-center anchor. */

@@ -19,10 +19,11 @@ describe('controller prompts', () => {
     expect(identifyController('Onn Remote')).toBe('other');
   });
 
-  it('changes the letters and colors while keeping the answer slot positions', () => {
+  it('shows Xbox as colors only (no letters), Switch as letters, while keeping the answer slot positions', () => {
     const xbox = ANSWER_POSITIONS.map((position) => faceButton('xbox', position));
     const nintendo = ANSWER_POSITIONS.map((position) => faceButton('nintendo', position));
-    expect(xbox.map(({ label }) => label)).toEqual(['X', 'Y', 'B', 'A']);
+    expect(xbox.map(({ label }) => label)).toEqual(['', '', '', '']);
+    expect(new Set(xbox.map(({ color }) => color)).size).toBe(4);
     expect(nintendo.map(({ label }) => label)).toEqual(['Y', 'X', 'A', 'B']);
     expect(nintendo[3].color).not.toEqual(xbox[3].color);
     expect(faceButton('other', 'bottom').label).toBe('');
