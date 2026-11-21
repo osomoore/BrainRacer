@@ -193,3 +193,36 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   })).toEqual({ map: 'industrial', questionStyle: 'drive' });
   expect(errors).toEqual([]);
 });
+
+test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlocks', async ({ page }) => {
+  const errors = watchErrors(page);
+  await installGamepadMock(page, 2);
+  await page.addInitScript(() => {
+    if (localStorage.getItem('brainracer.racers.v1')) return;
+    const none = { worlds: [], items: [], overrides: {} };
+    localStorage.setItem('brainracer.racers.v1', JSON.stringify({ abe: none, gideon: { ...none, worlds: ['industrial'] }, helen: none }));
+  });
+  await page.goto('/');
+  await waitScene(page, 'Title');
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, BTN_A);
+  await tapPad(page, 1, BTN_A);
+  await page.waitForTimeout(800);
+  await tapPad(page, 0, BTN_A);
+  await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
+
+  const racers = () => page.evaluate(() => (window.__game.scene.getScene('Setup') as any).cfg.players.map((p: any) => p.profile) as string[]);
+  const maps = () => page.evaluate(() => [...(window.__game.scene.getScene('Setup') as any).maps] as string[]);
+  expect(await racers()).toEqual(['gideon', 'abe']);
+  expect(await maps()).toEqual(['city', 'industrial']);
+  await tapPad(page, 1, PAD_RIGHT);   // Abe -> (Gideon is taken) -> Helen
+  expect(await racers()).toEqual(['gideon', 'helen']);
+  await tapPad(page, 1, PAD_RIGHT);   // Helen -> Abe
+  expect(await racers()).toEqual(['gideon', 'abe']);
+  await tapPad(page, 0, PAD_RIGHT);   // Gideon -> Helen
+  await tapPad(page, 0, PAD_RIGHT);   // Helen -> Abe is taken -> Gideon
+  expect(await racers()).toEqual(['gideon', 'abe']);
+  expect(new Set(await racers()).size).toBe(2);
+  expect(errors).toEqual([]);
+});
