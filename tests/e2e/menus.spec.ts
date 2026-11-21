@@ -200,7 +200,7 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   await page.addInitScript(() => {
     if (localStorage.getItem('brainracer.racers.v1')) return;
     const none = { worlds: [], items: [], overrides: {} };
-    localStorage.setItem('brainracer.racers.v1', JSON.stringify({ abe: none, gideon: { ...none, worlds: ['industrial'] }, helen: none }));
+    localStorage.setItem('brainracer.racers.v1', JSON.stringify({ abe: none, gideon: { ...none, worlds: ['industrial'] }, helen: none, daddy: none }));
   });
   await page.goto('/');
   await waitScene(page, 'Title');
@@ -218,10 +218,13 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   expect(await maps()).toEqual(['city', 'industrial']);
   await tapPad(page, 1, PAD_RIGHT);   // Abe -> (Gideon is taken) -> Helen
   expect(await racers()).toEqual(['gideon', 'helen']);
-  await tapPad(page, 1, PAD_RIGHT);   // Helen -> Abe
+  await tapPad(page, 1, PAD_RIGHT);   // Helen -> Daddy
+  expect(await racers()).toEqual(['gideon', 'daddy']);
+  await tapPad(page, 1, PAD_RIGHT);   // Daddy -> Abe
   expect(await racers()).toEqual(['gideon', 'abe']);
   await tapPad(page, 0, PAD_RIGHT);   // Gideon -> Helen
-  await tapPad(page, 0, PAD_RIGHT);   // Helen -> Abe is taken -> Gideon
+  await tapPad(page, 0, PAD_RIGHT);   // Helen -> Daddy
+  await tapPad(page, 0, PAD_RIGHT);   // Daddy -> Abe is taken -> Gideon
   expect(await racers()).toEqual(['gideon', 'abe']);
   expect(new Set(await racers()).size).toBe(2);
   expect(errors).toEqual([]);

@@ -1,8 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
-import { UNLOCK_VEHICLE_IDS } from '../../src/config/collectibles';
+import { WORLD_REWARDS } from '../../src/config/collectibles';
 import { installGamepadMock, tapPad } from './gamepadMock';
 
-const unlocks = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.unlocks.v1') ?? '[]') as string[]);
+type Racers = Record<string, { worlds: string[]; items: string[]; overrides: Record<string, boolean> }>;
+const racers = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.racers.v1') ?? '{}') as Racers);
+const items = async (page: Page, racer: string) => (await racers(page))[racer]?.items ?? [];
+const seedRacers = (page: Page, seed: Record<string, { worlds?: string[]; items?: string[] }>) => page.addInitScript(value => {
+  const key = 'brainracer.racers.v1';
+  if (localStorage.getItem(key)) return;
+  const empty = { worlds: [], items: [], overrides: {} };
+  localStorage.setItem(key, JSON.stringify(Object.fromEntries(['abe', 'gideon', 'helen', 'daddy'].map(id => [id, { ...empty, ...value[id] }]))));
+}, seed);
 
 async function waitScene(page: Page, key: string) {
   await page.waitForFunction(name => window.__game?.scene.isActive(name), key);
@@ -30,21 +38,16 @@ async function waitSummary(page: Page) {
   await page.waitForTimeout(1300);
 }
 
-const raceLoadouts = (page: Page) => page.evaluate(() => window.__race.settings.players.map((player, slot) => ({
-  car: window.__race.players[slot].kind,
-  guide: player.guide,
-})));
-
-test('two objectives replay the City and three reveal Factory before the collectible', async ({ page }) => {
-  await page.goto('/?race=1&seed=3&questions=off');
+test('two objectives replay the City and three reveal Factory before the racer reward', async ({ page }) => {
+  await seedRacers(page, { gideon: { items: ['owl'] } });
+  await page.goto('/?race=1&seed=3&questions=off'); // One player: Gideon.
   await waitScene(page, 'Race');
-  const startingUnlocks = await unlocks(page);
-  expect(startingUnlocks).toHaveLength(1);
+  expect(await items(page, 'gideon')).toEqual(['owl']);
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
 
   await finishRound(page, 2);
   await waitSummary(page);
-  expect(await unlocks(page)).toEqual(startingUnlocks);
+  expect(await racers(page)).toMatchObject({ gideon: { worlds: [], items: ['owl'] } });
   await tap(page, 'Space');
   await waitScene(page, 'Race');
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
@@ -56,40 +59,23 @@ test('two objectives replay the City and three reveal Factory before the collect
     return !children.getByName('world-unlock-reveal') && children.getByName('collectible-reveal');
   });
   await waitSummary(page);
-  const after = await unlocks(page);
-  expect(after).toHaveLength(2);
-  expect(after).toContain(startingUnlocks[0]);
+  const after = await racers(page);
+  expect(after.gideon.worlds).toContain('industrial');
+  expect(after.gideon.items).toHaveLength(2);
+  expect(after.gideon.items[0]).toBe('owl');
+  const cityRewards = [...WORLD_REWARDS.city.cars, WORLD_REWARDS.city.buddy] as string[];
+  expect(cityRewards).toContain(after.gideon.items[1]);
+  expect(after.abe).toMatchObject({ worlds: [], items: [] });
 
   await tap(page, 'Space');
   await waitScene(page, 'Race');
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('industrial');
-  expect(await unlocks(page)).toEqual(after);
+  expect(await racers(page)).toEqual(after);
 });
 
-test('both players can use the same collection after a solo map and a reload', async ({ page }) => {
-  const earnedCar = 'brickBuggy';
+test('each racer earns their own reward in turn and keeps it after a reload', async ({ page }) => {
   await installGamepadMock(page, 2);
-  await page.addInitScript(() => {
-    const key = 'brainracer.unlocks.v1';
-    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(['owl']));
-  });
-  await page.goto('/?race=1&seed=50&questions=off');
-  await waitScene(page, 'Race');
-  await finishRound(page);
-  await waitSummary(page);
-  await expect.poll(() => unlocks(page)).toEqual(['owl', earnedCar]);
-
-  await tap(page, 'KeyD'); // Results → Setup.
-  await tap(page, 'Space');
-  await waitScene(page, 'Setup');
-  await tapPad(page, 0, 13); // Car.
-  await tapPad(page, 0, 14); // Wrap from Dino to the newly unlocked car.
-  await tapPad(page, 0, 13); // Guide.
-  await tapPad(page, 0, 15); // Star → Night Owl.
-  await tapPad(page, 0, 0);
-  await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }]);
-
+  await seedRacers(page, { abe: { items: ['brickBuggy'] }, gideon: { items: ['owl'] } });
   await page.goto('/?seed=4&questions=off');
   await waitScene(page, 'Title');
   await tapPad(page, 0, 0);
@@ -97,33 +83,53 @@ test('both players can use the same collection after a solo map and a reload', a
   await page.waitForTimeout(800);
   await tapPad(page, 0, 0);
   await waitScene(page, 'Setup');
-  expect(await unlocks(page)).toEqual(['owl', earnedCar]);
+  await page.waitForTimeout(400);
 
+  // P1 = Gideon (starters + Night Owl), P2 = Abe (starters + Brick Buggy): each list is that racer's own.
+  await tapPad(page, 0, 13); // P1 Car.
+  await tapPad(page, 0, 14); // Left from Dino wraps to the last car: Kart (Gideon owns no extra car).
+  await tapPad(page, 0, 13); // P1 Guide.
+  await tapPad(page, 0, 15); // Star -> Night Owl.
+  await page.waitForTimeout(300);
   await tapPad(page, 1, 13); // P2 Car.
-  await tapPad(page, 1, 14); // Equip P1's car for P2 as well.
-  await tapPad(page, 1, 13); // P2 Guide.
-  await tapPad(page, 1, 15); // Star → Night Owl, already equipped by P1.
-  await tapPad(page, 1, 0);
+  await page.waitForTimeout(300);
+  await tapPad(page, 1, 14); // P2 defaults to Kart: left to Dino,
+  await tapPad(page, 1, 14); // then wrapping to Abe's Brick Buggy.
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, 0);
   await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }, { car: earnedCar, guide: 'owl' }]);
+  const loadouts = await page.evaluate(() => window.__race.settings.players.map((player, slot) => ({
+    car: window.__race.players[slot].kind,
+    racer: player.profile,
+  })));
+  expect(loadouts).toEqual([{ car: 'kart', racer: 'gideon' }, { car: 'brickBuggy', racer: 'abe' }]);
+  expect(await page.evaluate(() => window.__race.settings.players[0].guide)).toBe('owl');
 
   await finishRound(page);
+  await page.waitForFunction(() => window.__game.scene.getScene('Results').children.getByName('collectible-reveal'));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON'S REWARD REEL/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON GOT .*!/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /ABE'S REWARD REEL/.test(o.text ?? '')), undefined, { timeout: 20000 });
   await waitSummary(page);
-  const unlocked = await unlocks(page);
-  expect(unlocked).toHaveLength(3);
-  const cars = ['dino', 'kart', ...UNLOCK_VEHICLE_IDS.filter(id => unlocked.includes(id))];
-  await tap(page, 'KeyD'); // Results → Setup.
-  await tap(page, 'Space');
-  await waitScene(page, 'Setup');
-  await tapPad(page, 1, 13); // P2 Car.
-  for (let i = 0; i < cars.indexOf(earnedCar); i++) await tapPad(page, 1, 14); // Return P2 to Dino.
-  await tapPad(page, 1, 0);
-  await waitScene(page, 'Race');
-  expect(await raceLoadouts(page)).toEqual([{ car: earnedCar, guide: 'owl' }, { car: 'dino', guide: 'owl' }]);
+
+  const after = await racers(page);
+  const city = [...WORLD_REWARDS.city.cars, WORLD_REWARDS.city.buddy] as string[];
+  expect(after.gideon.items).toHaveLength(2);
+  expect(after.abe.items).toHaveLength(2);
+  expect(city).toContain(after.gideon.items[1]);
+  expect(city).toContain(after.abe.items[1]);
+  expect(after.gideon.items[1]).not.toBe(after.abe.items[1]); // Distinct when each has a choice.
+  expect(after.gideon.worlds).toContain('industrial');
+  expect(after.abe.worlds).toContain('industrial');
+  expect(after.helen).toMatchObject({ worlds: [], items: [] });
+
+  await page.reload();
+  await waitScene(page, 'Title');
+  expect(await racers(page)).toEqual(after);
 });
 
-test('Admin Mode previews locked loadouts and Content Locks can open a world for normal play', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('brainracer.unlocks.v1', JSON.stringify(['owl'])));
+test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for normal play', async ({ page }) => {
+  await seedRacers(page, { gideon: { items: ['owl'] } });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');
   await tap(page, 'Space');
@@ -134,7 +140,7 @@ test('Admin Mode previews locked loadouts and Content Locks can open a world for
   const toggleDeveloperMode = async (scene: string) => {
     await tap(page, 'F9');
     await page.waitForFunction(name => window.__game.scene.isPaused(name), scene);
-    for (let i = 0; i < 8; i++) await tap(page, 'KeyS');
+    for (let i = 0; i < 7; i++) await tap(page, 'KeyS');
     await tap(page, 'KeyD');
     await tap(page, 'Space');
     await waitScene(page, scene);
@@ -157,15 +163,17 @@ test('Admin Mode previews locked loadouts and Content Locks can open a world for
 
   await finishRound(page);
   await waitSummary(page);
-  expect(await unlocks(page)).toEqual(['owl']);
+  expect(await items(page, 'gideon')).toEqual(['owl']);
   await toggleDeveloperMode('Results');
   await page.waitForTimeout(500);
   await tap(page, 'F9');
   await page.waitForFunction(() => window.__game.scene.isPaused('Results'));
   await tap(page, 'KeyW'); // Close.
   await tap(page, 'KeyW'); // Racer Profiles.
-  await tap(page, 'KeyW'); // Content Locks.
+  await tap(page, 'KeyW'); // Racer Unlocks.
   await tap(page, 'Space');
+  await tap(page, 'KeyD'); // Racer: Abe to Gideon (P1's default).
+  await tap(page, 'KeyS'); // Category.
   await tap(page, 'KeyS'); // Factory.
   await tap(page, 'KeyD'); // Auto (Locked) to Open.
   await tap(page, 'Backspace'); // Back to Admin Settings.
