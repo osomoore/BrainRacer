@@ -18,9 +18,9 @@ describe('racerProfiles', () => {
     expect(p.abe.questionTypes.spelling).toBe(true);
   });
 
-  it('defaults P1 to Abe and P2 to Gideon', () => {
-    expect(playerRacer(undefined, 0)).toBe('abe');
-    expect(playerRacer({}, 1)).toBe('gideon');
+  it('defaults P1 to Gideon and P2 to Abe', () => {
+    expect(playerRacer(undefined, 0)).toBe('gideon');
+    expect(playerRacer({}, 1)).toBe('abe');
     expect(playerRacer({ profile: 'helen' }, 0)).toBe('helen');
   });
 

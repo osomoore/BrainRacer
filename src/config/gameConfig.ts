@@ -91,7 +91,7 @@ export const DEFAULT_RACER_PROFILES: Record<RacerProfileId, RacerProfile> = {
   helen: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true } },
 };
 /** Default racer per player slot. */
-export const DEFAULT_PLAYER_RACERS: readonly RacerProfileId[] = ['abe', 'gideon'];
+export const DEFAULT_PLAYER_RACERS: readonly RacerProfileId[] = ['gideon', 'abe'];
 
 // ───────────────────────── challenges (package B) ─────────────────────────
 export interface DifficultyProfile {
