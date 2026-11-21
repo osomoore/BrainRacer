@@ -43,6 +43,8 @@ export class GuideSystem implements GameSystem {
         }
       }),
       ctx.bus.on('goal:arrived', ({ player }) => { const g = this.byPlayer(ctx, player); if (g) g.arrived = true; }),
+      ctx.bus.on('reward:granted', ({ player, reward }) => { if (reward === 'turbo') this.byPlayer(ctx, player)?.buddy.setCalm(true); }),
+      ctx.bus.on('reward:ended', ({ player, reward }) => { if (reward === 'turbo') this.byPlayer(ctx, player)?.buddy.setCalm(false); }),
       ctx.bus.on('goal:completed', () => { for (const g of this.guides) { g.arrived = false; g.goalMode = false; g.buddy.setHappy(false); } }),
     );
   }

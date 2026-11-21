@@ -39,6 +39,8 @@ export class GuideBuddy {
   private colorI = 0;
   private flashT = 0;
   private happy = false;
+  private calm = false;
+  private dinoFrame = -1;
 
   constructor(private readonly ctx: RaceContext, private readonly player: PlayerId, kind: GuideKind) {
     const s = ctx.scene;
@@ -57,6 +59,9 @@ export class GuideBuddy {
   }
 
   setHappy(on: boolean) { this.happy = on; }
+
+  /** Low-FX mode while the player's turbo is on. */
+  setCalm(on: boolean) { this.calm = on; }
 
   redirect(target: Vec2): void {
     if (!this.placed) return;
@@ -94,14 +99,17 @@ export class GuideBuddy {
 
     if (this.isDino) {
       const fps = this.happy ? GUIDE.dinoFlapFpsHappy : GUIDE.dinoFlapFps;
-      this.body.setTexture(TEX.buddyDino[FLAP[Math.floor(t * fps) % 4]])
+      const fi = FLAP[Math.floor(t * fps) % 4];
+      if (fi !== this.dinoFrame) { this.dinoFrame = fi; this.body.setTexture(TEX.buddyDino[fi]); }
+      this.body
         .setRotation(this.heading).setScale(sc, sc * (1 - Math.abs(this.bank) * 0.22));
       this.glow.setScale(1.1 + (this.happy ? 0.3 : 0)).setAlpha(0.5 + 0.12 * Math.sin(t * 6));
     } else {
       const pulse = 1 + 0.13 * Math.sin(t * GUIDE.starBlinkHz) + (this.happy ? 0.12 * Math.sin(t * 14) : 0);
       this.flashT -= dt;
       if (this.flashT < -GUIDE.starFlashEverySec) this.flashT = 0.1;
-      if (this.flashT > 0) this.body.setTintFill(0xffffff); else this.body.clearTint();
+      if (this.calm && !GUIDE.boostTwinkle) { this.flashT = 0; if (this.body.isTinted) this.body.clearTint(); }
+      else if (this.flashT > 0) this.body.setTintFill(0xffffff); else if (this.body.isTinted) this.body.clearTint();
       // stay upright on screen: cancel the view rotation, plus a friendly wobble
       this.body.setRotation(-this.ctx.camera.viewRotation(this.player) + Math.sin(t * 3) * 0.18).setScale(sc * pulse);
       const tw = 0.5 + 0.35 * Math.sin(t * GUIDE.starBlinkHz) ** 2 + (this.flashT > 0 ? 0.3 : 0);
@@ -109,8 +117,8 @@ export class GuideBuddy {
     }
 
     this.trailT -= dt;
-    if (this.trailT <= 0) { this.trailT += GUIDE.trailEverySec; this.emitTrail(hx, hy); }
-    if (this.happy) {
+    if (this.trailT <= 0) { this.trailT += this.calm ? GUIDE.boostTrailEverySec : GUIDE.trailEverySec; this.emitTrail(hx, hy); }
+    if (this.happy && (!this.calm || GUIDE.boostSparkles)) {
       this.sparkT -= dt;
       if (this.sparkT <= 0) { this.sparkT = 0.07; this.emitSparkle(hx, hy); }
     }
@@ -158,7 +166,7 @@ export class GuideBuddy {
       const k = p.t / p.life;
       p.img.x += p.vx * dt; p.img.y += p.vy * dt;
       p.img.rotation += p.spin * dt;
-      const tw = p.twinkle ? 0.55 + 0.45 * Math.sin(p.t * 28) ** 2 : 1;
+      const tw = p.twinkle && (!this.calm || GUIDE.boostTwinkle) ? 0.55 + 0.45 * Math.sin(p.t * 28) ** 2 : 1;
       p.img.setScale(p.s0 + (p.s1 - p.s0) * k).setAlpha(p.a0 * (1 - k) * tw);
     }
   }
