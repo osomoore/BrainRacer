@@ -89,3 +89,13 @@ export function beamSideNormal(angle: number, from: Vec2, p: Vec2): Vec2 {
   const side = (p.x - from.x) * nx + (p.y - from.y) * ny >= 0 ? 1 : -1;
   return { x: nx * side, y: ny * side };
 }
+
+/**
+ * Rider laser: a press while idle, off cooldown and not blocked (question) starts a charge aimed straight ahead.
+ * Returns true when a shot started.
+ */
+export function tryRiderLaser(s: LaserState, pressed: boolean, blocked: boolean, heading: number): boolean {
+  if (!pressed || !laserReady(s, !blocked)) return false;
+  startLaser(s, heading, 1);
+  return true;
+}

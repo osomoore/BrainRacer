@@ -116,11 +116,17 @@ export interface DinoState {
   angle: number;
   /** Collision radius (px) used for avoidance checks by other systems. */
   radius: number;
-  /** dino-ride: beaten and boardable right now. */
+  /** dino-ride: beaten, shown as a pulsing crystal, and boardable right now (by any player not already riding). */
   tamed?: boolean;
-  /** dino-ride: the player riding it, else null/undefined. */
+  /** dino-ride: the first player to hop on the crystal (claims it), else null/undefined. */
+  claimedBy?: PlayerId | null;
+  /** dino-ride: every player riding their own boss right now (each rider gets a separate boss mount). */
+  riders?: PlayerId[];
+  /** dino-ride: legacy single rider = riders[0] ?? null. Prefer `riders`. */
   rider?: PlayerId | null;
-  /** dino-ride: ride seconds left / total (for the HUD countdown). */
+  /** dino-ride: per-player ride seconds left (index = PlayerId; 0 when not riding). */
+  rideLeftByPlayer?: number[];
+  /** dino-ride: ride seconds left / total for `rider` (legacy, HUD should use rideLeftByPlayer). */
   rideLeftSec?: number;
   rideTotalSec?: number;
 }

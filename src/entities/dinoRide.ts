@@ -31,12 +31,33 @@ export function stepRide(t: RideTimer, dt: number, frozen: boolean): boolean {
 /** Whole seconds shown on the countdown (20.0 → 20, 0.2 → 1, 0 → 0). */
 export function rideSecondsShown(left: number): number { return Math.max(0, Math.ceil(left - 1e-6)); }
 
-export interface DinoBoardState { active: boolean; tamed?: boolean; rider?: number | null }
+export interface DinoBoardState { active: boolean; tamed?: boolean; riders?: number[]; rider?: number | null }
 
-/** Can someone hop on right now? Only a tame dino with no rider. */
-export function dinoBoardable(d: DinoBoardState): boolean {
-  return d.active && !!d.tamed && (d.rider === null || d.rider === undefined);
+/** Can `player` hop on the crystal right now? It must be showing and the player must not already be riding. */
+export function dinoBoardable(d: DinoBoardState, player: number): boolean {
+  if (!d.active || !d.tamed) return false;
+  const riders = d.riders ?? (d.rider === null || d.rider === undefined ? [] : [d.rider]);
+  return !riders.includes(player);
 }
+
+/** First board claims the crystal; later boards never change the claim. */
+export function claimResult(claimedBy: number | null | undefined, player: number): { claimedBy: number; firstClaim: boolean } {
+  if (claimedBy === null || claimedBy === undefined) return { claimedBy: player, firstClaim: true };
+  return { claimedBy, firstClaim: false };
+}
+
+/** A player may board the crystal once per defeat, only while it is showing. */
+export function canBoardCrystal(crystalShowing: boolean, boarded: ReadonlySet<number>, riding: boolean, player: number): boolean {
+  return crystalShowing && !riding && !boarded.has(player);
+}
+
+/** The crystal goes away when its window runs out or every player in the race has boarded. */
+export function crystalFinished(elapsedSec: number, windowSec: number, boardedCount: number, playerCount: number): boolean {
+  return elapsedSec >= windowSec || boardedCount >= Math.max(1, playerCount);
+}
+
+/** Breathing factor in [-1, 1] for the crystal pulse. */
+export function crystalPulse(t: number, hz: number): number { return Math.sin(t * hz * Math.PI * 2); }
 
 /** Distance from a car to the dino's "edge" for the boarding reach test (like a vehicle's half length). */
 export function dinoBoardDistance(dino: Vec2, car: Vec2, halfLength: number): number {

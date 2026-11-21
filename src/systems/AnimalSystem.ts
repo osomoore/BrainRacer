@@ -179,8 +179,17 @@ export class AnimalSystem implements GameSystem {
         // scurry aside from a fast car heading our way
         if (a.mode === 'graze' || a.mode === 'walk') this.checkScare(v, scareR);
         // the (ridden or wild) dino bowls animals over
-        if (dino.active && dist(a.x, a.y, dino.x, dino.y) < dino.radius + ANIMALS.kinds[a.kind].radius + 6) {
-          this.launch(v, dino.x, dino.y, a.x - dino.x, a.y - dino.y, DINO_LAUNCH_SPEED, null);
+        if (dino.active) {
+          const reach = dino.radius + ANIMALS.kinds[a.kind].radius + 6;
+          if (dist(a.x, a.y, dino.x, dino.y) < reach) {
+            this.launch(v, dino.x, dino.y, a.x - dino.x, a.y - dino.y, DINO_LAUNCH_SPEED, null);
+          } else {
+            // every mount follows its rider's car
+            for (const id of dino.riders ?? []) {
+              const car = players[id];
+              if (car && dist(a.x, a.y, car.x, car.y) < reach) { this.launch(v, car.x, car.y, a.x - car.x, a.y - car.y, DINO_LAUNCH_SPEED, null); break; }
+            }
+          }
         }
       }
 

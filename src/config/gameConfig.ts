@@ -622,6 +622,18 @@ export const DINO_RIDE = {
   playerPush: 380,             // px/s: the other player's car is pushed out of the way (no damage)
   riderScale: 1.7,             // the rider's car drawn on the dino's back, x its normal size
   edgePad: 160,                // keep the ridden dino this far inside the world edge
+  // boss crystal + shared rides
+  claimPoints: 3,              // bonus for the first player to hop onto the crystal
+  crystalSize: 380,            // drawn crystal height (px)
+  crystalPulseHz: 0.9,         // breathing rate of the crystal
+  crystalPulseScale: 0.07,     // +- scale of the breathing
+  crystalGlowScale: 2.6,       // glow halo size relative to the crystal
+  claimBannerSec: 2.2,
+  // rider laser eyes (press the vehicle-switch button while riding)
+  laserChargeSec: 0.45,
+  laserFireSec: 1.5,
+  laserCooldownSec: 4,
+  laserArc: 0.5,               // rad swept, centred straight ahead
 };
 
 // dino laser eyes (package dino-laser)

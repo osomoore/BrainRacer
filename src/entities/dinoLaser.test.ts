@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DINO_LASER } from '../config/gameConfig';
 import {
-  beamHitsCircle, beamSideNormal, cancelLaser, chargeFrac, distToSegment, eyePositions, laserReady, newLaser, startLaser, stepLaser, sweepAngle, sweepSpeed,
+  beamHitsCircle, beamSideNormal, cancelLaser, chargeFrac, distToSegment, eyePositions, laserReady, newLaser, startLaser, stepLaser, sweepAngle, sweepSpeed, tryRiderLaser,
 } from './dinoLaser';
 
 const tm = { chargeSec: 1, fireSec: 2, arc: 1 };
@@ -79,5 +79,28 @@ describe('geometry', () => {
   it('side normal points from beam toward the point', () => {
     const n = beamSideNormal(0, { x: 0, y: 0 }, { x: 100, y: -20 });
     expect(n.y).toBeCloseTo(-1);
+  });
+});
+
+describe('rider laser', () => {
+  const tm = { chargeSec: 0.45, fireSec: 1.5, arc: 0.5 };
+  it('starts straight ahead only when pressed, ready and not blocked', () => {
+    const s = newLaser(0);
+    expect(tryRiderLaser(s, false, false, 1)).toBe(false);
+    expect(tryRiderLaser(s, true, true, 1)).toBe(false);
+    expect(tryRiderLaser(s, true, false, 1.2)).toBe(true);
+    expect(s.phase).toBe('charge');
+    expect(s.baseAngle).toBe(1.2);
+    expect(tryRiderLaser(s, true, false, 0)).toBe(false); // already firing
+  });
+  it('cannot be spammed: waits for the cooldown', () => {
+    const s = newLaser(0);
+    tryRiderLaser(s, true, false, 0);
+    expect(stepLaser(s, 0.5, tm)).toBe('fire');
+    expect(stepLaser(s, 1.6, tm)).toBe('ended');
+    s.cooldown = 4;
+    expect(tryRiderLaser(s, true, false, 0)).toBe(false);
+    stepLaser(s, 4.1, tm);
+    expect(tryRiderLaser(s, true, false, 0)).toBe(true);
   });
 });

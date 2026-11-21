@@ -109,3 +109,43 @@ test('a tame dino nobody boards poofs after the window', async ({ page }) => {
   expect(st.riding).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test('two players: first to hop on the crystal claims it, both ride their own boss and can fire the rider laser', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/?race=2&seed=3&questions=off&dino=now&dinoride=10');
+  await page.waitForFunction((ready) => {
+    const race = (window as RideWindow).__race;
+    return race?.dino.active && race.elapsedSec > ready;
+  }, DINO.devSpawnDelaySec + DINO.dropSec + 0.2, WAIT);
+  await page.evaluate(() => (window as RideWindow).__dinoDefeat!());
+  await page.waitForFunction(() => (window as RideWindow).__race.dino.tamed === true, undefined, WAIT);
+  await page.evaluate(() => {
+    const { scene, players, dino } = (window as RideWindow).__race;
+    players.forEach((car, i) => {
+      scene.matter.body.setPosition(car.body, { x: dino.x + (i ? 260 : -260), y: dino.y + 40 });
+      scene.matter.body.setVelocity(car.body, { x: 0, y: 0 });
+    });
+  });
+  await page.keyboard.press('KeyB', { delay: 60 });
+  await page.waitForFunction(() => (window as RideWindow).__race.dino.riders?.includes(0), undefined, WAIT);
+  const first = await page.evaluate(() => ({ ...(window as RideWindow).__race.dino }));
+  expect(first.claimedBy).toBe(0);
+  expect(first.tamed).toBe(true); // the crystal stays for the other player
+  await page.keyboard.press('KeyN', { delay: 60 });
+  await page.waitForFunction(() => (window as RideWindow).__race.dino.riders?.length === 2, undefined, WAIT);
+  const both = await page.evaluate(() => ({ ...(window as RideWindow).__race.dino }));
+  expect(both.claimedBy).toBe(0);
+  expect(both.tamed).toBe(false); // everyone boarded: the crystal is gone
+  expect(both.rideLeftByPlayer![0]).toBeGreaterThan(0);
+  expect(both.rideLeftByPlayer![1]).toBeGreaterThan(0);
+  // rider lasers on both mounts, then both rides end on their own
+  await page.keyboard.press('KeyB');
+  await page.keyboard.press('KeyN');
+  await page.waitForTimeout(800);
+  await page.waitForFunction(() => {
+    const { players, dino } = (window as RideWindow).__race;
+    return !players[0].riding && !players[1].riding && !dino.active && !dino.riders?.length;
+  }, undefined, { timeout: 40_000 });
+  expect(errors).toEqual([]);
+});

@@ -47,8 +47,8 @@ interface BoardingTarget {
 
 type AbandonedCar = { car: NpcVehicle; damage: number };
 
-/** Boarding identity of the (single) dino. */
-const DINO_TARGET = { dino: true };
+/** Boarding identity of the crystal, one per player so both can hop on at the same time. */
+const DINO_TARGETS = [{ dino: true, player: 0 }, { dino: true, player: 1 }];
 
 export class VehicleConditionSystem implements GameSystem {
   readonly name = 'vehicleCondition';
@@ -382,14 +382,14 @@ export class VehicleConditionSystem implements GameSystem {
       };
     }
     const dino = this.ctx.dino;
-    if (dinoBoardable(dino) && !this.reserved(DINO_TARGET)) {
+    if (dinoBoardable(dino, car.player) && !this.reserved(DINO_TARGETS[car.player])) {
       const distance = dinoBoardDistance(dino, car, DINO_RIDE.boardReach);
       if (distance <= T.transferReach) {
         const texture = car.chassis.texture.key;
         nearest = {
-          id: DINO_TARGET, damage: 0, dino: true, reachPad: DINO_RIDE.boardReach,
+          id: DINO_TARGETS[car.player], damage: 0, dino: true, reachPad: DINO_RIDE.boardReach,
           marker: { length: DINO_RIDE.markerLength, width: DINO_RIDE.markerWidth },
-          current: () => dinoBoardable(dino)
+          current: () => dinoBoardable(dino, car.player)
             ? { position: { x: dino.x, y: dino.y }, angle: dino.angle, spec: { ...DINO_RIDE.spec }, texture }
             : null,
           remove: () => {},

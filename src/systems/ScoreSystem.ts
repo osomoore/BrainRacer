@@ -1,7 +1,7 @@
 /** Per-player stats and team score. Emits score:changed and '+1' popups. */
 import type { GameSystem, RaceContext } from '../core/race';
 import type { PlayerId } from '../core/types';
-import { DINO } from '../config/gameConfig';
+import { DINO, DINO_RIDE } from '../config/gameConfig';
 import { applyChallenge, applyDino, applyGoal, roundStore, teamTotal } from './roundStats';
 
 export class ScoreSystem implements GameSystem {
@@ -29,6 +29,13 @@ export class ScoreSystem implements GameSystem {
           applyDino(s, DINO.defeatPoints);
           ctx.bus.emit('ui:popup', { player: p, text: `+${DINO.defeatPoints}`, color: '#ffd34d' });
         }
+        this.emit();
+      }),
+      ctx.bus.on('dino:claimed', ({ player }) => {
+        const s = roundStore.players[player];
+        if (!s) return;
+        applyDino(s, DINO_RIDE.claimPoints);
+        ctx.bus.emit('ui:popup', { player, text: `+${DINO_RIDE.claimPoints}`, color: '#ffd34d' });
         this.emit();
       }),
       ctx.bus.on('goal:completed', ({ arrived }) => {

@@ -215,7 +215,7 @@ export class HudScene extends Phaser.Scene {
     const st = this.ctx.dino;
     for (let p = 0; p < this.rideCards.length; p++) {
       const card = this.rideCards[p];
-      const left = st.rider === p ? st.rideLeftSec ?? 0 : 0;
+      const left = st.rideLeftByPlayer?.[p] ?? 0;
       const on = st.active && left > 0 && !this.panels[p];
       card.box.setVisible(on);
       if (!on) { card.shown = -1; card.low = null; continue; }

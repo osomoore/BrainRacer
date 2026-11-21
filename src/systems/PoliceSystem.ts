@@ -36,7 +36,8 @@ export class PoliceSystem implements GameSystem {
   private env!: ThinkEnv;
   private cars: PoliceCar[] = [];
   private monsterSwarm = new Set<PoliceCar>();
-  private swarmRider: PlayerId | null = null;
+  private swarmKey = '';
+  private swarmPick = 0;
   private swarmT = 0;
   private swarmStuck = new Map<PoliceCar, number>();
   private per: PlayerPolice[] = [];
@@ -226,22 +227,25 @@ export class PoliceSystem implements GameSystem {
   }
 
   private updateMonsterSwarm(dt: number): void {
-    const { dino } = this.ctx;
-    const rider = this.roundOver ? null : dino.rider ?? null;
-    if (this.swarmRider !== rider) {
-      this.swarmRider = rider;
+    const riders = this.riderIds();
+    const key = riders.join(',');
+    if (this.swarmKey !== key) {
+      this.swarmKey = key;
       this.swarmT = 0;
       for (const car of this.monsterSwarm) {
-        if (car.mode !== 'chase') continue;
+        // cars chasing someone who is no longer on a boss go home; the rest keep chasing
+        if (car.mode !== 'chase' || (car.target !== null && riders.includes(car.target))) continue;
         this.sendSwarmAway(car);
       }
     }
-    if (rider === null) return;
+    if (riders.length === 0) return;
+    const mounts = riders.flatMap((id) => (this.ctx.players[id] ? [this.ctx.players[id]] : []));
+    if (mounts.length === 0) return;
 
     // Recycle cars that are lost or wedged far from the boss; the top-up replaces them closer.
     for (const car of this.monsterSwarm) {
       if (car.mode !== 'chase') continue;
-      const d = Math.hypot(car.x - dino.x, car.y - dino.y);
+      const d = Math.min(...mounts.map((m) => Math.hypot(car.x - m.x, car.y - m.y)));
       if (Math.abs(car.forwardSpeed) < POLICE.stuckSpeed) this.swarmStuck.set(car, (this.swarmStuck.get(car) ?? 0) + dt);
       else this.swarmStuck.set(car, 0);
       // only recycle out of view so a cruiser never vanishes in front of a player
@@ -258,7 +262,10 @@ export class PoliceSystem implements GameSystem {
 
     // Pick nearby road lanes all around the monster. Patrols and heat-based chasers keep their usual limits.
     const nodes = this.ctx.world.laneGraph.nodes;
-    const candidates = swarmSpawnCandidates(nodes, dino, this.ctx.players, [...this.ctx.npcs]);
+    // spawn around one mount at a time so both riders get chased
+    const rider = riders[this.swarmPick++ % riders.length];
+    const centre = this.ctx.players[rider] ?? mounts[0];
+    const candidates = swarmSpawnCandidates(nodes, centre, this.ctx.players, [...this.ctx.npcs]);
     while (candidates.length && missing > 0) {
       const [node] = candidates.splice(this.rng.int(0, candidates.length - 1), 1);
       const next = nodes[node.next[0]];
@@ -270,9 +277,17 @@ export class PoliceSystem implements GameSystem {
     }
   }
 
+  /** Players currently riding a boss mount (none once the round is over). */
+  private riderIds(): PlayerId[] {
+    const d = this.ctx.dino;
+    if (this.roundOver) return [];
+    return d.riders ?? (d.rider !== null && d.rider !== undefined ? [d.rider] : []);
+  }
+
   private sendSwarmAway(car: PoliceCar): void {
     const { dino } = this.ctx;
-    const away = Math.atan2(car.y - dino.y, car.x - dino.x);
+    const home = (car.target !== null ? this.ctx.players[car.target] : undefined) ?? dino;
+    const away = Math.atan2(car.y - home.y, car.x - home.x);
     const dist = POLICE.monsterSwarmExitDist;
     this.sendAway(car, this.index.nearest(car.x + dist * Math.cos(away), car.y + dist * Math.sin(away)));
   }
@@ -409,7 +424,7 @@ export class PoliceSystem implements GameSystem {
   /** True while the player is driving a police cruiser (their chassis carries a police texture). */
   private inCruiser(p: PlayerId): boolean {
     const car = this.ctx.players[p];
-    return this.ctx.dino.rider !== p && !car?.disabled && isPoliceTexture(car?.chassis?.texture?.key);
+    return !this.riderIds().includes(p) && !car?.disabled && isPoliceTexture(car?.chassis?.texture?.key);
   }
 
   /** The player's own siren: loops while they drive a cruiser in a live race. */

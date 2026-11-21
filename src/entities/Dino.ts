@@ -142,6 +142,14 @@ export class Dino {
     this.root.add(this.rider);
   }
 
+  /** Hide the boss body (the crystal replaces it); tosses and effects keep running. */
+  hideBody(): void {
+    this.root.setVisible(false);
+    this.bar.setVisible(false);
+    this.setDizzy(false);
+    this.setLaser(0, false, 0);
+  }
+
   /** Cartoon "poof": smoke, confetti and stars. Hides the dino itself. */
   poof(): void {
     this.root.setVisible(false);
