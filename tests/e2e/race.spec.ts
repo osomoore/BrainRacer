@@ -41,6 +41,18 @@ test('quick race runs: countdown, driving, challenges, no errors', async ({ page
   const challenge = (p: number) => page.evaluate((i) => (window as any).__challenge.current(i), p);
   await page.waitForFunction(() => (window as any).__race.questionBreak === true, null, { timeout: 20_000 });
   await page.waitForTimeout(700);
+  const bannerBehindPanels = await page.evaluate(() => {
+    const { scene, bus } = window.__race;
+    const hud = scene.scene.get('Hud') as Phaser.Scene & { panels: { root: Phaser.GameObjects.Container }[] };
+    const text = 'WOODEN HORSE DEFEATED!';
+    bus.emit('ui:banner', { text, durationSec: 1 });
+    hud.children.depthSort();
+    const displayList = hud.children.getChildren();
+    const banner = displayList.findIndex(obj => obj.type === 'Container'
+      && (obj as Phaser.GameObjects.Container).list.some(child => (child as Phaser.GameObjects.Text).text === text));
+    return banner >= 0 && hud.panels.length === 2 && hud.panels.every(panel => banner < displayList.indexOf(panel.root));
+  });
+  expect(bannerBehindPanels).toBe(true);
   const frozen = await page.evaluate(() => { const r = (window as any).__race; return { t: r.elapsedSec, x: r.players[0].x, y: r.players[0].y }; });
   await page.screenshot({ path: 'test-results/break-2p.png' });
   await page.waitForTimeout(500);

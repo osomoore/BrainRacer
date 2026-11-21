@@ -635,7 +635,7 @@ export const DINO_LASER = {
   arc: 0.68,                   // rad swept; tip speed ~278 px/s, just below the slower starter car
   length: 900,                 // beam reach from the eyes
   hitHalfWidth: 20,            // beam half width for hits (plus target radius)
-  drawWidth: 46,               // drawn beam thickness
+  drawWidth: 30,               // drawn beam thickness; close to the 40 px collision width
   eyeFwd: 226,                 // eye offset ahead of the dino centre in rig px (x dino scale)
   eyeSide: 54,                 // eye offset to each side in rig px
   aimRandom: 0.25,             // rad: random aim error of the sweep centre

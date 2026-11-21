@@ -403,8 +403,17 @@ export function drawQueuedBosses(scene: Phaser.Scene): void {
     bake(scene, tex.arm, 207, 110, c => arm(c, palette));
     bake(scene, tex.foot, 120, 92, c => foot(c, palette));
     bake(scene, tex.beam, 64, 64, c => {
-      c.fillStyle = lin(c, 0, 0, 0, 64, [[0, color + '00'], [0.32, color + 'b6'],
-        [0.5, '#ffffff'], [0.68, color + 'b6'], [1, color + '00']]);
+      // Keep long additive beams narrow and softly colored, with a visible fade at each endpoint.
+      c.fillStyle = lin(c, 0, 0, 0, 64, [[0, color + '00'], [0.32, color + '80'],
+        [0.5, color + 'a8'], [0.68, color + '80'], [1, color + '00']]);
+      c.fillRect(0, 0, 64, 64);
+      c.globalCompositeOperation = 'destination-in';
+      const ends = c.createLinearGradient(0, 0, 64, 0);
+      ends.addColorStop(0, '#00000000');
+      ends.addColorStop(0.025, '#000000ff');
+      ends.addColorStop(0.975, '#000000ff');
+      ends.addColorStop(1, '#00000000');
+      c.fillStyle = ends;
       c.fillRect(0, 0, 64, 64);
     });
     bake(scene, tex.glow, 128, 128, c => {
