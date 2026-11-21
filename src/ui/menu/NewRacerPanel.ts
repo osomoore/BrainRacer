@@ -1,0 +1,141 @@
+import Phaser from 'phaser';
+import { GAME_HEIGHT, GAME_WIDTH, NEW_RACER } from '../../config/gameConfig';
+import { validRacerName, type NewRacerInput } from '../../core/racerProfiles';
+import { services } from '../../core/services';
+import type { Difficulty, QuestionTypes } from '../../core/types';
+import { LetterPicker, type PickerResult } from './LetterPicker';
+import { MenuButton } from './MenuButton';
+import { cycleChoice, DIFFICULTIES, DIFF_EXAMPLE, DIFF_LABEL, nameTaken, QUESTION_LABEL, toggleQuestionType } from './newRacerLogic';
+import { OptionRow } from './OptionRow';
+import { bigText, FONT_HEAD, MENU } from './style';
+
+type Step = 'name' | 'age' | 'options';
+type Nav = { navX: number; navY: number; confirm: boolean; back: boolean };
+const TYPE_KEYS = ['addition', 'multiplication', 'spelling'] as const;
+const ROW_LEVEL = 3, ROW_GO = 4;
+
+/** Full-screen "make a new racer" flow driven by one player's input. Call handle() every frame. */
+export class NewRacerPanel extends Phaser.GameObjects.Container {
+  result?: NewRacerInput;
+  private step: Step = 'name';
+  private page?: Phaser.GameObjects.Container;
+  private picker?: LetterPicker;
+  private msg: Phaser.GameObjects.Text;
+  private racerNameText = '';
+  private under10 = true;
+  private difficulty: Difficulty = NEW_RACER.defaultDifficulty;
+  private types: QuestionTypes = { ...NEW_RACER.defaultQuestionTypes };
+  private sel = 0;
+  private ageBtns: MenuButton[] = [];
+  private rows: OptionRow[] = [];
+  private go?: MenuButton;
+  private exampleText?: Phaser.GameObjects.Text;
+
+  constructor(scene: Phaser.Scene, private readonly color: number, private readonly colorHex: string, private readonly playerNum: number,
+    private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean) {
+    super(scene, 0, 0);
+    this.setDepth(1000);
+    const g = scene.add.graphics();
+    g.fillGradientStyle(0x1a2a6c, 0x1a2a6c, 0x2b8cff, 0x2b8cff, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    g.lineStyle(14, color, 1).strokeRect(7, 7, GAME_WIDTH - 14, GAME_HEIGHT - 14);
+    this.msg = bigText(scene, GAME_WIDTH / 2, GAME_HEIGHT - 50, '', 48, '#ffd43b', { font: FONT_HEAD });
+    this.add([g, this.msg]);
+    scene.add.existing(this);
+    this.show('name');
+  }
+
+  private show(step: Step) {
+    this.step = step;
+    this.picker?.destroy(); this.picker = undefined;
+    this.page?.destroy(); this.page = undefined;
+    this.msg.setText('');
+    const page = this.scene.add.container(0, 0);
+    this.page = page;
+    this.add(page);
+    const cx = GAME_WIDTH / 2;
+    page.add(bigText(this.scene, 40, 40, `PLAYER ${this.playerNum}`, 48, this.colorHex, { font: FONT_HEAD, stroke: 10, origin: [0, 0.5] }));
+    if (step === 'name') {
+      this.picker = new LetterPicker(this.scene, cx, 70, { title: 'WHAT\'S YOUR NAME?', initial: this.racerNameText, maxLen: NEW_RACER.nameMaxLen, color: this.color, keyboardTyping: this.keyboardTyping });
+      this.add(this.picker);
+    } else if (step === 'age') {
+      page.add(bigText(this.scene, cx, 280, 'ARE YOU UNDER 10 YEARS OLD?', 84, MENU.yellow, { font: FONT_HEAD, wrap: 1700 }));
+      this.ageBtns = [
+        new MenuButton(this.scene, cx - 330, 620, 520, 220, 'YES', this.color, 110),
+        new MenuButton(this.scene, cx + 330, 620, 520, 220, 'NO', this.color, 110),
+      ];
+      page.add(this.ageBtns);
+      this.sel = this.under10 ? 0 : 1;
+      this.paintAge();
+    } else {
+      page.add(bigText(this.scene, cx, 90, 'WHAT DO YOU WANT TO PLAY?', 72, MENU.yellow, { font: FONT_HEAD }));
+      const opts = { width: 1200, height: 76, fontSize: 56, valueX: 330, arrowSpan: 230 };
+      this.rows = [];
+      TYPE_KEYS.forEach((k, i) => this.rows.push(new OptionRow(this.scene, cx, 230 + i * 100, QUESTION_LABEL[k], opts)));
+      this.rows.push(new OptionRow(this.scene, cx, 570, 'Level', opts));
+      this.exampleText = bigText(this.scene, cx, 665, '', 48, MENU.dim, { bold: false });
+      this.go = new MenuButton(this.scene, cx, 850, 700, 150, 'GO!', this.color, 100);
+      page.add([...this.rows, this.exampleText, this.go]);
+      this.sel = 0;
+      this.paintOptions();
+    }
+  }
+
+  private paintAge() {
+    this.ageBtns.forEach((b, i) => b.setSelected(i === this.sel, this.color));
+  }
+
+  private paintOptions() {
+    TYPE_KEYS.forEach((k, i) => this.rows[i].setValue(this.types[k] ? 'ON' : 'OFF').setSelected(this.sel === i, this.color));
+    this.rows[ROW_LEVEL].setValue(DIFF_LABEL[this.difficulty]).setSelected(this.sel === ROW_LEVEL, this.color);
+    this.exampleText?.setText(this.types.addition ? `Sums like ${DIFF_EXAMPLE[this.difficulty]}` : '');
+    this.go?.setSelected(this.sel === ROW_GO, this.color);
+  }
+
+  /** 'done' once the player finished (see `result`), 'cancel' to abandon the whole flow. */
+  handle(inp: Nav): PickerResult {
+    if (this.step === 'name') {
+      const r = this.picker!.handle(inp);
+      if (r === 'cancel') return 'cancel';
+      if (r === 'done') {
+        const n = validRacerName(this.picker!.value);
+        if (!n) { this.msg.setText('Try using letters!'); return 'none'; }
+        if (nameTaken(n, this.takenNames)) { this.msg.setText('Someone is already called that! Try another name.'); services.audio.sfx('menuMove'); return 'none'; }
+        this.racerNameText = n;
+        this.show('age');
+      }
+      return 'none';
+    }
+    if (this.step === 'age') {
+      if (inp.back) { services.audio.sfx('menuMove'); this.show('name'); return 'none'; }
+      if (inp.navX || inp.navY) { this.sel = 1 - this.sel; services.audio.sfx('menuMove'); this.paintAge(); }
+      if (inp.confirm) { this.under10 = this.sel === 0; services.audio.sfx('menuSelect'); this.show('options'); }
+      return 'none';
+    }
+    if (inp.back) { services.audio.sfx('menuMove'); this.show('age'); return 'none'; }
+    if (inp.navY) {
+      this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1);
+      services.audio.sfx('menuMove'); this.paintOptions();
+    }
+    if ((inp.navX || inp.confirm) && this.sel < ROW_LEVEL) {
+      this.types = toggleQuestionType(this.types, TYPE_KEYS[this.sel]);
+      services.audio.sfx('menuMove'); this.paintOptions();
+    } else if (inp.navX && this.sel === ROW_LEVEL) {
+      this.difficulty = cycleChoice(DIFFICULTIES, this.difficulty, inp.navX > 0 ? 1 : -1);
+      services.audio.sfx('menuMove'); this.paintOptions();
+      this.rows[ROW_LEVEL].bump(inp.navX);
+    } else if (inp.confirm) {
+      if (this.sel === ROW_GO) {
+        this.result = { name: this.racerNameText, under10: this.under10, difficulty: this.difficulty, questionTypes: { ...this.types } };
+        services.audio.sfx('menuSelect');
+        return 'done';
+      }
+      this.sel = Math.min(this.sel + 1, ROW_GO); this.paintOptions();
+    }
+    return 'none';
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.picker?.destroy();
+    super.destroy(fromScene);
+  }
+}

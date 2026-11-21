@@ -220,12 +220,56 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   expect(await racers()).toEqual(['gideon', 'helen']);
   await tapPad(page, 1, PAD_RIGHT);   // Helen -> Daddy
   expect(await racers()).toEqual(['gideon', 'daddy']);
-  await tapPad(page, 1, PAD_RIGHT);   // Daddy -> Abe
+  await tapPad(page, 1, PAD_RIGHT);   // Daddy -> New Profile
+  await tapPad(page, 1, PAD_RIGHT);   // New Profile -> Abe
   expect(await racers()).toEqual(['gideon', 'abe']);
   await tapPad(page, 0, PAD_RIGHT);   // Gideon -> Helen
   await tapPad(page, 0, PAD_RIGHT);   // Helen -> Daddy
-  await tapPad(page, 0, PAD_RIGHT);   // Daddy -> Abe is taken -> Gideon
+  await tapPad(page, 0, PAD_RIGHT);   // Daddy -> New Profile
+  await tapPad(page, 0, PAD_RIGHT);   // New Profile -> (Abe is taken) -> Gideon
   expect(await racers()).toEqual(['gideon', 'abe']);
   expect(new Set(await racers()).size).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test('Setup: New Profile asks name, age and settings, then races as the new racer', async ({ page }) => {
+  const errors = watchErrors(page);
+  await installGamepadMock(page, 1);
+  await page.goto('/');
+  await waitScene(page, 'Title');
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, BTN_A);   // join
+  await page.waitForTimeout(800);
+  await tapPad(page, 0, BTN_A);   // Setup
+  await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
+  const PAD_LEFT = 14, PAD_UP = 12;
+  await tapPad(page, 0, PAD_LEFT);  // Gideon -> Abe
+  await tapPad(page, 0, PAD_LEFT);  // Abe -> New Profile
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).cols[0].hint.text)).toBe('Make a new racer!');
+  await page.screenshot({ path: 'test-results/menus-setup-new.png' });
+  await tapPad(page, 0, BTN_A);     // START RACE -> creation overlay
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/menus-newracer-name.png' });
+  await page.keyboard.type('Zed', { delay: 80 });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/menus-newracer-age.png' });
+  await tapPad(page, 0, BTN_A);     // YES
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/menus-newracer-options.png' });
+  await tapPad(page, 0, PAD_UP);    // wraps to GO
+  await tapPad(page, 0, BTN_A);
+  await waitScene(page, 'Race');
+
+  const s = await settingsOf(page);
+  const id = s.players[0].profile!;
+  expect(id).toMatch(/^u\d+$/);
+  expect(s.customRacers).toEqual([id]);
+  expect(s.racerProfiles?.[id]).toMatchObject({ name: 'ZED', roundSec: 300, difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } });
+  expect(await page.evaluate(() => window.__race.settings.players[0].profile)).toBe(id);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
+  expect(saved.customRacers).toEqual([id]);
   expect(errors).toEqual([]);
 });

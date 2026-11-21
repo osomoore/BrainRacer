@@ -37,6 +37,11 @@ For a quick check, use `/?race=2&map=brickworks&seed=3&feature=now&dino=now` in 
 - **Admin Settings → Racer Unlocks** (was Content Locks): pick a racer, then Worlds pages or a page per world (cars + buddy), each Auto / Open / Locked for that racer only.
 - **Boost FX:** during turbo the guide buddy goes calm (`GUIDE.boostTrailEverySec`, `boostSparkles`, `boostTwinkle`), and turbo flames/lines/aura are tunable (`REWARDS.turboFlamesPerSec` 50, `turboLinesPerSec` 24, `turboAuraScale` 10). A rough 2x-throttle check still showed a large fps drop during turbo in both old and new builds, so the main boost cost is probably elsewhere (boost jump, camera, flavor reward); not yet profiled.
 
+## New Profile in Setup
+- The Racer row cycles every racer (`racerIds`) then **New Profile** (hidden at `NEW_RACER.maxCustomRacers`). Setup keeps this as a local `isNew` flag per column; nothing special is saved. New Profile shows "Make a new racer!" and only starter cars/guides. Both players may pick it; real racers stay unique.
+- START RACE with New Profile opens `NewRacerPanel` (`src/ui/menu/NewRacerPanel.ts`, logic in `newRacerLogic.ts`) for P1 then P2, driven only by that player's input: name (LetterPicker; duplicate names refused; Back on empty cancels to Setup) -> "Under 10 years old?" YES/NO (silently sets race time 5/3 min) -> Addition/Multiplication/Spelling (one must stay on), Level, GO!. Back steps back.
+- On GO: `createRacer`, settings saved immediately, player switched to the new id, then the next new player or the race starts. Test: `tests/e2e/menus.spec.ts`.
+
 ## Map progression and bosses
 
 - The campaign starts in City and advances through Factory, Beach, Mine, Farm, Sky City, Dark Forest, and Underwater before reaching Brickworks. Complete three shared destination objectives in one race to unlock the next world. Results shows the new world's poster first, then a slowing reel lands on the earned collectible. Confirm advances to an available successor or plays the current world again. **Setup** returns to world and loadout selection.
