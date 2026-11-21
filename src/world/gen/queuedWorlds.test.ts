@@ -53,6 +53,17 @@ describe.each(QUEUED_MAPS)('%s', map => {
     }
   });
 
+  it('adds deterministic, themed knockable props off the road and building footprints', () => {
+    const world = generateQueuedWorld(map, 17);
+    expect(world.props.length).toBeGreaterThanOrEqual(8);
+    expect(generateQueuedWorld(map, 17).props).toEqual(world.props);
+    for (const prop of world.props) {
+      const x = Math.floor(prop.x / world.tileSize), y = Math.floor(prop.y / world.tileSize);
+      expect([Tile.Grass, Tile.Park, Tile.Dirt]).toContain(world.tiles[y * world.widthTiles + x]);
+      expect(world.tiles[y * world.widthTiles + x]).not.toBe(Tile.Road);
+    }
+  });
+
   it('keeps all destinations reachable with the shortcut shut, away from the mover track', () => {
     for (const seed of [1, 2, 3, 7, 42, 88, 2026]) {
       const world = generateQueuedWorld(map, seed), ts = world.tileSize;

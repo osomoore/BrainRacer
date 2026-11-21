@@ -31,15 +31,22 @@ for (const [i, map] of QUEUED_MAPS.entries()) {
       const lot = world.buildings.find(building => building.style === 9)!;
       const bodies = scene.matter.world.getAllBodies().filter(body => body.label === `world-building-${lot.id}`);
       const props = scene.children.getAll('name', `${map}-scenery`) as Phaser.GameObjects.Image[];
+      const knockables = scene.matter.world.getAllBodies().filter(body => {
+        const owner = body.plugin?.owner;
+        return owner?.kind === 'prop' && !body.isStatic && !body.isSensor
+          && owner.prop.texture?.key?.startsWith(`queued_${map}_prop_`);
+      });
       const corner = { x: lot.tx * world.tileSize + 2, y: lot.ty * world.tileSize + 2 };
       return {
         artVariants: new Set(props.map(prop => prop.texture.key)).size,
         movingVariants: [0, 1, 2].filter(i => scene.children.getByName(`${map}-ambient-${i}`)).length,
         solid: bodies.length > 0,
         clearCorner: scene.matter.query.point(bodies, corner).length === 0,
+        knockables: knockables.length,
       };
     }, map);
-    expect(detail).toEqual({ artVariants: 12, movingVariants: 3, solid: true, clearCorner: true });
+    expect(detail).toMatchObject({ artVariants: 12, movingVariants: 3, solid: true, clearCorner: true });
+    expect(detail.knockables).toBeGreaterThanOrEqual(8);
     if (map in QUEUED_FEATURES.rail) {
       const train = await page.evaluate(() => {
         const { scene } = (window as TestWindow).__race;
@@ -64,6 +71,30 @@ for (const [i, map] of QUEUED_MAPS.entries()) {
     if (flagship) await page.screenshot({ path: info.outputPath(`${map}.png`) });
   });
 }
+
+test('an Airport service prop can be knocked aside at normal driving speed', async ({ page }, info) => {
+  await page.goto('/?race=1&map=airport&seed=3&questions=off');
+  await page.waitForFunction(() => (window as TestWindow).__race?.elapsedSec > 0.5, undefined, WAIT);
+  const target = await page.evaluate(() => {
+    const { scene, players } = (window as TestWindow).__race;
+    const car = players[0];
+    const prop = scene.matter.world.getAllBodies().find(body => {
+      const owner = body.plugin?.owner;
+      return owner?.kind === 'prop' && owner.prop.texture?.key?.startsWith('queued_airport_prop_');
+    })!;
+    const { x, y } = prop.position;
+    scene.matter.body.setPosition(car.body, { x: x - 72, y });
+    scene.matter.body.setAngle(car.body, 0);
+    scene.matter.body.setVelocity(car.body, { x: 4.5, y: 0 });
+    return { id: prop.id, x, y };
+  });
+  await page.waitForFunction(({ id, x, y }) => {
+    const { scene } = (window as TestWindow).__race;
+    const prop = scene.matter.world.getAllBodies().find(body => body.id === id);
+    return prop && Math.hypot(prop.position.x - x, prop.position.y - y) > 12;
+  }, target, WAIT);
+  await page.screenshot({ path: info.outputPath('airport-service-props.png') });
+});
 
 test('Brickworks wagons collide and derail under turbo', async ({ page }) => {
   await page.goto('/?race=1&map=brickworks&seed=3&questions=off');

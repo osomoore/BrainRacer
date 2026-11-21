@@ -1,7 +1,7 @@
 import { TILE_SIZE, WORLD } from '../../config/gameConfig';
 import { QUEUED_MAPS, type QueuedMap } from '../../config/queuedMaps';
 import { Rng } from '../../core/rng';
-import { Tile, type BuildingLot, type FreightRoute, type PlaceSite, type RaceMap, type Vec2, type WorldData } from '../../core/types';
+import { Tile, type BuildingLot, type FreightRoute, type PlaceSite, type Prop, type RaceMap, type Vec2, type WorldData } from '../../core/types';
 import { scenesForWord } from '../../data/scenes';
 import { computeRoadMask, type Grid } from './grid';
 import { generateLaneGraph } from './lanes';
@@ -164,6 +164,49 @@ export function queuedIceAt(world: WorldData, x: number, y: number): boolean {
   const tx = Math.floor(x / world.tileSize), ty = Math.floor(y / world.tileSize);
   return tx >= 0 && tx < world.widthTiles && ty >= 0 && ty < world.heightTiles &&
     world.tiles[ty * world.widthTiles + tx] === Tile.Dirt;
+}
+
+/** Seeded, road-adjacent themed props. Airport service items are deliberately laid out in rows. */
+function queuedProps(map: QueuedMap, world: Pick<WorldData, 'seed' | 'widthTiles' | 'heightTiles' | 'tileSize' | 'tiles'>, rng: Rng): Prop[] {
+  const ts = world.tileSize, w = world.widthTiles, h = world.heightTiles;
+  const { columns: [, west, east], rows: [, shortcut] } = layout(map, world.seed);
+  const allowed = (x: number, y: number) => {
+    if (x < 3 || y < 3 || x >= w - 3 || y >= h - 3) return false;
+    const i = y * w + x;
+    if (![i, i + 1, i + w, i + w + 1].every(index => {
+      const tile = world.tiles[index];
+      return tile === Tile.Grass || tile === Tile.Park || tile === Tile.Dirt;
+    })) return false;
+    return [i - 1, i + 2, i - w, i - w + 1, i + 2 * w, i + 2 * w + 1, i + w - 1, i + 2 * w - 1]
+      .some(index => world.tiles[index] === Tile.Road);
+  };
+  const candidates: { x: number; y: number }[] = [];
+  for (let y = 3; y < h - 4; y++) for (let x = 3; x < w - 4; x++) {
+    if (allowed(x, y)) candidates.push({ x, y });
+  }
+  const airportZone = (p: { x: number; y: number }) => p.y < shortcut - 1 && (p.x < west - 1 || p.x > east + 1);
+  const preferred = map === 'airport' ? candidates.filter(airportZone) : candidates;
+  const pool = preferred.length >= 8 ? preferred : candidates;
+  const ordered = map === 'airport'
+    ? pool.sort((a, b) => a.y - b.y || a.x - b.x)
+    : rng.shuffle(pool);
+  const used: { x: number; y: number }[] = [];
+  for (const p of ordered) {
+    if (used.some(other => Math.hypot(other.x - p.x, other.y - p.y) < 3)) continue;
+    used.push(p);
+    if (used.length >= (map === 'airport' ? 24 : 18)) break;
+  }
+  const kinds: Record<QueuedMap, readonly Prop['kind'][]> = {
+    brickworks: ['cone', 'bench', 'lamp'], mushroom: ['bush', 'bench', 'lamp'],
+    tundra: ['cone', 'bench', 'lamp'], volcano: ['cone', 'hydrant', 'lamp'],
+    candy: ['cone', 'bench', 'lamp'], castle: ['cone', 'bench', 'lamp'],
+    airport: ['cone', 'parkedCar', 'lamp'], house: ['bench', 'bush', 'lamp'],
+  };
+  return used.map(({ x, y }, index) => ({
+    kind: kinds[map][index % kinds[map].length],
+    x: (x + 1) * ts, y: (y + 1) * ts,
+    angle: map === 'airport' ? 0 : rng.int(0, 3) * Math.PI / 2,
+  }));
 }
 
 function paint(grid: Grid, x: number, y: number, w: number, h: number, tile: Tile): void {
@@ -362,7 +405,7 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
 
   return {
     seed, widthTiles: w, heightTiles: h, tileSize: ts, tiles: grid.tiles, roadMask: grid.mask, buildings, places,
-    laneGraph, props: [],
+    laneGraph, props: queuedProps(map, { seed, widthTiles: w, heightTiles: h, tileSize: ts, tiles: grid.tiles }, rng.fork(0x901f)),
     ramps: [
       { x: (left + 4.6) * ts, y: (shortcut + 0.7) * ts, angle: 0, w: WORLD.rampW, h: WORLD.rampH },
       { x: (right - 3.8) * ts, y: (bottom + 1.35) * ts, angle: Math.PI, w: WORLD.rampW, h: WORLD.rampH },

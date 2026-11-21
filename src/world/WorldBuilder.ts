@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { CAMERA, CAT, CITY_NIGHT_LIGHTING, DEPTH, GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { roadTex, TEX } from '../core/assetKeys';
-import { isQueuedMap } from '../config/queuedMaps';
+import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import type { BodyOwner } from '../core/race';
 import { Tile, type Prop, type RaceMap, type Rect, type WorldData } from '../core/types';
 import { BUILDING_3D, ensureBodyTexture, ensureShadowTexture } from './buildingTex';
@@ -66,6 +66,10 @@ const TILE_KEYS: string[] = [
   ...Array.from({ length: 16 }, (_, i) => roadTex(i)),
 ];
 const ROAD_BASE = 6;
+const PROP_STYLE_ORDER: Partial<Record<QueuedMap, readonly number[]>> = {
+  castle: [3, 2, 9, 4, 1, 5, 6, 7, 8, 10, 11, 0], // banner, shield, pennants and other courtyard gear
+  airport: [2, 5, 7, 10, 1, 4, 6, 8, 9, 11, 0, 3], // luggage, carts, ground-service equipment
+};
 
 function ensureTileset(scene: Phaser.Scene, industrial: boolean, night: boolean, farm: boolean, harbor: boolean, underground: boolean,
   themed?: (typeof WORLD_TILESETS)[keyof typeof WORLD_TILESETS]): string {
@@ -266,7 +270,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
 
   // ── props
   if (raceMap !== 'forest') {
-    for (const p of world.props) addProp(scene, p, objs, dynamicProps, bodies, staticOpts);
+    for (const [index, p] of world.props.entries()) addProp(scene, p, objs, dynamicProps, bodies, staticOpts, raceMap, index);
   }
 
   return {
@@ -286,7 +290,7 @@ export function buildWorld(scene: Phaser.Scene, world: WorldData, raceMap: RaceM
 
 function addProp(
   scene: Phaser.Scene, p: Prop, objs: Phaser.GameObjects.GameObject[], dyn: Phaser.GameObjects.GameObject[],
-  bodies: MatterJS.BodyType[], staticOpts: (o: BodyOwner) => BodyCfg,
+  bodies: MatterJS.BodyType[], staticOpts: (o: BodyOwner) => BodyCfg, raceMap: RaceMap, index: number,
 ): void {
   const L = BUILDING_LOOK;
   const M = scene.matter;
@@ -299,6 +303,19 @@ function addProp(
     shape, friction: L.bodyFriction, frictionStatic: 0, frictionAir: air, restitution: 0.3,
     mass, collisionFilter: { category: CAT.prop, mask: 0xffff, group: 0 },
   }) as BodyCfg;
+
+  if (isQueuedMap(raceMap)) {
+    const order = PROP_STYLE_ORDER[raceMap] ?? Array.from({ length: 12 }, (_, style) => style);
+    const key = `queued_${raceMap}_prop_${order[index % order.length]}`;
+    if (scene.textures.exists(key)) {
+      const img = M.add.image(p.x, p.y, key, undefined,
+        lightOpts({ type: 'circle', radius: 45 }, 0.7, 0.16));
+      img.setScale(0.46).setRotation(p.angle).setDepth(DEPTH.prop);
+      setOwner(img);
+      dyn.push(img);
+      return;
+    }
+  }
 
   switch (p.kind) {
     case 'bush':

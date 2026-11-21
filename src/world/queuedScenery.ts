@@ -92,6 +92,7 @@ function addScenes(scene: Phaser.Scene, world: WorldData, objects: Phaser.GameOb
   const road = (i: number) => world.tiles[i] === Tile.Road;
   for (let y = 3; y < h - 4; y++) for (let x = 3; x < w - 4; x++) {
     const i = y * w + x;
+    if (world.props.some(prop => Math.hypot(prop.x - (x + 1) * ts, prop.y - (y + 1) * ts) < ts * 2.5)) continue;
     if (![i, i + 1, i + w, i + w + 1].every(lawn)) continue;
     if (![i - 1, i + w - 1, i - w, i - w + 1, i + 2, i + w + 2, i + w * 2, i + w * 2 + 1].some(road)) continue;
     candidates.push({ x, y, index: i, startDistance: Math.hypot((x + 1) * ts - spawn.x, (y + 1) * ts - spawn.y) });
@@ -153,11 +154,25 @@ export function addQueuedScenery(scene: Phaser.Scene, world: WorldData, objects:
     const roadside = [i - 1, i + 1, i - w, i + w].some(index => world.tiles[index] === Tile.Road);
     candidates.push({ x, y, tile, roadside });
   }
+  let placementCandidates = rng.shuffle(candidates);
+  if (map === 'airport') {
+    // Keep ground-service clutter around the terminal aprons and in tidy rows; leave the runway clear.
+    const apronRows = candidates.filter(({ x, y }) => y < 28 && (x < 18 || x > 29))
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    placementCandidates = [];
+    for (const candidate of apronRows) {
+      if (placementCandidates.some(other => Math.abs(other.y - candidate.y) < 2
+        && Math.abs(other.x - candidate.x) < 3)) continue;
+      placementCandidates.push(candidate);
+      if (placementCandidates.length >= 24) break;
+    }
+  }
   const variants = rng.shuffle(props.slice());
   let propIndex = 0;
-  for (const { x, y, tile, roadside } of rng.shuffle(candidates)) {
+  for (const { x, y, tile, roadside } of placementCandidates) {
+    if (world.props.some(prop => Math.hypot(prop.x - (x + 0.5) * ts, prop.y - (y + 0.5) * ts) < ts * 0.7)) continue;
     const density = tile === Tile.Park ? DETAIL.parkDensity : roadside ? DETAIL.roadsideDensity : DETAIL.fieldDensity;
-    if (!rng.chance(density)) continue;
+    if (map !== 'airport' && !rng.chance(density)) continue;
     const px = (x + rng.range(0.37, 0.63)) * ts, py = (y + rng.range(0.37, 0.63)) * ts;
     const angle = map === 'airport' || map === 'house' || map === 'brickworks'
       ? rng.int(0, 3) * Math.PI / 2 : rng.range(0, Math.PI * 2);
