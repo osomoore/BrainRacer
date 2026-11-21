@@ -3,8 +3,9 @@ import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } fr
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
-import { collectibleName, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../config/collectibles';
-import { contentOverride, developerModeSettings, loadUnlocks, availableMaps, MAP_LABEL, RACE_MAPS, setContentOverride } from '../core/progression';
+import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
+import { developerModeSettings, MAP_LABEL, RACE_MAPS } from '../core/progression';
+import { earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
 import { RACER_PROFILE_IDS, RACER_PROFILE_NAME, racerProfiles, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
@@ -45,18 +46,18 @@ const GAS_LABEL = { a: 'Bottom button', trigger: 'Trigger', auto: 'Auto' } as co
 const KEY_HISTORY = 3;
 const ROUND_SEC = [60, 120, 180, 300, 480, 600];
 const EVERY_SEC = [5, 8, 10, 15, 20, 30];
-const CONTENT_ROWS = 9;
-function contentPages<T extends string>(name: string, ids: readonly T[]) {
+const CONTENT_ROWS = 8;
+function contentPages(name: string, ids: readonly Content[]) {
   const total = Math.ceil(ids.length / CONTENT_ROWS);
   return Array.from({ length: total }, (_, i) => ({
     name: total > 1 ? `${name} ${i + 1} / ${total}` : name,
     ids: ids.slice(i * CONTENT_ROWS, (i + 1) * CONTENT_ROWS),
   }));
 }
+/** One "Worlds" page (all but City), then one page per world listing its cars and its buddy. */
 const CONTENT_PAGES = [
   ...contentPages('Worlds', RACE_MAPS.filter(map => map !== 'city')),
-  ...contentPages('Cars', UNLOCK_VEHICLE_IDS),
-  ...contentPages('Companions', UNLOCK_GUIDE_IDS),
+  ...RACE_MAPS.flatMap(map => contentPages(`${MAP_LABEL[map]} items`, worldRewards(map))),
 ];
 const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
@@ -83,6 +84,7 @@ export class ConfigScene extends Phaser.Scene {
   private subRows: Row[] = [];
   private subPanel?: Phaser.GameObjects.Container;
   private contentPage = 0;
+  private contentRacer = 0;
   private adminCursor = 0;
   private cursor = 0;
   private panel!: Phaser.GameObjects.Container;
@@ -206,7 +208,7 @@ export class ConfigScene extends Phaser.Scene {
     header(1, 710, 'ACTIONS');
     action(1, rowY(8), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
     action(1, rowY(9), 'Reset to defaults', () => this.resetAll());
-    action(1, rowY(10), 'Content Locks', () => {
+    action(1, rowY(10), 'Racer Unlocks', () => {
       this.adminCursor = this.cursor;
       this.showContent();
     });
@@ -275,36 +277,45 @@ export class ConfigScene extends Phaser.Scene {
     this.refreshRows();
   }
 
-  private showContent(): void {
-    const panel = this.openSub('CONTENT LOCKS', 'Normal player access', 'Up / Down to move    Left / Right to change    Back to Admin Settings');
+  private showContent(cursor = 0): void {
+    const panel = this.openSub('RACER UNLOCKS', 'Auto = earned in play    Open / Locked = admin override', 'Up / Down to move    Left / Right to change    Back to Admin Settings');
     const cx = GAME_WIDTH / 2;
     const opts = { width: 1180, height: 56, fontSize: 40, valueX: 285, arrowSpan: 245 };
     const page = CONTENT_PAGES[this.contentPage];
-    const category = new OptionRow(this, cx, 219, 'Category', opts);
+    const racer = RACER_PROFILE_IDS[this.contentRacer];
+    const racerRow = new OptionRow(this, cx, 219, 'Racer', opts);
+    panel.add(racerRow);
+    racerRow.setValue(RACER_PROFILE_NAME[racer]);
+    const cycleRacer = (dir: 1 | -1) => {
+      this.contentRacer = Phaser.Math.Wrap(this.contentRacer + dir, 0, RACER_PROFILE_IDS.length);
+      this.showContent(0);
+    };
+    this.subRows.push({ selectable: racerRow, change: cycleRacer, activate: () => cycleRacer(1) });
+    const category = new OptionRow(this, cx, 289, 'Category', opts);
     panel.add(category);
     category.setValue(page.name);
     const cyclePage = (dir: 1 | -1) => {
       this.contentPage = Phaser.Math.Wrap(this.contentPage + dir, 0, CONTENT_PAGES.length);
-      this.showContent();
+      this.showContent(1);
     };
     this.subRows.push({ selectable: category, change: cyclePage, activate: () => cyclePage(1) });
-    const unlocked = loadUnlocks();
+    const buddies = new Set(Object.values(WORLD_REWARDS).map(w => w.buddy as Content));
     page.ids.forEach((id, i) => {
-      const label = isRaceMap(id) ? MAP_LABEL[id] : collectibleName(id);
-      const row = new OptionRow(this, cx, 290 + i * 70, label, opts);
+      const label = isRaceMap(id) ? MAP_LABEL[id] : buddies.has(id) ? `${collectibleName(id)} (buddy)` : collectibleName(id);
+      const row = new OptionRow(this, cx, 359 + i * 70, label, opts);
       panel.add(row);
       const refresh = () => {
-        const override = contentOverride(id);
-        const open = isRaceMap(id) ? availableMaps(false).includes(id) : unlocked.includes(id);
-        row.setValue(override === undefined ? (open ? 'Auto (Open)' : 'Auto (Locked)') : override ? 'Open' : 'Locked');
+        const p = loadRacerProgress(racer);
+        const override = p.overrides[id];
+        row.setValue(override === undefined ? (earned(p, id) ? 'Auto (Open)' : 'Auto (Locked)') : override ? 'Open' : 'Locked');
       };
       const change = (dir: 1 | -1) => {
-        const index = CONTENT_OVERRIDES.indexOf(contentOverride(id));
-        setContentOverride(id, CONTENT_OVERRIDES[Phaser.Math.Wrap(index + dir, 0, CONTENT_OVERRIDES.length)]);
+        const index = CONTENT_OVERRIDES.indexOf(loadRacerProgress(racer).overrides[id]);
+        setRacerOverride(racer, id, CONTENT_OVERRIDES[Phaser.Math.Wrap(index + dir, 0, CONTENT_OVERRIDES.length)]);
       };
-      this.subRows.push({ selectable: row, refresh, change, activate: () => { change(1); this.refreshRows(); } });
+      this.subRows.push({ selectable: row, refresh, change, activate: () => { change(1); this.refreshRows(); }, bump: d => row.bump(d) });
     });
-    this.cursor = 0;
+    this.cursor = cursor;
     services.audio.sfx('menuSelect');
     this.refreshRows();
   }
