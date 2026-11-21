@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import policeStationArt from '../../images/scenes/scene_185.png?inline';
 import { generateTextures } from '../art';
 import { services } from '../core/services';
 import { createInput } from '../input';
@@ -18,7 +19,8 @@ export class BootScene extends Phaser.Scene {
     this.add.text(width / 2, height / 2 - 60, 'BrainRacer', { fontFamily: 'Arial Black, Arial', fontSize: '64px', color: '#ffffff' }).setOrigin(0.5);
     this.load.on('progress', (p: number) => bar.setSize(800 * p, 24));
     this.load.on('loaderror', (f: Phaser.Loader.File) => console.warn(`[boot] failed to load ${f.key} (${f.url})`));
-    for (const s of SCENES) this.load.image(s.id, s.file);
+    // Bundle this art so the question can show it even if the standalone PNG is unavailable.
+    for (const s of SCENES) this.load.image(s.id, s.id === 'scene_185' ? policeStationArt : s.file);
   }
 
   /** Never leave a picture slot empty: any scene image that failed to load gets a labelled placeholder. */

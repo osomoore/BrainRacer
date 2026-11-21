@@ -724,7 +724,8 @@ export class DinoSystem implements GameSystem {
       npc.launch(normal, Math.sign(side || 1) * Math.PI * 1.5 / DINO_SMASH.npcAirSec);
       d.smash(npc.x, npc.y);
     } else {
-      d.toss(npc, normal);
+      const speedMult = this.mode === 'ridden' && npc.npcKind === 'police' ? DINO_SMASH.riddenPoliceSpeedMult : 1;
+      d.toss(npc, normal, speedMult);
       ctx.npcs.delete(npc);
       npc.destroy();
     }

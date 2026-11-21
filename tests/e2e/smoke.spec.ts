@@ -14,3 +14,15 @@ test('boots to title without errors', async ({ page }) => {
   await page.screenshot({ path: 'test-results/title.png' });
   expect(errors).toEqual([]);
 });
+
+test('loads Police Station question art when the standalone PNG is unavailable', async ({ page }) => {
+  await page.route('**/scenes/scene_185.png', (route) => route.abort());
+  await page.goto('/');
+  await page.waitForFunction(() => (window as any).__game?.scene.isActive('Title'), null, { timeout: 30_000 });
+
+  const usesImage = await page.evaluate(() => {
+    const textures = (window as any).__game.textures;
+    return textures.exists('scene_185') && textures.get('scene_185').getSourceImage() instanceof HTMLImageElement;
+  });
+  expect(usesImage).toBe(true);
+});

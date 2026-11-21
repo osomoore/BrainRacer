@@ -654,6 +654,7 @@ export const DINO_SMASH = {
   playerImpact: 480,
   npcLaunchSpeed: 720,
   truckSpeedMult: 0.82,
+  riddenPoliceSpeedMult: 2 / 3,
   npcAirSec: 0.72,
   npcPeakHeight: 105,
   npcPeakScale: 0.35,

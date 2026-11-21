@@ -316,9 +316,9 @@ export class Dino {
   }
 
   /** Keep a visual of the old chassis while the NPC slot and its collider are released. */
-  toss(npc: INpcVehicle, normal: Vec2): void {
+  toss(npc: INpcVehicle, normal: Vec2, speedMult = 1): void {
     const { x, y, angle, spec } = npc;
-    const speed = DINO_SMASH.npcLaunchSpeed * (npc.npcKind === 'truck' ? DINO_SMASH.truckSpeedMult : 1);
+    const speed = DINO_SMASH.npcLaunchSpeed * speedMult * (npc.npcKind === 'truck' ? DINO_SMASH.truckSpeedMult : 1);
     const shadow = this.scene.add.image(x, y, TEX.carShadow).setDepth(DEPTH.shadow)
       .setDisplaySize(spec.length, spec.width).setAlpha(0.35).setRotation(angle);
     const sprite = this.scene.add.image(x, y, npc.appearanceKey).setDepth(DEPTH.fx)
