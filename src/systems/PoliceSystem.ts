@@ -243,7 +243,8 @@ export class PoliceSystem implements GameSystem {
       const d = Math.hypot(car.x - dino.x, car.y - dino.y);
       if (Math.abs(car.forwardSpeed) < POLICE.stuckSpeed) this.swarmStuck.set(car, (this.swarmStuck.get(car) ?? 0) + dt);
       else this.swarmStuck.set(car, 0);
-      if (shouldRecycleSwarmCar(d, this.swarmStuck.get(car) ?? 0)) { car.destroy(); this.monsterSwarm.delete(car); this.swarmStuck.delete(car); }
+      // only recycle out of view so a cruiser never vanishes in front of a player
+      if (this.offscreen(car.x, car.y) && shouldRecycleSwarmCar(d, this.swarmStuck.get(car) ?? 0)) { car.destroy(); this.monsterSwarm.delete(car); this.swarmStuck.delete(car); }
     }
 
     this.swarmT -= dt;
