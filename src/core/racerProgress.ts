@@ -162,8 +162,12 @@ export function racerLoadouts(p: RacerProgress, admin: boolean): { cars: CarKind
 // ───────── end-of-race awards ─────────
 
 /** Locked items of `map` this racer can still earn (admin-overridden items are never awarded). */
+function unearnedPool(p: RacerProgress, map: RaceMap): Collectible[] {
+  return worldRewards(map).filter(id => !p.items.includes(id) && p.overrides[id] === undefined);
+}
+
 export function rewardPool(p: RacerProgress, map: RaceMap): Collectible[] {
-  const pool = worldRewards(map).filter(id => !p.items.includes(id) && p.overrides[id] === undefined);
+  const pool = unearnedPool(p, map);
   const buddy = WORLD_REWARDS[map].buddy;
   return pool.includes(buddy) && rewardsSinceBuddy(p.items) >= BUDDY_EVERY_REWARDS - 1 ? [buddy] : pool;
 }
@@ -190,7 +194,13 @@ export function planAwards(
       if (m === successor && !hasContent(before, m) && before.overrides[m] !== false) rewards[i].world = m;
       next.worlds.push(m);
     }
-    const pool = pools[i];
+    let pool = pools[i];
+    const buddy = WORLD_REWARDS[map].buddy;
+    if (pool.length === 1 && pool[0] === buddy && taken.has(buddy)) {
+      // Both racers hit the guaranteed buddy at once: defer this one (their counter stays) if anything else is left.
+      const others = unearnedPool(before, map).filter(id => id !== buddy);
+      if (others.length) pool = others;
+    }
     if (pool.length) {
       const fresh = pool.filter(id => !taken.has(id));
       const reward = rng.pick(fresh.length ? fresh : pool);

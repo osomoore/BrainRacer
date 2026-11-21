@@ -80,6 +80,32 @@ describe('per-racer progress', () => {
     expect(rewards.map(r => r.reward)).toEqual(['fairy', 'fairy']);
   });
 
+  it('defers the guaranteed buddy for one racer when both hit it at once, then gives it next race', () => {
+    const cars = WORLD_REWARDS.harbor.cars;
+    const atThreshold = (): RacerProgress => ({ ...fresh(), items: [cars[0], cars[1]] });
+    for (let seed = 0; seed < 20; seed++) {
+      const team = [{ racer: 'abe' as const, progress: atThreshold() }, { racer: 'gideon' as const, progress: atThreshold() }];
+      const { rewards, progress } = planAwards('harbor', 3, team, false, new Rng(seed));
+      const got = rewards.map(r => r.reward);
+      expect(got.filter(r => r === 'fairy').length).toBe(1);
+      const di = got.indexOf('fairy') === 0 ? 1 : 0;
+      expect(cars.slice(2)).toContain(got[di]);
+      expect(rewards[di].rewardPool).not.toContain('fairy');
+      const deferred = team[di].racer;
+      const again = planAwards('harbor', 3, [{ racer: deferred, progress: progress[deferred]! }], false, new Rng(seed + 100));
+      expect(again.rewards[0].reward).toBe('fairy');
+    }
+  });
+
+  it('gives both the buddy at threshold when it is the only item left for both', () => {
+    const cars = WORLD_REWARDS.harbor.cars;
+    const p: RacerProgress = { ...fresh(), items: [...cars] };
+    for (let seed = 0; seed < 10; seed++) {
+      const { rewards } = planAwards('harbor', 3, [{ racer: 'abe', progress: p }, { racer: 'gideon', progress: p }], false, new Rng(seed));
+      expect(rewards.map(r => r.reward)).toEqual(['fairy', 'fairy']);
+    }
+  });
+
   it('stops giving items once a world is complete, and keeps unlocking worlds', () => {
     const p: RacerProgress = { ...fresh(), items: worldRewards('city') };
     const { rewards } = planAwards('city', 3, [{ racer: 'abe', progress: p }], false, new Rng(1));
