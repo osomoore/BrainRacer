@@ -4,16 +4,25 @@ import { TEX } from '../core/assetKeys';
 
 const FALLBACK_KEY = 'fx_skid_fallback';
 
+interface MarkStyle {
+  key?: string;
+  name?: string;
+  width?: number;
+  fadeSec?: number;
+  depth?: number;
+}
+
+type Mark = { image: Phaser.GameObjects.Image; age: number; alpha: number };
+
 /** Pooled, fading tire marks. Call add() at wheel positions and update(dt) once per frame. */
 export class SkidMarks {
-  private readonly pool: Phaser.GameObjects.Image[] = [];
-  private readonly age: number[] = [];
+  private readonly pool: Mark[] = [];
   private head = 0;
-  private count = 0;
   private readonly key: string;
 
-  constructor(private readonly scene: Phaser.Scene, readonly max = VEHICLE_MODEL.skidMax) {
-    if (scene.textures.exists(TEX.skid)) this.key = TEX.skid;
+  constructor(private readonly scene: Phaser.Scene, readonly max = VEHICLE_MODEL.skidMax, private readonly style: MarkStyle = {}) {
+    if (style.key) this.key = style.key;
+    else if (scene.textures.exists(TEX.skid)) this.key = TEX.skid;
     else {
       if (!scene.textures.exists(FALLBACK_KEY)) {
         const g = scene.make.graphics({ x: 0, y: 0 }, false);
@@ -25,33 +34,39 @@ export class SkidMarks {
     }
   }
 
+  private create(): Mark {
+    const image = this.scene.add.image(0, 0, this.key).setDepth(this.style.depth ?? DEPTH.decal).setVisible(false);
+    if (this.style.name) image.setName(this.style.name);
+    return { image, age: 0, alpha: 0 };
+  }
+
+  prewarm(): this {
+    while (this.pool.length < this.max) this.pool.push(this.create());
+    return this;
+  }
+
   /** Lay a mark. `len` stretches it along the heading. */
-  add(x: number, y: number, angle: number, len = 12): void {
-    let img = this.pool[this.head];
-    if (!img) {
-      img = this.scene.add.image(0, 0, this.key).setDepth(DEPTH.decal);
-      this.pool[this.head] = img;
-    }
-    img.setPosition(x, y).setRotation(angle).setDisplaySize(len, 5).setAlpha(0.55).setVisible(true);
-    this.age[this.head] = 0;
+  add(x: number, y: number, angle: number, len = 12, alpha = .55): void {
+    const mark = this.pool[this.head] ?? (this.pool[this.head] = this.create());
+    mark.image.setPosition(x, y).setRotation(angle).setDisplaySize(len, this.style.width ?? 5).setAlpha(alpha).setVisible(true);
+    mark.age = 0;
+    mark.alpha = alpha;
     this.head = (this.head + 1) % this.max;
-    this.count = Math.min(this.count + 1, this.max);
   }
 
   update(dt: number): void {
-    const fade = VEHICLE_MODEL.skidFadeSec;
-    for (let i = 0; i < this.count; i++) {
-      const img = this.pool[i];
-      if (!img || !img.visible) continue;
-      const a = (this.age[i] += dt);
-      if (a >= fade) img.setVisible(false);
-      else img.setAlpha(0.55 * (1 - a / fade));
+    const fade = this.style.fadeSec ?? VEHICLE_MODEL.skidFadeSec;
+    for (const mark of this.pool) {
+      if (!mark.image.visible) continue;
+      mark.age += dt;
+      if (mark.age >= fade) mark.image.setVisible(false);
+      else mark.image.setAlpha(mark.alpha * (1 - mark.age / fade));
     }
   }
 
   destroy(): void {
-    for (const img of this.pool) img?.destroy();
+    for (const mark of this.pool) mark.image.destroy();
     this.pool.length = 0;
-    this.count = 0;
+    this.head = 0;
   }
 }

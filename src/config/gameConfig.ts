@@ -1044,14 +1044,44 @@ export const QUEUED_FEATURES = {
   castleScatterSec: .95,
   castleScatterPx: 72,
   lavaDrips: { count: 10, intervalSec: .13, lifeSec: .7, moveSpeed: 16, fallSpeed: 72 },
+  rail: {
+    brickworks: { count: 3, spacing: 91, scale: .74, speed: 180 },
+    mushroom: { count: 2, spacing: 104, scale: .84, speed: 155 },
+    candy: { count: 3, spacing: 98, scale: .75, speed: 168 },
+    airport: { count: 3, spacing: 84, scale: .73, speed: 192 },
+    house: { count: 3, spacing: 99, scale: .83, speed: 172 },
+  },
   movers: {
-    brickworks: { count: 3, spacing: 91, scale: .74, periodSec: 12 },
-    mushroom: { count: 2, spacing: 104, scale: .84, periodSec: 15 },
     tundra: { count: 2, spacing: 116, scale: .85, periodSec: 8 },
     volcano: { count: 3, spacing: 96, scale: 1.12, periodSec: 10 },
-    candy: { count: 3, spacing: 98, scale: .75, periodSec: 12 },
     castle: { count: 4, spacing: 92, scale: .76, periodSec: 9 },
-    airport: { count: 3, spacing: 84, scale: .73, periodSec: 13 },
-    house: { count: 3, spacing: 99, scale: .83, periodSec: 12 },
+  },
+} as const;
+
+export const WORLD_MUSIC = {
+  finalSeconds: 30,
+  finalFraction: .25,
+  mixFadeSec: .3,
+  mix: {
+    normal: { gain: 1, cutoffHz: 20000 },
+    driving: { gain: .9, cutoffHz: 5600 },
+    rush: { gain: 1, cutoffHz: 18000 },
+    quiet: { gain: .52, cutoffHz: 1300 },
+  },
+} as const;
+
+/** World-space weather sprites and Tundra tire imprints. */
+export const QUEUED_ATMOSPHERE = {
+  wrapPad: 960,
+  snowTracks: { max: 220, spacing: 20, fadeSec: 10, width: 9, minSpeed: 20, resetDistance: 96 },
+  fronts: {
+    brickworks: { columns: 4, rows: 5, speed: 90, scale: 1.4, alpha: .65, angle: -.12, period: 15 },
+    mushroom: { columns: 5, rows: 6, speed: 74, scale: 1.55, alpha: .86, angle: .09, period: 23 },
+    tundra: { columns: 5, rows: 7, speed: 205, scale: 2.7, alpha: .78, angle: -.34, period: 17 },
+    volcano: { columns: 5, rows: 6, speed: 118, scale: 1.8, alpha: .6, angle: -.22, period: 20 },
+    candy: { columns: 4, rows: 5, speed: 76, scale: 1.3, alpha: .73, angle: -.08, period: 16 },
+    castle: { columns: 4, rows: 6, speed: 143, scale: 1.5, alpha: .75, angle: -.14, period: 13 },
+    airport: { columns: 4, rows: 6, speed: 110, scale: 1.95, alpha: .46, angle: .08, period: 27 },
+    house: { columns: 4, rows: 5, speed: 51, scale: 1.4, alpha: .7, angle: -.23, period: 25 },
   },
 } as const;

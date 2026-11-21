@@ -1,7 +1,7 @@
 import { TILE_SIZE, WORLD } from '../../config/gameConfig';
 import { QUEUED_MAPS, type QueuedMap } from '../../config/queuedMaps';
 import { Rng } from '../../core/rng';
-import { Tile, type BuildingLot, type PlaceSite, type WorldData } from '../../core/types';
+import { Tile, type BuildingLot, type FreightRoute, type PlaceSite, type RaceMap, type Vec2, type WorldData } from '../../core/types';
 import { scenesForWord } from '../../data/scenes';
 import { computeRoadMask, type Grid } from './grid';
 import { generateLaneGraph } from './lanes';
@@ -73,10 +73,76 @@ function layout(map: QueuedMap, seed: number) {
 
 const QUEUE_LAYOUT_SALT = 0x65e7e2;
 const VOLCANO_PEAK: Area = [23, 30, 5, 3];
+const RAIL_MAPS = ['brickworks', 'mushroom', 'candy', 'airport', 'house'] as const;
+const RAIL_BEND_TILES = 1.25;
+const RAIL_STEPS_PER_BEND = 6;
+export const QUEUED_SHOWCASE_STYLE = 9;
+const BUILDING_STYLES: Record<QueuedMap, readonly number[]> = {
+  brickworks: [0, 1, 6, 3, 7, 5, 8, 2, 4],
+  mushroom: [0, 6, 7, 1, 4, 5, 8, 0, 3],
+  tundra: [0, 1, 6, 3, 7, 5, 8, 2, 4],
+  volcano: [1, 2, 6, 4, 7, 5, 8, 2, 4],
+  candy: [0, 6, 2, 7, 4, 8, 5, 1, 3],
+  castle: [0, 7, 2, 8, 4, 5, 3, 1],
+  airport: [0, 6, 2, 7, 4, 8, 5, 1, 3],
+  house: [0, 6, 1, 7, 2, 8, 3, 4, 5],
+};
+const MUSHROOM_NEIGHBORHOODS = {
+  north: [2, 5, 6],
+  garden: [1, 7, 5],
+  coast: [4, 8, 3],
+} as const;
+
+export type QueuedRailMap = typeof RAIL_MAPS[number];
+
+export function hasQueuedRail(map: RaceMap): map is QueuedRailMap {
+  return RAIL_MAPS.some(railMap => railMap === map);
+}
+
+/** Round the corners of the railway that crosses the neighborhood road twice. */
+export function queuedRailRoute(map: QueuedRailMap, world: Pick<WorldData, 'seed' | 'tileSize'>): FreightRoute {
+  const { columns: [left, west, east, right], rows: [top, shortcut] } = layout(map, world.seed);
+  const [from, to] = PLANS[map].moverSide === 'west' ? [left, west] : [east, right];
+  const ts = world.tileSize;
+  const x0 = (from + 3.5) * ts, x1 = (to - 1.5) * ts;
+  const y0 = (top + 5.5) * ts, y1 = (shortcut + 4.5) * ts;
+  const radius = RAIL_BEND_TILES * ts;
+  const corners = [
+    { x: x1 - radius, y: y0 + radius },
+    { x: x1 - radius, y: y1 - radius },
+    { x: x0 + radius, y: y1 - radius },
+    { x: x0 + radius, y: y0 + radius },
+  ];
+  const points: Vec2[] = [];
+  for (const [i, corner] of corners.entries()) {
+    for (let step = 0; step <= RAIL_STEPS_PER_BEND; step++) {
+      const angle = (i - 1 + step / RAIL_STEPS_PER_BEND) * Math.PI / 2;
+      points.push({ x: corner.x + radius * Math.cos(angle), y: corner.y + radius * Math.sin(angle) });
+    }
+  }
+  const crossings = [x1, x0].map(x => ({ center: { x, y: (shortcut + 1) * ts }, width: 2 * ts }));
+  return { points, crossings };
+}
 
 export function queuedVolcanoPeak(world: Pick<WorldData, 'tileSize'>) {
   const [x, y, w, h] = VOLCANO_PEAK;
   return { x: (x + w / 2) * world.tileSize, y: (y + h / 2) * world.tileSize };
+}
+
+export function queuedMushroomFeatures(seed: number) {
+  const { columns: [left, , , right], rows: [, , mid, bottom] } = layout('mushroom', seed);
+  return {
+    cove: [[right - 9, bottom + 3, 10, 5], [right - 7, bottom + 2, 7, 1]] as readonly Area[],
+    boardwalk: [[right - 8, bottom + 2, 1, 3], [right - 8, bottom + 4, 7, 1]] as readonly Area[],
+    garden: [left + 6, mid + 3, 6, 4] as Area,
+  };
+}
+
+export function queuedBuildingQuarterTurns(map: QueuedMap, world: WorldData, building: BuildingLot): number {
+  if ((map === 'volcano' && building.style === 0) || (map === 'castle' && building.style === 6)) return 0;
+  const place = world.places.find(site => site.buildingId === building.id);
+  if (place) return place.front.y < building.ty * world.tileSize ? 2 : 0;
+  return new Rng(world.seed).fork(0x64bf9 + building.id).int(0, 3);
 }
 
 /** Feature positions share the same seed and geometry as the generated layout. */
@@ -104,7 +170,23 @@ function paint(grid: Grid, x: number, y: number, w: number, h: number, tile: Til
   for (let row = y; row < y + h; row++) grid.tiles.fill(tile, row * grid.w + x, row * grid.w + x + w);
 }
 
-function terrain(grid: Grid, map: QueuedMap, rng: Rng): void {
+/** Reserve tiles outside the roads so neither lots nor loose scenery can cover the track. */
+function reserveRail(grid: Grid, points: readonly Vec2[], size: number): void {
+  const margin = size / 3;
+  for (const [i, a] of points.entries()) {
+    const b = points[(i + 1) % points.length];
+    const left = Math.floor((Math.min(a.x, b.x) - margin) / size);
+    const right = Math.floor((Math.max(a.x, b.x) + margin) / size);
+    const top = Math.floor((Math.min(a.y, b.y) - margin) / size);
+    const bottom = Math.floor((Math.max(a.y, b.y) + margin) / size);
+    for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
+      const i = y * grid.w + x, tile = grid.tiles[i];
+      if (tile === Tile.Grass || tile === Tile.Park || tile === Tile.Dirt) grid.tiles[i] = Tile.Sidewalk;
+    }
+  }
+}
+
+function terrain(grid: Grid, map: QueuedMap, seed: number, rng: Rng): void {
   const { w, h } = grid;
   paint(grid, 2, 2, w - 4, h - 4, Tile.Grass);
   for (const [x, y, width, height] of PLANS[map].accent) {
@@ -116,6 +198,9 @@ function terrain(grid: Grid, map: QueuedMap, rng: Rng): void {
     }
     paint(grid, 19, 3, 10, 5, Tile.Water);
     paint(grid, 20, 40, 7, 6, Tile.Water);
+    const { cove, garden } = queuedMushroomFeatures(seed);
+    for (const area of cove) paint(grid, ...area, Tile.Water);
+    paint(grid, ...garden, Tile.Plaza);
   }
   if (map === 'volcano') {
     const x = rng.int(21, 23);
@@ -134,8 +219,9 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
   const { columns, rows } = layout(map, seed);
   const [left, west, east, right] = columns;
   const [top, shortcut, mid, bottom] = rows;
-  const { mover, gate } = queuedFeatureSites(map, { seed, tileSize: ts, widthTiles: w });
-  terrain(grid, map, rng);
+  const geometry = { seed, tileSize: ts, widthTiles: w };
+  const { mover, gate } = queuedFeatureSites(map, geometry);
+  terrain(grid, map, seed, rng);
 
   const gateX = Math.floor(gate.x / ts);
   // The timed crossing spans a channel with permanent road crossings above and below.
@@ -189,11 +275,24 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
       break;
   }
 
-  const moverX = Math.floor((mover.x - mover.length / 2) / ts) - 1;
-  const moverY = Math.floor(mover.y / ts);
-  paint(grid, moverX, moverY, mover.length / ts + 3, 1, Tile.Sidewalk);
+  if (hasQueuedRail(map)) {
+    reserveRail(grid, queuedRailRoute(map, geometry).points, ts);
+  } else {
+    const moverX = Math.floor((mover.x - mover.length / 2) / ts) - 1;
+    const moverY = Math.floor(mover.y / ts);
+    paint(grid, moverX, moverY, mover.length / ts + 3, 1, Tile.Sidewalk);
+  }
+  if (map === 'mushroom') for (const area of queuedMushroomFeatures(seed).boardwalk) paint(grid, ...area, Tile.Sidewalk);
 
   const buildings: BuildingLot[] = [], places: PlaceSite[] = [];
+  const stylesAt = (x: number, y: number): readonly number[] => {
+    if (map === 'mushroom') {
+      if (y < shortcut) return MUSHROOM_NEIGHBORHOODS.north;
+      if (x < west) return MUSHROOM_NEIGHBORHOODS.garden;
+      if (y >= mid && x >= east) return MUSHROOM_NEIGHBORHOODS.coast;
+    }
+    return BUILDING_STYLES[map];
+  };
   const roomForLot = (x: number, y: number, width: number, height: number) => {
     for (let row = y; row < y + height; row++) for (let col = x; col < x + width; col++) {
       const tile = grid.tiles[row * w + col];
@@ -214,12 +313,19 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
     lot(tx, top + 8, width, 1, 6);
   }
   const words = rng.shuffle(PLANS[map].words.filter(word => scenesForWord(word).length > 0));
+  const styleOffset = rng.int(0, BUILDING_STYLES[map].length - 1);
   const place = (tx: number, ty: number, roadY: number) => {
-    if (!roomForLot(tx, ty, 2, 2) || grid.tiles[roadY * w + tx + 1] !== Tile.Road) return;
+    const wide = rng.int(2, 3), deep = rng.int(1, 3);
+    const candidateY = ty < roadY ? ty + 2 - deep : ty;
+    const custom = roomForLot(tx, candidateY, wide, deep) && grid.tiles[roadY * w + tx + Math.floor(wide / 2)] === Tile.Road;
+    const tw = custom ? wide : 2, th = custom ? deep : 2, y = custom ? candidateY : ty;
+    if (!custom && (!roomForLot(tx, ty, 2, 2) || grid.tiles[roadY * w + tx + 1] !== Tile.Road)) return;
     const word = words[places.length % words.length];
-    const building = lot(tx, ty, 2, 2, places.length % 6, word);
-    places.push({ word, buildingId: building.id, sign: { x: (tx + 1) * ts, y: (ty + 1) * ts },
-      front: { x: (tx + 1) * ts, y: (roadY + 0.5) * ts } });
+    const styles = stylesAt(tx, y);
+    const style = styles[(places.length + styleOffset) % styles.length];
+    const building = lot(tx, y, tw, th, style, word), centerX = (tx + tw / 2) * ts;
+    places.push({ word, buildingId: building.id, sign: { x: centerX, y: (y + th / 2) * ts },
+      front: { x: centerX, y: (roadY + 0.5) * ts } });
   };
   for (const roadY of [top, mid, bottom]) {
     for (const [start, end] of [[left, west], [west, east], [east, right]]) {
@@ -231,7 +337,7 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
     for (const [start, end] of [[left, west], [west, east], [east, right]]) {
       const tx = start + 3 + rng.int(0, 1), ty = Math.floor((to + from) / 2) - 1;
       const tw = Math.min(end - tx - 1, rng.int(3, 5)), th = rng.int(2, 4);
-      if (roomForLot(tx, ty, tw, th)) lot(tx, ty, tw, th, rng.int(0, 5));
+      if (roomForLot(tx, ty, tw, th)) lot(tx, ty, tw, th, rng.pick(stylesAt(tx, ty)));
     }
   }
   computeRoadMask(grid);
@@ -249,6 +355,10 @@ export function generateQueuedWorld(map: QueuedMap, seed: number): WorldData {
   } satisfies Record<QueuedMap, [number, number, number]>;
   const [spawnX, spawnY, heading] = start[map];
   const facing = heading === 0 ? 1 : -1;
+  // Put a landmark near the start on an existing destination footprint.
+  const nearby = (site: PlaceSite) => Math.hypot(site.front.x - spawnX * ts, site.front.y - spawnY * ts);
+  const showcase = places.reduce((nearest, site) => nearby(site) < nearby(nearest) ? site : nearest);
+  buildings[showcase.buildingId].style = QUEUED_SHOWCASE_STYLE;
 
   return {
     seed, widthTiles: w, heightTiles: h, tileSize: ts, tiles: grid.tiles, roadMask: grid.mask, buildings, places,

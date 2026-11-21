@@ -5,7 +5,8 @@ import type { GameSystem, IPlayerCar, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import { Tile, type Vec2 } from '../core/types';
 import { ParticlePool } from '../fx/ParticlePool';
-import { queuedFeatureSites, queuedVolcanoPeak } from '../world/gen/queuedWorlds';
+import { hasQueuedRail, queuedFeatureSites, queuedVolcanoPeak } from '../world/gen/queuedWorlds';
+import { QUEUED_PALETTES } from '../world/queuedWorldArt';
 import { advanceGate, overlapsGate, shuttlePosition, type GateCycle } from './queuedWorldCycle';
 import { queuedEruptionTexture, queuedFeatureTextures, queuedLavaDropTexture, queuedPlaneTexture } from './queuedWorldFeatureArt';
 
@@ -27,7 +28,8 @@ export class QueuedWorldSystem implements GameSystem {
   private signals: Phaser.GameObjects.Image[] = [];
   private movers: Mover[] = [];
   private touchedAt = new Map<IPlayerCar, number>();
-  private deck!: Phaser.GameObjects.Image;
+  private deck?: Phaser.GameObjects.Image;
+  private bridgeLeaves: Phaser.GameObjects.Image[] = [];
   private barrier!: Phaser.GameObjects.Image;
   private eruption?: Phaser.GameObjects.Image;
   private lavaDrips?: { pool: ParticlePool; key: string; previous?: Vec2; next: number; side: number };
@@ -51,7 +53,8 @@ export class QueuedWorldSystem implements GameSystem {
     const art = queuedFeatureTextures(scene, this.map);
     const span = world.tileSize * F.gateSpanTiles;
     this.gateTiles = gate.tiles.map(i => world.tiles[i]);
-    this.deck = this.addImage(gate, art.deck, DEPTH.decal - 1, 'queued-shortcut-deck')
+    if (this.map === 'castle' || this.map === 'mushroom') this.addLiftBridge(gate, art.deck, world.tileSize, span);
+    else this.deck = this.addImage(gate, art.deck, DEPTH.decal - 1, 'queued-shortcut-deck')
       .setRotation(gate.angle).setDisplaySize(world.tileSize, span);
     this.barrier = this.addImage(gate, art.gate, DEPTH.prop, 'queued-shortcut-barrier')
       .setRotation(gate.angle).setDisplaySize(F.gateDepthPx + 4, span);
@@ -59,18 +62,7 @@ export class QueuedWorldSystem implements GameSystem {
       const edge = pointAlong(gate, 0, side * (span / 2 - 15));
       this.signals.push(this.addImage(edge, art.signal, DEPTH.prop + 1, 'queued-shortcut-signal'));
     }
-    const track = scene.add.tileSprite(mover.x, mover.y, mover.length + 126, 78, art.track)
-      .setDepth(DEPTH.decal - 2).setRotation(mover.angle).setName('queued-mover-track');
-    this.objects.push(track);
-
-    const config = F.movers[this.map];
-    for (let i = 0; i < config.count; i++) {
-      const offset = (i - (config.count - 1) / 2) * config.spacing;
-      const lateral = (this.map === 'castle' || this.map === 'tundra') ? (i % 2 ? 20 : -20) : 0;
-      const sprite = this.addImage(mover, art.mover, DEPTH.vehicle - 1, `queued-mover-${i}`)
-        .setScale(config.scale);
-      this.movers.push({ sprite, offset, lateral });
-    }
+    this.addShuttle(mover, art);
     if (this.map === 'volcano') {
       this.eruption = this.addImage(queuedVolcanoPeak(world), queuedEruptionTexture(scene), DEPTH.fx - 4, 'queued-volcano-eruption')
         .setOrigin(.5, .84);
@@ -109,6 +101,7 @@ export class QueuedWorldSystem implements GameSystem {
     this.objects.length = 0;
     this.signals.length = 0;
     this.movers.length = 0;
+    this.bridgeLeaves.length = 0;
     this.touchedAt.clear();
     this.lavaDrips?.pool.destroy();
     this.lavaDrips = undefined;
@@ -119,6 +112,39 @@ export class QueuedWorldSystem implements GameSystem {
     const image = this.ctx!.scene.add.image(at.x, at.y, key).setDepth(depth).setName(name);
     this.objects.push(image);
     return image;
+  }
+
+  private addLiftBridge(gate: Sites['gate'], key: string, width: number, span: number): void {
+    const { scene } = this.ctx!;
+    const waterColor = Number.parseInt(QUEUED_PALETTES[this.map].floor[0].slice(1), 16);
+    const channel = scene.add.rectangle(gate.x, gate.y, width, span, waterColor)
+      .setRotation(gate.angle).setDepth(DEPTH.decal - 2);
+    this.objects.push(channel);
+    const texture = scene.textures.get(key);
+    const { width: sourceWidth, height: sourceHeight } = texture.get();
+    for (const side of [-1, 1]) {
+      const frame = side === -1 ? 'west-leaf' : 'east-leaf';
+      if (!texture.has(frame)) texture.add(frame, 0, side === -1 ? 0 : sourceWidth / 2, 0, sourceWidth / 2, sourceHeight);
+      const hinge = pointAlong(gate, side * width / 2, 0);
+      const leaf = scene.add.image(hinge.x, hinge.y, key, frame).setName('queued-bridge-leaf').setOrigin(side === -1 ? 0 : 1, .5)
+        .setRotation(gate.angle).setDisplaySize(width / 2, span).setDepth(DEPTH.decal - 1);
+      this.objects.push(leaf);
+      this.bridgeLeaves.push(leaf);
+    }
+  }
+
+  private addShuttle(mover: Sites['mover'], art: ReturnType<typeof queuedFeatureTextures>): void {
+    if (hasQueuedRail(this.map)) return;
+    const track = this.ctx!.scene.add.tileSprite(mover.x, mover.y, mover.length + 126, 78, art.track)
+      .setDepth(DEPTH.decal - 2).setRotation(mover.angle).setName('queued-mover-track');
+    this.objects.push(track);
+    const config = F.movers[this.map];
+    for (let i = 0; i < config.count; i++) {
+      const offset = (i - (config.count - 1) / 2) * config.spacing;
+      const lateral = (this.map === 'castle' || this.map === 'tundra') ? (i % 2 ? 20 : -20) : 0;
+      const sprite = this.addImage(mover, art.mover, DEPTH.vehicle - 1, `queued-mover-${i}`).setScale(config.scale);
+      this.movers.push({ sprite, offset, lateral });
+    }
   }
 
   private crossingOccupied({ players, npcs, dino, world }: RaceContext): boolean {
@@ -174,8 +200,12 @@ export class QueuedWorldSystem implements GameSystem {
     const flash = Math.floor(this.clock * F.signalBlinkHz * 2);
     this.barrier.setVisible(closed).setTint(this.map === 'volcano' ? 0xffb958 : 0xffffff);
     const deckWidth = this.ctx!.world.tileSize;
-    this.deck.setDisplaySize(deckWidth * (1 - lift * .62), this.deck.displayHeight)
+    if (this.deck) this.deck.setDisplaySize(deckWidth * (1 - lift * .62), this.deck.displayHeight)
       .setTint(closed ? (this.map === 'volcano' ? 0xff6c48 : 0x9b8bab) : 0xffffff);
+    for (const leaf of this.bridgeLeaves) {
+      leaf.setDisplaySize(deckWidth / 2 * (1 - lift * .76), leaf.displayHeight)
+        .setTint(lift > .1 ? 0xb7a9c1 : 0xffffff);
+    }
     this.signals.forEach((signal, i) => {
       signal.setTint(closed ? 0xff6b6b : warning ? (flash + i) % 2 ? 0xffc15d : 0xffe2a0 : 0x87e9ad);
     });
@@ -187,6 +217,14 @@ export class QueuedWorldSystem implements GameSystem {
 
   private drawMovers(): void {
     const route = this.sites.mover;
+    if (this.plane) {
+      const progress = (this.clock % F.airportPlanePeriodSec) / F.airportPlanePeriodSec;
+      const position = pointAlong(route, (progress - .5) * (route.length + 320), 148);
+      this.plane.setPosition(position.x, position.y).setRotation(route.angle)
+        .setAlpha(Math.min(1, progress * 10, (1 - progress) * 10) * .92)
+        .setScale(.78 + Math.sin(progress * Math.PI) * .32);
+    }
+    if (hasQueuedRail(this.map)) return;
     const config = F.movers[this.map];
     const travel = Math.max(0, (route.length - (config.count - 1) * config.spacing) / 2);
     const phase = this.clock + 3;
@@ -205,13 +243,6 @@ export class QueuedWorldSystem implements GameSystem {
       }
       sprite.setPosition(position.x, position.y).setRotation(route.angle).setFlipX(!outbound);
       if (this.map === 'volcano') sprite.setVisible(this.cycle.mode === 'closed');
-    }
-    if (this.plane) {
-      const progress = (this.clock % F.airportPlanePeriodSec) / F.airportPlanePeriodSec;
-      const position = pointAlong(route, (progress - .5) * (route.length + 320), 148);
-      this.plane.setPosition(position.x, position.y).setRotation(route.angle)
-        .setAlpha(Math.min(1, progress * 10, (1 - progress) * 10) * .92)
-        .setScale(.78 + Math.sin(progress * Math.PI) * .32);
     }
   }
 

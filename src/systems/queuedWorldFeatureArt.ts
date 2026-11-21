@@ -16,6 +16,10 @@ const PALETTES: Record<QueuedMap, Palette> = {
   house: { deck: '#b58966', trim: '#f9d99e', dark: '#705049', light: '#63cdd9' },
 };
 
+export function queuedRailPalette(map: QueuedMap): Palette {
+  return PALETTES[map];
+}
+
 function bake(scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: Ctx) => void): string {
   if (!scene.textures.exists(key)) {
     const { ctx, done } = makeCanvas(scene, key, w, h);

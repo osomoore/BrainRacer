@@ -322,6 +322,182 @@ const VEHICLES = {
     glass(c, 62, 12, 22, 28, 4);
     lights(c);
   },
+  tileRunner(c, coat, accent) {
+    tires(c, 18, 77);
+    shape(c, [5, 17, 17, 17, 17, 9, 72, 9, 72, 13, 87, 13, 87, 17, 96, 17, 96, 35, 87, 35, 87, 39,
+      72, 39, 72, 43, 17, 43, 17, 35, 5, 35], coat);
+    for (const [x, y] of [[10, 20], [20, 28], [31, 17], [70, 29], [79, 20], [88, 29]]) {
+      box(c, x, y, 8, 7, 0, accent, 1);
+    }
+    glass(c, 40, 16, 27, 20, 1.5);
+    lights(c, 92, 2.7);
+  },
+  kilnVan(c, coat, accent) {
+    tires(c, 19, 78, 19);
+    box(c, 4, 7, 91, 38, 3, coat);
+    box(c, 8, 11, 51, 30, 2, '#613648');
+    box(c, 14, 15, 38, 22, 3, '#ec8e50');
+    for (const y of [19, 25, 31]) box(c, 16, y, 34, 2, 0.5, accent, 0);
+    for (const y of [12, 40]) box(c, 56, y - 3, 8, 6, 1, '#854457');
+    glass(c, 65, 13, 20, 26, 3);
+    lights(c, 90, 3.2);
+  },
+  morelRoadster(c, coat, accent) {
+    tires(c, 22, 75, 17);
+    shape(c, [6, 20, 21, 11, 45, 9, 73, 10, 88, 16, 98, 26, 88, 36, 73, 42, 45, 43, 21, 41, 6, 32], coat);
+    box(c, 19, 15, 31, 22, 8, '#654253');
+    box(c, 26, 19, 12, 14, 4, '#ad7a68', 1.2);
+    glass(c, 44, 15, 10, 22, 4);
+    for (const [x, y] of [[61, 17], [61, 35], [70, 26], [79, 18], [79, 34], [88, 26]]) {
+      shape(c, [x - 5, y, x - 2, y - 4, x + 3, y - 4, x + 5, y, x + 3, y + 4, x - 2, y + 4], accent, 1.2);
+    }
+  },
+  chanterelleTruck(c, coat, accent) {
+    tires(c, 18, 81, 19);
+    box(c, 5, 7, 91, 38, 7, coat);
+    box(c, 9, 11, 49, 30, 4, '#855a57');
+    for (const y of [19, 33]) {
+      shape(c, [11, y, 18, y - 7, 29, y - 4, 39, y - 6, 51, y, 43, y + 6, 32, y + 5, 19, y + 7], accent, 1.2);
+      line(c, [20, y - 3, 35, y, 20, y + 3], '#b46f4b', 1.4);
+      line(c, [35, y, 48, y], '#b46f4b', 1.4);
+    }
+    glass(c, 63, 13, 22, 26, 5);
+    lights(c);
+  },
+  powderVan(c, coat, accent) {
+    tires(c, 18, 76, 20);
+    box(c, 4, 7, 85, 38, 8, coat);
+    for (const y of [12, 40]) line(c, [11, y, 63, y], accent, 2.6);
+    oval(c, 32, 26, 16, 12, '#356784', 1.6);
+    snow(c, 32, 26, 8, '#effeff');
+    glass(c, 58, 13, 22, 26, 5);
+    shape(c, [80, 13, 90, 5, 97, 5, 93, 26, 97, 47, 90, 47, 80, 39, 87, 26], '#a5d2e4');
+    line(c, [90, 9, 87, 26, 90, 43], accent, 2.3);
+  },
+  auroraRacer(c, coat, accent) {
+    tires(c, 18, 79, 17);
+    shape(c, [5, 9, 29, 11, 42, 17, 70, 13, 92, 19, 98, 26, 92, 33, 70, 39, 42, 35, 29, 41, 5, 43, 12, 26], coat);
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(11, 26 + side * 13);
+      c.bezierCurveTo(27, 26 + side * 19, 39, 26 + side * 4, 52, 26 + side * 7);
+      c.quadraticCurveTo(69, 26 + side * 12, 85, 26 + side * 5);
+      stroke(c, accent, 3.3);
+    }
+    glass(c, 34, 17, 28, 18, 9);
+    snow(c, 76, 26, 5.5, '#e5ffff');
+  },
+  obsidianCoupe(c, coat, accent) {
+    tires(c, 22, 77, 18);
+    shape(c, [5, 17, 17, 6, 39, 10, 63, 6, 89, 13, 96, 22, 96, 30, 89, 39, 63, 46, 39, 42, 17, 46, 5, 35], coat);
+    shape(c, [10, 19, 18, 10, 33, 16, 25, 27, 15, 29], '#777196', 0);
+    shape(c, [12, 31, 25, 27, 29, 38, 17, 42], '#342949', 0);
+    shape(c, [75, 13, 88, 16, 93, 24, 82, 26], '#a280ad', 0);
+    glass(c, 31, 14, 40, 24, 3.4);
+    line(c, [71, 36, 82, 29, 88, 32, 93, 29], accent, 2.2);
+    lights(c, 91, 2.6);
+  },
+  ventRunner(c, coat, accent) {
+    tires(c, 19, 76, 20);
+    shape(c, [5, 14, 31, 10, 50, 16, 71, 11, 91, 14, 97, 26, 91, 38, 71, 41, 50, 36, 31, 42, 5, 38], coat);
+    for (const y of [16, 36]) {
+      box(c, 8, y - 5, 35, 10, 3, '#74647e');
+      for (const x of [14, 20, 26, 32, 38]) line(c, [x, y - 3, x, y + 3], accent, 1.8);
+    }
+    box(c, 44, 17, 25, 18, 6, '#50374f');
+    glass(c, 65, 16, 12, 20, 4);
+    shape(c, [81, 16, 95, 26, 81, 36, 85, 26], accent, 1.6);
+  },
+  licoriceRacer(c, coat, accent) {
+    tires(c, 19, 78, 17);
+    shape(c, [4, 11, 27, 9, 45, 15, 75, 13, 95, 19, 97, 26, 95, 33, 75, 39, 45, 37, 27, 43, 4, 41, 11, 26], coat);
+    for (const y of [14, 38]) {
+      c.beginPath();
+      c.moveTo(10, y);
+      c.bezierCurveTo(29, y - 5, 42, y + 5, 62, y + 1);
+      c.quadraticCurveTo(80, y - 2, 90, y + (26 - y) * 0.4);
+      stroke(c, '#332744', 6);
+      stroke(c, accent, 1.7);
+    }
+    glass(c, 34, 17, 32, 18, 7);
+    lights(c, 90, 3, '#fcecc8');
+  },
+  macaronMini(c, coat, accent) {
+    tires(c, 22, 74, 18);
+    oval(c, 49, 26, 43, 22, coat, 2.4);
+    oval(c, 42, 26, 34, 18, accent, 1.4);
+    oval(c, 38, 26, 29, 16, coat, 1.4);
+    for (const [x, y] of [[23, 18], [19, 29], [31, 35], [38, 17], [43, 27], [55, 32]]) oval(c, x, y, 1.3, 1.3, '#fff0ce');
+    glass(c, 65, 14, 16, 24, 7);
+    lights(c, 85, 2.7);
+  },
+  turretTruck(c, coat, accent) {
+    tires(c, 19, 81, 20);
+    box(c, 5, 8, 91, 36, 4, coat);
+    shape(c, [10, 13, 17, 13, 17, 9, 25, 9, 25, 13, 33, 13, 33, 9, 41, 9, 41, 13, 51, 13,
+      51, 39, 41, 39, 41, 43, 33, 43, 33, 39, 25, 39, 25, 43, 17, 43, 17, 39, 10, 39], '#7389a7');
+    oval(c, 30, 26, 13, 10, '#435779', 2);
+    box(c, 27, 22, 23, 8, 3, accent, 1.4);
+    glass(c, 60, 13, 24, 26, 4);
+    lights(c);
+  },
+  royalRoadster(c, coat, accent) {
+    tires(c, 19, 78, 16);
+    shape(c, [6, 17, 18, 10, 38, 12, 59, 16, 84, 11, 95, 17, 97, 26, 95, 35, 84, 41, 59, 36,
+      38, 40, 18, 42, 6, 35], coat);
+    box(c, 28, 16, 28, 20, 6, '#634663');
+    box(c, 34, 19, 11, 14, 4, '#b56a86', 1);
+    glass(c, 54, 16, 10, 20, 4);
+    shape(c, [69, 15, 76, 20, 86, 17, 82, 25, 89, 26, 82, 29, 86, 37, 76, 32, 69, 37], accent, 1.6);
+    oval(c, 76, 26, 3.2, 3.2, '#e66b8d', 1);
+  },
+  beaconVan(c, coat, accent) {
+    tires(c, 20, 81, 20);
+    box(c, 5, 6, 92, 40, 8, coat);
+    for (const y of [11, 41]) line(c, [11, y, 81, y], accent, 2.5);
+    box(c, 17, 16, 39, 20, 3, '#587a8f');
+    line(c, [15, 26, 42, 26], '#aec6df', 2);
+    oval(c, 43, 26, 10, 10, '#f0a247', 2);
+    oval(c, 43, 26, 6, 6, '#fff4a4', 1.1);
+    glass(c, 65, 12, 20, 28, 5);
+    lights(c, 92, 3.2);
+  },
+  tarmacSweeper(c, coat, accent) {
+    tires(c, 18, 78, 20);
+    box(c, 6, 10, 89, 32, 7, coat);
+    box(c, 11, 13, 37, 26, 5, '#a1a8a7');
+    for (const x of [17, 24, 31, 38]) line(c, [x, 17, x, 35], '#677982', 1.8);
+    for (const y of [12, 40]) {
+      oval(c, 66, y, 13, 9, '#c47f58', 1.7);
+      for (const x of [57, 62, 67, 72, 76]) line(c, [x, y - 5, x, y + 5], accent, 1.2);
+    }
+    glass(c, 55, 16, 26, 20, 6);
+    for (const y of [17, 31]) box(c, 85, y, 8, 4, 1.3, accent, 1.2);
+  },
+  buttonKart(c, coat, accent) {
+    tires(c, 24, 76, 19);
+    shape(c, [9, 17, 20, 10, 62, 9, 86, 13, 97, 26, 86, 39, 62, 43, 20, 42, 9, 35], coat);
+    oval(c, 36, 26, 25, 19, accent, 2.1);
+    oval(c, 36, 26, 20, 14, coat, 1.7);
+    for (const x of [30, 42]) for (const y of [21, 31]) oval(c, x, y, 2.8, 2.4, '#554466', 1.2);
+    line(c, [30, 21, 42, 31], '#fff1bb', 1.7);
+    line(c, [42, 21, 30, 31], '#fff1bb', 1.7);
+    glass(c, 65, 16, 14, 20, 5);
+    lights(c, 88, 3);
+  },
+  teacupCoupe(c, coat, accent) {
+    tires(c, 23, 77, 17);
+    oval(c, 19, 26, 15, 12, accent, 2.2);
+    oval(c, 16, 26, 7, 5, '#785c87', 1.2);
+    oval(c, 52, 26, 33, 22, coat, 2.3);
+    oval(c, 50, 26, 26, 17, accent, 1.6);
+    oval(c, 49, 26, 19, 12, '#a57158', 1.3);
+    c.beginPath();
+    c.ellipse(51, 27, 12, 7, -0.2, 0.3, 5.6);
+    stroke(c, '#f9d1a2', 1.8);
+    glass(c, 71, 14, 17, 24, 8);
+    lights(c, 88, 2.6);
+  },
 } satisfies Record<string, VehiclePaint>;
 
 function face(c: Ctx, y: number, cheek: string): void {

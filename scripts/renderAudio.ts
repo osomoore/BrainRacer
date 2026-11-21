@@ -6,12 +6,13 @@
  * Needs: ffmpeg on PATH, Microsoft Edge (Playwright channel 'msedge'). Dev server on port 5186. Temp WAVs go to
  * $AUDIO_TMP or the OS temp dir.
  */
-import { chromium } from '@playwright/test';
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chromium, type Browser } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer, type ViteDevServer } from 'vite';
 import { repeatSamples, type AudioFileEntry, type AudioManifest, type MusicFileEntry } from '../src/audio/audioManifest';
 import type { AudioRenderApi, RenderJob, RenderResult } from '../src/scenes/dev/AudioRender';
 import { audioSourceHash } from './audioSourceHash';
@@ -41,15 +42,6 @@ function wavFloat32(channels: Float32Array[], sampleRate: number): Buffer {
   return buf;
 }
 
-async function waitForServer(url: string, proc: ChildProcess): Promise<void> {
-  for (let i = 0; i < 100; i++) {
-    if (proc.exitCode !== null) throw new Error('vite exited early');
-    try { if ((await fetch(url)).ok) return; } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error('vite did not start');
-}
-
 function dirSize(dir: string): number {
   let t = 0;
   for (const n of readdirSync(dir, { withFileTypes: true })) {
@@ -63,19 +55,25 @@ async function main(): Promise<void> {
   const t0 = Date.now();
   const sourceHash = audioSourceHash();
   const tmp = mkdtempSync(join(process.env.AUDIO_TMP ?? tmpdir(), 'brainracer-audio-'));
-  const vite = spawn(process.execPath, [join(root, 'node_modules', 'vite', 'bin', 'vite.js'), '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' });
-  const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] }).catch((e) => { vite.kill(); throw e; });
+  const rendered = join(tmp, 'rendered');
+  let vite: ViteDevServer | undefined;
+  let browser: Browser | undefined;
   try {
-    await waitForServer(`http://localhost:${PORT}/`, vite);
+    // Build jobs must survive file writes in other checkouts and their own asset output.
+    vite = await createServer({
+      root, cacheDir: join(tmp, 'vite'), logLevel: 'silent',
+      server: { port: PORT, strictPort: true, watch: null, hmr: false },
+    });
+    await vite.listen();
+    browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
     const page = await browser.newPage();
     page.on('pageerror', (e) => console.error('[page error]', e.message));
     await page.goto(`http://localhost:${PORT}/?dev=AudioRender`);
     await page.waitForFunction(() => '__audioRender' in window, null, { timeout: 60000 });
     const jobs = await page.evaluate(() => (window as unknown as { __audioRender: Api }).__audioRender.jobs());
 
-    rmSync(outDir, { recursive: true, force: true });
-    mkdirSync(join(outDir, 'sfx'), { recursive: true });
-    mkdirSync(join(outDir, 'music'), { recursive: true });
+    mkdirSync(join(rendered, 'sfx'), { recursive: true });
+    mkdirSync(join(rendered, 'music'), { recursive: true });
     const manifest: AudioManifest = { version: 1, sourceHash, sfx: {}, loops: {}, engine: null as unknown as AudioFileEntry, music: {} };
 
     for (const job of jobs as RenderJob[]) {
@@ -101,7 +99,7 @@ async function main(): Promise<void> {
       const wav = join(tmp, `${r.kind}-${r.id}.wav`);
       writeFileSync(wav, wavFloat32(encoded, r.sampleRate));
       const kbps = r.kind === 'music' ? MUSIC_KBPS : SFX_KBPS;
-      const ff = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', wav, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-vbr', 'on', '-application', 'audio', join(outDir, rel)], { stdio: 'inherit' });
+      const ff = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', wav, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${kbps}k`, '-vbr', 'on', '-application', 'audio', join(rendered, rel)], { stdio: 'inherit' });
       if (ff.status !== 0) throw new Error(`ffmpeg failed for ${r.id}`);
       rmSync(wav);
 
@@ -110,13 +108,15 @@ async function main(): Promise<void> {
       else if (r.kind === 'sfx') manifest.sfx[r.id] = entry;
       else if (r.kind === 'engine') manifest.engine = entry;
       else manifest.loops[r.id] = entry;
-      console.log(`${r.kind.padEnd(6)} ${r.id.padEnd(12)} ${(r.length / r.sampleRate).toFixed(2)}s  ${(statSync(join(outDir, rel)).size / 1024).toFixed(1)} KB  ${Date.now() - tj} ms`);
+      console.log(`${r.kind.padEnd(6)} ${r.id.padEnd(12)} ${(r.length / r.sampleRate).toFixed(2)}s  ${(statSync(join(rendered, rel)).size / 1024).toFixed(1)} KB  ${Date.now() - tj} ms`);
     }
+    if (audioSourceHash() !== sourceHash) throw new Error('Audio sources changed during render. Run audio:render again.');
+    cpSync(rendered, outDir, { recursive: true });
     writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');
     console.log(`audio: ${jobs.length} files, ${(dirSize(outDir) / 1024 / 1024).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s, hash ${sourceHash}`);
   } finally {
-    await browser.close().catch(() => {});
-    vite.kill();
+    await browser?.close().catch(() => {});
+    await vite?.close().catch(() => {});
     rmSync(tmp, { recursive: true, force: true });
   }
 }

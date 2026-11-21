@@ -40,6 +40,8 @@ export interface AudioLoopOptions {
   sirenTone?: 'bright' | 'soft';
 }
 
+export type MusicMix = 'normal' | 'driving' | 'rush' | 'quiet';
+
 export interface IAudio {
   /** Must be called from a user gesture (key/button/click) to satisfy autoplay policy. */
   unlock(): Promise<void>;
@@ -50,6 +52,7 @@ export interface IAudio {
   loop(name: SfxName, opts?: AudioLoopOptions): () => void;
   engine(player: PlayerId): IEngineSound;
   music(track: MusicTrack | null, crossfadeSec?: number): void;
+  setMusicMix(mix: MusicMix): void;
   setVolumes(music: number, sfx: number): void;
 }
 
@@ -77,6 +80,7 @@ class StubAudio implements IAudio {
   loop() { return () => {}; }
   engine(): IEngineSound { return { set() {}, stop() {} }; }
   music() {}
+  setMusicMix() {}
   setVolumes() {}
 }
 

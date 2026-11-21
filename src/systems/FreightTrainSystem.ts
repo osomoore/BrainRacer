@@ -9,6 +9,8 @@ import type { PlayerId, Vec2 } from '../core/types';
 import { STEP_HZ } from '../entities/Vehicle';
 import { addUndergroundRail } from '../world/undergroundRail';
 import { addForestRail } from '../world/forestRail';
+import { addQueuedRail } from '../world/queuedRail';
+import { hasQueuedRail } from '../world/gen/queuedWorlds';
 import { canReform, debrisVelocity, detachedFrom, shouldSmash } from './freightSmash';
 import { carriagePose, crossingFrame, freightFrontAt, measureCircuit, type MeasuredCrossing, type RailCircuit } from './freightTiming';
 
@@ -65,8 +67,8 @@ export class FreightTrainSystem implements GameSystem {
   private signals: Signal[] = [];
   private trains: Train[] = [];
   private byBody = new Map<MatterJS.BodyType, { train: Train; index: number }>();
-  private mineRail?: ReturnType<typeof addUndergroundRail>;
-  private mineElapsed = 0;
+  private railScenery?: { update(elapsed: number): void; destroy(): void };
+  private railElapsed = 0;
   private finished = false;
   private offs: (() => void)[] = [];
   private length = 0;
@@ -80,9 +82,11 @@ export class FreightTrainSystem implements GameSystem {
 
   init(ctx: RaceContext): void {
     const rail = ctx.world.industrial?.rail;
-    const mine = ctx.settings.map === 'underground';
-    const forest = ctx.settings.map === 'forest';
-    if (!rail && !mine && !forest) return;
+    const { map } = ctx.settings;
+    const mine = map === 'underground';
+    const forest = map === 'forest';
+    const queued = hasQueuedRail(map);
+    if (!rail && !mine && !forest && !queued) return;
     this.ctx = ctx;
     this.pool = new ParticlePool(ctx.scene, 120);
     this.rng = ctx.rng.fork(0xf7e16);
@@ -95,11 +99,13 @@ export class FreightTrainSystem implements GameSystem {
       services.audio.sfx('crashBig', { volume: 0.75 });
       ctx.camera.shakeAt(image.x, image.y, 900, 0.012, 260);
     }));
-    if (mine || forest) {
-      if (forest) bakeCrate(ctx.scene);
-      this.mineRail = forest ? addForestRail(ctx.scene, ctx.world) : addUndergroundRail(ctx.scene, ctx.world.tileSize);
-      for (const { cars, poseAt } of this.mineRail.trains) this.addTrain(cars, poseAt);
-      this.mineRail.update(0);
+    if (mine || forest || queued) {
+      if (!mine) bakeCrate(ctx.scene);
+      const scenery = queued ? addQueuedRail(ctx.scene, map, ctx.world)
+        : forest ? addForestRail(ctx.scene, ctx.world) : addUndergroundRail(ctx.scene, ctx.world.tileSize);
+      this.railScenery = scenery;
+      for (const { cars, poseAt } of scenery.trains) this.addTrain(cars, poseAt);
+      scenery.update(0);
       this.offs.push(ctx.bus.on('round:end', () => { this.finished = true; }));
     } else if (rail) {
       this.addIndustrialTrain(measureCircuit(rail));
@@ -161,13 +167,13 @@ export class FreightTrainSystem implements GameSystem {
     this.trains.push(train);
   }
 
-  private get clock(): number { return this.mineRail ? this.mineElapsed : this.ctx.elapsedSec; }
+  private get clock(): number { return this.railScenery ? this.railElapsed : this.ctx.elapsedSec; }
 
   update(dt: number, ctx: RaceContext): void {
     if (!this.trains.length || this.finished) return;
     const circuit = this.circuit;
     if (this.devNear && !this.devPlaced && ctx.players[0]) this.placeNear(ctx);
-    this.mineElapsed += dt;
+    this.railElapsed += dt;
     for (let i = 0; i < this.cooldown.length; i++) this.cooldown[i] -= dt;
     this.pool.update(dt);
     for (const { cars, poseAt } of this.trains) for (const [i, car] of cars.entries()) {
@@ -185,7 +191,7 @@ export class FreightTrainSystem implements GameSystem {
       image.setPosition(pose.x, pose.y).setRotation(pose.angle);
     }
     if (!circuit) {
-      this.mineRail?.update(this.clock);
+      this.railScenery?.update(this.clock);
       return;
     }
     const front = freightFrontAt(circuit, ctx.elapsedSec + this.clockOffset);
@@ -202,7 +208,7 @@ export class FreightTrainSystem implements GameSystem {
     this.ctx?.scene.matter?.world?.off(Phaser.Physics.Matter.Events.COLLISION_START, this.handler);
     for (const off of this.offs) off();
     this.pool?.destroy();
-    this.mineRail?.destroy();
+    this.railScenery?.destroy();
     for (const { image } of this.signals) image.destroy();
     for (const { cars } of this.trains) for (const { image, body, debris } of cars) {
       if (debris) { this.ctx.scene.matter.world?.remove(debris.body); debris.image.destroy(); }

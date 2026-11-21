@@ -1,4 +1,6 @@
 import * as Tone from 'tone';
+import { WORLD_MUSIC } from '../config/gameConfig';
+import type { MusicMix } from '../core/services';
 
 /** master -> compressor -> limiter -> destination; music and sfx buses feed master. */
 export class Mixer {
@@ -7,13 +9,18 @@ export class Mixer {
   readonly sfxBus: Tone.Gain;
   private readonly comp: Tone.Compressor;
   private readonly limiter: Tone.Limiter;
+  private readonly musicFilter: Tone.BiquadFilter;
+  private readonly musicMixGain: Tone.Gain;
   private dynamicsOn = true;
 
   constructor() {
     this.limiter = new Tone.Limiter(-3).toDestination();
     this.comp = new Tone.Compressor({ threshold: -18, ratio: 3, attack: 0.01, release: 0.2 }).connect(this.limiter);
     this.master = new Tone.Gain(0.8).connect(this.comp);
-    this.musicBus = new Tone.Gain(0.7).connect(this.master);
+    this.musicMixGain = new Tone.Gain(1).connect(this.master);
+    this.musicFilter = new Tone.BiquadFilter({ type: 'lowpass', frequency: WORLD_MUSIC.mix.normal.cutoffHz, Q: 0 })
+      .connect(this.musicMixGain);
+    this.musicBus = new Tone.Gain(0.7).connect(this.musicFilter);
     this.sfxBus = new Tone.Gain(0.9).connect(this.master);
   }
 
@@ -31,5 +38,11 @@ export class Mixer {
     const s = Math.min(1, Math.max(0, sfx));
     this.musicBus.gain.rampTo(m * m * 0.8, 0.05);
     this.sfxBus.gain.rampTo(s * s * 1.0, 0.05);
+  }
+
+  setMusicMix(mix: MusicMix): void {
+    const { cutoffHz, gain } = WORLD_MUSIC.mix[mix];
+    this.musicFilter.frequency.rampTo(cutoffHz, WORLD_MUSIC.mixFadeSec);
+    this.musicMixGain.gain.rampTo(gain, WORLD_MUSIC.mixFadeSec);
   }
 }
