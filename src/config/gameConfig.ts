@@ -244,7 +244,7 @@ export const COLLISION = {
 
 export const TRAFFIC_SPEC: VehicleSpec = { length: 64, width: 36, mass: 5, maxSpeed: 240, reverseSpeed: 100, accel: 260, brake: 700, turnRate: 2.4, grip: 0.95, drag: 0.8 };
 export const TRUCK_SPEC: VehicleSpec = { length: 120, width: 48, mass: 12, maxSpeed: 255, reverseSpeed: 100, accel: 205, brake: 650, turnRate: 1.6, grip: 0.97, drag: 0.8 };
-export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 340, reverseSpeed: 120, accel: 300, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
+export const POLICE_SPEC: VehicleSpec = { length: 66, width: 38, mass: 13, maxSpeed: 360, reverseSpeed: 120, accel: 300, brake: 1100, turnRate: 3.0, grip: 0.9, drag: 0.6 };
 
 export const BOARDING_DRIVE = {
   sedan: { mass: 11, maxSpeed: 297.5, reverseSpeed: 105, accel: 200, brake: 1100, turnRate: 2.9, grip: 0.86, drag: 0.65 },
@@ -456,11 +456,19 @@ export const POLICE = {
   chaserRespawnCooldownSec: 4,
   sirenVolume: 0.22,         // AI cruisers chasing you (gentle)
   playerSirenVolume: 0.7,    // your own siren while you drive a police cruiser
-  monsterSwarmCount: 5,
-  monsterSwarmSpawnMinDist: 360,
-  monsterSwarmSpawnMaxDist: 1050,
-  monsterSwarmExitDist: 900,
-  monsterSwarmExitSec: 8,
+  monsterSwarmCount: 8,
+  monsterSwarmSpawnMinDist: 320,
+  monsterSwarmSpawnMaxDist: 950,
+  monsterSwarmExitDist: 1400,
+  monsterSwarmExitSec: 2.2,   // swarm cars leave fast once the ride ends
+  monsterSwarmLeaveSpeedFrac: 1, // leave speed (fraction of max) for swarm cars
+  monsterSwarmTopUpSec: 1.5,  // refill the pile this often during the ride
+  monsterSwarmTopUpBatch: 3,  // max cars added per top-up
+  monsterSwarmPlayerClear: 180, // never spawn this close to a player
+  monsterSwarmCarClear: 120,
+  monsterSwarmRecycleDist: 1700, // chasing swarm car this far from the boss is recycled
+  monsterSwarmStuckSec: 3,
+  monsterSwarmStuckMinDist: 450, // ...or wedged this long while not near the boss
   spawnGraceSec: 6,          // freshly spawned (off-screen) cars are exempt from the off-screen despawn
 };
 

@@ -30,6 +30,8 @@ export class PoliceCar extends Vehicle implements INpcVehicle {
   backoff = 0;
   /** Seconds spent leaving (after a chase ends). */
   leaveSec = 0;
+  /** Part of the monster-rider swarm: leaves at its own (faster) speed. */
+  swarm = false;
   private _destroyed = false;
   private flashT = 0;
   private flashIdx = 0;
@@ -64,7 +66,7 @@ export class PoliceCar extends Vehicle implements INpcVehicle {
 
   /** Drive + visuals for one frame. */
   step(controls: { throttle: number; brake: number; steer: number }, dt: number): void {
-    this.maxSpeedMult = this.mode === 'chase' ? 1 : this.mode === 'leave' ? POLICE.leaveSpeedFrac : POLICE.patrolSpeedFrac;
+    this.maxSpeedMult = this.mode === 'chase' ? 1 : this.mode === 'leave' ? (this.swarm ? POLICE.monsterSwarmLeaveSpeedFrac : POLICE.leaveSpeedFrac) : POLICE.patrolSpeedFrac;
     this.drive(controls, dt);
     this.syncView();
     this.flashT += dt;

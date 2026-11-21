@@ -20,6 +20,7 @@ vi.mock('../entities/PoliceCar', () => ({
     target = null;
     backoff = 0;
     leaveSec = 0;
+    swarm = false;
     destroyed = false;
 
     constructor(_: unknown, private npcs: Set<unknown>, public x: number, public y: number, public angle: number) {
