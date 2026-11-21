@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import { TEX } from '../../src/core/assetKeys';
-import { BOARDING_DRIVE, CAR_SPECS, VEHICLE_CONDITION } from '../../src/config/gameConfig';
+import { BOARDING_DRIVE, VEHICLE_CONDITION } from '../../src/config/gameConfig';
+import { CAR_SPECS } from '../../src/entities/vehicleStats';
 import { isPoliceTexture } from '../../src/entities/policeLights';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
 

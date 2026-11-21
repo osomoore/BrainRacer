@@ -173,10 +173,37 @@ export const CHALLENGE = {
 };
 
 // ───────────────────────── vehicles (package F) ─────────────────────────
-export const CAR_SPECS: Record<StarterCar, VehicleSpec> = {
-  dino: { length: 72, width: 40, mass: 14, maxSpeed: 310, reverseSpeed: 100, accel: 180, brake: 1100, turnRate: 2.6, grip: 0.82, drag: 0.6 },
-  kart: { length: 60, width: 36, mass: 9,  maxSpeed: 285, reverseSpeed: 110, accel: 220, brake: 1200, turnRate: 3.3, grip: 0.88, drag: 0.7 },
+/**
+ * Starter car feel as 1-5 ratings (see VEHICLE_STATS); CAR_SPECS in entities/vehicleStats.ts turns them into specs.
+ * Length/width stay per car. dino = heavier cruiser, kart = zippy and nimble.
+ */
+export const STARTER_CAR_RATINGS: Record<StarterCar, { ratings: { speed: number; zoom: number; turning: number; weight: number; grip: number }; length: number; width: number }> = {
+  dino: { ratings: { speed: 3, zoom: 3, turning: 3, weight: 4, grip: 2 }, length: 72, width: 40 },
+  kart: { ratings: { speed: 2, zoom: 4, turning: 4, weight: 2, grip: 3 }, length: 60, width: 36 },
 };
+
+/**
+ * Hidden per-vehicle feel. Five ratings 1-5 (speed, zoom = acceleration, turning, weight, grip) that must sum to `budget`,
+ * each mapped linearly from rating 1 to rating 5 onto the [lo, hi] ranges below (3 ~ the old "standard" car).
+ */
+export const VEHICLE_STATS = {
+  budget: 15,
+  minRating: 1,
+  maxRating: 5,
+  maxSpeed: { lo: 268, hi: 344 },
+  accel: { lo: 141, hi: 259 },           // px/s^2 (zoom)
+  reverseSpeed: { lo: 90, hi: 108 },     // follows zoom
+  brake: 1150,
+  turnRate: { lo: 2.18, hi: 3.57 },      // rad/s (turning)
+  pivotRate: { lo: 1.7, hi: 2.8 },       // rad/s at ~0 speed (turning)
+  mass: { lo: 7, hi: 30 },               // weight; must stay below BOARDING_DRIVE.heavyMass
+  steerResponse: { lo: 16.2, hi: 7.8 },  // 1/s, weight 1 -> 5 (heavy = slow to start/stop turning)
+  drag: { lo: 0.77, hi: 0.51 },          // coast drag, weight 1 -> 5 (heavy keeps rolling)
+  recoilMult: { lo: 1.3, hi: 0.7 },      // weight 1 -> 5
+  grip: { lo: 0.75, hi: 0.93 },
+  driftLoss: { lo: 0.6, hi: 0.3 },       // grip 1 -> 5 (low grip = drifty at speed)
+};
+
 /** Tunables for the top-down tire model and collision feedback (package F). */
 export const VEHICLE_MODEL = {
   /** Fraction of grip lost at full speed (gentle drift at high speed). */
