@@ -42,9 +42,15 @@ describe('planJbq', () => {
   });
   it('median answers stay large in a 2-player view', () => {
     const { plan } = run(920, 780, false, 120, [45, 45, 45, 45]);
-    expect(plan.fa).toBeGreaterThanOrEqual(40);
-    expect(plan.fq).toBeGreaterThanOrEqual(30);
+    expect(plan.fa).toBeGreaterThanOrEqual(36);
+    expect(plan.fq).toBeGreaterThanOrEqual(40);   // the question keeps its minimum; answers give a little
     expect(plan.ok).toBe(true);
+  });
+  it('long answers shrink before the question drops below its minimum', () => {
+    const { g, plan } = run(1700, 800, false, 40, [150, 150, 150, 150]);
+    expect(plan.fq).toBeGreaterThanOrEqual(g.fonts.questionMin);
+    expect(plan.fa).toBeLessThan(g.fonts.answerMin);
+    expect(plan.fa).toBeGreaterThanOrEqual(g.fonts.answerHard);
   });
   it('very long content shrinks to the hard floor and flags truncation instead of overflowing', () => {
     const { g, plan } = run(680, 520, true, 130, [160, 160, 160, 160]);

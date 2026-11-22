@@ -80,9 +80,12 @@ export function planJbq(
   const qNeed = (fq: number) => measureQ(fq) + 2 * g.qPadY;
   const fitsAt = (fa: number, fqLow: number) => sum(needs(fa)) + qNeed(fqLow) <= g.availH;
 
+  // The question stays readable: answers shrink to their hard floor before the question drops below questionMin.
   let fa = f.answerMin, qLow = f.questionMin, ok = true;
   if (fitsAt(f.answerMin, f.questionMin)) {
     fa = largestFit((p) => fitsAt(p, f.questionMin), f.answerMin, f.answerMax);
+  } else if (fitsAt(f.answerHard, f.questionMin)) {
+    fa = largestFit((p) => fitsAt(p, f.questionMin), f.answerHard, f.answerMin);
   } else if (fitsAt(f.answerHard, f.questionHard)) {
     qLow = f.questionHard;
     fa = largestFit((p) => fitsAt(p, f.questionHard), f.answerHard, f.answerMin);
@@ -100,7 +103,8 @@ export function planJbq(
     qH += leftover * HUD.jbq.questionShare;
     rowH = n.map((h) => h + (leftover * (1 - HUD.jbq.questionShare)) / nRows);
   } else {
-    fq = f.questionHard;
+    // Answers get cut anyway: keep the question at questionMin when it takes at most a third of the height.
+    fq = qNeed(f.questionMin) <= g.availH * 0.34 ? f.questionMin : f.questionHard;
     qH = Math.min(qNeed(fq), g.availH * 0.34);
     rowH = waterFill(n, g.availH - qH, g.minRowH);
   }
