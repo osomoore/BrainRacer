@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, quad } from '../geom';
 import { EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { type SkinSpec, skinFill, tubeShapes } from './skin';
+import { drawFrill, type SkinSpec, skinFill, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -143,7 +143,7 @@ export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       if (t.kind === 'spiked') for (let i = 6; i <= N; i += 2) for (const sgn of [-1, 1]) sh.push({ path: (c) => polyPath(c, [{ x: pts[i].x - 8, y: sgn * hw[i] * 0.6 }, { x: pts[i].x - 4, y: sgn * (hw[i] + 18) }, { x: pts[i].x + 8, y: sgn * hw[i] * 0.6 }]), fill: '#fff3d0' });
       if (t.kind === 'paddle') sh.push({ path: (c) => ellipsePath(c, end.x - 22, 0, 40, 34), fill: sk.look.light });
       if (sk.ex?.kind === 'feathers') [sk.ex.c1, sk.ex.c2, sk.ex.c3].forEach((col, i) => { const a = Math.PI + (i - 1) * 0.6; sh.push({ path: (c) => ellipsePath(c, end.x + Math.cos(a) * 30, Math.sin(a) * 30, 32, 10, a), fill: col }); });
-      sh.push(...tubeShapes(pts, hw, skinFill(sk, { x0: -len, y0: -t.base, x1: 10, y1: t.base }, 4)));
+      sh.push(...tubeShapes(pts, hw, skinFill(sk, { x0: -len - t.tip, y0: -t.base, x1: 10 + t.base / 2, y1: t.base }, 4)));
       drawShapes(g, sh, OL);
     },
   };
@@ -151,14 +151,9 @@ export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
 
 export function frillTop(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.frill'];
-  const R = h.top * 0.9 + 20, W = R * 2 + 60;
+  const W = h.top * 2 + 40;
   return {
     key: `ws:d:tfrill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2,
-    draw: (g) => {
-      const sh: Shape[] = [];
-      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; sh.push({ path: (c) => circle(c, Math.cos(a) * R, Math.sin(a) * R, 13), fill: ex.c1 }); }
-      sh.push({ path: (c) => circle(c, 0, 0, R), fill: ex.c1, detail: (c) => { const rg = c.createRadialGradient(0, 0, 4, 0, 0, R); rg.addColorStop(0, ex.c2); rg.addColorStop(1, ex.c1); c.fillStyle = rg; c.fillRect(-R, -R, R * 2, R * 2); } });
-      drawShapes(g, sh, OL);
-    },
+    draw: (g) => drawFrill(g, -h.top * 0.1, 0, h.top * 0.43, h.top * 0.73, ex),
   };
 }

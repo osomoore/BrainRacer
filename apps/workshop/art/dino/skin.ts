@@ -1,6 +1,6 @@
 /** Dino skin: base colour + patterns (spots, tiger stripes, leaf camo, glow). Shared by side and top parts. */
 import type { Model } from '../../core/types';
-import { type Shape } from '../bake';
+import { drawShapes, OL, type Shape } from '../bake';
 import { type Pt, artRng, hashStr, tubeOutline } from '../geom';
 import { EXTRA, type ExtraLook, SKIN, type SkinLook } from './looks';
 
@@ -14,6 +14,46 @@ export function skinSpec(m: Model): SkinSpec {
   const ex = EXTRA[m.extra] ?? null;
   const pattern: PatternKind = ex && (ex.kind === 'camo' || ex.kind === 'stripes' || ex.kind === 'glow') ? ex.kind : 'none';
   return { look, pattern, ex, key: `${m.color}:${m.extra}` };
+}
+
+/** The same soft scallops and veins, projected as a fan or seen edge-on from above. */
+export function drawFrill(g: G, x: number, y: number, rx: number, ry: number, look: ExtraLook): void {
+  const lobes = 10;
+  const step = Math.PI * 2 / lobes;
+  const rim = (angle: number, radius = 1) => ({
+    x: x + Math.cos(angle) * rx * radius,
+    y: y + Math.sin(angle) * ry * radius,
+  });
+  drawShapes(g, [{
+    path: (c) => {
+      const start = rim(0);
+      c.moveTo(start.x, start.y);
+      for (let i = 0; i < lobes; i++) {
+        const lip = rim((i + 0.5) * step, 1.2);
+        const end = rim((i + 1) * step);
+        c.quadraticCurveTo(lip.x, lip.y, end.x, end.y);
+      }
+      c.closePath();
+    },
+    fill: look.c1,
+    detail: (c) => {
+      const light = c.createRadialGradient(x + rx * 0.35, y, 0, x, y, Math.max(rx, ry) * 0.95);
+      light.addColorStop(0, look.c2);
+      light.addColorStop(1, look.c1);
+      c.fillStyle = light;
+      c.fillRect(x - rx * 1.2, y - ry * 1.2, rx * 2.4, ry * 2.4);
+      c.strokeStyle = look.c3;
+      c.lineWidth = 3;
+      for (let i = 0; i < lobes; i++) {
+        const start = rim((i + 0.5) * step, 0.35);
+        const end = rim((i + 0.5) * step, 0.91);
+        c.beginPath();
+        c.moveTo(start.x, start.y);
+        c.quadraticCurveTo(start.x, end.y, end.x, end.y);
+        c.stroke();
+      }
+    },
+  }], OL);
 }
 
 /** Fill callback for the current clipped path. */

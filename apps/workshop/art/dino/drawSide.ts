@@ -1,8 +1,8 @@
 /** Dinosaur, SIDE view parts (faces +x). One drawing function per aspect; numbers come from ./looks. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, rrectPath } from '../bake';
-import { type Pt, deg, quad } from '../geom';
+import { type Pt, deg, quad, tubeOutline } from '../geom';
 import { type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
-import { type SkinSpec, skinFill, tubeShapes } from './skin';
+import { drawFrill, type SkinSpec, skinFill, tubeShapes } from './skin';
 import type { BodyLook } from './looks';
 
 type G = CanvasRenderingContext2D;
@@ -104,10 +104,20 @@ export function neckSide(h: HeadLook, sk: SkinSpec, headId: string): PartSpec {
   return {
     key: `ws:d:neck:${headId}:${sk.key}`, w: W, h: H, ox: 60, oy: H / 2,
     draw: (g) => {
-      const pts = quad({ x: 0, y: 0 }, { x: len * 0.5, y: len > 120 ? 12 : 4 }, { x: len, y: 0 }, 14);
+      const base = -36;
+      const pts = quad({ x: base, y: 0 }, { x: len * 0.5, y: len > 120 ? 12 : 4 }, { x: len, y: 0 }, 14);
       const hw = pts.map((_, i) => tb + (te - tb) * (i / 14));
-      const box = { x0: 0, y0: -tb, x1: len, y1: tb };
-      drawShapes(g, tubeShapes(pts, hw, skinFill(sk, box, 2, true)), OL);
+      const box = { x0: base, y0: -tb, x1: len, y1: tb };
+      drawShapes(g, [{ path: (c) => polyPath(c, tubeOutline(pts, hw)), fill: skinFill(sk, box, 2, true) }], OL);
+      // Fade the shoulder overlap into the torso while the neck moves.
+      g.save();
+      g.globalCompositeOperation = 'destination-in';
+      const join = g.createLinearGradient(base, 0, 4, 0);
+      join.addColorStop(0, 'transparent');
+      join.addColorStop(1, '#fff');
+      g.fillStyle = join;
+      g.fillRect(-60, -H / 2, W, H);
+      g.restore();
     },
   };
 }
@@ -227,7 +237,7 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
         if (t.kind === 'club') return u < 0.6 ? t.base / 2 + (t.base * 0.22 - t.base / 2) * (u / 0.6) : t.base * 0.22 + (t.tip - t.base * 0.22) * ((u - 0.6) / 0.4);
         return t.base / 2 + (t.tip / 2 - t.base / 2) * Math.pow(u, 0.8);
       });
-      const box = { x0: -len, y0: -t.base, x1: 10, y1: t.base };
+      const box = { x0: -len - t.tip, y0: -t.base, x1: 10 + t.base / 2, y1: t.base + t.droop };
       const sh: Shape[] = [];
       const end = pts[N];
       if (t.kind === 'spiked') {
@@ -248,29 +258,51 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
   };
 }
 
-export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook, clawId: string, len: number, far: boolean, hand: boolean): PartSpec {
+export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook, clawId: string, len: number, far: boolean, hand: boolean, swimming: boolean): PartSpec {
   const th = l.thick, foot = l.foot;
   const W = th * 2 + foot + 90, H = len + th + 70;
   return {
-    key: `ws:d:leg:${legId}:${sk.key}:${clawId}:${Math.round(len)}:${far ? 'f' : 'n'}${hand ? 'h' : ''}`, w: W, h: H, ox: th + 40, oy: th + 20,
+    key: `ws:d:leg:${legId}:${sk.key}:${clawId}:${Math.round(len)}:${far ? 'f' : 'n'}${hand ? 'h' : ''}${swimming ? 's' : ''}`, w: W, h: H, ox: th + 40, oy: th + 20,
     draw: (g) => {
       const N = 12;
       let pts: Pt[];
       if (l.kind === 'hoppy') pts = [...quad({ x: 0, y: 0 }, { x: -26, y: len * 0.5 }, { x: 8, y: len * 0.72 }, 8), ...quad({ x: 8, y: len * 0.72 }, { x: 14, y: len * 0.9 }, { x: 6, y: len - 14 }, 5).slice(1)];
-      else pts = quad({ x: 0, y: 0 }, { x: -5, y: len * 0.5 }, { x: 3, y: len - 14 }, N);
+      else pts = quad({ x: 0, y: 0 }, { x: -5, y: len * 0.5 }, { x: 3, y: len - 14 - OL }, N);
       const n = pts.length;
       const hw = pts.map((_, i) => { const u = i / (n - 1); return l.kind === 'powerful' ? th * 0.5 * (1 - u * 0.5) : th * 0.5 * (1 - u * 0.3); });
-      const box = { x0: -th, y0: 0, x1: foot, y1: len };
+      const box = { x0: -th, y0: l.kind === 'powerful' ? -th * 0.65 : -th * 0.5, x1: foot, y1: len + (swimming ? foot * 0.24 : 0) };
       const fill = skinFill(sk, box, 5);
       const darkOverlay = (c: G) => { if (far) { c.fillStyle = 'rgba(30,0,40,0.28)'; c.fillRect(-th * 2, -th * 2, W * 2, H * 2); } };
       const sh: Shape[] = [];
       if (l.kind === 'powerful') sh.push({ path: (c) => ellipsePath(c, -2, th * 0.45, th * 0.9, th * 1.05), fill, detail: darkOverlay });
-      if (l.kind === 'flipper') sh.push({ path: (c) => ellipsePath(c, foot * 0.28, len - 8, foot * 0.58, 17, 0.12), fill: sk.look.light, detail: (c) => { darkOverlay(c); c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(0, len - 8 + i * 3); c.lineTo(foot * 0.8, len - 8 + i * 9); c.stroke(); } } });
-      else sh.push({ path: (c) => rrectPath(c, -foot * 0.28, len - 18, foot, 18, 9), fill, detail: darkOverlay });
+      const sole = len - OL;
+      if (swimming) {
+        const flipper = l.kind === 'flipper';
+        sh.push({
+          path: (c) => ellipsePath(c, 3, len - 8, flipper ? 15 : th * 0.28, foot * (flipper ? 0.48 : 0.3), -0.14),
+          fill: flipper ? sk.look.light : fill,
+          detail: (c) => {
+            darkOverlay(c);
+            if (!flipper) return;
+            c.strokeStyle = sk.look.dark;
+            c.lineWidth = 3;
+            for (const offset of [-1, 0, 1]) {
+              c.beginPath();
+              c.moveTo(offset * 3, len - 10);
+              c.lineTo(offset * 8 + 4, len + foot * 0.3);
+              c.stroke();
+            }
+          },
+        });
+      } else if (l.kind === 'flipper') {
+        const finY = sole - 18;
+        sh.push({ path: (c) => ellipsePath(c, foot * 0.28, finY, foot * 0.58, 17, 0.12), fill: sk.look.light, detail: (c) => { darkOverlay(c); c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(0, finY + i * 3); c.lineTo(foot * 0.8, finY + i * 9); c.stroke(); } } });
+      } else sh.push({ path: (c) => rrectPath(c, -foot * 0.28, sole - 18, foot, 18, 9), fill, detail: darkOverlay });
       sh.push(...tubeShapes(pts, hw, (c) => { fill(c); darkOverlay(c); }));
       drawShapes(g, sh, OL);
       if (l.kind === 'flipper') return;
-      drawClawSet(g, claw, sk, foot * 0.7, len - 9, 0.15, !hand);
+      if (swimming) drawClawSet(g, claw, sk, 4, len + foot * 0.14, 1.45, true);
+      else drawClawSet(g, claw, sk, foot * 0.7, sole - 9, 0.1, !hand);
     },
   };
 }
@@ -282,7 +314,7 @@ export function armSide(c: ClawLook, sk: SkinSpec, clawId: string, far: boolean)
     draw: (g) => {
       const pts = quad({ x: 0, y: 0 }, { x: 4, y: c.arm * 0.5 }, { x: 10, y: c.arm }, 8);
       const hw = pts.map((_, i) => c.thick * 0.5 * (1 - (i / 8) * 0.25));
-      const fill = skinFill(sk, { x0: -c.thick, y0: 0, x1: c.thick, y1: c.arm }, 6);
+      const fill = skinFill(sk, { x0: -c.thick, y0: -c.thick * 0.5, x1: c.thick, y1: c.arm + c.thick * 0.5 }, 6);
       drawShapes(g, tubeShapes(pts, hw, (cx) => { fill(cx); if (far) { cx.fillStyle = 'rgba(30,0,40,0.28)'; cx.fillRect(-100, -100, 400, 400); } }), OL);
       drawClawSet(g, c, sk, 10, c.arm + 2, deg(80), false);
     },
@@ -311,15 +343,10 @@ export function wingSide(sk: SkinSpec, far: boolean): PartSpec {
 
 export function frillSide(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.frill'];
-  const R = h.top * 0.95 + 24, W = R * 2 + 80;
+  const W = h.top * 2 + 40;
   return {
-    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2 + 14, oy: W / 2 + h.top * 0.35,
-    draw: (g) => {
-      const sh: Shape[] = [];
-      for (let i = 0; i < 11; i++) { const a = deg(100 + i * 16.5); sh.push({ path: (c) => circle(c, Math.cos(a) * R, Math.sin(a) * R, 15), fill: ex.c1 }); }
-      sh.push({ path: (c) => circle(c, 0, 0, R), fill: ex.c1, detail: (c) => { const rg = c.createRadialGradient(0, 0, 4, 0, 0, R); rg.addColorStop(0, ex.c2); rg.addColorStop(0.7, ex.c1); rg.addColorStop(1, ex.c3); c.fillStyle = rg; c.fillRect(-R, -R, R * 2, R * 2); c.strokeStyle = 'rgba(70,0,60,0.4)'; c.lineWidth = 4; for (let i = 0; i < 9; i++) { const a = deg(100 + i * 20); c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R, Math.sin(a) * R); c.stroke(); } } });
-      drawShapes(g, sh, OL);
-    },
+    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2 + h.top * 0.37,
+    draw: (g) => drawFrill(g, -h.top * 0.12, 0, h.top * 0.62, h.top * 0.65, ex),
   };
 }
 

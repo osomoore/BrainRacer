@@ -15,7 +15,7 @@ type C = Phaser.GameObjects.Container;
 type Img = Phaser.GameObjects.Image;
 const ASPECTS = ['color', 'head', 'teeth', 'claws', 'legs', 'move', 'tail', 'body', 'size', 'extra'];
 
-interface LimbRef { c: C; slot: { far: boolean; front: boolean; rot: number; len: number } }
+interface LimbRef { c: C; slot: { y: number; far: boolean; front: boolean; rot: number; len: number } }
 
 export class DinoRig extends BaseRig {
   private bodyG!: C; private torsoC!: C; private tailC!: C; private neckC!: C; private headC!: C; private jaw!: C;
@@ -89,12 +89,18 @@ export class DinoRig extends BaseRig {
     const legImg = (slot: Skeleton['legs'][number], parent: C) => {
       const c = this.mk(parent, slot.x, slot.y, slot.rot);
       const hand = k.pose === 'crawl' && slot.front;
-      this.img(c, S.legSide(l.legs, sk, m.legs, claw, m.claws, slot.len, slot.far, hand), hand ? ['legs', 'claws'] : ['legs']);
-      this.legs.push({ c, slot: { far: slot.far, front: slot.front, rot: slot.rot, len: slot.len } });
+      this.img(c, S.legSide(l.legs, sk, m.legs, claw, m.claws, slot.len, slot.far, hand, k.pose === 'swim'), hand ? ['legs', 'claws'] : ['legs']);
+      this.legs.push({ c, slot });
     };
     for (const s of k.legs.filter((q) => q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => q.far)) this.armImg(s, B, sk, claw, m.claws);
     if (k.pose === 'crawl') for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
+    // The neck overlaps the shoulder so the torso outline doesn't cut across it.
+    this.torsoC = this.mk(B, k.torso.x, k.torso.y, k.torso.rot);
+    if (l.body.kind === 'sail') this.img(this.torsoC, S.sailSide(l.body), ['body']);
+    const torso = this.img(this.torsoC, S.torsoSide(l.body, sk, m.body), ['color', 'body']);
+    if (torso) torso.scaleY *= k.torso.ry / l.body.ry;
+    if (l.body.kind === 'armor') this.img(this.torsoC, S.platesSide(l.body), ['body']);
     // neck + head
     const h = l.head;
     this.neckC = this.mk(B, k.neckBase.x, k.neckBase.y, k.neckAng);
@@ -108,11 +114,6 @@ export class DinoRig extends BaseRig {
     this.img(this.headC, up, ['teeth']);
     if (TEETH[m.teeth]?.kind === 'beak') P.teeth.push(this.headC);
     if (sk.ex?.kind === 'feathers') this.img(this.headC, S.featherHeadSide(h, sk), ['extra']);
-    // torso
-    this.torsoC = this.mk(B, k.torso.x, k.torso.y, k.torso.rot);
-    if (l.body.kind === 'sail') this.img(this.torsoC, S.sailSide(l.body), ['body']);
-    this.img(this.torsoC, S.torsoSide(l.body, sk, m.body), ['color', 'body']);
-    if (l.body.kind === 'armor') this.img(this.torsoC, S.platesSide(l.body), ['body']);
     if (k.pose !== 'crawl') for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => !q.far)) this.armImg(s, B, sk, claw, m.claws);
     // far wing drawn before; near wing on top
@@ -140,7 +141,9 @@ export class DinoRig extends BaseRig {
     const fx = (a: string, x: number, y: number, z: number) => { this.foci[a] = { x, y, zoom: z }; };
     fx('color', tc.x, tc.y, 1.5); fx('body', tc.x, tc.y, 1.6); fx('head', hinge.x + h.len * 0.4, hinge.y - h.top * 0.4, 2);
     fx('teeth', A.mouth.x - h.len * 0.2, A.mouth.y, 2.6); fx('claws', armPos.x + 10, armPos.y + (('len' in armPos ? (armPos as { len: number }).len : claw.arm) * 0.8), 2.4);
-    fx('legs', feetX, -l.legs.len * 0.5, 1.8); fx('move', tc.x, tc.y, 1.2);
+    const nearLeg = k.legs.find((q) => !q.far) ?? k.legs[0];
+    fx('legs', feetX - Math.sin(nearLeg.rot) * nearLeg.len * 0.5, nearLeg.y + Math.cos(nearLeg.rot) * nearLeg.len * 0.5, 1.8);
+    fx('move', tc.x, tc.y, 1.2);
     fx('tail', (k.tailBase.x + tailTip.x) / 2, (k.tailBase.y + tailTip.y) / 2, 1.5); fx('size', 0, -this.cy, 1);
     const exk = sk.ex?.kind;
     if (exk === 'feathers' || exk === 'frill') fx('extra', hinge.x, hinge.y - h.top * 0.6, 2);
@@ -150,7 +153,7 @@ export class DinoRig extends BaseRig {
   private armImg(s: Skeleton['arms'][number], parent: C, sk: SkinSpec, claw: (typeof CLAWS)[string], clawId: string): void {
     const c = this.mk(parent, s.x, s.y, s.rot);
     this.img(c, S.armSide(claw, sk, clawId, s.far), ['claws']);
-    this.arms.push({ c, slot: { far: s.far, front: false, rot: s.rot, len: claw.arm } });
+    this.arms.push({ c, slot: { y: s.y, far: s.far, front: false, rot: s.rot, len: claw.arm } });
   }
 
   private buildTop(sk: SkinSpec, claw: (typeof CLAWS)[string]): void {
@@ -163,15 +166,15 @@ export class DinoRig extends BaseRig {
     this.img(this.tailC, T.tailTop(l.tail, sk, m.tail), ['tail', ...(sk.ex?.kind === 'feathers' ? ['extra'] : [])]);
     const pos: { x: number; y: number; far: boolean; front: boolean; rot: number }[] = [];
     if (k.pose === 'crawl') for (const sy of [-1, 1]) { pos.push({ x: -rx * 0.52, y: sy * (hw + 2), far: sy < 0, front: false, rot: 0 }, { x: rx * 0.5, y: sy * (hw + 2), far: sy < 0, front: true, rot: 0 }); }
-    else if (k.pose === 'stand') for (const sy of [-1, 1]) pos.push({ x: 18, y: sy * hw * 0.95, far: sy < 0, front: false, rot: 0 });
+    else if (k.pose === 'stand') for (const sy of [-1, 1]) pos.push({ x: -rx * 0.32, y: sy * hw, far: sy < 0, front: false, rot: sy * 0.2 });
     else if (k.pose === 'fly') for (const sy of [-1, 1]) pos.push({ x: -rx * 0.3, y: sy * hw * 0.5, far: sy < 0, front: false, rot: 0 });
-    else for (const sy of [-1, 1]) pos.push({ x: -rx * 0.3, y: sy * (hw + 6), far: sy < 0, front: false, rot: sy * 0.9 + (sy < 0 ? Math.PI : 0) * 0 });
+    else for (const sy of [-1, 1]) pos.push({ x: -rx * 0.6, y: sy * hw * 0.92, far: sy < 0, front: false, rot: sy * 2.3 });
     for (const p of pos) {
-      const c = this.mk(B, p.x, p.y, k.pose === 'swim' ? (p.y < 0 ? -0.9 : 0.9) : 0);
+      const c = this.mk(B, p.x, p.y, p.rot);
       const hand = k.pose === 'crawl' && p.front;
       const im = this.img(c, T.legTop(l.legs, claw, sk, m.legs, m.claws, hand), hand ? ['legs', 'claws'] : ['legs']);
       if (im && p.y < 0) im.setScale(im.scaleX, -im.scaleY);
-      this.legs.push({ c, slot: { far: p.far, front: p.front, rot: c.rotation, len: 40 } });
+      this.legs.push({ c, slot: { y: p.y, far: p.far, front: p.front, rot: p.rot, len: 40 } });
     }
     if (k.pose === 'fly') for (const sy of [-1, 1]) {
       const c = this.mk(B, rx * 0.12, sy * hw * 0.7);
@@ -180,10 +183,10 @@ export class DinoRig extends BaseRig {
       this.wings.push({ c, far: sy < 0 });
     }
     if (k.pose !== 'crawl') for (const sy of [-1, 1]) {
-      const c = this.mk(B, rx * 0.62, sy * hw * 0.8, sy * (k.pose === 'swim' ? 0.7 : 0.3));
+      const c = this.mk(B, rx * 0.62, sy * hw * 0.8, sy * (k.pose === 'swim' ? 1.9 : 0.3));
       const im = this.img(c, T.armTop(claw, sk, m.claws), ['claws']);
       if (im && sy < 0) im.setScale(im.scaleX, -im.scaleY);
-      this.arms.push({ c, slot: { far: sy < 0, front: false, rot: c.rotation, len: claw.arm } });
+      this.arms.push({ c, slot: { y: c.y, far: sy < 0, front: false, rot: c.rotation, len: claw.arm } });
     }
     const h = l.head;
     this.neckC = this.mk(B, rx * 0.78, 0, 0);
@@ -217,15 +220,15 @@ export class DinoRig extends BaseRig {
     this.pivot.rotation = S0.roll + S0.tilt;
     const k = this.sk, pose = k.pose;
     this.bodyG.y = side ? -S0.bob + S0.crouch * 20 : S0.bob * 0.2;
-    const walkBob = Math.abs(Math.sin(S0.gait)) * 0 ;
-    this.bodyG.y += walkBob;
     this.torsoC.rotation = (side ? k.torso.rot : 0) + S0.crouch * (pose === 'stand' ? 0.25 : 0);
     this.torsoC.scaleY = 1 + Math.sin(S0.sway * Math.PI) * 0.015;
     const amp = S0.amp;
+    const planted = side && (pose === 'crawl' || pose === 'stand') && amp === 0;
     for (const q of this.legs) {
       const ph = (q.slot.far ? Math.PI : 0) + (q.slot.front ? Math.PI : 0);
       const swing = Math.sin(S0.gait + ph) * amp * (pose === 'swim' ? 0.5 : 0.55);
-      q.c.rotation = q.slot.rot + swing + (pose === 'swim' ? Math.sin(S0.gait * 1 + ph) * 0 : 0);
+      q.c.rotation = q.slot.rot + swing;
+      q.c.y = q.slot.y + (planted ? S0.bob : 0);
       if (side) q.c.scaleY = Math.max(0.5, 1 - (S0.crouch * 20) / q.slot.len);
       if (pose === 'fly' && side) q.c.rotation = q.slot.rot + Math.sin(S0.flap * 3) * 0.05;
     }
