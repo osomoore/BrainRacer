@@ -492,7 +492,8 @@ export class ChallengePanel {
       areaH = z.h;
     }
     const badge = this.hooks.controllerDevice?.type !== 'touch';
-    const g = jbqGeometry({ areaW, areaH, quad: isQuadView(v), badge });
+    const quotation = this.challenge.options.some((o) => o.kind === 'verse');
+    const g = jbqGeometry({ areaW, areaH, quad: isQuadView(v), badge, quotation });
     const mq = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.qTextW, 'center')).setVisible(false);
     const mb = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.aTextW, 'left')).setVisible(false);
     const mr = this.scene.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
@@ -588,7 +589,8 @@ export class ChallengePanel {
     } else {
       const mb = sc.add.text(0, 0, '', this.bodyStyle(40, availW, 'center')).setVisible(false);
       const mr = sc.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
-      const px = largestFit((p) => this.measureOption(mb, mr, o, p, availW) <= availH, quad ? 26 : 36, HUD.jbq.revealMaxFont);
+      const minPx = o.kind === 'verse' ? HUD.jbq.quoteAnswerHard : quad ? 26 : 36;
+      const px = largestFit((p) => this.measureOption(mb, mr, o, p, availW) <= availH, minPx, HUD.jbq.revealMaxFont);
       mb.destroy(); mr.destroy();
       const blk = this.answerBlock(o, px, availW, 'center', availH);
       blk.c.setPosition(-a.w / 2 + left, -blk.h / 2);
