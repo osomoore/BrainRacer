@@ -65,6 +65,7 @@ export default class AudioTest extends Phaser.Scene {
     track.on('pointerdown', setFromPointer);
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => { if (p.isDown && Math.abs(p.y - this.SL_Y) < 60) setFromPointer(p); });
     this.button(1100, 870, '[B] boost: off', () => { this.boost = !this.boost; }, 360, 'boost');
+    this.button(1100, 799, 'engine: off', () => this.toggleEngine(), 360, 'engine');
     this.button(1500, 870, 'siren loop', () => this.toggleSiren(), 300);
     this.button(1500, 940, 'skid loop', () => this.toggleSkid(), 300);
 
@@ -84,11 +85,13 @@ export default class AudioTest extends Phaser.Scene {
   }
 
   private boostLabel?: Phaser.GameObjects.Text;
+  private engineLabel?: Phaser.GameObjects.Text;
 
-  private button(x: number, y: number, label: string, onClick: () => void, w: number, tag?: string): void {
+  private button(x: number, y: number, label: string, onClick: () => void, w: number, tag?: 'boost' | 'engine'): void {
     const bg = this.add.rectangle(x, y, w, 56, 0x2b4a86).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     const txt = this.add.text(x + 14, y + 8, label, { fontFamily: FONT, fontSize: '36px', color: '#ffffff' });
     if (tag === 'boost') this.boostLabel = txt;
+    if (tag === 'engine') this.engineLabel = txt;
     bg.on('pointerover', () => bg.setFillStyle(0x3d66b8));
     bg.on('pointerout', () => bg.setFillStyle(0x2b4a86));
     bg.on('pointerdown', () => { void this.doUnlock().then(onClick); });
@@ -96,8 +99,17 @@ export default class AudioTest extends Phaser.Scene {
 
   private async doUnlock(): Promise<void> {
     await this.audio.unlock();
-    if (this.audio.unlocked && !this.engine) this.engine = this.audio.engine(0);
     this.refreshText();
+  }
+
+  private toggleEngine(): void {
+    if (this.engine) {
+      this.engine.stop();
+      this.engine = null;
+    } else if (this.audio.unlocked) {
+      this.engine = this.audio.engine(0);
+    }
+    this.engineLabel?.setText(this.engine ? 'engine: on' : 'engine: off');
   }
 
   private playSfx(i: number): void {

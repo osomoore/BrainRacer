@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "730851ecffe35c66",
+ "sourceHash": "62c18dae90518ecc",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -318,7 +318,7 @@
    "lengthBeats": 128,
    "loopSeconds": 49.23076923076923,
    "meanDb": -17.5,
-   "peakDb": -4.6
+   "peakDb": -4.1
   },
   "farm": {
    "file": "music/farm.ogg",
