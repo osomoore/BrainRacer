@@ -59,7 +59,10 @@ shared code lives in `shared/`.
 | `audio/**`, `scripts/renderWorkshopAudio.ts`, `public/audio/workshop/**` | audio package | `WorkshopAudio` implementation + rendered files. |
 | `art/**`, `dev/WorkshopParts.ts` | art package | `buildRig` for both workshops and both views. |
 | `screens/room*`, `screens/station*`, `screens/board*` | screens package | Workshop room, station menu, model view + board. |
-| `run/**`, `screens/run*`, `screens/results*` | runs package(s) | Scenario scenes, run sequencing, results + hints. |
+| `run/types.ts` | orchestrator | ScenarioPlayer / StageContext contract. |
+| `run/runner.ts`, `run/common/**`, `run/race/**`, `dev/RunPreview.ts` | race runs package | Run sequencing, view roll, shared scene kit, Race Shop scenario players. |
+| `run/dino/**`, `dev/DinoStages.ts` | dino runs package | Dino Lab scenario players. |
+| `screens/run*`, `screens/results*` | screens package | Run screen (uses the runner), results checklist + hints. |
 
 ## Engine semantics (logic/)
 
