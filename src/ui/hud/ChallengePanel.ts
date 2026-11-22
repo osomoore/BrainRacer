@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CHALLENGE } from '../../config/gameConfig';
+import { CHALLENGE, GAME_WIDTH } from '../../config/gameConfig';
 import { sceneTex, TEX } from '../../core/assetKeys';
 import { services } from '../../core/services';
 import type {
@@ -40,6 +40,8 @@ export interface PanelHooks {
   /** Pause-style break: big, centered in the view, no timer; 4 options are laid out as a diamond. */
   centered?: boolean;
   controllerDevice?: InputDevice;
+  /** 4-player quadrants: px of the view's inner side (towards the screen centre) kept free for the centre scoreboard. */
+  innerInset?: number;
 }
 
 function fitImage(img: Phaser.GameObjects.Image, size: number) {
@@ -223,6 +225,8 @@ export class ChallengePanel {
   // ───────────────────────── layout / update ─────────────────────────
   setView(view: Rect) { this.view = view; }
 
+  private inset(): number { return this.hooks.innerInset ?? 0; }
+
   private zone(): Rect { return challengeRegion(this.view); }
 
   private drawBg() {
@@ -252,7 +256,7 @@ export class ChallengePanel {
     if (this.centered) {
       const v = this.view;
       const sr = breakSplitRegion(v);
-      const big = Math.max(0.3, Math.min(CHALLENGE.breakMaxScale, (v.w - 40) / this.dockW, sr.h / this.dockH));
+      const big = Math.max(0.3, Math.min(CHALLENGE.breakMaxScale, (v.w - 40 - this.inset()) / this.dockW, sr.h / this.dockH));
       return { big, dock: big };
     }
     const z = this.zone();
@@ -267,7 +271,9 @@ export class ChallengePanel {
     if (this.centered) {
       const v = this.view;
       const sr = breakSplitRegion(v);
-      return { x: v.x + v.w / 2, y: sr.top + sr.h / 2, s: sc.big };
+      const inset = this.inset();
+      const cx = v.x + v.w / 2 + (v.x < GAME_WIDTH / 2 ? -inset / 2 : inset / 2);
+      return { x: cx, y: sr.top + sr.h / 2, s: sc.big };
     }
     const z = this.zone();
     const s = lerp(sc.big, sc.dock, easeInOut(t));

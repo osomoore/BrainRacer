@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { MAP_BOSSES } from '../art/boss';
-import { CHALLENGE, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { CHALLENGE, GAME_HEIGHT, GAME_WIDTH, MAX_PLAYERS, PLAYER_COLORS } from '../config/gameConfig';
 import type { GameEvents } from '../core/events';
 import type { RaceContext } from '../core/race';
 import { services } from '../core/services';
@@ -13,12 +13,14 @@ import { ChallengePanel } from '../ui/hud/ChallengePanel';
 import { HUD } from '../ui/hud/hudConfig';
 import { easeInOut, smoothFactor } from '../ui/hud/hudMath';
 import { COMPLETION_OBJECTIVES } from '../core/progression';
+import { perfProbe } from '../core/perfProbe';
+import { PerfOverlay } from '../ui/hud/PerfOverlay';
 import { Scoreboard } from '../ui/hud/Scoreboard';
 import { TimerBar } from '../ui/hud/TimerBar';
 import { REG, SCENE } from './keys';
 import { rideSecondsShown } from '../entities/dinoRide';
 
-const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 5.5, fly: 30 }; // Keep banners and popups behind active question panels.
+const D = { divider: 1, bars: 2, scoreboard: 5, panel: 6, banner: 5.5, fly: 30, perf: 40 }; // Keep banners and popups behind active question panels.
 const CENTER_Y = 430;
 /** Dino ride countdown card (bottom centre of the rider's view): dino head, seconds, shrinking bar. */
 const RIDE = { w: 520, h: 132, barW: 250, barH: 38, fromBottom: 100 };
@@ -36,11 +38,13 @@ export class HudScene extends Phaser.Scene {
   private layout: CameraLayout = { mode: 'single', playerViews: [{ x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT }] };
   private curViews: Rect[] = [];
   private divider: Phaser.GameObjects.Rectangle[] = [];
+  private hDivider: Phaser.GameObjects.Rectangle[] = [];
+  private perf: PerfOverlay | null = null;
   private dividerAlpha = 0;
   private dividerKey = '';
   private scoreboard!: Scoreboard;
   private goalsDone = 0;
-  private panels: (ChallengePanel | null)[] = [null, null];
+  private panels: (ChallengePanel | null)[] = [null, null, null, null];
   private bars: TimerBar[] = [];
   private banners!: Banners;
   private overlay!: PauseOverlay;
@@ -48,7 +52,7 @@ export class HudScene extends Phaser.Scene {
   private lastKind: Partial<Record<Kind, number>> = {};
   private clock = 0;
   private pauseStyle = true;
-  private waiting = [false, false];
+  private waiting = [false, false, false, false];
   private waitCards: Phaser.GameObjects.Container[] = [];
   private rideCards: { box: Phaser.GameObjects.Container; num: Phaser.GameObjects.Text; fill: Phaser.GameObjects.Rectangle; shown: number; low: boolean | null }[] = [];
   private dim: Phaser.GameObjects.Rectangle[] = [];
@@ -59,12 +63,13 @@ export class HudScene extends Phaser.Scene {
   create() {
     const ctx = this.registry.get(REG.race) as RaceContext | undefined;
     this.subs = [];
-    this.panels = [null, null];
+    this.panels = [];
     this.bars = [];
+    this.perf = null;
     this.lastKind = {};
     this.clock = 0;
     this.dividerAlpha = 0;
-    this.waiting = [false, false];
+    this.waiting = [false, false, false, false];
     this.waitCards = [];
     this.rideCards = [];
     this.dimA = 0;
@@ -73,7 +78,8 @@ export class HudScene extends Phaser.Scene {
       return;
     }
     this.ctx = ctx;
-    this.nPlayers = Math.max(1, Math.min(2, ctx.settings?.players?.length ?? ctx.players.length ?? 1));
+    this.nPlayers = Math.max(1, Math.min(MAX_PLAYERS, ctx.settings?.players?.length ?? ctx.players.length ?? 1));
+    this.panels = Array.from({ length: this.nPlayers }, () => null);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
 
     this.pauseStyle = (ctx.settings?.questionStyle ?? 'pause') === 'pause';
@@ -83,8 +89,14 @@ export class HudScene extends Phaser.Scene {
     this.divider[0].setFillStyle(0x0b1226).setSize(16, GAME_HEIGHT);
     this.divider[1].setSize(3, GAME_HEIGHT);
     this.divider[2].setSize(3, GAME_HEIGHT);
+    // Quadrant cross: horizontal bars (same look as the vertical ones).
+    const hbar = () => this.add.rectangle(0, 0, GAME_WIDTH, 1, 0xe8f0ff).setOrigin(0, 0).setDepth(D.divider).setVisible(false);
+    this.hDivider = [hbar(), hbar(), hbar()];
+    this.hDivider[0].setFillStyle(0x0b1226).setSize(GAME_WIDTH, 16);
+    this.hDivider[1].setSize(GAME_WIDTH, 3);
+    this.hDivider[2].setSize(GAME_WIDTH, 3);
     this.dividerKey = '';
-    this.dim = [0, 1].map(() => this.add.rectangle(0, 0, 1, 1, 0x0b1226).setOrigin(0, 0).setDepth(0.5).setVisible(false));
+    this.dim = [0, 1, 2, 3].map(() => this.add.rectangle(0, 0, 1, 1, 0x0b1226).setOrigin(0, 0).setDepth(0.5).setVisible(false));
     this.scoreboard = new Scoreboard(this, this.nPlayers, D.scoreboard);
     this.scoreboard.setRemaining(ctx.roundLengthSec);
     this.goalsDone = 0;
@@ -103,6 +115,7 @@ export class HudScene extends Phaser.Scene {
 
     this.applyLayout(ctx.camera.layout(), true);
     this.bind();
+    if (perfProbe.enabled) this.perf = new PerfOverlay(this, D.perf);
   }
 
   // ───────────────────────── events ─────────────────────────
@@ -126,6 +139,7 @@ export class HudScene extends Phaser.Scene {
         depth: D.panel,
         centered: this.pauseStyle,
         controllerDevice: this.ctx.settings.players[p]?.device,
+        innerInset: this.nPlayers >= 4 && this.quad() ? HUD.quad.centerClear : 0,
         onCorrect: (x, y) => this.flyPlusOne(x, y),
       });
       this.waiting[p] = false;
@@ -156,7 +170,7 @@ export class HudScene extends Phaser.Scene {
     this.on('ui:banner', (e) => {
       const kind = KIND_RE.find(([, re]) => re.test(e.text))?.[0];
       if (kind) this.kindBanner(kind, e.text, e.color, e.durationSec);
-      else this.banners.center(GAME_WIDTH / 2, CENTER_Y, e.text, e.color ?? '#ffd43b', e.durationSec ?? 1.2);
+      else this.banners.center(this.bannerPos().x, this.bannerPos().y, e.text, e.color ?? '#ffd43b', e.durationSec ?? 1.2);
     });
     // Only score-like popups (+1, -2 ...) and the dino ROAR show; other words are ignored on purpose.
     this.on('ui:popup', (e) => {
@@ -175,7 +189,9 @@ export class HudScene extends Phaser.Scene {
     this.subs.forEach((u) => u());
     this.subs = [];
     this.panels.forEach((p) => p?.destroy());
-    this.panels = [null, null];
+    this.panels = [];
+    this.perf?.destroy();
+    this.perf = null;
     this.banners?.destroy();
   }
 
@@ -254,7 +270,7 @@ export class HudScene extends Phaser.Scene {
       const pulse = 1 + 0.05 * Math.sin(this.clock * 6);
       card.setPosition(v.x + v.w / 2, v.y + v.h / 2).setScale(pulse);
     }
-    if (!breaking) this.waiting = [false, false];
+    if (!breaking) this.waiting = [false, false, false, false];
   }
 
   // ───────────────────────── layout ─────────────────────────
@@ -271,7 +287,14 @@ export class HudScene extends Phaser.Scene {
     return v[p] ?? v[v.length - 1];
   }
 
-  private shared() { return this.layout.mode !== 'split'; }
+  private quad() { return this.layout.mode === 'quad'; }
+
+  /** One shared world view (single/merged); split and quad have one view per player. */
+  private shared() { return this.layout.mode !== 'split' && this.layout.mode !== 'quad'; }
+
+  private bannerPos(): { x: number; y: number } {
+    return { x: GAME_WIDTH / 2, y: this.quad() ? HUD.quad.bannerY : CENTER_Y };
+  }
 
   /** Rect that world views are mapped into: the player's view in split, the whole screen otherwise. */
   private mapRect(p: number): Rect {
@@ -292,15 +315,18 @@ export class HudScene extends Phaser.Scene {
     const last = this.lastKind[kind];
     if (last !== undefined && now - last < 3) return;
     this.lastKind[kind] = now;
-    if (kind === 'dino') this.banners.alert(GAME_WIDTH / 2, CENTER_Y, text, dur ?? 2.8);
-    else this.banners.center(GAME_WIDTH / 2, CENTER_Y, text, color ?? '#ffd43b', dur ?? 1.6);
+    const b = this.bannerPos();
+    const q = this.quad();
+    if (kind === 'dino') this.banners.alert(b.x, b.y, text, dur ?? 2.8, q ? HUD.quad.alertSize : 140);
+    else this.banners.center(b.x, b.y, text, color ?? '#ffd43b', dur ?? 1.6, q ? { size: HUD.quad.bannerSize } : {});
   }
 
   /** Small "Waiting…" pill near the top of the player's view while the teammate catches up. */
   private waitBanner(p: number) {
     const r = this.curViews[p];
-    this.banners.lines(`wait${p}`, r.x + r.w / 2, r.y + HUD.hint.y + 30, null, [
-      { text: 'Waiting…', size: HUD.hint.textSize, color: PLAYER_COLORS[p] === '#2ecc40' ? '#7dff8a' : '#ff8a80' },
+    const y = r.y + (this.quad() ? HUD.quad.hintY : HUD.hint.y + 30);
+    this.banners.lines(`wait${p}`, r.x + r.w / 2, y, null, [
+      { text: 'Waiting…', size: HUD.hint.textSize, color: HUD.playerLight[p] ?? '#ffffff' },
     ], HUD.hint.waitSec);
   }
 
@@ -310,8 +336,9 @@ export class HudScene extends Phaser.Scene {
     const w = world ?? (car ? { x: car.x, y: car.y } : undefined);
     const v = this.curViews[p];
     const s = w ? this.toScreen(p, w.x, w.y) : { x: v.x + v.w / 2, y: v.y + v.h / 2 };
+    const q = this.quad();
     const x = Math.min(v.x + v.w - 120, Math.max(v.x + 120, s.x));
-    const y = Math.min(v.y + v.h - 120, Math.max(v.y + 300, s.y - 70));
+    const y = Math.min(v.y + v.h - (q ? HUD.quad.popupBottom : 120), Math.max(v.y + (q ? HUD.quad.popupMinY : 300), s.y - 70));
     this.banners.popup(x, y, text, color ?? '#ffffff');
   }
 
@@ -387,21 +414,28 @@ export class HudScene extends Phaser.Scene {
       this.bars[p].update(dt);
     }
     this.banners.update(dt);
+    this.perf?.update(realDt);
   }
 
   private drawDivider(dt: number) {
-    const want = this.layout.mode === 'split' && this.nPlayers > 1 ? 1 : 0;
+    const quad = this.quad() && this.nPlayers > 2;
+    const want = (this.layout.mode === 'split' && this.nPlayers > 1) || quad ? 1 : 0;
     this.dividerAlpha += (want - this.dividerAlpha) * smoothFactor(dt, 10);
     const vis = this.dividerAlpha >= 0.02;
-    if (!vis) { if (this.dividerKey !== 'off') { this.dividerKey = 'off'; this.divider.forEach((d) => d.setVisible(false)); } return; }
+    if (!vis) { if (this.dividerKey !== 'off') { this.dividerKey = 'off'; this.divider.forEach((d) => d.setVisible(false)); this.hDivider.forEach((d) => d.setVisible(false)); } return; }
     const x = this.curViews[1]?.x ?? GAME_WIDTH / 2;
     const a = Math.round(this.dividerAlpha * 1000) / 1000;
-    const key = `${x}|${a}`;
+    const y = this.curViews[2]?.y ?? GAME_HEIGHT / 2;
+    const key = `${x}|${y}|${a}|${quad}`;
     if (key === this.dividerKey) return; // only touch the rectangles when the layout/fade changed
     this.dividerKey = key;
     const [dark, l, r] = this.divider;
     dark.setPosition(x - 8, 0).setAlpha(a).setVisible(true);
     l.setPosition(x - 11, 0).setAlpha(a).setVisible(true);
     r.setPosition(x + 8, 0).setAlpha(a).setVisible(true);
+    const [hd, hl, hr] = this.hDivider;
+    hd.setPosition(0, y - 8).setAlpha(a).setVisible(quad);
+    hl.setPosition(0, y - 11).setAlpha(a).setVisible(quad);
+    hr.setPosition(0, y + 8).setAlpha(a).setVisible(quad);
   }
 }

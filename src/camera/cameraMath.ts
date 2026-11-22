@@ -20,6 +20,10 @@ export interface CameraTuning extends FacingTuning {
   speedZoomOut: number;
   speedZoomRef: number;
   turboZoomOut: number;
+  /** Zoom of each 960x540 quadrant (3-4 players). */
+  quadZoom: number;
+  /** Fraction of quadrant height (from the top) where the car sits. */
+  quadCarScreenY: number;
 }
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -114,9 +118,32 @@ export function shakeFalloff(dist: number, radius: number): number {
   return radius <= 0 ? 0 : clamp(1 - dist / radius, 0, 1);
 }
 
-/** HUD player views: full screen for 1 player, left/right halves for 2 (stable in every mode). */
+/** True when `count` players use the fixed 2x2 quadrant layout (3 or 4 players). */
+export const isQuadCount = (count: number): boolean => count >= 3;
+
+/** The four quadrant rects: P1 top-left, P2 top-right, P3 bottom-left, P4 bottom-right (integers, abutting). */
+export function quadrantRects(screenW: number, screenH: number): Rect[] {
+  const w0 = Math.floor(screenW / 2), h0 = Math.floor(screenH / 2);
+  return [
+    { x: 0, y: 0, w: w0, h: h0 },
+    { x: w0, y: 0, w: screenW - w0, h: h0 },
+    { x: 0, y: h0, w: w0, h: screenH - h0 },
+    { x: w0, y: h0, w: screenW - w0, h: screenH - h0 },
+  ];
+}
+
+/** Bottom-right quadrant when it is free for the HUD team panel (exactly 3 players), else null. */
+export function teamPanelRect(count: number, screenW: number, screenH: number): Rect | null {
+  return count === 3 ? quadrantRects(screenW, screenH)[3] : null;
+}
+
+/** Camera mode for a player count when the 1-2 player split/merge machine is not involved. */
+export const modeForCount = (count: number): CameraMode => (count >= 3 ? 'quad' : count === 2 ? 'split' : 'single');
+
+/** HUD player views: full screen for 1 player, left/right halves for 2, quadrants for 3-4 (stable in every mode). */
 export function playerViewsFor(count: number, screenW: number, screenH: number): Rect[] {
   if (count <= 1) return [{ x: 0, y: 0, w: screenW, h: screenH }];
+  if (count >= 3) return quadrantRects(screenW, screenH).slice(0, Math.min(4, count));
   return [
     { x: 0, y: 0, w: screenW / 2, h: screenH },
     { x: screenW / 2, y: 0, w: screenW / 2, h: screenH },

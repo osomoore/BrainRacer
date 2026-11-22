@@ -3,7 +3,7 @@ import { PLAYER_COLORS } from '../../config/gameConfig';
 import { COMPLETION_OBJECTIVES } from '../../core/progression';
 import { bigText, FONT_HEAD } from '../menu/style';
 import { bakedImage, rrectImage } from './bake';
-import { HUD, scoreboardRect } from './hudConfig';
+import { HUD, scoreboardLayout } from './hudConfig';
 import { formatTime } from './hudMath';
 
 /** Team score, per-player points and the round timer. */
@@ -20,42 +20,39 @@ export class Scoreboard {
   private plusY = 0;
   private goals = 0;
   private goalsMax = COMPLETION_OBJECTIVES;
+  private flagScale = 1;
+  private fly = { x: 60, y: 66 };
   private flagOff!: Phaser.GameObjects.Image;
   private flagOn!: Phaser.GameObjects.Image;
   private goalText!: Phaser.GameObjects.Text;
 
   constructor(private scene: Phaser.Scene, numPlayers: number, depth: number) {
     this.numPlayers = numPlayers;
-    const { x, y, w, h } = scoreboardRect(numPlayers);
-    const two = numPlayers > 1;
+    const L = scoreboardLayout(numPlayers);
+    const { x, y, w, h } = L.rect;
     const bg = rrectImage(scene, { r: 34, fill: HUD.colors.navy, fillA: 0.9, stroke: HUD.colors.gold, strokeW: 7 }, 0, h / 2, w, h);
-    const label = bigText(scene, -w / 2 + 28, 66, 'TEAM', 46, '#ffd43b', { font: FONT_HEAD, stroke: 8, origin: [0, 0.5] });
-    this.teamText = bigText(scene, w / 2 - 28, 66, '0', 104, '#ffffff', { font: FONT_HEAD, stroke: 12, origin: [1, 0.5] });
+    const label = bigText(scene, L.label.x, L.label.y, L.label.text, L.label.size, '#ffd43b', { font: FONT_HEAD, stroke: 8, origin: L.label.origin });
+    this.teamText = bigText(scene, L.team.x, L.team.y, '0', L.team.size, '#ffffff', { font: FONT_HEAD, stroke: 12, origin: L.team.origin });
     this.plusText = bigText(scene, 0, h + 40, '', 64, '#7dff8a', { font: FONT_HEAD, stroke: 9 }).setAlpha(0);
-    const y2 = 138, y3 = two ? 208 : 152;
-    this.timer = bigText(scene, 0, y3, '00:00', 56, '#ffffff', { font: FONT_HEAD, stroke: 9 });
-    // Timer sits left, world-goal counter (flag + n/3) right, on the same row.
-    this.timer.setX(HUD.scoreboard.timerX);
-    const gx = HUD.scoreboard.goalsX;
-    this.flagOff = this.makeFlag(gx, y3, 0xffd43b);
-    this.flagOn = this.makeFlag(gx, y3, 0x7dff8a).setVisible(false);
-    this.goalText = bigText(scene, gx + 26, y3, `0/${this.goalsMax}`, 56, '#ffffff', { font: FONT_HEAD, stroke: 9, origin: [0, 0.5] });
+    this.timer = bigText(scene, L.timer.x, L.timer.y, '00:00', L.timer.size, '#ffffff', { font: FONT_HEAD, stroke: 9 });
+    this.flagScale = L.flagScale;
+    this.flagOff = this.makeFlag(L.goals.x, L.goals.y, 0xffd43b).setScale(this.flagScale);
+    this.flagOn = this.makeFlag(L.goals.x, L.goals.y, 0x7dff8a).setScale(this.flagScale).setVisible(false);
+    this.goalText = bigText(scene, L.goals.x + L.goals.dx, L.goals.y, `0/${this.goalsMax}`, L.goals.size, '#ffffff', { font: FONT_HEAD, stroke: 9, origin: [0, 0.5] });
     const items: Phaser.GameObjects.GameObject[] = [bg, label, this.teamText, this.timer, this.flagOff, this.flagOn, this.goalText];
-    if (numPlayers > 1) {
-      for (let p = 0; p < numPlayers; p++) {
-        const sign = p === 0 ? -1 : 1;
-        const t = bigText(scene, sign * 95, y2, `P${p + 1} 0`, 48, PLAYER_COLORS[p], { font: FONT_HEAD, stroke: 9 });
-        this.pText.push(t);
-        items.push(t);
-      }
+    for (let p = 0; p < L.pts.length; p++) {
+      const t = bigText(scene, L.pts[p].x, L.pts[p].y, `P${p + 1} 0`, L.ptsSize, PLAYER_COLORS[p], { font: FONT_HEAD, stroke: 9 });
+      this.pText.push(t);
+      items.push(t);
     }
     this.plusY = h + 40;
+    this.fly = L.fly;
     items.push(this.plusText);
     this.root = scene.add.container(x + w / 2, y, items).setDepth(depth);
   }
 
   /** Screen point the "+1" should fly to. */
-  target(): { x: number; y: number } { return { x: this.root.x + 60, y: this.root.y + 66 }; }
+  target(): { x: number; y: number } { return { x: this.root.x + this.fly.x, y: this.root.y + this.fly.y }; }
 
   setScore(team: number, perPlayer: number[]) {
     const d = team - this.team;
@@ -77,9 +74,10 @@ export class Scoreboard {
     this.flagOff.setVisible(!done);
     this.flagOn.setVisible(done);
     if (up) {
-      const targets = [this.goalText, done ? this.flagOn : this.flagOff];
-      this.scene.tweens.killTweensOf(targets);
-      this.scene.tweens.add({ targets, scale: { from: 1.5, to: 1 }, duration: 420, ease: 'Back.easeOut' });
+      const flag = done ? this.flagOn : this.flagOff;
+      this.scene.tweens.killTweensOf([this.goalText, flag]);
+      this.scene.tweens.add({ targets: this.goalText, scale: { from: 1.5, to: 1 }, duration: 420, ease: 'Back.easeOut' });
+      this.scene.tweens.add({ targets: flag, scale: { from: 1.5 * this.flagScale, to: this.flagScale }, duration: 420, ease: 'Back.easeOut' });
     }
   }
 
