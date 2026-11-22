@@ -13,7 +13,8 @@
     "test": "node scripts/vitest.mjs",
     "e2e": "playwright test",
     "assets": "tsx scripts/build-assets.ts",
-    "audio:render": "tsx scripts/renderAudio.ts"
+    "audio:render": "tsx scripts/renderAudio.ts",
+    "audio:workshop": "tsx scripts/renderWorkshopAudio.ts"
   },
   "dependencies": {
     "@tonejs/midi": "2.0.28",
