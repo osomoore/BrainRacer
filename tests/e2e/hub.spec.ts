@@ -12,7 +12,7 @@ test('launcher shows both games and opens them with the keyboard', async ({ page
   await expect(tile(page, 'workshop')).toHaveClass(/sel/);
   await page.keyboard.press('Enter');
   await page.waitForURL(/workshop\.html/);
-  await expect(page.locator('body')).toContainText('Coming Soon');
+  await page.waitForFunction(() => (window as any).__ws?.state().scene === 'title', null, { timeout: 30_000 });
 
   await page.keyboard.press('Escape');
   await page.waitForURL((u) => !/workshop\.html/.test(u.pathname));
