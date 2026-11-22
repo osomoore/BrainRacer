@@ -77,4 +77,15 @@ export const WS_ART = {
 export const WS_AUDIO = {
   musicVolume: 0.5,
   sfxVolume: 0.8,
+  /** Music crossfade between tracks, seconds. */
+  musicFadeSec: 1.2,
+  /** Music level (fraction) while a sting plays, and the ramps around it. */
+  duckLevel: 0.25,
+  duckAttackSec: 0.08,
+  duckReleaseSec: 0.6,
+  /** Polyphony limits for one-shot sfx. */
+  maxVoicesPerSfx: 4,
+  maxVoicesTotal: 16,
+  /** Ignore the same sfx retriggered within this many seconds. */
+  minReplayGapSec: 0.03,
 } as const;
