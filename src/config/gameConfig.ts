@@ -1141,6 +1141,8 @@ export const QUEUED_SCENERY = {
   ambientLimit: 54,
 } as const;
 
+export const ENGINE_AUDIO = { rumbleCutoffHz: 120, rumbleGainDb: -4, levelFadeSec: 0.08 } as const;
+
 export const WORLD_MUSIC = {
   finalSeconds: 30,
   finalFraction: .25,

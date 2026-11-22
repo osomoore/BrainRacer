@@ -108,6 +108,7 @@ class AudioImpl implements IAudio {
     onTuningChange((t) => {
       try {
         this.mixer?.setDynamics(t.compressor);
+        this.mixer?.setEngineLevel(t.engineLevel);
         if (this.unlocked) Tone.getContext().lookAhead = t.lookAheadSec;
       } catch { /* ignore */ }
       if (this.unlocked && t.audioMode !== this.audioMode) {
@@ -238,7 +239,7 @@ class AudioImpl implements IAudio {
           Tone.getContext().lookAhead = tuning.lookAheadSec;
         }
         await Tone.start();
-        this.mixer = new Mixer();
+        this.mixer = new Mixer(tuning.engineLevel);
         this.mixer.setDynamics(tuning.compressor);
         this.mixer.setVolumes(this.volumes.music, this.volumes.sfx);
         this.mixer.setMusicMix(this.musicMix);

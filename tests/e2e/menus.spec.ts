@@ -68,16 +68,33 @@ test('gamepads: two players customize and receive different questions', async ({
   for (let i = 0; i < 3; i++) await tapPad(page, 1, PAD_DOWN); // P2 has no JBQ rows: Questions, Car, Buddy.
 
   const previews = await page.evaluate(() => {
-    type Column = { racerRow: Phaser.GameObjects.Container; carRow: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
+    type Column = {
+      racerRow: Phaser.GameObjects.Container;
+      carRow: Phaser.GameObjects.Container;
+      guideRow: Phaser.GameObjects.Container;
+      hint: Phaser.GameObjects.Text;
+      scopeRow: Phaser.GameObjects.Container;
+      carObj: Phaser.GameObjects.Container;
+      guideObj: Phaser.GameObjects.Image;
+    };
     const setup = window.__game.scene.getScene('Setup') as unknown as { panels: Column[] };
-    return setup.panels.slice(0, 2).map(({ racerRow: racer, carRow: car, hint }) => ({
-      text: hint.text,
-      fits: racer.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
-    }));
+    return setup.panels.slice(0, 2).map(({ racerRow, carRow, guideRow, hint, scopeRow, carObj, guideObj }, i) => {
+      const car = carObj.getBounds(), buddy = guideObj.getBounds();
+      return {
+        text: hint.text,
+        carWidth: car.width,
+        buddyHeight: buddy.height,
+        fits: racerRow.getBounds().bottom < hint.getBounds().top &&
+          (i !== 0 || scopeRow.getBounds().bottom < car.top) && car.bottom < carRow.getBounds().top &&
+          carRow.getBounds().bottom < buddy.top && buddy.bottom < guideRow.getBounds().top,
+      };
+    });
   });
   expect(previews[0].text).toContain('Hard');
   expect(previews[1].text).not.toContain('Hard');
   expect(previews.every((preview) => preview.fits)).toBe(true);
+  expect(previews[1].carWidth).toBeGreaterThan(previews[0].carWidth * 1.5);
+  expect(previews[1].buddyHeight).toBeGreaterThan(previews[0].buddyHeight * 1.5);
 
   await tapPad(page, 0, BTN_A); // P1 ready (locks the panel)
   await tapPad(page, 1, BTN_A); // P2 ready
@@ -232,6 +249,44 @@ test('Setup wraps and the hidden hotkeys open Advanced', async ({ page }) => {
     const { map, questionStyle } = window.__race.settings;
     return { map, questionStyle };
   })).toEqual({ map: 'industrial', questionStyle: 'pause' });
+  expect(errors).toEqual([]);
+});
+
+test('Admin Audio adjusts the engine independently and returns to Admin Settings', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/racer.html');
+  await waitScene(page, 'Title');
+  await page.waitForTimeout(500);
+  await page.keyboard.press('F9');
+  await page.waitForFunction(() => window.__game.scene.isPaused('Title'));
+
+  const tap = async (key: string) => {
+    await page.keyboard.press(key, { delay: 70 });
+    await page.waitForTimeout(70);
+  };
+  const click = async (x: number, y: number) => {
+    const canvas = (await page.locator('canvas').boundingBox())!;
+    await page.mouse.click(canvas.x + x * canvas.width / 1920, canvas.y + y * canvas.height / 1080);
+  };
+  const level = () => page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.tuning.v1')!).engineLevel);
+  const before = await settingsOf(page);
+
+  await click(1430, 221); // Audio button on the main page.
+  await tap('KeyS'); await tap('KeyS'); // Sound FX volume, then Engine level.
+  await tap('KeyA');
+  await expect.poll(level).toBe(50);
+  await click(1350, 376); // Engine level right arrow.
+  await expect.poll(level).toBe(75);
+  const after = await settingsOf(page);
+  expect(after.musicVolume).toBe(before.musicVolume);
+  expect(after.sfxVolume).toBe(before.sfxVolume);
+
+  await tap('Backspace'); // Return to Admin Settings, with Audio still selected.
+  expect(await page.evaluate(() => window.__game.scene.isPaused('Title'))).toBe(true);
+  await tap('Space'); // Reopen Audio with the keyboard.
+  await click(960, 868); // Back button.
+  await click(1430, 987); // Close Admin Settings.
+  await waitScene(page, 'Title');
   expect(errors).toEqual([]);
 });
 
