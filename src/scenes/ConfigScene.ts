@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { changeJbq, jbqPointsLabel, jbqScopeLabel, ROW_POINTS, ROW_SCOPE } from '../ui/menu/questionPick';
 import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS, RACER_ROUND_SEC } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
@@ -170,22 +171,20 @@ export class ConfigScene extends Phaser.Scene {
 
     const rowY = (i: number) => FIRST_ROW + i * ROW_STEP;
     header(0, 155, 'NEXT RACE');
-    option(0, rowY(0), 'Answer mode', () => this.settings().questionStyle === 'drive' ? 'While Driving' : 'Stop & Answer',
-      () => this.patchSettings({ questionStyle: this.settings().questionStyle === 'drive' ? 'pause' : 'drive' }));
     // Race length is per racer now (Racer Profiles → Race time); the longer of the two players' times is used.
-    option(0, rowY(1), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
+    option(0, rowY(0), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
-    option(0, rowY(2), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
+    option(0, rowY(1), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
       (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
 
-    action(0, rowY(3), 'Performance test', () => {
+    action(0, rowY(2), 'Performance test', () => {
       this.adminCursor = this.cursor;
       this.showPerf();
     });
 
-    header(0, rowY(4), 'GAMEPAD');
+    header(0, rowY(3), 'GAMEPAD');
     for (const p of [0, 1, 2, 3] as const) {
-      option(0, rowY(5 + p), `P${p + 1} gas`, () => {
+      option(0, rowY(4 + p), `P${p + 1} gas`, () => {
         const mode = getTuning().gas[p];
         const device = this.settings().players[p]?.device;
         const family = device ? services.input.controllerFamily?.(device) : undefined;
@@ -197,12 +196,12 @@ export class ConfigScene extends Phaser.Scene {
         setTuning({ gas });
       });
     }
-    header(0, rowY(9), 'DISPLAY   (* needs reload)');
-    option(0, rowY(10), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
+    header(0, rowY(8), 'DISPLAY   (* needs reload)');
+    option(0, rowY(9), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
-    option(0, rowY(11), 'Debug readout', () => onOff(getTuning().debugReadout),
+    option(0, rowY(10), 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
-    option(0, rowY(12), 'Perf overlay', () => onOff(getTuning().perfHud),
+    option(0, rowY(11), 'Perf overlay', () => onOff(getTuning().perfHud),
       () => setTuning({ perfHud: !getTuning().perfHud }));
 
     header(1, 155, 'AUDIO');
@@ -260,7 +259,7 @@ export class ConfigScene extends Phaser.Scene {
     const colW = 840;
     const xs = [490, 1430];
     const y0 = 215;
-    const rowStep = 78;
+    const rowStep = 68;
     const opts = { width: colW, height: 60, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: RacerProfileId, mutate: (p: RacerProfile) => void): void => {
       const cur = racerProfiles(this.settings())[id];
@@ -292,6 +291,13 @@ export class ConfigScene extends Phaser.Scene {
           p.questionTypes[type] = on;
         });
         this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
+      }
+      for (const [label, rowId] of [['JBQ points', ROW_POINTS], ['JBQ scope', ROW_SCOPE]] as const) {
+        const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 115, arrowSpan: 150 });
+        panel.add(row);
+        const change = (dir: 1 | -1) => save(id, p => { p.jbq = changeJbq(p.jbq, rowId, dir); });
+        const text = () => { const j = racerProfiles(this.settings())[id].jbq; return rowId === ROW_POINTS ? jbqPointsLabel(j.points) : jbqScopeLabel(j.points, j.scope); };
+        this.subRows.push({ selectable: row, refresh: () => row.setValue(text()), change, activate: () => change(1), bump: d => row.bump(d) });
       }
       const time = new OptionRow(this, x, rowY(), 'Race time', { ...opts, valueX: 150, arrowSpan: 105 });
       panel.add(time);
