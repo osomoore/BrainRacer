@@ -1,22 +1,10 @@
 /**
- * STUB from the orchestrator (grey boxes). The art package REPLACES this file; keep the `buildRig` export.
+ * Adventure Workshop art: draws any Race Shop / Dino Lab build as an animatable rig, in side and top view.
+ * Look tables: art/race/looks.ts, art/dino/looks.ts. Parts are baked once into `ws:` canvas textures.
  */
-import type { BuildRig, ModelRig } from '../core/runtime';
+import type { BuildRig } from '../core/runtime';
+import { DinoRig } from './dino/rig';
+import { RaceRig } from './race/rig';
 
-export const buildRig: BuildRig = (scene, _workshop, model, view) => {
-  const w = 360;
-  const h = view === 'side' ? 200 : 180;
-  const root = scene.add.container(0, 0);
-  const box = scene.add.rectangle(0, view === 'side' ? -h / 2 : 0, w, h, 0x9aa5b1).setStrokeStyle(6, 0x1b1b3a);
-  root.add(box);
-  const parts = Object.fromEntries(Object.keys(model).map((a) => [a, [box]]));
-  const rig: ModelRig = {
-    root, view, width: w, height: h, parts,
-    focus: () => ({ x: 0, y: -h / 2, zoom: 1.6 }),
-    anchor: () => ({ x: 0, y: -h / 2 }),
-    play: () => {},
-    setModel: () => {},
-    destroy: () => root.destroy(),
-  };
-  return rig;
-};
+export const buildRig: BuildRig = (scene, workshop, model, view) =>
+  workshop === 'race' ? new RaceRig(scene, model, view) : new DinoRig(scene, model, view);
