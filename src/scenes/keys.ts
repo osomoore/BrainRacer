@@ -1,7 +1,8 @@
 export const SCENE = {
   boot: 'Boot',
   title: 'Title',
-  setup: 'Setup',
+  setup: 'Setup',          // the Join screen (panels, racer/car/buddy, ready)
+  track: 'TrackSelect',
   race: 'Race',
   hud: 'Hud',
   results: 'Results',

@@ -9,6 +9,8 @@ export interface OptionRowOpts {
   valueX: number;
   /** half distance between the < > arrows. */
   arrowSpan: number;
+  /** Hide the bobbing arrow outside the row (when there is no room beside it). */
+  noCursor?: boolean;
 }
 
 /** "Label        < value >" row. Selected = highlight + scale + arrow cursor in the player's color. */
@@ -62,7 +64,7 @@ export class OptionRow extends Phaser.GameObjects.Container implements Selectabl
     const changed = selected !== this.selected;
     this.selected = selected;
     this.draw();
-    this.cursor.setVisible(selected);
+    this.cursor.setVisible(selected && !this.opts.noCursor);
     if (!changed) return;
     this.scene.tweens.add({ targets: this, scale: selected ? 1.05 : 1, duration: 120, ease: 'Back.Out' });
     this.cursorTween?.remove();

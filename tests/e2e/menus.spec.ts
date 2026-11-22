@@ -26,13 +26,11 @@ test('gamepads: two players customize and receive different questions', async ({
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
 
-  await tapPad(page, 0, BTN_A);   // P1 joins
-  await tapPad(page, 1, BTN_A);   // P2 joins
-  await page.screenshot({ path: 'test-results/menus-title-2p.png' });
-  await page.waitForTimeout(800);   // join grace: P2 could join before P1's second A counts
-  await tapPad(page, 0, BTN_A);   // continue
+  await tapPad(page, 0, BTN_A);   // Title -> Join: pad 0 claims panel 1
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
+  await tapPad(page, 1, BTN_A);   // pad 1 claims panel 2
+  await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
   await tapPad(page, 0, PAD_RIGHT); // P1 starts as Gideon; right goes to Helen (hard, multiplication + spelling).
@@ -42,9 +40,9 @@ test('gamepads: two players customize and receive different questions', async ({
   }
 
   const previews = await page.evaluate(() => {
-    type Column = { racer: Phaser.GameObjects.Container; car: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
-    const setup = window.__game.scene.getScene('Setup') as unknown as { cols: Column[] };
-    return setup.cols.map(({ racer, car, hint }) => ({
+    type Column = { racerRow: Phaser.GameObjects.Container; carRow: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
+    const setup = window.__game.scene.getScene('Setup') as unknown as { panels: Column[] };
+    return setup.panels.slice(0, 2).map(({ racerRow: racer, carRow: car, hint }) => ({
       text: hint.text,
       fits: racer.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
     }));
@@ -56,7 +54,17 @@ test('gamepads: two players customize and receive different questions', async ({
   expect(previews[1].text).not.toContain('Tables up to');
   expect(previews.every((preview) => preview.fits)).toBe(true);
 
-  await tapPad(page, 0, BTN_A); // Confirm from the Guide row starts the race.
+  await tapPad(page, 0, BTN_A); // P1 ready (locks the panel)
+  await tapPad(page, 1, BTN_A); // P2 ready
+  await page.waitForTimeout(700);
+  await tapPad(page, 1, BTN_A); // P2 cannot continue
+  expect(await page.evaluate(() => window.__game.scene.isActive('Setup'))).toBe(true);
+  await tapPad(page, 0, BTN_A); // P1 Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await tapPad(page, 1, BTN_A); // P2 cannot start
+  expect(await page.evaluate(() => window.__game.scene.isActive('TrackSelect'))).toBe(true);
+  await tapPad(page, 0, BTN_A); // P1 Start
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
@@ -87,14 +95,15 @@ test('keyboard only: a launch override skips questions without changing Setup pr
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
 
-  await page.keyboard.press('Space');   // join (WASD layout)
-  await page.waitForTimeout(800);
-  await page.keyboard.press('Space');   // continue
+  await page.keyboard.press('Space');   // Title -> Join (WASD layout is P1)
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  await page.keyboard.press('KeyW', { delay: 55 });   // Start
-  await page.waitForTimeout(150);
-  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');   // ready
+  await page.waitForTimeout(700);
+  await page.keyboard.press('Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Space');   // Start
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);
@@ -129,17 +138,20 @@ test('questions URL override disables the driving questions for this race only',
   expect(errors).toEqual([]);
 });
 
-test('single gamepad: A, A, A reaches the race', async ({ page }) => {
+test('single gamepad: A, A, A, A reaches the race', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
   await page.goto('/');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
-  await tapPad(page, 0, BTN_A);   // join
-  await page.waitForTimeout(800);
-  await tapPad(page, 0, BTN_A);   // Setup
+  await tapPad(page, 0, BTN_A);   // Join screen
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
+  await tapPad(page, 0, BTN_A);   // ready
+  await page.waitForTimeout(700);
+  await tapPad(page, 0, BTN_A);   // Track select
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
   await tapPad(page, 0, BTN_A);   // Race
   await waitScene(page, 'Race');
   expect((await settingsOf(page)).players).toHaveLength(1);
@@ -152,19 +164,17 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   await page.addInitScript(() => localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] })));
   await page.goto('/');
   await waitScene(page, 'Title');
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(800);
-  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');   // Title -> Join
   await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
   expect((await settingsOf(page)).questionStyle).toBe('pause');
 
   const tap = async (key: string) => {
     await page.keyboard.press(key, { delay: 55 });
     await page.waitForTimeout(55);
   };
-  await tap('KeyW'); // Racer wraps to Start.
-  await tap('KeyW'); // Map.
-  await tap('KeyD'); // City → Factory.
+  await tap('KeyW'); // Racer wraps to Buddy.
+  await tap('KeyS'); // And back to Racer.
   await tap('F9');
   await page.waitForFunction(() => window.__game.scene.isPaused('Setup'));
 
@@ -176,7 +186,7 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   await waitScene(page, 'Setup');
 
   await page.waitForTimeout(500);
-  await tapPad(page, 0, 9); // Start alone leaves Setup active.
+  await tapPad(page, 0, 9); // Start alone does nothing on the Join screen.
   expect(await page.evaluate(() => window.__game.scene.isActive('Setup'))).toBe(true);
   await setPad(page, 0, { buttons: { 6: 1, 7: 1 } });
   await tapPad(page, 0, 9);
@@ -185,6 +195,12 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   await tapPad(page, 0, BTN_A);
   await waitScene(page, 'Setup');
 
+  await tap('Space');   // ready
+  await page.waitForTimeout(700);
+  await tap('Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await tap('KeyD');    // City → Factory.
   await tap('Space');
   await waitScene(page, 'Race');
   expect(await page.evaluate(() => {
@@ -206,16 +222,13 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
   await tapPad(page, 0, BTN_A);
-  await tapPad(page, 1, BTN_A);
-  await page.waitForTimeout(800);
-  await tapPad(page, 0, BTN_A);
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
+  await tapPad(page, 1, BTN_A);
+  await page.waitForTimeout(300);
 
   const racers = () => page.evaluate(() => (window.__game.scene.getScene('Setup') as any).cfg.players.map((p: any) => p.profile) as string[]);
-  const maps = () => page.evaluate(() => [...(window.__game.scene.getScene('Setup') as any).maps] as string[]);
   expect(await racers()).toEqual(['gideon', 'abe']);
-  expect(await maps()).toEqual(['city', 'industrial']);
   await tapPad(page, 1, PAD_RIGHT);   // Abe -> (Gideon is taken) -> Helen
   expect(await racers()).toEqual(['gideon', 'helen']);
   await tapPad(page, 1, PAD_RIGHT);   // Helen -> Daddy
@@ -229,6 +242,16 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   await tapPad(page, 0, PAD_RIGHT);   // New Profile -> (Abe is taken) -> Gideon
   expect(await racers()).toEqual(['gideon', 'abe']);
   expect(new Set(await racers()).size).toBe(2);
+  // A ready panel is locked: P2 readies, then cannot change racer.
+  await tapPad(page, 1, BTN_A);
+  await tapPad(page, 1, PAD_RIGHT);
+  expect(await racers()).toEqual(['gideon', 'abe']);
+  await tapPad(page, 0, BTN_A);
+  await page.waitForTimeout(700);
+  await tapPad(page, 0, BTN_A);
+  await waitScene(page, 'TrackSelect');
+  const maps = await page.evaluate(() => [...(window.__game.scene.getScene('TrackSelect') as any).maps] as string[]);
+  expect(maps).toEqual(['city', 'industrial']);
   expect(errors).toEqual([]);
 });
 
@@ -238,18 +261,16 @@ test('Setup: New Profile asks name, age and settings, then races as the new race
   await page.goto('/');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
-  await tapPad(page, 0, BTN_A);   // join
-  await page.waitForTimeout(800);
-  await tapPad(page, 0, BTN_A);   // Setup
+  await tapPad(page, 0, BTN_A);   // Join screen
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
   const PAD_LEFT = 14, PAD_UP = 12;
   await tapPad(page, 0, PAD_LEFT);  // Gideon -> Abe
   await tapPad(page, 0, PAD_LEFT);  // Abe -> New Profile
   await page.waitForTimeout(150);
-  expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).cols[0].hint.text)).toBe('Make a new racer!');
+  expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make a new racer!');
   await page.screenshot({ path: 'test-results/menus-setup-new.png' });
-  await tapPad(page, 0, BTN_A);     // START RACE -> creation overlay
+  await tapPad(page, 0, BTN_A);     // ready on New Profile -> creation overlay
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/menus-newracer-name.png' });
   await page.keyboard.type('Zed', { delay: 0 });
@@ -260,7 +281,12 @@ test('Setup: New Profile asks name, age and settings, then races as the new race
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-newracer-options.png' });
   await tapPad(page, 0, PAD_UP);    // wraps to GO
-  await tapPad(page, 0, BTN_A);
+  await tapPad(page, 0, BTN_A);     // creates the racer and readies the panel
+  await page.waitForTimeout(700);
+  await tapPad(page, 0, BTN_A);     // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, BTN_A);     // Start
   await waitScene(page, 'Race');
 
   const s = await settingsOf(page);

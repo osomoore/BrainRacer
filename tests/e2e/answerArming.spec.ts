@@ -37,12 +37,15 @@ test('a held D-pad button needs a fresh press and stick movement cannot answer',
   await installGamepadMock(page, 1);
   await page.goto('/');
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Title'));
-  await tapPad(page, 0, 0);
-  await page.waitForTimeout(850);
-  await tapPad(page, 0, 0);
+  await tapPad(page, 0, 0);   // Title -> Join (pad 0 is Player 1)
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Setup'));
   await page.waitForTimeout(400);
-  await tapPad(page, 0, 0);
+  await tapPad(page, 0, 0);   // ready
+  await page.waitForTimeout(700);
+  await tapPad(page, 0, 0);   // Next
+  await page.waitForFunction(() => (window as any).__game?.scene.isActive('TrackSelect'));
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, 0);   // Start
 
   await page.waitForFunction(() => ((window as any).__race?.elapsedSec ?? 0) > 0.5);
   await setPad(page, 0, { buttons: { 12: 1 } });

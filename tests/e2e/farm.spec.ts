@@ -90,15 +90,15 @@ test('Setup can select Farm', async ({ page }) => {
   });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(800); // Title allows time for a second player to join.
-  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');   // Title -> Join (WASD keyboard is Player 1)
   await waitScene(page, 'Setup');
-  // From Racer, go up to Start and then Map. City → Factory → Farm.
-  for (let row = 0; row < 2; row++) {
-    await page.keyboard.press('KeyW', { delay: 55 });
-    await page.waitForTimeout(55);
-  }
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Space');   // ready
+  await page.waitForTimeout(700);
+  await page.keyboard.press('Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  // City → Factory → Farm.
   await page.keyboard.press('KeyD');
   await page.waitForTimeout(80);
   await page.keyboard.press('KeyD');

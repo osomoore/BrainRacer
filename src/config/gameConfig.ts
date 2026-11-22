@@ -95,7 +95,7 @@ export const DEFAULT_RACER_PROFILES: Record<BuiltinRacerId, RacerProfile> = {
 /** Race-time choices for a racer profile (Admin Settings → Racer Profiles). */
 export const RACER_ROUND_SEC: readonly number[] = [60, 120, 180, 240, 300, 420, 600];
 /** Default racer per player slot. */
-export const DEFAULT_PLAYER_RACERS: readonly BuiltinRacerId[] = ['gideon', 'abe'];
+export const DEFAULT_PLAYER_RACERS: readonly BuiltinRacerId[] = ['gideon', 'abe', 'helen', 'daddy'];
 /** Custom racers created in Setup ("New Profile"). Names: letters and spaces only. */
 export const NEW_RACER = {
   nameMaxLen: 10,

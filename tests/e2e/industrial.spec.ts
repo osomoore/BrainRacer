@@ -25,20 +25,19 @@ async function waitForGo(page: Page) {
   await page.waitForFunction(() => window.__race?.elapsedSec > 0.25, undefined, WAIT);
 }
 
-async function openSetup(page: Page) {
+async function openSetup(page: Page) {   // opens Track select (via Join)
   await waitScene(page, 'Title');
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(800); // Title allows time for a second player to join.
-  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');   // Title -> Join (WASD keyboard is Player 1)
   await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Space');   // ready
+  await page.waitForTimeout(700);
+  await page.keyboard.press('Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
 }
 
 async function chooseNextMap(page: Page, key: 'KeyD' | 'KeyA' = 'KeyD') {
-  // From Racer, go up to Start and then Map.
-  for (let row = 0; row < 2; row++) {
-    await page.keyboard.press('KeyW', { delay: 55 });
-    await page.waitForTimeout(55);
-  }
   await page.keyboard.press(key);
 }
 

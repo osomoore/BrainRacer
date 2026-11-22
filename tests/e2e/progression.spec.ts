@@ -78,12 +78,11 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
   await seedRacers(page, { abe: { items: ['brickBuggy'] }, gideon: { items: ['owl'] } });
   await page.goto('/?seed=4&questions=off');
   await waitScene(page, 'Title');
-  await tapPad(page, 0, 0);
-  await tapPad(page, 1, 0);
-  await page.waitForTimeout(800);
-  await tapPad(page, 0, 0);
+  await tapPad(page, 0, 0);   // Title -> Join (P1)
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
+  await tapPad(page, 1, 0);   // P2 joins
+  await page.waitForTimeout(300);
 
   // P1 = Gideon (starters + Night Owl), P2 = Abe (starters + Brick Buggy): each list is that racer's own.
   await tapPad(page, 0, 13); // P1 Car.
@@ -96,7 +95,13 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
   await tapPad(page, 1, 14); // P2 defaults to Kart: left to Dino,
   await tapPad(page, 1, 14); // then wrapping to Abe's Brick Buggy.
   await page.waitForTimeout(500);
-  await tapPad(page, 0, 0);
+  await tapPad(page, 1, 0);   // P2 ready
+  await tapPad(page, 0, 0);   // P1 ready
+  await page.waitForTimeout(700);
+  await tapPad(page, 0, 0);   // P1 Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await tapPad(page, 0, 0);   // P1 Start
   await waitScene(page, 'Race');
   const loadouts = await page.evaluate(() => window.__race.settings.players.map((player, slot) => ({
     car: window.__race.players[slot].kind,
@@ -132,27 +137,31 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
   await seedRacers(page, { gideon: { items: ['owl'] } });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');
-  await tap(page, 'Space');
-  await page.waitForTimeout(700);
-  await tap(page, 'Space');
+  await tap(page, 'Space');   // Title -> Join
   await waitScene(page, 'Setup');
 
   const toggleDeveloperMode = async (scene: string) => {
     await tap(page, 'F9');
     await page.waitForFunction(name => window.__game.scene.isPaused(name), scene);
-    for (let i = 0; i < 7; i++) await tap(page, 'KeyS');
+    for (let i = 0; i < 6; i++) await tap(page, 'KeyW');   // wraps to Close, then up to Admin Mode
     await tap(page, 'KeyD');
     await tap(page, 'Space');
     await waitScene(page, scene);
   };
   await toggleDeveloperMode('Setup');
+  await page.waitForTimeout(300);
   await tap(page, 'KeyS'); // Car.
   await tap(page, 'KeyD');
   await tap(page, 'KeyD'); // Motor Trike.
   await tap(page, 'KeyS'); // Guide.
   await tap(page, 'KeyD');
   await tap(page, 'KeyD'); // Bumblebee, since non-Dino cars default to the star.
-  await tap(page, 'Space');
+  await tap(page, 'Space');   // ready
+  await page.waitForTimeout(700);
+  await tap(page, 'Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
+  await tap(page, 'Space');   // Start
   await waitScene(page, 'Race');
   expect(await page.evaluate(() => ({
     round: window.__race.roundLengthSec,
@@ -182,8 +191,12 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
   await tap(page, 'KeyD'); // Setup lets players manually choose the next map.
   await tap(page, 'Space');
   await waitScene(page, 'Setup');
-  await tap(page, 'KeyW'); // Start.
-  await tap(page, 'KeyW'); // Map.
+  await page.waitForTimeout(300);
+  await tap(page, 'Space');   // ready
+  await page.waitForTimeout(700);
+  await tap(page, 'Space');   // Next
+  await waitScene(page, 'TrackSelect');
+  await page.waitForTimeout(500);
   await tap(page, 'KeyD'); // Factory.
   await tap(page, 'Space');
   await waitScene(page, 'Race');
