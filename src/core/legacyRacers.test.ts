@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_FAMILY } from '../../shared/legacyProfiles';
 import { ensureProfiles, listProfiles } from '../../shared/profiles';
 import { removeShared } from '../../shared/storage';
-import { legacyProgressFromSharedUnlocks, LEGACY_RACER_DEFAULTS, migrateLegacyRacers, remapProgress, remapSettings } from './legacyRacers';
+import { BACKUP_KEY, legacyProgressFromSharedUnlocks, LEGACY_RACER_DEFAULTS, migrateLegacyRacers, remapProgress, remapSettings } from './legacyRacers';
 import { loadAllProgress } from './racerProgress';
 import { racerProfiles } from './racerProfiles';
 import { loadSettings, savedSecondPlayer } from './settings';
@@ -53,6 +53,15 @@ describe('legacy Brain Racer data remap', () => {
     expect(all.p2).toEqual(progress(['industrial', 'harbor'], ['owl']));
     expect(all.p5).toEqual(progress(['industrial'], ['rocket']));
     expect(Object.keys(all).sort()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
+  });
+
+  it('keeps a raw backup of the old data before rewriting it', () => {
+    const before = JSON.stringify({ [ID1]: progress(['industrial'], ['taxi']) });
+    store.set('brainracer.racers.v1', before);
+    ensureProfiles();
+    migrateLegacyRacers();
+    expect(get(BACKUP_KEY).keys['brainracer.racers.v1']).toBe(before);
+    expect(Object.keys(get('brainracer.racers.v1'))).not.toContain(ID1);
   });
 
   it('runs once: later changes are not remapped again', () => {

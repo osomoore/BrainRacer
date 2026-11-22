@@ -9,6 +9,8 @@ import type { RacerProfile } from './types';
 import { parseProgress, PROGRESS_KEY, type AllProgress } from './racerProgress';
 
 const COMPLETED_KEY = 'brainracer.legacyRemap.v1';
+/** Raw pre-migration copy of the rewritten keys (never read by the game; manual recovery only). */
+export const BACKUP_KEY = 'brainracer.backup.preProfiles';
 const SETTINGS_KEY = 'brainracer.settings.v1';
 const SECOND_PLAYER_KEY = 'brainracer.secondPlayer.v1';
 const LEGACY_UNLOCKS = 'brainracer.unlocks.v1';
@@ -75,6 +77,15 @@ export function remapProgress(raw: unknown, map: Readonly<Record<string, string>
 export function migrateLegacyRacers(): void {
   const map = legacyIdMap();
   if (!Object.keys(map).length || readJson(COMPLETED_KEY) !== undefined) return;
+
+  // Safety net: raw copy of every key we are about to rewrite, kept so a bad remap can be undone by hand.
+  if (readJson(BACKUP_KEY) === undefined) {
+    const backup: Record<string, string> = {};
+    for (const k of [SETTINGS_KEY, SECOND_PLAYER_KEY, PROGRESS_KEY, LEGACY_UNLOCKS, LEGACY_ACCESS]) {
+      try { const raw = globalThis.localStorage?.getItem(k); if (raw != null) backup[k] = raw; } catch { /* ignore */ }
+    }
+    writeJson(BACKUP_KEY, { at: new Date().toISOString(), keys: backup });
+  }
 
   writeJson(SETTINGS_KEY, remapSettings(readJson(SETTINGS_KEY), map));
   const second = readJson(SECOND_PLAYER_KEY);
