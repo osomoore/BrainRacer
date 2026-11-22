@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from './config/gameConfig';
+import { DINO_RIDE, GAME_HEIGHT, GAME_WIDTH, VEHICLE_CONDITION } from './config/gameConfig';
+import { dinoBoardDistance } from './entities/dinoRide';
+import { touchActionView, type TouchActionView } from './input/touch/touchMap';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SetupScene } from './scenes/SetupScene';
@@ -67,4 +69,15 @@ game.events.on(Phaser.Core.Events.POST_STEP, () => {
     else if (mgr.isActive(SCENE.results)) layout = 'none';
   }
   input.setTouchLayout(layout);
+  if (layout === 'race') {
+    // Action button look (same transfer action as pad B): boss crystal in reach -> ride (pulsing), riding -> laser.
+    const ctx = game.registry.get(REG.race) as RaceContext | undefined;
+    const car = ctx?.players?.[0];
+    if (ctx && car) {
+      const d = ctx.dino;
+      const dist = d ? dinoBoardDistance(d, car, DINO_RIDE.boardReach) : Infinity;
+      (input as unknown as { setTouchAction?(v: TouchActionView): void }).setTouchAction?.(
+        touchActionView(d ?? { active: false }, 0, dist, VEHICLE_CONDITION.transferReach));
+    }
+  }
 });

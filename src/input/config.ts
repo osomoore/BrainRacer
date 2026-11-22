@@ -11,6 +11,8 @@ export const TOUCH_CFG = {
   steerBtnVh: 26,
   brakeBtnVh: 20,
   smallBtnVh: 13,
+  /** Race action button (switch car / ride boss / laser), left of the right arrow. */
+  actBtnVh: 21,
   padBtnVh: 17,
   actionBtnVh: 22,
   edgeMarginVh: 4,

@@ -1,7 +1,7 @@
 /** DOM overlay with on-screen buttons. Tracks which buttons are held (multitouch, sliding between buttons). */
 import type { TouchLayout } from '../../core/types';
 import { TOUCH_CFG } from '../config';
-import { TOUCH_BUTTONS, emptyTouchState, type TouchButton, type TouchState } from './touchMap';
+import { TOUCH_BUTTONS, emptyTouchState, type TouchActionMode, type TouchActionView, type TouchButton, type TouchState } from './touchMap';
 
 const ICON: Record<TouchButton, string> = {
   left: '<path d="M68 14 24 50l44 36z" fill="#fff"/>',
@@ -11,12 +11,20 @@ const ICON: Record<TouchButton, string> = {
   brake: '<rect x="24" y="24" width="52" height="52" rx="10" fill="#fff"/>',
   pause: '<rect x="26" y="20" width="16" height="60" rx="4" fill="#fff"/><rect x="58" y="20" width="16" height="60" rx="4" fill="#fff"/>',
   reset: '<path d="M50 18a32 32 0 1 1-30 21" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round"/><path d="M50 2v34L24 19z" fill="#fff"/>',
+  act: '',
   a: '<text x="50" y="68" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="60" text-anchor="middle" fill="#fff">A</text>',
   b: '<text x="50" y="68" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="60" text-anchor="middle" fill="#fff">B</text>',
 };
+/** Race action button icons: car + swap arrow, crown (hop on the boss), eyes with laser beams. */
+const ACT_ICON: Record<TouchActionMode, string> = {
+  switch: '<path d="M14 70h72V56L74 40H34L22 54l-8 2z" fill="#fff"/><circle cx="32" cy="72" r="9" fill="#fff" stroke="#f2a20c" stroke-width="5"/><circle cx="68" cy="72" r="9" fill="#fff" stroke="#f2a20c" stroke-width="5"/><path d="M24 24h42v-9l16 13-16 13v-9H24z" fill="#fff" stroke="#f2a20c" stroke-width="3" stroke-linejoin="round"/>',
+  ride: '<path d="M14 72 20 30l20 20 10-26 10 26 20-20 6 42z" fill="#fff"/><rect x="14" y="76" width="72" height="10" rx="4" fill="#fff"/>',
+  laser: '<ellipse cx="34" cy="34" rx="17" ry="13" fill="#fff"/><ellipse cx="66" cy="34" rx="17" ry="13" fill="#fff"/><circle cx="34" cy="34" r="7" fill="#d6246e"/><circle cx="66" cy="34" r="7" fill="#d6246e"/><path d="M34 52 24 92M34 52l10 40M66 52l-10 40M66 52l10 40" stroke="#ffe14a" stroke-width="9" stroke-linecap="round" fill="none"/>',
+};
+const ACT_COLOR: Record<TouchActionMode, string> = { switch: '#f2a20c', ride: '#1fae4b', laser: '#d6246e' };
 const COLOR: Record<TouchButton, string> = {
   left: '#1e6fff', right: '#1e6fff', up: '#1e6fff', down: '#1e6fff', brake: '#e5342b',
-  pause: '#3b4a6b', reset: '#8a5cf6', a: '#1fae4b', b: '#e5342b',
+  pause: '#3b4a6b', reset: '#8a5cf6', act: '#f2a20c', a: '#1fae4b', b: '#e5342b',
 };
 
 const CSS = `
@@ -30,6 +38,8 @@ const CSS = `
 .bt-b.rt{left:auto;right:var(--x)}
 .bt-b.show{display:block}
 .bt-b svg{width:100%;height:100%;display:block;pointer-events:none}
+.bt-b.pulse{opacity:1;animation:bt-pulse .6s ease-in-out infinite alternate}
+@keyframes bt-pulse{from{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.9),0 .6vh 0 rgba(0,0,0,.35)}to{transform:scale(1.1);box-shadow:0 0 0 1.6vh rgba(255,255,255,0),0 .6vh 0 rgba(0,0,0,.35)}}
 .bt-b.down{opacity:.95;transform:scale(.94);filter:brightness(1.25)}
 `;
 
@@ -43,6 +53,8 @@ const SPOTS: Record<TouchLayout, Partial<Record<TouchButton, Spot>>> = {
     left: { size: sb, x: 0, y: 0, corner: 'bl' },
     // Left thumb steers left, right thumb steers right; brake (rarely needed with auto-gas) sits above ▶.
     right: { size: sb, x: 0, y: 0, corner: 'br' },
+    // Same as pad B: switch car / hop on a beaten boss / fire its lasers. Left of the right arrow, reachable by the right thumb.
+    act: { size: TOUCH_CFG.actBtnVh, x: sb + 3, y: 0, corner: 'br' },
     brake: { size: TOUCH_CFG.brakeBtnVh, x: (sb - TOUCH_CFG.brakeBtnVh) / 2, y: sb + 3, corner: 'br' },
     pause: { size: sm, x: 0, y: 0, corner: 'tr' },
     reset: { size: sm, x: sm + 3, y: 0, corner: 'tr' },
@@ -84,7 +96,7 @@ export class TouchOverlay {
       el.className = 'bt-b';
       el.dataset.btn = b;
       el.style.setProperty('--c', COLOR[b]);
-      el.innerHTML = `<svg viewBox="0 0 100 100">${ICON[b]}</svg>`;
+      el.innerHTML = `<svg viewBox="0 0 100 100">${b === 'act' ? ACT_ICON.switch : ICON[b]}</svg>`;
       this.els.set(b, el);
       this.root.appendChild(el);
     }
@@ -156,6 +168,18 @@ export class TouchOverlay {
   }
 
   heldNow(): TouchState { return { ...this.held }; }
+
+  /** Race action button look (icon + pulse); cheap to call every frame. */
+  setActionView(v: TouchActionView) {
+    const el = this.els.get('act')!;
+    const key = `${v.mode}${v.pulse ? '!' : ''}`;
+    if (el.dataset.view === key) return;
+    el.dataset.view = key;
+    el.dataset.mode = v.mode;
+    el.style.setProperty('--c', ACT_COLOR[v.mode]);
+    el.firstElementChild!.innerHTML = ACT_ICON[v.mode];
+    el.classList.toggle('pulse', v.pulse);
+  }
 
   setVisible(v: boolean) { this.root.classList.toggle('on', v); }
 }

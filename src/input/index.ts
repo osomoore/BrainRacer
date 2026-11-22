@@ -7,7 +7,7 @@ import { HANDLED_CODES, mapKeyboard, type KeyLayout } from './keyboardMap';
 import { getTuning } from '../config/deviceTuning';
 import { gasThrottle, mapGamepad, mergeInputs, newRepeatState, type PadSnapshot, type RepeatState } from './mapping';
 import { TouchOverlay } from './touch/TouchOverlay';
-import { emptyTouchState, mapTouch, type TouchState } from './touch/touchMap';
+import { emptyTouchState, mapTouch, type TouchActionView, type TouchState } from './touch/touchMap';
 import { isMobile } from '../../shared/device';
 import { DebugOverlay, formatDebug } from './overlay';
 
@@ -80,6 +80,9 @@ class InputManager implements IInput {
     this.touchLayout = layout;
     this.touchUi?.setLayout(layout);
   }
+
+  /** Touch: race action button look (driven by main.ts from race state; deliberately not part of IInput). */
+  setTouchAction(view: TouchActionView): void { this.touchUi?.setActionView(view); }
 
   touchAnswer(slot: AnswerSlot): void { this.touchAnswerQ = slot; }
 
