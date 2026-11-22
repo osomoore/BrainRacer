@@ -5,15 +5,14 @@ import { services } from '../../core/services';
 import type { Difficulty, JbqSettings, QuestionTypes } from '../../core/types';
 import { LetterPicker, type PickerResult } from './LetterPicker';
 import { MenuButton } from './MenuButton';
-import { cycleChoice, DIFFICULTIES, DIFF_EXAMPLE, DIFF_LABEL, nameTaken, QUESTION_LABEL, toggleQuestionType } from './newRacerLogic';
+import { cycleChoice, DIFFICULTIES, DIFF_EXAMPLE, DIFF_LABEL, nameTaken } from './newRacerLogic';
 import { OptionRow } from './OptionRow';
-import { cyclePoints, jbqPointsLabel } from './questionPick';
 import { bigText, FONT_HEAD, MENU } from './style';
 
 type Step = 'name' | 'age' | 'options';
 type Nav = { navX: number; navY: number; confirm: boolean; back: boolean };
-const TYPE_KEYS = ['math', 'reading', 'jbq'] as const;
-const ROW_LEVEL = 3, ROW_POINTS = 4, ROW_GO = 5;
+/** Question types and JBQ choices are picked on the Join screen; this panel only asks name, age and Level. */
+const ROW_LEVEL = 0, ROW_GO = 1;
 
 /** Full-screen "make a new racer" flow driven by one player's input. Call handle() every frame. */
 export class NewRacerPanel extends Phaser.GameObjects.Container {
@@ -80,14 +79,12 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
       this.sel = this.under10 ? 0 : 1;
       this.paintAge();
     } else {
-      page.add(bigText(this.scene, cx, 90, 'WHAT DO YOU WANT TO PLAY?', 72, MENU.yellow, { font: FONT_HEAD }));
+      page.add(bigText(this.scene, cx, 120, 'HOW HARD SHOULD IT BE?', 72, MENU.yellow, { font: FONT_HEAD }));
       const opts = { width: 1200, height: 76, fontSize: 56, valueX: 330, arrowSpan: 230 };
       this.rows = [];
-      TYPE_KEYS.forEach((k, i) => this.rows.push(new OptionRow(this.scene, cx, 230 + i * 100, QUESTION_LABEL[k], opts)));
-      this.rows.push(new OptionRow(this.scene, cx, 570, 'Level', opts));
-      this.rows.push(new OptionRow(this.scene, cx, 665, 'JBQ points', opts));
-      this.exampleText = bigText(this.scene, cx, 750, '', 44, MENU.dim, { bold: false, wrap: 1700 });
-      this.go = new MenuButton(this.scene, cx, 880, 700, 140, 'GO!', this.color, 100);
+      this.rows.push(new OptionRow(this.scene, cx, 400, 'Level', opts));
+      this.exampleText = bigText(this.scene, cx, 500, '', 44, MENU.dim, { bold: false, wrap: 1700 });
+      this.go = new MenuButton(this.scene, cx, 800, 700, 140, 'GO!', this.color, 100);
       this.rows.forEach((r, i) => r.makeTappable((z) => this.taps.push({ sel: i, nav: { navX: z === 'left' ? -1 : 1 } }), 96));
       this.tappable(this.go, () => this.taps.push({ sel: ROW_GO, nav: { confirm: true } }));
       page.add([...this.rows, this.exampleText, this.go]);
@@ -109,14 +106,8 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   }
 
   private paintOptions() {
-    TYPE_KEYS.forEach((k, i) => this.rows[i].setValue(this.types[k] ? 'ON' : 'OFF').setSelected(this.sel === i, this.color));
     this.rows[ROW_LEVEL].setValue(DIFF_LABEL[this.difficulty]).setSelected(this.sel === ROW_LEVEL, this.color);
-    this.rows[ROW_POINTS].setVisible(this.types.jbq).setValue(jbqPointsLabel(this.jbq.points)).setSelected(this.sel === ROW_POINTS, this.color);
-    const examples: string[] = [];
-    if (this.types.math) examples.push(this.difficulty === 'hard' ? 'Times tables' : `Sums like ${DIFF_EXAMPLE[this.difficulty]}`);
-    if (this.types.reading) examples.push('Picture words');
-    if (this.types.jbq) examples.push('Bible quiz questions');
-    this.exampleText?.setText(examples.join(' · '));
+    this.exampleText?.setText(this.difficulty === 'hard' ? 'Math: times tables' : `Math: sums like ${DIFF_EXAMPLE[this.difficulty]}`);
     this.go?.setSelected(this.sel === ROW_GO, this.color);
   }
 
@@ -149,27 +140,20 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
     }
     if (inp.back) { services.audio.sfx('menuMove'); this.show('age'); return 'none'; }
     if (inp.navY) {
-      do { this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1); } while (this.sel === ROW_POINTS && !this.types.jbq);
+      this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1);
       services.audio.sfx('menuMove'); this.paintOptions();
     }
-    if ((inp.navX || inp.confirm) && this.sel < ROW_LEVEL) {
-      this.types = toggleQuestionType(this.types, TYPE_KEYS[this.sel]);
-      services.audio.sfx('menuMove'); this.paintOptions();
-    } else if (inp.navX && this.sel === ROW_LEVEL) {
+    if (inp.navX && this.sel === ROW_LEVEL) {
       this.difficulty = cycleChoice(DIFFICULTIES, this.difficulty, inp.navX > 0 ? 1 : -1);
       services.audio.sfx('menuMove'); this.paintOptions();
       this.rows[ROW_LEVEL].bump(inp.navX);
-    } else if (inp.navX && this.sel === ROW_POINTS) {
-      this.jbq = { ...this.jbq, points: cyclePoints(this.jbq.points, inp.navX > 0 ? 1 : -1) };
-      services.audio.sfx('menuMove'); this.paintOptions();
-      this.rows[ROW_POINTS].bump(inp.navX);
     } else if (inp.confirm) {
       if (this.sel === ROW_GO) {
         this.result = { name: this.racerNameText, under10: this.under10, difficulty: this.difficulty, questionTypes: { ...this.types }, jbq: { ...this.jbq } };
         services.audio.sfx('menuSelect');
         return 'done';
       }
-      this.sel = Math.min(this.sel + 1 + (this.sel + 1 === ROW_POINTS && !this.types.jbq ? 1 : 0), ROW_GO); this.paintOptions();
+      this.sel = Math.min(this.sel + 1, ROW_GO); this.paintOptions();
     }
     return 'none';
   }

@@ -1,15 +1,16 @@
 /** Builds JBQ (Junior Bible Quiz) challenge bodies. Phaser-free; randomness comes from the injected Rng. */
 import { CHALLENGE } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
-import type { AnswerSlot, ChallengeOption, JbqPoints, JbqScope } from '../core/types';
+import type { AnswerSlot, ChallengeOption, JbqLevel, JbqPoints, JbqScope } from '../core/types';
 import rawRows from '../data/jbq.json';
 import { jbqPool } from './jbqPool';
+import { jbqPointsOf } from './jbqScope';
 
 export interface JbqQuestion { id: number; points: JbqPoints; type: string; q: string; a: string; ref?: string; verse?: string }
 export const JBQ_QUESTIONS = rawRows as JbqQuestion[];
 
 export interface JbqGenerateOpts {
-  points: JbqPoints;
+  points: JbqLevel;
   scope: JbqScope;
   /** Local date "YYYY-MM-DD". */
   date: string;
@@ -56,7 +57,7 @@ export class JbqGenerator {
 
   private pickQuestion(o: JbqGenerateOpts): JbqQuestion {
     const all = jbqPool(o.points, o.scope, o.date, o.correctCount).flatMap((id) => this.byId.get(id) ?? []);
-    const pool = all.length > 0 ? all : this.questions.filter((q) => q.points === o.points);
+    const pool = all.length > 0 ? all : this.questions.filter((q) => q.points === jbqPointsOf(o.points));
     let fresh = o.recent ? pool.filter((q) => !o.recent!.has(q.id)) : pool;
     if (fresh.length === 0) {
       pool.forEach((q) => o.recent?.delete(q.id));   // pool used up: start over

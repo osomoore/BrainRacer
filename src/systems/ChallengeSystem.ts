@@ -16,6 +16,7 @@ import { ChallengeGenerator } from '../challenge/ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from '../challenge/ChallengeScheduler';
 import { JbqProgressStore } from '../challenge/jbqProgress';
 import { jbqToday } from '../challenge/jbqScope';
+import { raceQuestionTypes } from '../challenge/jbqRules';
 
 const RNG_SALT = 0xb1;
 
@@ -65,7 +66,7 @@ export class ChallengeSystem implements GameSystem {
     if (this.pause) {
       const factories = players.map((p, i) => new ChallengeFactory({
         player: i as PlayerId, difficulty: p.difficulty, generator: new ChallengeGenerator(rng.fork(i * 2 + 1)),
-        rng: rng.fork(i * 2 + 2), mode, questionTypes: p.questionTypes, optionCount: CHALLENGE.pauseOptions as 3 | 4,
+        rng: rng.fork(i * 2 + 2), mode, questionTypes: p.questionTypes && raceQuestionTypes(p.questionTypes, p.jbq ?? NEW_RACER.defaultJbq, players.length), optionCount: CHALLENGE.pauseOptions as 3 | 4,
         jbq: p.jbq ?? NEW_RACER.defaultJbq, today, jbqCount: (id) => this.jbqStores[i].count(p.profile, id),
       }));
       this.breaks = new BreakScheduler({

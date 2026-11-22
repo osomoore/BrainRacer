@@ -30,4 +30,3 @@ export const nameTaken = (name: string, existing: readonly string[]): boolean =>
 
 export const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
 export const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
-export const QUESTION_LABEL: Record<keyof QuestionTypes, string> = { math: 'Math', reading: 'Reading', jbq: 'JBQ' };

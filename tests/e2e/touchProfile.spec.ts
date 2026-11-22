@@ -44,10 +44,9 @@ test('fresh device: a phone player makes a profile by tapping only', async ({ pa
   await tapLogical(page, 960 - 330, 620); // YES
   await page.waitForTimeout(500);
   await shot(page, '4-options');
-  await tapLogical(page, 960, 330); // toggle Multiplication
-  await tapLogical(page, 1190, 570); // Level right arrow
+  await tapLogical(page, 1190, 400); // Level right arrow
   await shot(page, '5-options-changed');
-  await tapLogical(page, 960, 850); // GO!
+  await tapLogical(page, 960, 800); // GO!
   await page.waitForTimeout(800);
   await shot(page, '6-setup-after');
 

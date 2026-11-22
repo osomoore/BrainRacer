@@ -36,3 +36,10 @@ describe('jbqPool', () => {
     expect(jbqPool(30, 'week', date, learnedIn(range(529, 536)))).toEqual(range(529, 544));
   });
 });
+
+describe('jbqPool Basics', () => {
+  it('is the fixed set Q1-144 and never grows', () => {
+    expect(jbqPool('basics', 'week', '2026-11-22', () => 0)).toEqual(range(1, 144));
+    expect(jbqPool('basics', 'all', '2026-11-22', () => 9)).toEqual(range(1, 144));
+  });
+});
