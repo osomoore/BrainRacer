@@ -14,15 +14,16 @@ test('touch race: hold right to steer, auto gas, pause button', async ({ page })
   await page.waitForFunction(() => (window as any).__race && (window as any).__game.scene.isActive('Race'), null, { timeout: 30_000 });
   // The overlay shows once the touch device exists; wait for the race layout (round countdown first).
   await page.waitForSelector('.bt-b[data-btn="right"].show', { timeout: 30_000 });
-  await page.waitForFunction(() => (window as any).__race.players[0].speedFrac >= 0 && (window as any).__race.elapsedSec > 0.5, null, { timeout: 30_000 });
+  // Auto gas: with no input at all the car gets up to speed.
+  await page.waitForFunction(() => Math.abs((window as any).__race.players[0].forwardSpeed) > 100, null, { timeout: 10_000 });
+  // Steering: a short hold on ▶ turns the car (short, so it doesn't drive into the roadside).
   const a0 = await page.evaluate(() => (window as any).__race.players[0].angle);
   const p = await center(page, 'right');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y, id: 1 }] });
-  await page.waitForTimeout(1500);
-  const mid = await page.evaluate(() => ({ a: (window as any).__race.players[0].angle, sp: Math.abs((window as any).__race.players[0].forwardSpeed) }));
+  await page.waitForTimeout(500);
+  const a1 = await page.evaluate(() => (window as any).__race.players[0].angle);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  expect(Math.abs(mid.a - a0)).toBeGreaterThan(0.05);
-  expect(mid.sp).toBeGreaterThan(10);
+  expect(Math.abs(a1 - a0)).toBeGreaterThan(0.05);
 
   const pz = await center(page, 'pause');
   await page.touchscreen.tap(pz.x, pz.y);
