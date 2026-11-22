@@ -7,13 +7,11 @@ import { bigText, FONT_HEAD, hexNum, MENU } from './style';
 const GEAR_TEX = 'ui-admin-gear';
 const DEPTH = 1000;
 
-/** Bakes the gear icon once (a round badge with a toothed gear on it). */
+/** Bakes the gear icon once (a plain toothed gear, no badge, so it stays unobtrusive). */
 export function ensureGearTexture(scene: Phaser.Scene): string {
   if (scene.textures.exists(GEAR_TEX)) return GEAR_TEX;
-  const s = ADMIN_GATE.gear.size, c = s / 2;
+  const s = ADMIN_GATE.gear.tex, c = s / 2;
   const g = scene.add.graphics();
-  g.fillStyle(MENU.panel, 0.92).fillCircle(c, c, c - 3);
-  g.lineStyle(6, 0xffffff, 1).strokeCircle(c, c, c - 4);
   g.fillStyle(0xffffff, 1);
   for (let i = 0; i < 8; i++) {
     const a = (i * Math.PI) / 4;

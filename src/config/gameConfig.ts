@@ -1167,6 +1167,7 @@ export const ADMIN_GATE = {
   factorMin: 6,
   factorMax: 12,
   maxDigits: 3,
-  gear: { x: GAME_WIDTH - 90, y: 70, size: 110 },
+  /** Deliberately small and faint (grown-ups know it's there); `hit` is a larger invisible tap square around it. `tex` = baked texture size. */
+  gear: { x: GAME_WIDTH - 44, y: 40, size: 48, alpha: 0.28, hit: 120, tex: 110 },
   key: { w: 200, h: 112, gap: 16, firstY: 440 },
 } as const;
