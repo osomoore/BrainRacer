@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AGE_BANDS, bandDifficulty, bandRoundSec, difficultyBand } from '../core/ageBands';
 import { ageLabel } from '../ui/menu/newRacerLogic';
 import { changeJbq, jbqPointsLabel, jbqScopeLabel, ROW_POINTS, ROW_SCOPE } from '../ui/menu/questionPick';
-import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
+import { ENGINE_LEVELS, getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS, RACER_ROUND_SEC } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
@@ -78,6 +78,8 @@ const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
 ];
 const PROFILES_PER_PAGE = 2;
 const CONTENT_OVERRIDES = [undefined, true, false] as const;
+const cycle = <T,>(list: readonly T[], v: T, dir: 1 | -1): T => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
+const onOff = (b: boolean): string => (b ? 'On' : 'Off');
 
 interface Row {
   selectable: Selectable;
@@ -161,16 +163,11 @@ export class ConfigScene extends Phaser.Scene {
       refresh();
       this.rows.push({ selectable: r, change, refresh, bump: (d) => r.bump(d) });
     };
-    const action = (col: number, y: number, label: string, fn: () => void): void => {
+    const action = (col: number, y: number, label: string, fn: () => void): MenuButton => {
       const b = new MenuButton(this, COL_X[col], y, ROW_W, ROW_H_MAIN, label, color, 44, false);
       c.add(b);
       this.rows.push({ selectable: b, activate: fn });
-    };
-    const cycle = <T,>(list: readonly T[], v: T, dir: 1 | -1): T => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
-    const onOff = (b: boolean): string => (b ? 'On' : 'Off');
-    const vol = (key: 'musicVolume' | 'sfxVolume') => (dir: 1 | -1): void => {
-      const v = Math.min(1, Math.max(0, Math.round((this.settings()[key] + dir * 0.1) * 10) / 10));
-      this.patchSettings({ [key]: v });
+      return b;
     };
 
     const rowY = (i: number) => FIRST_ROW + i * ROW_STEP;
@@ -208,38 +205,79 @@ export class ConfigScene extends Phaser.Scene {
     option(0, rowY(11), 'Perf overlay', () => onOff(getTuning().perfHud),
       () => setTuning({ perfHud: !getTuning().perfHud }));
 
-    header(1, 155, 'AUDIO');
-    option(1, rowY(0), 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
-    option(1, rowY(1), 'Sound FX volume', () => `${Math.round(this.settings().sfxVolume * 100)}%`, vol('sfxVolume'));
-    option(1, rowY(2), 'Audio mode', () => AUDIO_MODE_LABEL[getTuning().audioMode],
-      (d) => setTuning({ audioMode: cycle(AUDIO_MODE, getTuning().audioMode, d) }));
-    option(1, rowY(3), 'Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
-      (d) => setTuning({ engineSound: cycle(ENGINE, getTuning().engineSound, d) }));
-    option(1, rowY(4), 'Audio buffer*', () => LATENCY_LABEL[getTuning().audioLatency],
-      (d) => setTuning({ audioLatency: cycle(LATENCY, getTuning().audioLatency, d) }));
-    option(1, rowY(5), 'Schedule ahead', () => `${getTuning().lookAheadSec} s`,
-      (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
-    option(1, rowY(6), 'Compressor', () => onOff(getTuning().compressor),
-      () => setTuning({ compressor: !getTuning().compressor }));
-    header(1, rowY(7), 'ACTIONS');
-    option(1, rowY(8), 'Admin Mode', () => onOff(this.settings().developerMode === true),
+    header(1, 155, 'DEVICE');
+    const audioCursor = this.rows.length;
+    const openAudio = () => {
+      this.adminCursor = audioCursor;
+      this.showAudio();
+    };
+    const audio = action(1, rowY(0), 'Audio', openAudio);
+    audio.setSize(audio.w, audio.h).setInteractive().on('pointerdown', openAudio);
+    header(1, rowY(2), 'ACTIONS');
+    option(1, rowY(3), 'Admin Mode', () => onOff(this.settings().developerMode === true),
       () => this.patchSettings(developerModeSettings(this.settings().developerMode !== true)));
-    action(1, rowY(9), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
-    action(1, rowY(10), 'Reset to defaults', () => this.resetAll());
-    action(1, rowY(11), 'Racer Unlocks', () => {
+    action(1, rowY(4), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
+    action(1, rowY(5), 'Reset to defaults', () => this.resetAll());
+    action(1, rowY(7), 'Racer Unlocks', () => {
       this.adminCursor = this.cursor;
       this.showContent();
     });
-    action(1, 987, 'Racer Profiles', () => {
+    action(1, rowY(8), 'Racer Profiles', () => {
       this.adminCursor = this.cursor;
       this.showProfiles();
     });
-    action(0, 987, 'Close', () => this.close());
+    const close = action(1, 987, 'Close', () => this.close());
+    close.setSize(close.w, close.h).setInteractive().on('pointerdown', () => this.close());
 
     c.add(bigText(this, GAME_WIDTH / 2, 1040, '↑ ↓ Move       ← → Change       Bottom button / Space / Enter accepts', 40, MENU.dim, { stroke: 6, shadow: false }));
   }
 
-  /** Replaces the main panel with a fresh full-screen sub-page (Content Locks, Racer Profiles). */
+  private showAudio(): void {
+    const panel = this.openSub('AUDIO', '* Needs reload', '↑ ↓ Move       ← → Change       B / Backspace goes back');
+    const cx = GAME_WIDTH / 2;
+    const color = hexNum(PLAYER_COLORS[0]);
+    const opts = { width: 920, height: 60, fontSize: 40, valueX: 215, arrowSpan: 175 };
+    const option = (label: string, get: () => string, change: (dir: 1 | -1) => void): void => {
+      const i = this.subRows.length;
+      const row = new OptionRow(this, cx, 224 + i * 76, label, opts);
+      panel.add(row);
+      row.makeTappable((zone) => {
+        this.cursor = i;
+        change(zone === 'left' ? -1 : 1);
+        this.refreshRows();
+      }, opts.height);
+      this.subRows.push({ selectable: row, change, activate: () => { change(1); this.refreshRows(); },
+        refresh: () => row.setValue(get()), bump: (dir) => row.bump(dir) });
+    };
+    const volume = (label: string, key: 'musicVolume' | 'sfxVolume') => {
+      option(label, () => `${Math.round(this.settings()[key] * 100)}%`, (dir) => {
+        const v = Math.round((this.settings()[key] + dir * 0.1) * 10) / 10;
+        this.patchSettings({ [key]: Phaser.Math.Clamp(v, 0, 1) });
+      });
+    };
+    volume('Music volume', 'musicVolume');
+    volume('Sound FX volume', 'sfxVolume');
+    option('Engine level', () => `${getTuning().engineLevel}%`,
+      (d) => setTuning({ engineLevel: cycle(ENGINE_LEVELS, getTuning().engineLevel, d) }));
+    option('Engine sound', () => ENGINE_LABEL[getTuning().engineSound],
+      (d) => setTuning({ engineSound: cycle(ENGINE, getTuning().engineSound, d) }));
+    option('Audio mode', () => AUDIO_MODE_LABEL[getTuning().audioMode],
+      (d) => setTuning({ audioMode: cycle(AUDIO_MODE, getTuning().audioMode, d) }));
+    option('Audio buffer*', () => LATENCY_LABEL[getTuning().audioLatency],
+      (d) => setTuning({ audioLatency: cycle(LATENCY, getTuning().audioLatency, d) }));
+    option('Schedule ahead', () => `${getTuning().lookAheadSec} s`,
+      (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
+    option('Compressor', () => onOff(getTuning().compressor),
+      () => setTuning({ compressor: !getTuning().compressor }));
+    const back = new MenuButton(this, cx, 868, 600, ROW_H, 'Back', color, 44, false);
+    back.setSize(back.w, back.h).setInteractive().on('pointerdown', () => this.closeSub());
+    panel.add(back);
+    this.subRows.push({ selectable: back, activate: () => this.closeSub() });
+    this.cursor = 0;
+    this.refreshRows();
+  }
+
+  /** Replaces the main panel with a full-screen settings page. */
   private openSub(title: string, subtitle: string, hint: string): Phaser.GameObjects.Container {
     this.subPanel?.destroy();
     this.panel.setVisible(false);

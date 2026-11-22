@@ -15,9 +15,14 @@ export const joinPanelX = (i: number): number => 15 + JOIN_PANEL.w / 2 + i * (JO
 export { ROW_RACER, ROW_CAR, ROW_GUIDE, ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE };
 
 /** Y offsets (from the panel top) of the Join panel rows. */
-const Y = { racerCap: 160, racer: 205, hint: 242, qCap: 322, chips: 377, points: 440, scope: 500, carCap: 565, car: 615, guideCap: 670, guide: 718 } as const;
-/** Car and Buddy move up by this much while the JBQ rows are hidden. */
-const LOWER_SHIFT_NO_JBQ = -60;
+const Y = { racerCap: 160, racer: 205, hint: 242, qCap: 322, chips: 377, points: 440, scope: 500 } as const;
+const LOADOUT_LAYOUT = {
+  readingMath: { car: 470, buddy: 635, rowOffset: 82, width: 200, height: 96 },
+  jbqBasics: { car: 508, buddy: 650, rowOffset: 69, width: 180, height: 74 },
+  jbqScope: { car: 558, buddy: 665, rowOffset: 54, width: 150, height: 42 },
+} as const;
+const PICK_ART_X = 96;
+const PICK_LABEL_X = -104;
 
 /** Math / Reading / JBQ toggle chips. On = filled in the player color, off = dim outline; the focused chip gets a white ring. */
 class QuestionChips extends Phaser.GameObjects.Container {
@@ -101,7 +106,8 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   private readonly qCap: Phaser.GameObjects.Text;
   private readonly questionsGroup: Phaser.GameObjects.Container;
   private readonly jbqGroup: Phaser.GameObjects.Container;
-  private readonly lowerGroup: Phaser.GameObjects.Container;
+  private readonly carGroup: Phaser.GameObjects.Container;
+  private readonly guideGroup: Phaser.GameObjects.Container;
   readonly hint: Phaser.GameObjects.Text;
   private readonly color: number;
   private readonly bg: Phaser.GameObjects.Graphics;
@@ -156,19 +162,20 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.pointsRow = new OptionRow(scene, 0, top + Y.points, '', jbqOpts);
     this.scopeRow = new OptionRow(scene, 0, top + Y.scope, '', jbqOpts);
     this.jbqGroup = scene.add.container(0, 0, [this.pointsRow, this.scopeRow]);
-    const carCap = cap(Y.carCap, 'CAR');
-    this.carRow = new OptionRow(scene, 0, top + Y.car, '', opts);
-    const guideCap = cap(Y.guideCap, 'BUDDY');
-    this.guideRow = new OptionRow(scene, 0, top + Y.guide, '', opts);
-    this.guideObj = scene.add.image(150, top + Y.guideCap, guideArt('star'));
-    this.lowerGroup = scene.add.container(0, 0, [carCap, this.carRow, guideCap, this.guideRow, this.guideObj]);
-    this.questionsGroup = scene.add.container(0, 0, [qCap, this.chips, this.jbqGroup, this.lowerGroup]);
+    const carCap = cap(0, 'CAR').setPosition(PICK_LABEL_X, 0);
+    this.carRow = new OptionRow(scene, 0, 0, '', opts);
+    this.carGroup = scene.add.container(0, 0, [carCap, this.carRow]);
+    const guideCap = cap(0, 'BUDDY').setPosition(PICK_LABEL_X, 0);
+    this.guideRow = new OptionRow(scene, 0, 0, '', opts);
+    this.guideObj = scene.add.image(PICK_ART_X, 0, guideArt('star'));
+    this.guideGroup = scene.add.container(0, 0, [guideCap, this.guideRow, this.guideObj]);
+    this.questionsGroup = scene.add.container(0, 0, [qCap, this.chips, this.jbqGroup, this.carGroup, this.guideGroup]);
     this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, this.questionsGroup]);
 
     const tapDir = { left: -1, body: 0, right: 1 } as const;
-    [[this.racerRow, ROW_RACER, this.rowsGroup], [this.carRow, ROW_CAR, this.lowerGroup], [this.guideRow, ROW_GUIDE, this.lowerGroup]].forEach(([row, idx, host]) => {
-      (row as OptionRow).makeTappable((z) => this.onRowTap?.(idx as number, tapDir[z]), 100, host as Phaser.GameObjects.Container);
-    });
+    this.racerRow.makeTappable((z) => this.onRowTap?.(ROW_RACER, tapDir[z]), 100, this.rowsGroup);
+    this.carRow.makeTappable((z) => this.onRowTap?.(ROW_CAR, tapDir[z]), 60);
+    this.guideRow.makeTappable((z) => this.onRowTap?.(ROW_GUIDE, tapDir[z]), 60);
     [[this.pointsRow, ROW_POINTS], [this.scopeRow, ROW_SCOPE]].forEach(([row, idx]) => {
       (row as OptionRow).makeTappable((z) => this.onRowTap?.(idx as number, tapDir[z]), 60, this.jbqGroup);
     });
@@ -221,8 +228,12 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     const jbqOn = !!v.chipsOn[2];
     this.jbqGroup.setVisible(jbqOn);
     this.scopeRow.setVisible(!v.jbqBasics);
-    const shift = jbqOn && !v.jbqBasics ? 0 : LOWER_SHIFT_NO_JBQ;
-    this.lowerGroup.setY(shift);
+    const layout = jbqOn ? (v.jbqBasics ? LOADOUT_LAYOUT.jbqBasics : LOADOUT_LAYOUT.jbqScope) : LOADOUT_LAYOUT.readingMath;
+    const top = -JOIN_PANEL.h / 2;
+    this.carGroup.setY(top + layout.car);
+    this.guideGroup.setY(top + layout.buddy);
+    this.carRow.setY(layout.rowOffset);
+    this.guideRow.setY(layout.rowOffset);
     const limited = jbqOn && !!v.jbqLimit;
     this.jbqGroup.setAlpha(limited ? 0.35 : 1);
     this.qCap.setText(limited ? v.jbqLimit! : 'QUESTIONS').setColor(limited ? '#ffb4b4' : MENU.dim);
@@ -230,18 +241,19 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.scopeRow.setValue(v.jbqScope);
     this.chips.set(v.chipsOn, !v.ready && v.cursor === ROW_QUESTIONS ? v.chipFocus : -1, limited ? 2 : -1);
     this.guideObj.setTexture(guideArt(v.guideKind));
-    this.guideObj.setScale(Math.min(1, 64 / this.guideObj.height, 90 / this.guideObj.width));
-    if (this.carKind !== v.carKind) {
+    this.guideObj.setScale(Math.min(layout.height / this.guideObj.height, layout.width / this.guideObj.width));
+    if (!this.carObj || this.carKind !== v.carKind) {
       this.carObj?.destroy();
-      this.carObj = carPreview(this.scene, v.carKind, 130, -JOIN_PANEL.h / 2 + Y.carCap, 0.7);
-      this.add(this.carObj);
+      this.carObj = carPreview(this.scene, v.carKind, PICK_ART_X, 0, 1);
+      const { width, height } = this.carObj.getBounds();
+      this.carObj.setSize(width, height);
+      this.carGroup.add(this.carObj);
       this.carKind = v.carKind;
     }
-    this.carObj?.setVisible(!v.newProfile).setY(-JOIN_PANEL.h / 2 + Y.carCap + shift);
+    this.carObj.setVisible(!v.newProfile).setScale(Math.min(layout.height / this.carObj.height, layout.width / this.carObj.width));
     // locked look: dimmed choices, no cursor
     this.questionsGroup.setVisible(!v.newProfile);
     this.rowsGroup.setAlpha(v.ready ? 0.4 : 1);
-    this.carObj?.setAlpha(v.ready ? 0.4 : 1);
     this.racerRow.setSelected(!v.ready && v.cursor === ROW_RACER, this.color);
     this.carRow.setSelected(!v.ready && v.cursor === ROW_CAR, this.color);
     this.guideRow.setSelected(!v.ready && v.cursor === ROW_GUIDE, this.color);
@@ -254,10 +266,5 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.askText.setVisible(!pad).setText(v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter = ' + (v.newProfile ? 'create' : 'ready') : 'Space = ' + (v.newProfile ? 'create' : 'ready'));
     if (pad && v.family) { this.askPrompt.setFamily(v.family); this.makePrompt.setFamily(v.family); }
     if (this.joined !== was) this.scene.tweens.add({ targets: this, scale: { from: 1.08, to: 1 }, duration: 300, ease: 'Back.Out' });
-  }
-
-  override destroy(fromScene?: boolean): void {
-    this.carObj?.destroy();
-    super.destroy(fromScene);
   }
 }

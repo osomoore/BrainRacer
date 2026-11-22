@@ -48,7 +48,7 @@ export class EngineSound implements IEngineSound {
     this.brightGain.connect(this.out);
     this.filter.connect(this.out);
     this.out.connect(panner);
-    panner.connect(this.mixer.sfxBus);
+    panner.connect(this.mixer.engineBus);
 
     this.oscs = [this.saw, this.sq, this.bright];
     this.nodes = [panner, this.out, this.filter, this.saw, this.sq, sqGain, this.bright, this.brightGain, brightFilter, this.wobble];
@@ -118,7 +118,7 @@ export class LiteEngineSound implements IEngineSound {
     this.osc.connect(this.filter);
     this.filter.connect(this.out);
     this.out.connect(panner);
-    panner.connect(mixer.sfxBus);
+    panner.connect(mixer.engineBus);
     this.nodes = [panner, this.out, this.filter, this.osc];
     const t = Tone.now() + 0.02;
     this.osc.start(t);
@@ -223,7 +223,7 @@ export class SampleEngineSound implements IEngineSound {
     this.panner = this.ctx.createStereoPanner() as unknown as StereoPannerNode;
     this.panner.pan.value = pan;
     this.out.connect(this.panner);
-    Tone.connect(this.panner as never, mixer.sfxBus);
+    Tone.connect(this.panner as never, mixer.engineBus);
     void getEngineLoop().then((buf) => {
       if (!buf || this.stopped) return;
       try {

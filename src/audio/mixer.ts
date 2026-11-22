@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import { WORLD_MUSIC } from '../config/gameConfig';
+import { ENGINE_AUDIO, WORLD_MUSIC } from '../config/gameConfig';
 import type { MusicMix } from '../core/services';
 
 /** master -> compressor -> limiter -> destination; music and sfx buses feed master. */
@@ -7,13 +7,14 @@ export class Mixer {
   readonly master: Tone.Gain;
   readonly musicBus: Tone.Gain;
   readonly sfxBus: Tone.Gain;
+  readonly engineBus: Tone.Gain;
   private readonly comp: Tone.Compressor;
   private readonly limiter: Tone.Limiter;
   private readonly musicDry: Tone.Gain;
   private readonly musicQuiet: Tone.Gain;
   private dynamicsOn = true;
 
-  constructor() {
+  constructor(private engineLevel: number) {
     this.limiter = new Tone.Limiter(-3).toDestination();
     this.comp = new Tone.Compressor({ threshold: -18, ratio: 3, attack: 0.01, release: 0.2 }).connect(this.limiter);
     this.master = new Tone.Gain(0.8).connect(this.comp);
@@ -23,6 +24,16 @@ export class Mixer {
       .connect(this.musicQuiet);
     this.musicBus = new Tone.Gain(0.7).connect(this.musicDry).connect(lowpass);
     this.sfxBus = new Tone.Gain(0.9).connect(this.master);
+    const rumble = new Tone.BiquadFilter({
+      type: 'lowshelf', frequency: ENGINE_AUDIO.rumbleCutoffHz, gain: ENGINE_AUDIO.rumbleGainDb,
+    }).connect(this.sfxBus);
+    this.engineBus = new Tone.Gain(engineLevel / 100).connect(rumble);
+  }
+
+  setEngineLevel(level: number): void {
+    if (level === this.engineLevel) return;
+    this.engineLevel = level;
+    this.engineBus.gain.rampTo(level / 100, ENGINE_AUDIO.levelFadeSec);
   }
 
   /** true: master -> comp -> limiter -> destination; false: master -> destination (cheaper). */
