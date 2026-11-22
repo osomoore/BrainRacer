@@ -9,7 +9,7 @@ import { gasThrottle, mapGamepad, mergeInputs, newRepeatState, type PadSnapshot,
 import { DebugOverlay, formatDebug } from './overlay';
 
 const KB_LAYOUTS: KeyLayout[] = ['left', 'right'];
-const devKey = (d: InputDevice) => (d.type === 'gamepad' ? `pad${d.index}` : `kb-${d.layout}`);
+const devKey = (d: InputDevice) => (d.type === 'gamepad' ? `pad${d.index}` : d.type === 'touch' ? 'touch' : `kb-${d.layout}`);
 const sameDevice = (a: InputDevice, b: InputDevice) => devKey(a) === devKey(b);
 
 interface HapticPad {
@@ -111,11 +111,12 @@ class InputManager implements IInput {
   }
 
   isConnected(device: InputDevice): boolean {
+    if (device.type === 'touch') return false; // touch device arrives with the touch package
     return device.type === 'keyboard' || this.connected.has(device.index);
   }
 
   controllerFamily(device?: InputDevice): ControllerFamily {
-    if (device?.type === 'keyboard') return 'other';
+    if (device?.type === 'keyboard' || device?.type === 'touch') return 'other';
     if (device) return identifyController(this.pads.get(device.index)?.id ?? '');
     let family: ControllerFamily | undefined;
     for (const pad of this.pads.values()) {

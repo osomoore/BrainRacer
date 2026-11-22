@@ -5,7 +5,7 @@ import type { InputDevice, PlayerInput } from '../../core/types';
 
 const fmt = (n: number) => n.toFixed(2).padStart(5, ' ');
 const devName = (d: InputDevice | null) =>
-  !d ? 'none' : d.type === 'gamepad' ? `pad ${d.index}` : `keyboard ${d.layout}`;
+  !d ? 'none' : d.type === 'gamepad' ? `pad ${d.index}` : d.type === 'touch' ? 'touch' : `keyboard ${d.layout}`;
 
 /** Dev scene (?dev=InputTest): live readout of both players' input plus a join demo. F2 toggles the raw overlay. */
 export default class InputTest extends Phaser.Scene {

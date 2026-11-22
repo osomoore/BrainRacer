@@ -86,6 +86,7 @@ export function deviceLabel(d: InputDevice, family?: ControllerFamily): string {
     if (family === 'xbox') return 'Xbox Controller';
     return `\u{1F3AE} Controller ${d.index + 1}`;
   }
+  if (d.type === 'touch') return 'Touch';
   return d.layout === 'left' ? '⌨ WASD' : '⌨ Arrows';
 }
 

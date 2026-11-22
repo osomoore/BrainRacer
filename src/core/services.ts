@@ -4,7 +4,7 @@
  * `services.input = ...` / `services.audio = ...` in BootScene. Until then the stubs below
  * keep everything runnable (keyboard-less input, silent audio).
  */
-import type { ControllerFamily, InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName } from './types';
+import type { AnswerSlot, ControllerFamily, InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName, TouchLayout } from './types';
 
 export interface IInput {
   /** Call exactly once per frame (the active scene does this in update()). */
@@ -26,6 +26,10 @@ export interface IInput {
   isConnected(device: InputDevice): boolean;
   /** Rumble if supported (no-op otherwise). */
   rumble(player: PlayerId, strength: number, ms: number): void;
+  /** Touch: which on-screen controls to show. Each scene sets it in create(). */
+  setTouchLayout?(layout: TouchLayout): void;
+  /** Touch: an on-screen answer card was tapped; reported as `answer` on the touch device's next poll. */
+  touchAnswer?(slot: AnswerSlot): void;
 }
 
 export interface IEngineSound {

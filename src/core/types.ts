@@ -87,7 +87,14 @@ export type ChallengeResult = 'correct' | 'wrong' | 'timeout';
 // ───────────────────────── input ─────────────────────────
 export type InputDevice =
   | { type: 'gamepad'; index: number }
-  | { type: 'keyboard'; layout: 'left' | 'right' };   // left = WASD+123, right = arrows+,./
+  | { type: 'keyboard'; layout: 'left' | 'right' }    // left = WASD+123, right = arrows+,./
+  | { type: 'touch' };                                 // on-screen controls (phones/tablets); single player
+
+/**
+ * Which on-screen touch controls show (no-op without a touch device):
+ * 'menu' = arrows + A/B, 'race' = steer left/right + brake (gas is automatic), 'none' = hidden.
+ */
+export type TouchLayout = 'none' | 'menu' | 'race';
 
 /** Per-player input sampled once per frame. Edge fields are true only on the frame pressed. */
 export interface PlayerInput {

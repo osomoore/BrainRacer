@@ -5,7 +5,7 @@ import { racerChoices, cycleChoice, type RacerChoice } from './newRacerLogic';
 
 export interface JoinSlot { device: InputDevice; ready: boolean }
 
-export const devKey = (d: InputDevice): string => (d.type === 'gamepad' ? `pad${d.index}` : `kb-${d.layout}`);
+export const devKey = (d: InputDevice): string => (d.type === 'gamepad' ? `pad${d.index}` : d.type === 'touch' ? 'touch' : `kb-${d.layout}`);
 export const sameDevice = (a: InputDevice, b: InputDevice): boolean => devKey(a) === devKey(b);
 
 /** A device claims the next free panel (appended). Unchanged if it already has one or all panels are taken. */
