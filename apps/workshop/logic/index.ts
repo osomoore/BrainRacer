@@ -1,43 +1,44 @@
 /**
- * STUB engine from the orchestrator so the shell can run before the engine package lands.
- * The engine package REPLACES this file (keep `export const engine: WorkshopEngine`).
- * Only the save helpers and model basics work here; progression throws.
+ * Adventure Workshop engine: pure rules (stats, evaluate, solver, generator, board, unlocks, hints, saves, admin sandbox).
+ * No Phaser, no DOM, no Math.random. See docs/WORKSHOP.md "Engine semantics".
  */
 import type { WorkshopEngine } from '../core/engineApi';
-import type { Model, PlayerSave, WorkshopId, WorkshopProgress } from '../core/types';
+import type { WorkshopCatalog, WorkshopId } from '../core/types';
 import { CATALOGS } from '../content';
+import { adminSandbox } from './admin';
+import { available, availableFor, sanitizeModel } from './available';
+import { hint, newProgress, recordFail, recordWin, refreshBoard, regenerate, setOverride, setPart } from './board';
+import { evaluate } from './evaluate';
+import { newPlayerSave, normalizeSave, progressOf } from './save';
+import { computeModel, defaultModel } from './stats';
 
-const todo = (name: string): never => { throw new Error(`engine stub: ${name} not implemented yet`); };
-
-function defaultModel(id: WorkshopId): Model {
-  return Object.fromEntries(CATALOGS[id].aspects.map((a) => [a.id, a.starters[0]]));
-}
-
-function newProgress(id: WorkshopId): WorkshopProgress {
+export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatalog>>): WorkshopEngine {
+  const c = (id: WorkshopId): WorkshopCatalog => catalogs[id];
   return {
-    model: defaultModel(id), earned: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {},
-    lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1,
+    catalog: c,
+    computeModel: (id, model) => computeModel(c(id), model),
+    defaultModel: (id) => defaultModel(c(id)),
+    available: (id, p) => available(c(id), p),
+    availableFor: (id, p, aspect) => availableFor(c(id), p, aspect),
+    sanitizeModel: (id, p, model) => sanitizeModel(c(id), p, model),
+    setPart: (id, p, aspect, variant) => setPart(c(id), p, aspect, variant),
+    evaluate: (id, model, challenge) => evaluate(c(id), model, challenge),
+    hint,
+    newProgress: (id) => newProgress(c(id)),
+    refreshBoard: (id, p) => refreshBoard(c(id), p),
+    recordFail: (_id, p, challengeId) => recordFail(p, challengeId),
+    recordWin: (id, p, challengeId, model, now) => recordWin(c(id), p, challengeId, model, now),
+    regenerate: (id, p) => regenerate(c(id), p),
+    setOverride: (id, p, variant, value) => setOverride(c(id), p, variant, value),
+    adminSandbox: (id, p, seed, count) => adminSandbox(c(id), p, seed, count),
+    newPlayerSave,
+    normalizeSave: (raw) => normalizeSave(catalogs, raw),
+    progressOf: (save, id) => progressOf(c(id), save),
   };
 }
 
-export const engine: WorkshopEngine = {
-  catalog: (id) => CATALOGS[id],
-  computeModel: () => ({ stats: {}, tags: new Set() }),
-  defaultModel,
-  available: (id) => new Set(CATALOGS[id].aspects.flatMap((a) => [...a.starters])),
-  availableFor: (id, _p, aspect) => [...(CATALOGS[id].aspects.find((a) => a.id === aspect)?.starters ?? [])],
-  sanitizeModel: (_id, _p, model) => model,
-  setPart: (_id, p, aspect, variant) => ({ ...p, model: { ...p.model, [aspect]: variant } }),
-  evaluate: () => todo('evaluate'),
-  hint: () => null,
-  newProgress,
-  refreshBoard: (_id, p) => p,
-  recordFail: (_id, p, c) => ({ ...p, fails: { ...p.fails, [c]: (p.fails[c] ?? 0) + 1 } }),
-  recordWin: () => todo('recordWin'),
-  regenerate: (_id, p) => p,
-  setOverride: (_id, p) => p,
-  adminSandbox: (_id, p) => p,
-  newPlayerSave: (reading): PlayerSave => ({ version: 1, reading, workshops: {} }),
-  normalizeSave: (raw) => (raw && typeof raw === 'object' && (raw as PlayerSave).version === 1 ? (raw as PlayerSave) : null),
-  progressOf: (save, id) => save.workshops[id] ?? newProgress(id),
-};
+export const engine: WorkshopEngine = createEngine(CATALOGS);
+
+export { validateCatalog } from './validateCatalog';
+export { simulate } from './simulate';
+export type { SimReport, SimOptions } from './simulate';

@@ -23,6 +23,16 @@ export const WS_RULES = {
   /** Generator attempts before giving up on one board slot (then a completed challenge fills it). */
   genAttempts: 200,
   genVersion: 1,
+  /** Chance that a new challenge is preferred to need the most recently unlocked variant. */
+  newestChance: 0.4,
+  /** Generator shape per tier (index = tier, last row repeats): stage count range and requirements-per-stage range. */
+  tierTable: [
+    { stages: [1, 1], reqs: [1, 1] },
+    { stages: [1, 1], reqs: [1, 2] },
+    { stages: [1, 2], reqs: [1, 1] },
+    { stages: [2, 2], reqs: [1, 2] },
+    { stages: [2, 3], reqs: [1, 2] },
+  ] as ReadonlyArray<{ stages: readonly [number, number]; reqs: readonly [number, number] }>,
 } as const;
 
 // ---------------------------------------------------------------- shell / UI (apps/workshop/shell, ui)
