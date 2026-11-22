@@ -86,6 +86,8 @@ export interface PanelView {
   guideKind: GuideKind;
   cursor: number;
   ready: boolean;
+  /** The RACER row is on New Profile: only that row (and the make-racer prompt) is shown. */
+  newProfile?: boolean;
 }
 
 /** One quarter of the Join screen: "press A to join" when empty, racer/car/buddy pickers when joined, a locked READY look when ready. */
@@ -97,6 +99,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   readonly scopeRow: OptionRow;
   readonly chips: QuestionChips;
   private readonly qCap: Phaser.GameObjects.Text;
+  private readonly questionsGroup: Phaser.GameObjects.Container;
   private readonly jbqGroup: Phaser.GameObjects.Container;
   private readonly lowerGroup: Phaser.GameObjects.Container;
   readonly hint: Phaser.GameObjects.Text;
@@ -108,6 +111,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   private readonly askBanner: Phaser.GameObjects.Container;
   private readonly askText: Phaser.GameObjects.Text;
   private readonly askPrompt: ConfirmPrompt;
+  private readonly makePrompt: ConfirmPrompt;
   private readonly deviceText: Phaser.GameObjects.Text;
   private readonly rowsGroup: Phaser.GameObjects.Container;
   private carObj?: Phaser.GameObjects.Container;
@@ -158,7 +162,8 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.guideRow = new OptionRow(scene, 0, top + Y.guide, '', opts);
     this.guideObj = scene.add.image(150, top + Y.guideCap, guideArt('star'));
     this.lowerGroup = scene.add.container(0, 0, [carCap, this.carRow, guideCap, this.guideRow, this.guideObj]);
-    this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, qCap, this.chips, this.jbqGroup, this.lowerGroup]);
+    this.questionsGroup = scene.add.container(0, 0, [qCap, this.chips, this.jbqGroup, this.lowerGroup]);
+    this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, this.questionsGroup]);
 
     const tapDir = { left: -1, body: 0, right: 1 } as const;
     [[this.racerRow, ROW_RACER, this.rowsGroup], [this.carRow, ROW_CAR, this.lowerGroup], [this.guideRow, ROW_GUIDE, this.lowerGroup]].forEach(([row, idx, host]) => {
@@ -167,12 +172,13 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     [[this.pointsRow, ROW_POINTS], [this.scopeRow, ROW_SCOPE]].forEach(([row, idx]) => {
       (row as OptionRow).makeTappable((z) => this.onRowTap?.(idx as number, tapDir[z]), 60, this.jbqGroup);
     });
-    this.chips.makeTappable(this.rowsGroup, top + Y.chips);
+    this.chips.makeTappable(this.questionsGroup, top + Y.chips);
 
     const askY = top + h - 32;
     this.askText = bigText(scene, 0, askY, '', 40, '#ffffff');
     this.askPrompt = new ConfirmPrompt(scene, 0, askY, '= ready', 40);
-    this.askBanner = scene.add.container(0, 0, [this.askPrompt, this.askText]);
+    this.makePrompt = new ConfirmPrompt(scene, 0, askY, '= create', 40);
+    this.askBanner = scene.add.container(0, 0, [this.askPrompt, this.makePrompt, this.askText]);
     const back = scene.add.graphics();
     back.fillStyle(0x0b3a22, 0.92).fillRoundedRect(-205, -85, 410, 170, 30).lineStyle(8, this.color, 1).strokeRoundedRect(-205, -85, 410, 170, 30);
     const tick = bigText(scene, 0, -28, 'READY ✓', 72, '#ffd43b', { font: FONT_HEAD, stroke: 12 });
@@ -231,8 +237,9 @@ export class JoinPanel extends Phaser.GameObjects.Container {
       this.add(this.carObj);
       this.carKind = v.carKind;
     }
-    this.carObj?.setVisible(true).setY(-JOIN_PANEL.h / 2 + Y.carCap + shift);
+    this.carObj?.setVisible(!v.newProfile).setY(-JOIN_PANEL.h / 2 + Y.carCap + shift);
     // locked look: dimmed choices, no cursor
+    this.questionsGroup.setVisible(!v.newProfile);
     this.rowsGroup.setAlpha(v.ready ? 0.4 : 1);
     this.carObj?.setAlpha(v.ready ? 0.4 : 1);
     this.racerRow.setSelected(!v.ready && v.cursor === ROW_RACER, this.color);
@@ -242,9 +249,10 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.scopeRow.setSelected(!v.ready && !v.jbqBasics && v.cursor === ROW_SCOPE, this.color);
     this.readyBanner.setVisible(v.ready);
     this.askBanner.setVisible(!v.ready && !(isMobile() && v.device.type === 'touch')); // phone: NEXT is tapped
-    this.askPrompt.setVisible(pad);
-    this.askText.setVisible(!pad).setText(v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter = ready' : 'Space = ready');
-    if (pad && v.family) this.askPrompt.setFamily(v.family);
+    this.askPrompt.setVisible(pad && !v.newProfile);
+    this.makePrompt.setVisible(pad && !!v.newProfile);
+    this.askText.setVisible(!pad).setText(v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter = ' + (v.newProfile ? 'create' : 'ready') : 'Space = ' + (v.newProfile ? 'create' : 'ready'));
+    if (pad && v.family) { this.askPrompt.setFamily(v.family); this.makePrompt.setFamily(v.family); }
     if (this.joined !== was) this.scene.tweens.add({ targets: this, scale: { from: 1.08, to: 1 }, duration: 300, ease: 'Back.Out' });
   }
 

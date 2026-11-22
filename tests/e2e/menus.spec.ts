@@ -293,14 +293,22 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make your racer!');
   await page.screenshot({ path: 'test-results/menus-setup-new.png' });
-  await tapPad(page, 0, BTN_A);     // ready on New Profile -> creation overlay
+  expect(await page.evaluate(() => { const p = (window as any).__game.scene.getScene('Setup').panels[0]; return [p.racerRow.visible, (p as any).questionsGroup.visible, (p as any).carObj.visible]; })).toEqual([true, false, false]); // New Profile shows only the racer row
+  await tapPad(page, 0, BTN_A);     // confirm on New Profile -> creation overlay
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/menus-newracer-name.png' });
   await page.keyboard.type('Zed', { delay: 0 });
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-newracer-age.png' });
-  await tapPad(page, 0, BTN_A);     // age 0-5 (Easy): creates the racer and readies the panel
+  await tapPad(page, 0, BTN_A);     // age 0-5 (Easy): creates the racer and selects it
+  await page.waitForTimeout(900);
+  expect(await page.evaluate(() => { const sc = (window as any).__game.scene; const st = sc.getScene('Setup'); return { active: sc.isActive('Setup'), track: sc.isActive('TrackSelect'), ready: st.panels[0].ready, isNew: st.isNew[0], q: st.panels[0].questionsGroup.visible }; }))
+    .toMatchObject({ active: true, track: false, ready: false, isNew: false, q: true }); // created, selected, NOT ready, rows visible
+  await page.screenshot({ path: 'test-results/menus-newracer-after.png' });
+  await tapPad(page, 0, PAD_DOWN);  // off the Questions row (A there toggles a chip)
+  await page.waitForTimeout(200);
+  await tapPad(page, 0, BTN_A);     // Ready
   await page.waitForTimeout(700);
   await tapPad(page, 0, BTN_A);     // Next
   await waitScene(page, 'TrackSelect');
