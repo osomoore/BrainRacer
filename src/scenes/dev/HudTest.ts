@@ -17,6 +17,7 @@ import type {
 import { scenesForWord } from '../../data/scenes';
 import { worldToScreen } from '../../ui/hud/hudMath';
 import { REG, SCENE } from '../keys';
+import { jbqChallenge } from './JbqPanelTest';
 
 const KINDS: ChallengeKind[] = ['picToWord', 'math', 'wordToPic'];
 const PLACES = ['bakery', 'hospital', 'school', 'zoo', 'library', 'fire station'];
@@ -75,11 +76,11 @@ export default class HudTest extends Phaser.Scene {
     };
     const settings = {
       players: [{}, {}].slice(0, this.nPlayers), challengeIntervalSec: 5, roundLengthSec: 300,
-      goalPointsPerCar: 3, seed: 1, musicVolume: 0, sfxVolume: 0,
+      goalPointsPerCar: 3, seed: 1, musicVolume: 0, sfxVolume: 0, map: 'city',
     } as unknown as Settings;
     this.ctx = {
       scene: this, bus: this.bus, settings, players: this.cars.slice(0, this.nPlayers),
-      goal, camera, elapsedSec: 0, roundLengthSec: 300, paused: false, questionBreak: false,
+      goal, camera, dino: { active: false }, elapsedSec: 0, roundLengthSec: 300, paused: false, questionBreak: false,
     } as unknown as RaceContext;
     this.registry.set(REG.race, this.ctx);
     this.launchHud();
@@ -190,7 +191,8 @@ export default class HudTest extends Phaser.Scene {
     const n = this.counts[p]++;
     const place = p === 0 && n % 4 === 3 ? 'bakery' : undefined;
     const g = this.gen.generate(KINDS[n % 3], 'normal', { placeWord: place });
-    const c: Challenge = {
+    // Every 5th question for P2 is a JBQ sample (4 answers; keys 8 9 0 only reach the first three slots).
+    const c: Challenge = p === 1 && n % 5 === 4 ? jbqChallenge(this.nextId++, p, n) : {
       id: this.nextId++, player: p, kind: g.kind, prompt: g.prompt, options: g.options, correct: g.correct,
       durationSec: 5, source: place ? 'place' : 'random', placeWord: g.placeWord,
     };

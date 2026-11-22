@@ -15,6 +15,7 @@ import { Rng } from '../../core/rng';
 import { services } from '../../core/services';
 import type { AnswerSlot, CameraLayout, Challenge, ChallengeKind, PlayerId, Rect, Settings } from '../../core/types';
 import { REG, SCENE } from '../keys';
+import { jbqChallenge } from './JbqPanelTest';
 
 const KINDS: ChallengeKind[] = ['picToWord', 'math', 'wordToPic'];
 const SHADE = [0x33485c, 0x4a3a5c, 0x3a5c48, 0x5c4a33];
@@ -94,7 +95,7 @@ export default class QuadHudTest extends Phaser.Scene {
 
   private show(p: number) {
     const g = this.gen.generate(KINDS[p % 3], 'normal', {});
-    const c: Challenge = { id: this.nextId++, player: p as PlayerId, kind: g.kind, prompt: g.prompt, options: g.options, correct: g.correct, durationSec: 5, source: 'random' };
+    const c: Challenge = p === 0 ? jbqChallenge(this.nextId++, p as PlayerId, 2) : { id: this.nextId++, player: p as PlayerId, kind: g.kind, prompt: g.prompt, options: g.options, correct: g.correct, durationSec: 5, source: 'random' };
     this.current[p] = c;
     this.bus.emit('challenge:shown', { challenge: c });
   }
