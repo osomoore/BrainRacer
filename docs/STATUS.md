@@ -180,6 +180,14 @@ The original race tracks are “Cloudline Express” (Sky-city), “Lanternwood 
 - Up to two police cruisers pursue each player at once.
 - Completing a goal activates the next goal immediately and redirects the guide buddy. Destination-ring glow fades to full transparency at the edges.
 
+## Touch / mobile (single player, landscape)
+- **Touch device** (`src/input/touch/`): a DOM overlay (`TouchOverlay`) above the canvas; pure mapping in `touchMap.ts` (tests next to it). It joins `devices()`/`isConnected()` after the first real touch (`pointerType === 'touch'`); tapping its A on the title joins like a pad. Only one touch slot exists. The overlay hides while a gamepad was used more recently than touch.
+- **Layouts** (`setTouchLayout`, driven from `src/main.ts` each frame): `race` = big ◀ ▶ bottom-left, brake bottom-right, pause + reset-car top-right; gas is automatic (throttle 1 unless brake), steering digital. `menu` = arrow pad + green A + red B. `none` during a pause-style question break (answers are tapped on the cards via `touchAnswer`, reported as `answer` on the next poll). The Pause menu uses `menu`.
+- **Mobile shell** (`shared/mobile.ts`, one call per page): portrait + coarse pointer shows "Turn your phone sideways"; the first tap requests fullscreen + landscape lock (best effort, iOS has neither). Page navigation (launcher to game) can drop fullscreen.
+- **Install as app:** `public/manifest.webmanifest` + icons in `public/icons/`, head tags in the three HTML files. No service worker on purpose (the TV box must get the newest build).
+- Try it: `npx vite --host --port 5184`, open `http://<pc-ip>:5184/` on the phone; or desktop `?race=1&input=touch` with touch emulation. Tunables: `TOUCH_CFG` in `src/input/config.ts`.
+- Gaps: name entry would need the on-screen keyboard; iOS has no fullscreen API for pages (use Add to Home Screen); no second touch player.
+
 ## Known gaps (also tracked in NEXT.md)
 - Unused config keys: `WORLD.bigAirSec`. HudTest still emits a "Nice jump!" popup (ignored).
 - Police bump picks the nearest cruiser to the crash point; no traffic right-of-way at junctions.

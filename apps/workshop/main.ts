@@ -3,11 +3,13 @@
  * the launcher on back / confirm (any controller or keyboard) or when the hint is clicked.
  */
 import { goToHub } from '../../shared/hub';
+import { installMobileShell } from '../../shared/mobile';
 import { createMenuInput } from '../../shared/input/menuInput';
 import { fitScale } from './layout';
 import { sceneMarkup } from './scene';
 import './style.css';
 
+installMobileShell();
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('missing #stage');
 stage.innerHTML = sceneMarkup();

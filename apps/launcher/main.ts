@@ -1,3 +1,4 @@
+import { installMobileShell } from '../../shared/mobile';
 import { GAMES, gameUrl, goToGame, lastGame, type GameId } from '../../shared/hub';
 import { createMenuInput } from '../../shared/input/menuInput';
 import { moveSelection, shouldForward } from './logic';
@@ -118,5 +119,6 @@ function start(): void {
 }
 
 // Dev/test URLs (?race=1, ?dev=Scene ...) belong to Brain Racer: forward before rendering anything.
+installMobileShell();
 if (shouldForward(location.search)) location.replace(gameUrl('racer', location.search));
 else start();
