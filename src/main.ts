@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from './config/gameConfig';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SetupScene } from './scenes/SetupScene';
+import { TrackSelectScene } from './scenes/TrackSelectScene';
 import { RaceScene } from './scenes/RaceScene';
 import { HudScene } from './scenes/HudScene';
 import { ResultsScene } from './scenes/ResultsScene';
@@ -28,7 +29,7 @@ const game = new Phaser.Game({
   input: { gamepad: false, keyboard: true }, // gamepads read via navigator.getGamepads in src/input
   physics: { default: 'matter', matter: { gravity: { x: 0, y: 0 }, debug: false } },
   fps: { target: 60, smoothStep: true, limit: getTuning().fpsCap === 30 ? 30 : 0 },
-  scene: [BootScene, TitleScene, SetupScene, RaceScene, HudScene, ResultsScene, ...devScenes, ConfigScene],
+  scene: [BootScene, TitleScene, SetupScene, TrackSelectScene, RaceScene, HudScene, ResultsScene, ...devScenes, ConfigScene],
 });
 
 // Hidden settings menu: always running, on top of everything (see ConfigScene).

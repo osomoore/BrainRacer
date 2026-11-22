@@ -102,7 +102,7 @@ class InputManager implements IInput {
     this.prevPads = snaps;
 
     this.overlay.update(() =>
-      formatDebug(this.pads, ([0, 1] as PlayerId[]).map((p) => (this.assigned[p] ? this.get(p) : null))));
+      formatDebug(this.pads, ([0, 1, 2, 3] as PlayerId[]).map((p) => (this.assigned[p] ? this.get(p) : null))));
   }
 
   devices(): InputDevice[] {

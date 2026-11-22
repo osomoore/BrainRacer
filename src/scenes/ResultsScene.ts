@@ -19,6 +19,8 @@ import { REG, SCENE } from './keys';
 
 const CX = GAME_WIDTH / 2;
 const CARD_W = 600, CARD_H = 330, CARD_Y = 600;
+/** 3-4 players: narrower, taller cards so four fit across 1920 px. */
+const COMPACT = { w: 450, h: 380, gap: 28, yOffset: 145 };
 const INPUT_GRACE_MS = 1200;
 
 /** `rewards`: one entry per player slot (RaceScene → awardRacers). */
@@ -229,36 +231,45 @@ export class ResultsScene extends Phaser.Scene {
 
   private buildCards(results: RoundResults) {
     const n = Math.max(1, results.players.length);
-    const gap = 70;
-    const total = n * CARD_W + (n - 1) * gap;
+    const compact = n > 2;
+    const w = compact ? COMPACT.w : CARD_W;
+    const gap = compact ? COMPACT.gap : 70;
+    const total = n * w + (n - 1) * gap;
     results.players.forEach((p, i) => {
-      const x = CX - total / 2 + CARD_W / 2 + i * (CARD_W + gap);
-      this.playerCard(x, CARD_Y, i, p);
+      const x = CX - total / 2 + w / 2 + i * (w + gap);
+      this.playerCard(x, CARD_Y, i, p, compact);
     });
   }
 
-  private playerCard(x: number, y: number, i: number, p: PlayerStats) {
+  private playerCard(x: number, y: number, i: number, p: PlayerStats, compact = false) {
     const color = hexNum(PLAYER_COLORS[i] ?? PLAYER_COLORS[0]);
-    const c = this.add.container(x, y + 135);
+    const cw = compact ? COMPACT.w : CARD_W, ch = compact ? COMPACT.h : CARD_H;
+    const c = this.add.container(x, y + (compact ? COMPACT.yOffset : 135));
     const g = this.add.graphics();
-    g.fillStyle(MENU.panel, 1).fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 32);
-    g.lineStyle(8, color, 1).strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 32);
-    g.fillStyle(color, 1).fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 78, { tl: 32, tr: 32, bl: 0, br: 0 });
+    g.fillStyle(MENU.panel, 1).fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 32);
+    g.lineStyle(8, color, 1).strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 32);
+    g.fillStyle(color, 1).fillRoundedRect(-cw / 2, -ch / 2, cw, 78, { tl: 32, tr: 32, bl: 0, br: 0 });
     c.add(g);
     const kind = this.settings.players[i]?.car ?? (i === 0 ? 'dino' : 'kart');
-    c.add(carPreview(this, kind, -CARD_W / 2 + 80, -CARD_H / 2 + 39, 1.3));
-    c.add(bigText(this, -CARD_W / 2 + 150, -CARD_H / 2 + 39, `PLAYER ${i + 1}`, 44, '#ffffff', { origin: [0, 0.5], stroke: 6 }));
-    c.add(bigText(this, CARD_W / 2 - 30, -CARD_H / 2 + 39, `${p.points} pts`, 48, '#ffffff', { origin: [1, 0.5], stroke: 6, font: FONT_HEAD }));
+    c.add(carPreview(this, kind, -cw / 2 + 80, -ch / 2 + 39, 1.3));
+    c.add(bigText(this, -cw / 2 + 150, -ch / 2 + 39, `PLAYER ${i + 1}`, 44, '#ffffff', { origin: [0, 0.5], stroke: 6 }));
+    let top = -ch / 2 + 125;
+    if (compact) {
+      c.add(bigText(this, 0, -ch / 2 + 125, `${p.points} pts`, 56, '#ffd43b', { font: FONT_HEAD, stroke: 8 }));
+      top = -ch / 2 + 190;
+    } else {
+      c.add(bigText(this, cw / 2 - 30, -ch / 2 + 39, `${p.points} pts`, 48, '#ffffff', { origin: [1, 0.5], stroke: 6, font: FONT_HEAD }));
+    }
     const rows: [string, string, string][] = [
-      ['✓', `${p.correct} correct`, '#7CFC00'],
+      ['✓', compact ? `${p.correct} right` : `${p.correct} correct`, '#7CFC00'],
       ['✗', `${p.wrong} wrong`, '#ffb4a8'],
-      ['…', `${p.timeouts} too slow`, '#ffd43b'],
-      ['★', `${p.goals} goals reached`, '#74c0fc'],
+      ['…', compact ? `${p.timeouts} slow` : `${p.timeouts} too slow`, '#ffd43b'],
+      ['★', compact ? `${p.goals} goals` : `${p.goals} goals reached`, '#74c0fc'],
     ];
     rows.forEach(([icon, label, col], k) => {
-      const ry = -CARD_H / 2 + 125 + k * 52;
-      c.add(bigText(this, -CARD_W / 2 + 60, ry, icon, 44, col, { stroke: 4, shadow: false }));
-      c.add(this.add.text(-CARD_W / 2 + 110, ry, label, { fontFamily: FONT_BODY, fontStyle: 'bold', fontSize: '42px', color: '#ffffff' }).setOrigin(0, 0.5));
+      const ry = top + k * (compact ? 46 : 52);
+      c.add(bigText(this, -cw / 2 + (compact ? 45 : 60), ry, icon, 44, col, { stroke: 4, shadow: false }));
+      c.add(this.add.text(-cw / 2 + (compact ? 95 : 110), ry, label, { fontFamily: FONT_BODY, fontStyle: 'bold', fontSize: '42px', color: '#ffffff' }).setOrigin(0, 0.5));
     });
     c.setScale(0.6).setAlpha(0);
     this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 500, delay: 300 + i * 200, ease: 'Back.Out' });

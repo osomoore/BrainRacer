@@ -1,25 +1,19 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { services } from '../core/services';
-import { loadSettings, savedSecondPlayer, saveSettings } from '../core/settings';
-import type { CarKind, InputDevice, PlayerSettings, Settings } from '../core/types';
+import type { InputDevice } from '../core/types';
 import { ConfirmPrompt } from '../ui/menu/FaceButtonBadge';
-import { JoinCard } from '../ui/menu/JoinCard';
 import { bigText, FONT_HEAD } from '../ui/menu/style';
 import { buildLabel } from '../buildInfo';
-import { REG, SCENE } from './keys';
+import { SCENE } from './keys';
 
 const LOGO_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#ff922b'];
 const ROAD_TOP = 905;
-/** After someone joins, confirm is ignored this long so the other player can still join. */
-const JOIN_GRACE_MS = 600;
 
 interface Driver { obj: Phaser.GameObjects.Container; speed: number; dir: 1 | -1 }
 
 export class TitleScene extends Phaser.Scene {
-  private joined: InputDevice[] = [];
-  private cards: JoinCard[] = [];
   private letters: Phaser.GameObjects.Text[] = [];
   private letterBaseY = 0;
   private drivers: Driver[] = [];
@@ -28,24 +22,22 @@ export class TitleScene extends Phaser.Scene {
   private continueHint!: ConfirmPrompt;
   private audioStarted = false;
   private leaving = false;
-  private lastJoinAt = -1e9;
 
   constructor() { super(SCENE.title); }
 
   create() {
-    this.joined = []; this.cards = []; this.letters = []; this.drivers = []; this.leaving = false; this.lastJoinAt = -1e9;
+    this.letters = []; this.drivers = []; this.leaving = false;
     this.audioStarted = services.audio.unlocked;
     if (this.audioStarted) services.audio.music('title');
     services.input.reset();
     this.buildBackground();
     this.buildLogo();
 
-    const carFor = (i: number): CarKind => (i === 0 ? 'dino' : 'kart');
-    this.cards = [0, 1].map((i) => new JoinCard(this, 520 + i * 880, 600, i as 0 | 1, PLAYER_COLORS[i], carFor(i)));
-
-    this.continueHint = new ConfirmPrompt(this, GAME_WIDTH / 2, 868, 'again to continue', 56);
-    this.continueHint.setVisible(false);
+    // Any controller (or keyboard confirm key) starts: that device claims Player 1's panel on the Join screen.
+    this.continueHint = new ConfirmPrompt(this, GAME_WIDTH / 2, 600, 'to play!', 96);
     this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    bigText(this, GAME_WIDTH / 2, 710, 'Keyboard: Space or Enter', 48, '#ffffff');
+    bigText(this, GAME_WIDTH / 2, 780, '1 to 4 players', 56, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
 
     bigText(this, GAME_WIDTH - 24, 20, buildLabel(), 32, '#ffffff', { origin: [1, 0], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
 
@@ -145,77 +137,18 @@ export class TitleScene extends Phaser.Scene {
 
     const input = services.input;
     input.poll();
-    const connectedFamily = input.controllerFamily?.() ?? 'other';
-    this.cards.forEach((card) => card.setPromptFamily(connectedFamily));
+    this.continueHint.setFamily(input.controllerFamily?.() ?? 'other');
     if (this.leaving) return;
     const any = input.any();
     if (any.confirm || any.back || any.pause || any.navX || any.navY) this.startAudio();
-
-    // leave (only the last-joined player whose back was pressed)
-    for (let i = this.joined.length - 1; i >= 0; i--) {
-      if (input.get(i as 0 | 1).back) {
-        this.joined.splice(i, 1);
-        this.syncAssign();
-        services.audio.sfx('menuMove');
-        this.refreshCards();
-        return;
-      }
-    }
-    // continue
-    for (let i = 0; i < this.joined.length && time - this.lastJoinAt >= JOIN_GRACE_MS; i++) {
-      const inp = input.get(i as 0 | 1);
-      if (inp.confirm || inp.pause) { this.goSetup(); return; }
-    }
-    // join
-    if (this.joined.length < 2) {
-      const d = input.pollJoin(this.joined);
-      if (d) {
-        this.joined.push(d);
-        this.lastJoinAt = time;
-        this.syncAssign();
-        this.startAudio();
-        services.audio.sfx('join');
-        this.refreshCards();
-      }
-    }
+    const d = input.pollJoin([]);
+    if (d) this.goJoin(d);
   }
 
-  private syncAssign() {
-    services.input.reset();
-    this.joined.forEach((d, i) => services.input.assign(i as 0 | 1, d));
-  }
-
-  private refreshCards() {
-    const input = services.input;
-    this.cards.forEach((card, i) => {
-      const device = this.joined[i];
-      card.setJoined(device ?? null, device ? input.controllerFamily?.(device) : undefined);
-    });
-    const pads = this.joined.filter((device) => device.type === 'gamepad');
-    const family = pads[0] && input.controllerFamily?.(pads[0]);
-    const commonFamily = family && pads.every((pad) => input.controllerFamily?.(pad) === family) ? family : 'other';
-    this.continueHint.setFamily(commonFamily);
-    this.continueHint.setVisible(this.joined.length > 0);
-  }
-
-  private goSetup() {
+  private goJoin(device: InputDevice) {
     this.leaving = true;
-    services.audio.sfx('menuSelect');
-    const current = loadSettings();
-    const saved = current.players;
-    const players: PlayerSettings[] = this.joined.map((device, i) => {
-      const prev = saved[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
-      const p0car: CarKind = saved[0]?.car ?? 'dino';
-      return {
-        ...prev,
-        device,
-        difficulty: prev?.difficulty ?? saved[0]?.difficulty ?? 'normal',
-        car: prev?.car ?? (i === 0 ? 'dino' : p0car === 'dino' ? 'kart' : 'dino'),
-      };
-    });
-    const settings: Settings = { ...current, players };
-    saveSettings(settings);
-    this.registry.set(REG.settings, settings);
-    this.scene.start(SCENE.setup);
+    this.startAudio();
+    services.audio.sfx('join');
+    this.scene.start(SCENE.setup, { device });
   }
 }

@@ -5,8 +5,9 @@ export type RacerChoice = RacerProfileId | 'new';
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 
 /** Racers a player can cycle through: existing racers minus the other player's (when it is a real racer), then New Profile. */
-export function racerChoices(ids: readonly RacerProfileId[], other: RacerProfileId | undefined, canNew: boolean): RacerChoice[] {
-  const list: RacerChoice[] = ids.filter((r) => r !== other);
+export function racerChoices(ids: readonly RacerProfileId[], other: RacerProfileId | readonly RacerProfileId[] | undefined, canNew: boolean): RacerChoice[] {
+  const taken: readonly RacerProfileId[] = other === undefined ? [] : typeof other === 'string' ? [other] : other;
+  const list: RacerChoice[] = ids.filter((r) => !taken.includes(r));
   if (canNew) list.push('new');
   return list;
 }

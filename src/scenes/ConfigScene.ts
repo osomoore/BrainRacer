@@ -31,7 +31,8 @@ const ROW_W = 820;
 const ROW_H = 58;
 const COL_X = [525, 1430];
 const FIRST_ROW = 221;
-const ROW_STEP = 71;
+const ROW_STEP = 58;   // 13 slots per column; rows are ROW_H_MAIN high with a 4 px gap
+const ROW_H_MAIN = 54;
 
 const ENGINE: readonly DeviceTuning['engineSound'][] = ['full', 'lite', 'sample', 'off'];
 const ENGINE_LABEL = { full: 'Full', lite: 'Lite', sample: 'Sample', off: 'Off' } as const;
@@ -143,7 +144,7 @@ export class ConfigScene extends Phaser.Scene {
     c.add(bigText(this, GAME_WIDTH / 2, 72, 'ADMIN SETTINGS', 72, MENU.yellow, { font: FONT_HEAD, stroke: 10 }));
     c.add(bigText(this, 30, 30, `Build ${BUILD_ID}`, 32, MENU.dim, { origin: [0, 0], bold: false, shadow: false, stroke: 4 }));
     const color = hexNum(PLAYER_COLORS[0]);
-    const opts = { width: ROW_W, height: ROW_H, fontSize: 40, valueX: 205, arrowSpan: 169 };
+    const opts = { width: ROW_W, height: ROW_H_MAIN, fontSize: 40, valueX: 205, arrowSpan: 169 };
 
     const header = (col: number, y: number, text: string): void => {
       c.add(bigText(this, COL_X[col] - ROW_W / 2 + 8, y, text, 44, MENU.dim, { origin: [0, 0.5], stroke: 6, shadow: false }));
@@ -156,7 +157,7 @@ export class ConfigScene extends Phaser.Scene {
       this.rows.push({ selectable: r, change, refresh, bump: (d) => r.bump(d) });
     };
     const action = (col: number, y: number, label: string, fn: () => void): void => {
-      const b = new MenuButton(this, COL_X[col], y, ROW_W, ROW_H, label, color, 44, false);
+      const b = new MenuButton(this, COL_X[col], y, ROW_W, ROW_H_MAIN, label, color, 44, false);
       c.add(b);
       this.rows.push({ selectable: b, activate: fn });
     };
@@ -182,8 +183,8 @@ export class ConfigScene extends Phaser.Scene {
       this.showPerf();
     });
 
-    header(0, 500, 'GAMEPAD');
-    for (const p of [0, 1] as const) {
+    header(0, rowY(4), 'GAMEPAD');
+    for (const p of [0, 1, 2, 3] as const) {
       option(0, rowY(5 + p), `P${p + 1} gas`, () => {
         const mode = getTuning().gas[p];
         const device = this.settings().players[p]?.device;
@@ -196,13 +197,13 @@ export class ConfigScene extends Phaser.Scene {
         setTuning({ gas });
       });
     }
-    header(0, 710, 'DISPLAY   (* needs reload)');
-    option(0, rowY(8), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
+    header(0, rowY(9), 'DISPLAY   (* needs reload)');
+    option(0, rowY(10), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
-    option(0, rowY(9), 'Debug readout', () => onOff(getTuning().debugReadout),
+    option(0, rowY(11), 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
-    option(0, rowY(10), 'Admin Mode', () => onOff(this.settings().developerMode === true),
-      () => this.patchSettings(developerModeSettings(this.settings().developerMode !== true)));
+    option(0, rowY(12), 'Perf overlay', () => onOff(getTuning().perfHud),
+      () => setTuning({ perfHud: !getTuning().perfHud }));
 
     header(1, 155, 'AUDIO');
     option(1, rowY(0), 'Music volume', () => `${Math.round(this.settings().musicVolume * 100)}%`, vol('musicVolume'));
@@ -217,10 +218,12 @@ export class ConfigScene extends Phaser.Scene {
       (d) => setTuning({ lookAheadSec: cycle(AHEAD, getTuning().lookAheadSec, d) }));
     option(1, rowY(6), 'Compressor', () => onOff(getTuning().compressor),
       () => setTuning({ compressor: !getTuning().compressor }));
-    header(1, 710, 'ACTIONS');
-    action(1, rowY(8), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
-    action(1, rowY(9), 'Reset to defaults', () => this.resetAll());
-    action(1, rowY(10), 'Racer Unlocks', () => {
+    header(1, rowY(7), 'ACTIONS');
+    option(1, rowY(8), 'Admin Mode', () => onOff(this.settings().developerMode === true),
+      () => this.patchSettings(developerModeSettings(this.settings().developerMode !== true)));
+    action(1, rowY(9), 'Reload game', () => { try { location.reload(); } catch { /* ignore */ } });
+    action(1, rowY(10), 'Reset to defaults', () => this.resetAll());
+    action(1, rowY(11), 'Racer Unlocks', () => {
       this.adminCursor = this.cursor;
       this.showContent();
     });
