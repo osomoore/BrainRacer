@@ -96,6 +96,10 @@ export type InputDevice =
  */
 export type TouchLayout = 'none' | 'menu' | 'actions' | 'race';
 
+/** Touch race action button (= pad B / `transfer`): icon for what it does now, pulse when an action is in reach. */
+export type TouchActionMode = 'switch' | 'ride' | 'laser';
+export interface TouchActionView { mode: TouchActionMode; pulse: boolean }
+
 /** Per-player input sampled once per frame. Edge fields are true only on the frame pressed. */
 export interface PlayerInput {
   steer: number;          // -1 (left) .. 1 (right)

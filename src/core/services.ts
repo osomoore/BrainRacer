@@ -4,7 +4,7 @@
  * `services.input = ...` / `services.audio = ...` in BootScene. Until then the stubs below
  * keep everything runnable (keyboard-less input, silent audio).
  */
-import type { AnswerSlot, ControllerFamily, InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName, TouchLayout } from './types';
+import type { AnswerSlot, ControllerFamily, InputDevice, MusicTrack, PlayerId, PlayerInput, SfxName, TouchActionView, TouchLayout } from './types';
 
 export interface IInput {
   /** Call exactly once per frame (the active scene does this in update()). */
@@ -30,6 +30,8 @@ export interface IInput {
   setTouchLayout?(layout: TouchLayout): void;
   /** Touch: an on-screen answer card was tapped; reported as `answer` on the touch device's next poll. */
   touchAnswer?(slot: AnswerSlot): void;
+  /** Touch: look of the race action button (set every frame while racing). */
+  setTouchAction?(view: TouchActionView): void;
 }
 
 export interface IEngineSound {

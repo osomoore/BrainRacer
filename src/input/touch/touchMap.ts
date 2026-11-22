@@ -1,5 +1,6 @@
 /** Pure (DOM-free) mapping from on-screen button states to PlayerInput. */
-import type { AnswerSlot, PlayerInput, TouchLayout } from '../../core/types';
+import type { AnswerSlot, PlayerInput, TouchActionView, TouchLayout } from '../../core/types';
+export type { TouchActionMode, TouchActionView } from '../../core/types';
 import { emptyInput, navEdge, type RepeatState } from '../mapping';
 
 export const TOUCH_BUTTONS = ['left', 'right', 'brake', 'pause', 'reset', 'up', 'down', 'a', 'b', 'act'] as const;
@@ -53,8 +54,6 @@ export function mapTouch(
 }
 
 /** What the race action button does right now (icon + pulse). `switch` is the default (a car may or may not be near). */
-export type TouchActionMode = 'switch' | 'ride' | 'laser';
-export interface TouchActionView { mode: TouchActionMode; pulse: boolean }
 
 /**
  * Pure: derive the action button look from the shared dino state.

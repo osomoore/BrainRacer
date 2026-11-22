@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { DINO_RIDE, GAME_HEIGHT, GAME_WIDTH, VEHICLE_CONDITION } from './config/gameConfig';
 import { dinoBoardDistance } from './entities/dinoRide';
-import { touchActionView, type TouchActionView } from './input/touch/touchMap';
+import { touchActionView } from './input/touch/touchMap';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SetupScene } from './scenes/SetupScene';
@@ -76,7 +76,7 @@ game.events.on(Phaser.Core.Events.POST_STEP, () => {
     if (ctx && car) {
       const d = ctx.dino;
       const dist = d ? dinoBoardDistance(d, car, DINO_RIDE.boardReach) : Infinity;
-      (input as unknown as { setTouchAction?(v: TouchActionView): void }).setTouchAction?.(
+      input.setTouchAction?.(
         touchActionView(d ?? { active: false }, 0, dist, VEHICLE_CONDITION.transferReach));
     }
   }
