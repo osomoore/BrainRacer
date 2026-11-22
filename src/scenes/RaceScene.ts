@@ -134,7 +134,7 @@ export class RaceScene extends Phaser.Scene {
 
     // Profiling (admin "Perf overlay"): physics step and whole-game render, on top of the per-system timing in update().
     perfProbe.enabled = getTuning().perfHud;
-    perfProbe.reset();
+    perfProbe.resetRace();
     if (perfProbe.enabled) {
       const physBegin = () => perfProbe.begin('physics'), physEnd = () => perfProbe.end('physics');
       const renderBegin = () => perfProbe.begin('render'), renderEnd = () => perfProbe.end('render');

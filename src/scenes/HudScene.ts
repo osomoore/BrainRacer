@@ -111,11 +111,11 @@ export class HudScene extends Phaser.Scene {
       onResume: () => ctx.bus.emit('game:resume', {}),
       onRestart: () => this.restartRace(),
       onQuit: () => this.quitToTitle(),
-    });
+    }, perfProbe.enabled);
 
     this.applyLayout(ctx.camera.layout(), true);
     this.bind();
-    if (perfProbe.enabled) this.perf = new PerfOverlay(this, D.perf);
+    if (perfProbe.enabled) this.perf = new PerfOverlay(this, D.perf, this.nPlayers > 2);
   }
 
   // ───────────────────────── events ─────────────────────────
@@ -414,7 +414,7 @@ export class HudScene extends Phaser.Scene {
       this.bars[p].update(dt);
     }
     this.banners.update(dt);
-    this.perf?.update(realDt);
+    this.perf?.update(realDt, this.clock);
   }
 
   private drawDivider(dt: number) {

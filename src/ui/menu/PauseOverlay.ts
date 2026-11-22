@@ -3,6 +3,7 @@ import type { PlayerInput } from '../../core/types';
 import { services } from '../../core/services';
 import { GAME_HEIGHT, GAME_WIDTH } from '../../config/gameConfig';
 import { MenuButton } from './MenuButton';
+import { PerfBox } from '../hud/perfBox';
 import { bigText, FONT_HEAD, MENU } from './style';
 
 export interface PauseCallbacks {
@@ -17,9 +18,11 @@ export class PauseOverlay {
   private buttons: MenuButton[];
   private actions: (() => void)[];
   private index = 0;
+  private perfBox?: PerfBox;
   visible = false;
 
-  constructor(scene: Phaser.Scene, cb: PauseCallbacks) {
+  /** `perfBox`: admin perf overlay is on, so show the Performance box beside the menu. */
+  constructor(scene: Phaser.Scene, cb: PauseCallbacks, perfBox = false) {
     const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
     const dim = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x050a1a, 0.72);
     const panel = scene.add.graphics();
@@ -31,6 +34,10 @@ export class PauseOverlay {
     this.buttons = labels.map((l, i) => new MenuButton(scene, cx, cy - 90 + i * 170, 640, 120, l, colors[i], 64));
     this.actions = [cb.onResume, cb.onRestart, cb.onQuit];
     this.root = scene.add.container(0, 0, [dim, panel, title, ...this.buttons]);
+    if (perfBox) {
+      this.perfBox = new PerfBox(scene, cx + 430, cy - 400);
+      this.root.add(this.perfBox.objects);
+    }
     this.root.setScrollFactor(0).setDepth(10_000).setVisible(false);
   }
 
@@ -38,6 +45,7 @@ export class PauseOverlay {
     this.visible = true;
     this.index = 0;
     this.root.setVisible(true);
+    this.perfBox?.refresh();
     this.refresh();
     services.audio.sfx('menuSelect');
   }

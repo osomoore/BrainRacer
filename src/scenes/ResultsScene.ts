@@ -10,6 +10,8 @@ import { Rng, randomSeed } from '../core/rng';
 import { services } from '../core/services';
 import type { PlayerStats, RaceMap, RoundResults, Settings } from '../core/types';
 import { starRating } from '../systems/roundStats';
+import { getTuning } from '../config/deviceTuning';
+import { PerfBox } from '../ui/hud/perfBox';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { bigText, carPreview, FONT_BODY, FONT_HEAD, hexNum, MENU } from '../ui/menu/style';
 import { starShape } from '../ui/results/starShape';
@@ -166,6 +168,7 @@ export class ResultsScene extends Phaser.Scene {
     const msg = bigText(this, CX, 520, messageFor(stars, results.players.length), 56, '#ffffff', { font: FONT_HEAD }).setAlpha(0);
 
     this.buildCards(results);
+    if (getTuning().perfHud) new PerfBox(this, GAME_WIDTH - 520, 20);
     this.actions = this.add.container().setName('results-actions');
     this.refreshActions();
     if (!this.settings.developerMode && results.goalsCompleted < COMPLETION_OBJECTIVES) {

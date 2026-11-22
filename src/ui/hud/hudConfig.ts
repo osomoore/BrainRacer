@@ -29,7 +29,7 @@ export const HUD = {
   /** 2x2 quadrant layout (3-4 players): views are 960x540, so per-view elements use these tighter values. */
   quad: { bannerSize: 100, alertSize: 84, centerClear: 240, maxViewH: 600, margin: 10, hintY: 56, popupMinY: 90, popupBottom: 100, bannerY: 250, bannerSeamGap: 160 },
   /** Perf overlay corner (top-left of the screen). */
-  perf: { x: 12, y: 12, size: 38, intervalSec: 1, rows: 6 },
+  perf: { x: 12, y: 12, size: 38, intervalSec: 1, rows: 6, rowsWithWorst: 3 },
   playerLight: ['#7dff8a', '#ff8a80', '#7fc3ff', '#ffd666'],
   colors: { navy: 0x14213d, card: 0xffffff, green: 0x2ecc40, gray: 0xaab2bd, red: 0xff3b30, gold: 0xffd43b },
 } as const;
