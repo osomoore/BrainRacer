@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import { services } from '../core/services';
 import type { InputDevice } from '../core/types';
+import { goToHub } from '../../shared/hub';
 import { ConfirmPrompt } from '../ui/menu/FaceButtonBadge';
 import { bigText, FONT_HEAD } from '../ui/menu/style';
 import { buildLabel } from '../buildInfo';
@@ -38,6 +39,11 @@ export class TitleScene extends Phaser.Scene {
     this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     bigText(this, GAME_WIDTH / 2, 710, 'Keyboard: Space or Enter', 48, '#ffffff');
     bigText(this, GAME_WIDTH / 2, 780, '1 to 4 players', 56, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
+
+    // Nobody has joined on the title screen, so back (B / Backspace) returns to the game launcher.
+    this.add.circle(64, 56, 31, 0xe03131).setStrokeStyle(4, 0xffffff);
+    bigText(this, 64, 56, 'B', 44, '#ffffff', { stroke: 5, shadow: false });
+    bigText(this, 112, 56, 'Back to games', 44, '#ffffff', { origin: [0, 0.5], stroke: 8 });
 
     bigText(this, GAME_WIDTH - 24, 20, buildLabel(), 32, '#ffffff', { origin: [1, 0], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
 
@@ -137,9 +143,11 @@ export class TitleScene extends Phaser.Scene {
 
     const input = services.input;
     input.poll();
-    this.continueHint.setFamily(input.controllerFamily?.() ?? 'other');
+    const family = input.controllerFamily?.() ?? 'other';
+    this.continueHint.setFamily(family);
     if (this.leaving) return;
     const any = input.any();
+    if (any.back) { this.leaving = true; goToHub(); return; }
     if (any.confirm || any.back || any.pause || any.navX || any.navY) this.startAudio();
     const d = input.pollJoin([]);
     if (d) this.goJoin(d);

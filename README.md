@@ -4,7 +4,7 @@ Top-down co-op racer for 1–2 kids (ages 5–9) with Xbox-style USB controllers
 
 ## Play
 - Double-click `play.bat` (builds, starts a local server, opens Edge full screen), or
-- `npm install && npm run dev` → http://localhost:5173
+- `npm install && npm run dev` → http://localhost:5173 (game launcher; Brain Racer at `/racer.html`)
 - Once **Settings → Pages → Source** is set to **GitHub Actions**, pushes to `dev` deploy the game at https://osomoore.github.io/BrainRacer/.
 - Press **A** (or Space/Enter) three times to start: join → setup → race.
 
