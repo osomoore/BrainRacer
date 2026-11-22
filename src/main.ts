@@ -8,8 +8,12 @@ import { RaceScene } from './scenes/RaceScene';
 import { HudScene } from './scenes/HudScene';
 import { ResultsScene } from './scenes/ResultsScene';
 import { ConfigScene } from './scenes/ConfigScene';
-import { SCENE } from './scenes/keys';
+import { REG, SCENE } from './scenes/keys';
 import { getTuning } from './config/deviceTuning';
+import { services } from './core/services';
+import type { TouchLayout } from './core/types';
+import type { RaceContext } from './core/race';
+import { installMobileShell } from '../shared/mobile';
 
 /**
  * Dev scenes: any file in src/scenes/dev/*.ts whose default export is a Phaser.Scene subclass
@@ -37,3 +41,21 @@ game.events.once(Phaser.Core.Events.READY, () => game.scene.start(SCENE.config))
 
 // Exposed for Playwright tests / debugging.
 (window as unknown as { __game: Phaser.Game }).__game = game;
+
+installMobileShell();
+
+// Touch controls: race running -> 'race' buttons (hidden during a pause-style question break, answers are tapped); everything else -> 'menu'.
+game.events.on(Phaser.Core.Events.POST_STEP, () => {
+  const input = services.input;
+  if (!input?.setTouchLayout) return;
+  const mgr = game.scene;
+  let layout: TouchLayout = 'menu';
+  if (mgr.isActive(SCENE.race) && !mgr.isPaused(SCENE.race)) {
+    const ctx = game.registry.get(REG.race) as RaceContext | undefined;
+    const pauseOpen = (mgr.getScene(SCENE.hud) as unknown as { overlay?: { visible: boolean } } | null)?.overlay?.visible;
+    if (pauseOpen || ctx?.paused) layout = 'menu';
+    else if (ctx?.questionBreak && (ctx.settings?.questionStyle ?? 'pause') === 'pause') layout = 'none';
+    else layout = 'race';
+  }
+  input.setTouchLayout(layout);
+});

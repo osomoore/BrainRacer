@@ -5,3 +5,15 @@ export const INPUT_CFG = {
   navRepeatDelaySec: 0.4,
   navRepeatIntervalSec: 0.15,
 } as const;
+
+/** Touch (on-screen controls) tunables. Sizes are % of the viewport height. */
+export const TOUCH_CFG = {
+  steerBtnVh: 26,
+  brakeBtnVh: 26,
+  smallBtnVh: 13,
+  padBtnVh: 17,
+  actionBtnVh: 22,
+  edgeMarginVh: 4,
+  /** A pad (controller) that was used more recently than touch hides the overlay. */
+  alpha: 0.7,
+} as const;

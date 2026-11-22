@@ -65,6 +65,7 @@ export class BootScene extends Phaser.Scene {
     services.input.poll();
     const pads = services.input.devices().filter((d) => d.type === 'gamepad');
     const kb: InputDevice[] = [{ type: 'keyboard', layout: 'left' }, { type: 'keyboard', layout: 'right' }];
+    const touchP1 = new URLSearchParams(location.search).get('input') === 'touch'; // dev hook: P1 uses on-screen controls
     const cars: CarKind[] = ['dino', 'kart', 'dino', 'kart'];
     const settings: Settings = {
       ...base,
@@ -73,7 +74,7 @@ export class BootScene extends Phaser.Scene {
         const saved = base.players[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
         return {
           ...saved,
-          device: count > 2 ? (i < 2 ? kb[i] : pads[i - 2] ?? { type: 'gamepad', index: 100 + i }) : pads[i] ?? kb[i],
+          device: i === 0 && touchP1 ? { type: 'touch' } : count > 2 ? (i < 2 ? kb[i] : pads[i - 2] ?? { type: 'gamepad', index: 100 + i }) : pads[i] ?? kb[i],
           difficulty: saved?.difficulty ?? 'normal',
           car: saved?.car ?? cars[i],
         };

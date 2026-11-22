@@ -1,11 +1,13 @@
 import { resolvePadMap } from './padMaps';
 import { identifyController } from './buttonPrompts';
 import { bus } from '../core/events';
-import type { ControllerFamily, InputDevice, PlayerId, PlayerInput } from '../core/types';
+import type { AnswerSlot, ControllerFamily, InputDevice, PlayerId, PlayerInput, TouchLayout } from '../core/types';
 import { ZERO_INPUT, type IInput } from '../core/services';
 import { HANDLED_CODES, mapKeyboard, type KeyLayout } from './keyboardMap';
 import { getTuning } from '../config/deviceTuning';
 import { gasThrottle, mapGamepad, mergeInputs, newRepeatState, type PadSnapshot, type RepeatState } from './mapping';
+import { TouchOverlay } from './touch/TouchOverlay';
+import { emptyTouchState, mapTouch, type TouchState } from './touch/touchMap';
 import { DebugOverlay, formatDebug } from './overlay';
 
 const KB_LAYOUTS: KeyLayout[] = ['left', 'right'];
@@ -30,11 +32,21 @@ class InputManager implements IInput {
   private results = new Map<string, PlayerInput>();
   private assigned: (InputDevice | null)[] = [null, null, null, null];
   private overlay = new DebugOverlay();
+  // Touch: the device appears after the first real touch (or when assigned by a dev hook).
+  private touchSeen = false;
+  private touchUi: TouchOverlay | null = null;
+  private touchLayout: TouchLayout = 'none';
+  private touchPrev: TouchState = emptyTouchState();
+  private touchRepeat: RepeatState = newRepeatState();
+  private touchAnswerQ: AnswerSlot | null = null;
+  private lastTouchAt = 0;
+  private lastPadAt = 0;
 
   constructor() {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+    window.addEventListener('pointerdown', this.onPointer, true);
     window.addEventListener('gamepadconnected', this.onPadConnected);
     window.addEventListener('gamepaddisconnected', this.onPadDisconnected);
   }
@@ -47,6 +59,39 @@ class InputManager implements IInput {
   };
   private onKeyUp = (e: KeyboardEvent) => { this.held.delete(e.code); };
   private onBlur = () => { this.held.clear(); this.tapped.clear(); };
+
+  private onPointer = (e: PointerEvent) => {
+    if (e.pointerType !== 'touch') return;
+    this.lastTouchAt = performance.now();
+    this.activateTouch();
+  };
+
+  private activateTouch() {
+    if (this.touchSeen) return;
+    this.touchSeen = true;
+    this.touchUi = new TouchOverlay();
+    this.touchUi.setLayout(this.touchLayout);
+    bus.emit('input:connected', { device: { type: 'touch' } });
+  }
+
+  setTouchLayout(layout: TouchLayout): void {
+    this.touchLayout = layout;
+    this.touchUi?.setLayout(layout);
+  }
+
+  touchAnswer(slot: AnswerSlot): void { this.touchAnswerQ = slot; }
+
+  private pollTouch(now: number) {
+    const ans = this.touchAnswerQ;
+    this.touchAnswerQ = null;
+    if (!this.touchUi) return;
+    const cur = this.touchUi.take();
+    this.results.set('touch', mapTouch(this.touchLayout, cur, this.touchPrev, this.touchRepeat, now, ans));
+    this.touchPrev = this.touchUi.heldNow();
+    // A tablet with a controller looks like the TV: hide the buttons while the pad is the active device.
+    const padActive = this.lastPadAt > this.lastTouchAt && this.connected.size > 0;
+    this.touchUi.setVisible(this.touchLayout !== 'none' && !padActive);
+  }
 
   private addPad(index: number) {
     if (this.connected.has(index)) return;
@@ -100,6 +145,10 @@ class InputManager implements IInput {
       this.results.set(`pad${i}`, mapGamepad(snap, this.prevPads.get(i) ?? null, rep, now));
     }
     this.prevPads = snaps;
+    for (const snap of snaps.values()) {
+      if (snap.buttons.some((b) => b.pressed) || snap.axes.some((a) => Math.abs(a) > 0.6)) this.lastPadAt = performance.now();
+    }
+    this.pollTouch(now);
 
     this.overlay.update(() =>
       formatDebug(this.pads, ([0, 1, 2, 3] as PlayerId[]).map((p) => (this.assigned[p] ? this.get(p) : null))));
@@ -107,11 +156,12 @@ class InputManager implements IInput {
 
   devices(): InputDevice[] {
     const pads: InputDevice[] = [...this.connected].sort((a, b) => a - b).map((index) => ({ type: 'gamepad', index }));
-    return [...pads, ...KB_LAYOUTS.map((layout): InputDevice => ({ type: 'keyboard', layout }))];
+    const touch: InputDevice[] = this.touchSeen ? [{ type: 'touch' }] : [];
+    return [...pads, ...touch, ...KB_LAYOUTS.map((layout): InputDevice => ({ type: 'keyboard', layout }))];
   }
 
   isConnected(device: InputDevice): boolean {
-    if (device.type === 'touch') return false; // touch device arrives with the touch package
+    if (device.type === 'touch') return this.touchSeen;
     return device.type === 'keyboard' || this.connected.has(device.index);
   }
 
@@ -135,7 +185,10 @@ class InputManager implements IInput {
     return null;
   }
 
-  assign(player: PlayerId, device: InputDevice): void { this.assigned[player] = device; }
+  assign(player: PlayerId, device: InputDevice): void {
+    this.assigned[player] = device;
+    if (device.type === 'touch') this.activateTouch();
+  }
   reset(): void { this.assigned = [null, null, null, null]; }
 
   get(player: PlayerId): PlayerInput {

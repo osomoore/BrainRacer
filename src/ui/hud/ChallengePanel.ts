@@ -175,7 +175,8 @@ export class ChallengePanel {
     const hint = this.scene.add.container(0, 0);
     const cw = this.cardW, ch = this.cardH, dia = this.diamond;
     const card = this.makeCard(cw, ch, HUD.colors.card, 0x9fb0d0, 5);
-    const cx = dia ? 36 : 0;
+    const noBadge = this.hooks.controllerDevice?.type === 'touch';
+    const cx = dia && !noBadge ? 36 : 0;
     content.setX(cx);
     inner.add([card, content]);
     if (o.kind === 'image') {
@@ -185,13 +186,17 @@ export class ChallengePanel {
         content.add(img);
       }
     } else {
-      content.add(this.textFit(o.text, 56, cw - 24 - (dia ? 84 : 0), ch - 20, 36));
+      content.add(this.textFit(o.text, 56, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 36));
     }
     inner.add(hint);
     const bx = dia ? -cw / 2 + 52 : 0, by = dia ? 0 : BADGE_DY;
     const device = this.hooks.controllerDevice;
     const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
-    inner.add(new FaceButtonBadge(this.scene, bx, by, 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
+    if (device?.type !== 'touch') inner.add(new FaceButtonBadge(this.scene, bx, by, 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
+    // Big invisible hit area so a finger (or mouse) can answer directly.
+    const hit = this.scene.add.zone(0, 0, cw + 20, ch + 20).setInteractive();
+    hit.on('pointerdown', () => { if (!this.resolved) services.input.touchAnswer?.(i); });
+    root.add(hit);
     this.root.add(root);
     return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
   }
