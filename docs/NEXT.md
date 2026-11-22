@@ -3,6 +3,7 @@
 Start here in a new conversation. Read `CLAUDE.md`, `docs/STATUS.md` (current state) and this file.
 
 ## How we work (proven in session 1)
+- **Clean up merged work:** after a task branch is merged into `dev` and checked, remove its worktree and delete the branch right away (see "Clean up after merging" in `CLAUDE.md`; unlink the `node_modules` junction first). Old finished branches and worktrees pile up quickly otherwise.
 - **Own branch per task (every agent, Claude or Codex):** do each task on its own branch, created for that task from `dev` (Claude uses a worktree under `.worktrees/<task>`). Never edit, commit in, or switch branches in a checkout another agent is using. When the work is checked (typecheck, unit tests, e2e) and complete, merge it into `dev` and push `dev` (pushing `dev` deploys GitHub Pages, which the TV box loads).
 - **Main session = orchestrator (Opus):** owns contracts (`src/core/*`), `RaceScene`, merging, review, small glue fixes, docs.
 - **Implementation = Sonnet sub-agents** (Haiku for mechanical chores), run in parallel with **disjoint file ownership**. The user prefers this to save usage.
