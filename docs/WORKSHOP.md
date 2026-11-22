@@ -134,6 +134,12 @@ shared code lives in `shared/`.
   Every action reachable by touch (tap targets ≥ 120 px) and by pad.
 - No comic word popups (CLAUDE.md rule 14): checkmarks, ✗, stars, banners and the results list are fine.
 - Dev scenes: `workshop.html?dev=<Name>` loads `apps/workshop/dev/<Name>.ts` (default export = Phaser.Scene class).
+- **Screens auto-register**: `apps/workshop/screens/<screenId>Screen.ts` with `export default` a `ScreenFactory`
+  (e.g. `roomScreen.ts` → `'room'`). The shell globs `./screens/*Screen.ts`; a missing id shows a placeholder
+  screen with a Back button. Helpers private to one screen go in `screens/<screenId>/`.
+- **Stubs to replace**: `logic/index.ts` (engine), `art/index.ts` (`buildRig`), `audio/index.ts`
+  (`preloadWorkshopAudio`, `createWorkshopAudio`), `content/*/catalog.ts`. Keep the export names.
+- **Music arbitration** (shell): when both panes ask for different tracks, play `title`.
 
 ## Testing
 
