@@ -1168,3 +1168,11 @@ export const QUEUED_ATMOSPHERE = {
     house: { columns: 4, rows: 5, speed: 51, scale: 1.4, alpha: .7, angle: -.23, period: 25 },
   },
 } as const;
+
+// ── Package jbq-setup: Join screen question rows ──
+export const JBQ_SETUP = {
+  /** Width of the Math / Reading / JBQ chips (together = one panel row, with `chipGap` between). */
+  chipWidths: [108, 190, 108] as readonly number[],
+  chipGap: 7,
+  chipHeight: 56,
+} as const;

@@ -2,17 +2,18 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, NEW_RACER } from '../../config/gameConfig';
 import { validRacerName, type NewRacerInput } from '../../core/racerProfiles';
 import { services } from '../../core/services';
-import type { Difficulty, QuestionTypes } from '../../core/types';
+import type { Difficulty, JbqSettings, QuestionTypes } from '../../core/types';
 import { LetterPicker, type PickerResult } from './LetterPicker';
 import { MenuButton } from './MenuButton';
 import { cycleChoice, DIFFICULTIES, DIFF_EXAMPLE, DIFF_LABEL, nameTaken, QUESTION_LABEL, toggleQuestionType } from './newRacerLogic';
 import { OptionRow } from './OptionRow';
+import { cyclePoints, jbqPointsLabel } from './questionPick';
 import { bigText, FONT_HEAD, MENU } from './style';
 
 type Step = 'name' | 'age' | 'options';
 type Nav = { navX: number; navY: number; confirm: boolean; back: boolean };
 const TYPE_KEYS = ['math', 'reading', 'jbq'] as const;
-const ROW_LEVEL = 3, ROW_GO = 4;
+const ROW_LEVEL = 3, ROW_POINTS = 4, ROW_GO = 5;
 
 /** Full-screen "make a new racer" flow driven by one player's input. Call handle() every frame. */
 export class NewRacerPanel extends Phaser.GameObjects.Container {
@@ -25,6 +26,7 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private under10 = true;
   private difficulty: Difficulty = NEW_RACER.defaultDifficulty;
   private types: QuestionTypes = { ...NEW_RACER.defaultQuestionTypes };
+  private jbq: JbqSettings = { ...NEW_RACER.defaultJbq };
   private sel = 0;
   private ageBtns: MenuButton[] = [];
   private rows: OptionRow[] = [];
@@ -35,9 +37,13 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private cancelTap = false;
 
   constructor(scene: Phaser.Scene, private readonly color: number, private readonly colorHex: string, private readonly playerNum: number,
-    private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean) {
+    private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean,
+    initialTypes?: QuestionTypes, initialJbq?: JbqSettings) {
     super(scene, 0, 0);
     this.setDepth(1000);
+    // Start from what the player already picked on the Join screen.
+    if (initialTypes) this.types = { ...initialTypes };
+    if (initialJbq) this.jbq = { ...initialJbq };
     const g = scene.add.graphics();
     g.fillGradientStyle(0x1a2a6c, 0x1a2a6c, 0x2b8cff, 0x2b8cff, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     g.lineStyle(14, color, 1).strokeRect(7, 7, GAME_WIDTH - 14, GAME_HEIGHT - 14);
@@ -79,8 +85,9 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
       this.rows = [];
       TYPE_KEYS.forEach((k, i) => this.rows.push(new OptionRow(this.scene, cx, 230 + i * 100, QUESTION_LABEL[k], opts)));
       this.rows.push(new OptionRow(this.scene, cx, 570, 'Level', opts));
-      this.exampleText = bigText(this.scene, cx, 665, '', 48, MENU.dim, { bold: false });
-      this.go = new MenuButton(this.scene, cx, 850, 700, 150, 'GO!', this.color, 100);
+      this.rows.push(new OptionRow(this.scene, cx, 665, 'JBQ points', opts));
+      this.exampleText = bigText(this.scene, cx, 750, '', 44, MENU.dim, { bold: false, wrap: 1700 });
+      this.go = new MenuButton(this.scene, cx, 880, 700, 140, 'GO!', this.color, 100);
       this.rows.forEach((r, i) => r.makeTappable((z) => this.taps.push({ sel: i, nav: { navX: z === 'left' ? -1 : 1 } }), 96));
       this.tappable(this.go, () => this.taps.push({ sel: ROW_GO, nav: { confirm: true } }));
       page.add([...this.rows, this.exampleText, this.go]);
@@ -104,7 +111,12 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private paintOptions() {
     TYPE_KEYS.forEach((k, i) => this.rows[i].setValue(this.types[k] ? 'ON' : 'OFF').setSelected(this.sel === i, this.color));
     this.rows[ROW_LEVEL].setValue(DIFF_LABEL[this.difficulty]).setSelected(this.sel === ROW_LEVEL, this.color);
-    this.exampleText?.setText(!this.types.math ? '' : this.difficulty === 'hard' ? 'Times tables' : `Sums like ${DIFF_EXAMPLE[this.difficulty]}`);
+    this.rows[ROW_POINTS].setVisible(this.types.jbq).setValue(jbqPointsLabel(this.jbq.points)).setSelected(this.sel === ROW_POINTS, this.color);
+    const examples: string[] = [];
+    if (this.types.math) examples.push(this.difficulty === 'hard' ? 'Times tables' : `Sums like ${DIFF_EXAMPLE[this.difficulty]}`);
+    if (this.types.reading) examples.push('Picture words');
+    if (this.types.jbq) examples.push('Bible quiz questions');
+    this.exampleText?.setText(examples.join(' · '));
     this.go?.setSelected(this.sel === ROW_GO, this.color);
   }
 
@@ -137,7 +149,7 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
     }
     if (inp.back) { services.audio.sfx('menuMove'); this.show('age'); return 'none'; }
     if (inp.navY) {
-      this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1);
+      do { this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1); } while (this.sel === ROW_POINTS && !this.types.jbq);
       services.audio.sfx('menuMove'); this.paintOptions();
     }
     if ((inp.navX || inp.confirm) && this.sel < ROW_LEVEL) {
@@ -147,13 +159,17 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
       this.difficulty = cycleChoice(DIFFICULTIES, this.difficulty, inp.navX > 0 ? 1 : -1);
       services.audio.sfx('menuMove'); this.paintOptions();
       this.rows[ROW_LEVEL].bump(inp.navX);
+    } else if (inp.navX && this.sel === ROW_POINTS) {
+      this.jbq = { ...this.jbq, points: cyclePoints(this.jbq.points, inp.navX > 0 ? 1 : -1) };
+      services.audio.sfx('menuMove'); this.paintOptions();
+      this.rows[ROW_POINTS].bump(inp.navX);
     } else if (inp.confirm) {
       if (this.sel === ROW_GO) {
-        this.result = { name: this.racerNameText, under10: this.under10, difficulty: this.difficulty, questionTypes: { ...this.types } };
+        this.result = { name: this.racerNameText, under10: this.under10, difficulty: this.difficulty, questionTypes: { ...this.types }, jbq: { ...this.jbq } };
         services.audio.sfx('menuSelect');
         return 'done';
       }
-      this.sel = Math.min(this.sel + 1, ROW_GO); this.paintOptions();
+      this.sel = Math.min(this.sel + 1 + (this.sel + 1 === ROW_POINTS && !this.types.jbq ? 1 : 0), ROW_GO); this.paintOptions();
     }
     return 'none';
   }
