@@ -35,7 +35,7 @@ test('holding gas into a question break does not answer', async ({ page }) => {
 
 test('a held D-pad button needs a fresh press and stick movement cannot answer', async ({ page }) => {
   await installGamepadMock(page, 1);
-  await page.goto('/');
+  await page.goto('/racer.html');
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Title'));
   await tapPad(page, 0, 0);   // Title -> Join (pad 0 is Player 1)
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Setup'));

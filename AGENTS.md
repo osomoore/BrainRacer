@@ -13,7 +13,7 @@ Read `CLAUDE.md` first: it holds the project conventions and rules, and they app
 - Windows, Node 24. Use `npm test`, not `npx vitest` (the wrapper fixes a drive-letter-case bug).
 - After cloning or after adding scene images: `npm run assets` (regenerates `src/data/scenes.json` and copies PNGs to `public/scenes/`).
 - Questions are mandatory unless `VITE_ALLOW_QUESTIONS_OFF=1` (see STATUS.md). `npm run dev` and e2e set it automatically and dev defaults to questions off; for a manual build/preview set it yourself.
-- Dev server: `npm run dev` → http://localhost:5173. Skip menus with `/?race=2&seed=3` (also `&round=60&debug=1&dino=now&heat=100&rewards=1`). Dev scenes: `?dev=<FileName>` for `src/scenes/dev/<FileName>.ts`.
+- Dev server: `npm run dev` → http://localhost:5173 (game launcher; Brain Racer is `/racer.html`, query strings on the root forward there). Skip menus with `/?race=2&seed=3` (also `&round=60&debug=1&dino=now&heat=100&rewards=1`). Dev scenes: `?dev=<FileName>` for `src/scenes/dev/<FileName>.ts`.
 - Visual checks: Playwright with Edge (`chromium.launch({ channel: 'msedge' })`) at 1920×1080. The bundled headless shell is software-rendered and very slow.
 - Vite "Outdated Optimize Dep" after big changes: restart the dev server with `--force`.
 

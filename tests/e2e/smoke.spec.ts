@@ -6,7 +6,7 @@ test('boots to title without errors', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await installGamepadMock(page);
-  await page.goto('/');
+  await page.goto('/racer.html');
   await page.waitForFunction(() => {
     const g = (window as any).__game;
     return g && g.scene.isActive('Title');
@@ -17,7 +17,7 @@ test('boots to title without errors', async ({ page }) => {
 
 test('loads Police Station question art when the standalone PNG is unavailable', async ({ page }) => {
   await page.route('**/scenes/scene_185.png', (route) => route.abort());
-  await page.goto('/');
+  await page.goto('/racer.html');
   await page.waitForFunction(() => (window as any).__game?.scene.isActive('Title'), null, { timeout: 30_000 });
 
   const usesImage = await page.evaluate(() => {

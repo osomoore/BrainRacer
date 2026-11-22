@@ -22,7 +22,7 @@ const settingsOf = (page: Page) => page.evaluate(() => window.__game.registry.ge
 test('gamepads: two players customize and receive different questions', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 2);
-  await page.goto('/');
+  await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
 
@@ -141,7 +141,7 @@ test('questions URL override disables the driving questions for this race only',
 test('single gamepad: A, A, A, A reaches the race', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
-  await page.goto('/');
+  await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
   await tapPad(page, 0, BTN_A);   // Join screen
@@ -162,7 +162,7 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
   await page.addInitScript(() => localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] })));
-  await page.goto('/');
+  await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.keyboard.press('Space');   // Title -> Join
   await waitScene(page, 'Setup');
@@ -218,7 +218,7 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
     const none = { worlds: [], items: [], overrides: {} };
     localStorage.setItem('brainracer.racers.v1', JSON.stringify({ abe: none, gideon: { ...none, worlds: ['industrial'] }, helen: none, daddy: none }));
   });
-  await page.goto('/');
+  await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
   await tapPad(page, 0, BTN_A);
@@ -258,7 +258,7 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
 test('Setup: New Profile asks name, age and settings, then races as the new racer', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
-  await page.goto('/');
+  await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.waitForTimeout(500);
   await tapPad(page, 0, BTN_A);   // Join screen
