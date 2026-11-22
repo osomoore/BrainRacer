@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "62c18dae90518ecc",
+ "sourceHash": "1933fd0684b8f3c0",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -53,7 +53,7 @@
   "cornRustle": {
    "file": "sfx/cornRustle.ogg",
    "sampleRate": 44100,
-   "length": 10364,
+   "length": 10166,
    "channels": 1,
    "copies": 1,
    "loop": false
@@ -109,7 +109,7 @@
   "crash": {
    "file": "sfx/crash.ogg",
    "sampleRate": 44100,
-   "length": 11255,
+   "length": 11290,
    "channels": 1,
    "copies": 1,
    "loop": false
@@ -117,7 +117,7 @@
   "crashBig": {
    "file": "sfx/crashBig.ogg",
    "sampleRate": 44100,
-   "length": 21674,
+   "length": 21046,
    "channels": 1,
    "copies": 1,
    "loop": false
@@ -125,7 +125,7 @@
   "skid": {
    "file": "sfx/skid.ogg",
    "sampleRate": 44100,
-   "length": 12444,
+   "length": 12401,
    "channels": 1,
    "copies": 1,
    "loop": false
@@ -305,7 +305,7 @@
    "lengthBeats": 64,
    "loopSeconds": 29.53846153846154,
    "meanDb": -17.5,
-   "peakDb": -4.7
+   "peakDb": -4.4
   },
   "race": {
    "file": "music/race.ogg",
@@ -344,7 +344,7 @@
    "lengthBeats": 64,
    "loopSeconds": 34.285714285714285,
    "meanDb": -17.6,
-   "peakDb": -5.7
+   "peakDb": -5.8
   },
   "harbor": {
    "file": "music/harbor.ogg",
@@ -370,7 +370,7 @@
    "lengthBeats": 128,
    "loopSeconds": 49.23076923076923,
    "meanDb": -17.5,
-   "peakDb": -4.8
+   "peakDb": -5.1
   },
   "underground": {
    "file": "music/underground.ogg",
@@ -382,8 +382,8 @@
    "bpm": 132,
    "lengthBeats": 96,
    "loopSeconds": 43.63636363636363,
-   "meanDb": -17.9,
-   "peakDb": -1.6
+   "meanDb": -17.8,
+   "peakDb": -1.5
   },
   "results": {
    "file": "music/results.ogg",
@@ -396,7 +396,7 @@
    "lengthBeats": 16,
    "loopSeconds": 6.857142857142857,
    "meanDb": -17.6,
-   "peakDb": -3.6
+   "peakDb": -3.5
   },
   "sky": {
    "file": "music/sky.ogg",
@@ -513,7 +513,7 @@
    "lengthBeats": 108,
    "loopSeconds": 51.42857142857143,
    "meanDb": -17.6,
-   "peakDb": -4.7
+   "peakDb": -4.6
   },
   "airport": {
    "file": "music/airport.ogg",
