@@ -248,6 +248,8 @@ The original race tracks are “Cloudline Express” (Sky-city), “Lanternwood 
 
 ## Admin settings
 
+On the Join screen, click or tap the gear in the upper-right corner and answer the multiplication question to open **Admin Settings**.
+
 Hold both triggers and press **Start** on a gamepad, or press **F9** on a keyboard. The game keeps these shortcuts hidden. Use left/right to adjust an option and Confirm from that row to accept and close. Advanced pauses every other running scene and resumes them on close. In a race the Start press also opens the pause menu underneath. Source: `src/scenes/ConfigScene.ts`.
 
 - **Music / Sound FX volume**, **Round length**, **Time between questions**: saved in the normal settings (URL params `?round ?every ?music ?sfx` only override when actually present). Round/interval apply to the next race.

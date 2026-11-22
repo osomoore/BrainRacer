@@ -127,17 +127,17 @@ export class SetupScene extends Phaser.Scene {
       this.nextBtn.add(z);
     }
     this.statusText = bigText(this, cx, 1015, '', 48, '#ffffff');
-    if (this.mobile) this.buildGear();
+    this.buildGear();
   }
 
-  /** Mobile only: top-right gear -> kid-proof multiplication gate -> hidden admin menu (ConfigScene, via the 'admin:open' game event). */
+  /** The top-right gear opens the multiplication gate before Admin Settings. */
   private buildGear() {
     const { x, y, size, alpha, hit } = ADMIN_GATE.gear;
     this.add.image(x, y, ensureGearTexture(this)).setDisplaySize(size, size).setAlpha(alpha);
-    // Invisible tap square, larger than the faint icon and clamped to the screen corner.
+    // The hit area extends beyond the icon and stays within the screen.
     const half = hit / 2;
     const zx = Math.min(x, GAME_WIDTH - half), zy = Math.max(y, half);
-    const zone = this.add.zone(zx, zy, hit, hit).setInteractive();
+    const zone = this.add.zone(zx, zy, hit, hit).setInteractive({ useHandCursor: true });
     zone.on('pointerdown', () => {
       if (this.gate || this.leaving || this.newPanel) return;
       this.gate = new AdminGate(this, (ok) => {
