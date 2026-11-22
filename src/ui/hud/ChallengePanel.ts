@@ -9,8 +9,9 @@ import { ANSWER_POSITIONS, keyboardAnswerLabel } from '../../input/buttonPrompts
 import { FaceButtonBadge } from '../menu/FaceButtonBadge';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
 import { bakedImage, circle, glowRect, resizeRR, rrectImage, type RRectSpec } from './bake';
-import { breakSplitRegion, challengeRegion, HUD } from './hudConfig';
+import { breakSplitRegion, challengeRegion, HUD, isQuadView } from './hudConfig';
 import { easeInOut, easeOutBack, lerp } from './hudMath';
+import { ellipsize, jbqGeometry, largestFit, planJbq, type JbqGeom, type JbqPlan } from './jbqLayout';
 
 const CARD_W = 270, CARD_H = 160;
 const D_CARD_W = 330, D_CARD_H = 150, D_GAP = 10;   // diamond (pause style) cards
@@ -31,6 +32,8 @@ interface Cell {
   content: Phaser.GameObjects.Container;
   hint: Phaser.GameObjects.Container;
   dock: Pose;
+  w: number;
+  h: number;
 }
 
 export interface PanelHooks {
@@ -67,6 +70,12 @@ export class ChallengePanel {
   private readonly cardW: number;
   private readonly cardH: number;
   private readonly controllerFamily: ControllerFamily;
+  /** JBQ layout (long text, full-width answer rows); null for the classic diamond / strip. */
+  private readonly jbq: { g: JbqGeom; plan: JbqPlan } | null = null;
+  private promptH = PROMPT_H;
+  private dividerGap = DIVIDER_GAP;
+  private answerArea = { x: 0, y: 0, w: 0, h: 0 };   // local bounds of all answer cards (the reveal fills this)
+  private revealed = false;
 
   private phase: Phase = 'show';
   private age = 0;
@@ -94,6 +103,7 @@ export class ChallengePanel {
       : 'xbox';
     if (this.centered) this.phase = 'docked';
     this.root = scene.add.container(0, 0).setDepth(hooks.depth);
+    if (this.isJbq()) this.jbq = this.planJbqLayout();
     this.glow = glowRect(scene, HUD.colors.gold, 0.16, 4, 10, 36, 0, 0, 100, 100).setVisible(false);
     this.root.add(this.glow);
 
@@ -120,7 +130,7 @@ export class ChallengePanel {
   /** Swap a cell's card for another look (same slot in the display list). */
   private restyleCard(cell: Cell, fill: number, stroke: number, strokeW: number) {
     const old = cell.card;
-    const next = this.makeCard(this.cardW, this.cardH, fill, stroke, strokeW);
+    const next = this.makeCard(cell.w, cell.h, fill, stroke, strokeW);
     cell.inner.addAt(next, cell.inner.getIndex(old));
     old.destroy();
     cell.card = next;
@@ -138,11 +148,12 @@ export class ChallengePanel {
   }
 
   private buildPrompt(p: ChallengePrompt): Phaser.GameObjects.Container {
+    if (this.jbq) return this.buildJbqPrompt(p);
     const c = this.scene.add.container(0, 0);
     // The card is baked once the prompt width is known; this slot keeps its place at the bottom of the list.
     const slot = this.scene.add.container(0, 0);
     c.add(slot);
-    const bake = () => slot.add(this.makeCard(this.promptW, PROMPT_H, QUESTION_FILL, hexNum(this.color), 10));
+    const bake = () => slot.add(this.makeCard(this.promptW, this.promptH, QUESTION_FILL, hexNum(this.color), 10));
     if (p.kind === 'image') {
       this.promptW = 230;
       bake();
@@ -173,37 +184,64 @@ export class ChallengePanel {
     root.add(inner);
     const content = this.scene.add.container(0, 0);
     const hint = this.scene.add.container(0, 0);
-    const cw = this.cardW, ch = this.cardH, dia = this.diamond;
+    const jb = this.jbq;
+    const cw = jb ? jb.g.rowW : this.cardW, ch = jb ? jb.plan.rowH[i] : this.cardH, dia = this.diamond;
     const card = this.makeCard(cw, ch, HUD.colors.card, 0x9fb0d0, 5);
     const noBadge = this.hooks.controllerDevice?.type === 'touch';
-    const cx = dia && !noBadge ? 36 : 0;
+    const cx = dia && !jb && !noBadge ? 36 : 0;
     content.setX(cx);
     inner.add([card, content]);
-    if (o.kind === 'image') {
+    if (jb) {
+      const { g, plan } = jb;
+      if (o.kind === 'image') {
+        if (this.scene.textures.exists(sceneTex(o.sceneId))) {
+          const img = this.scene.add.image(-cw / 2 + g.textLeft + (ch - 20) / 2, 0, sceneTex(o.sceneId));
+          fitImage(img, ch - 20);
+          content.add(img);
+        }
+      } else {
+        const blk = this.answerBlock(o, plan.fa, g.aTextW, 'left', plan.truncate[i] ? ch - 2 * g.rowPadY : undefined);
+        blk.c.setPosition(-cw / 2 + g.textLeft, -blk.h / 2);
+        content.add(blk.c);
+      }
+    } else if (o.kind === 'image') {
       if (this.scene.textures.exists(sceneTex(o.sceneId))) {
         const img = this.scene.add.image(0, 0, sceneTex(o.sceneId));
         fitImage(img, dia ? 124 : 135);
         content.add(img);
       }
-    } else {
+    } else if (o.kind === 'text') {
       content.add(this.textFit(o.text, 56, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 36));
+    } else {
+      content.add(this.textFit(`${o.ref}\n${o.text}`, 40, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 24));
     }
     inner.add(hint);
-    const bx = dia ? -cw / 2 + 52 : 0, by = dia ? 0 : BADGE_DY;
+    const bx = jb ? -cw / 2 + jb.g.rowPadX + jb.g.badgeSize / 2 : dia ? -cw / 2 + 52 : 0, by = dia || jb ? 0 : BADGE_DY;
     const device = this.hooks.controllerDevice;
     const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
-    if (device?.type !== 'touch') inner.add(new FaceButtonBadge(this.scene, bx, by, 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
+    if (device?.type !== 'touch') inner.add(new FaceButtonBadge(this.scene, bx, by, jb ? jb.g.badgeSize : 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
     // Big invisible hit area so a finger (or mouse) can answer directly.
-    const hit = this.scene.add.zone(0, 0, cw + 20, ch + 20).setInteractive();
+    const hit = (jb ? this.scene.add.zone(0, 0, cw, ch + jb.g.rowGap) : this.scene.add.zone(0, 0, cw + 20, ch + 20)).setInteractive();
     hit.on('pointerdown', () => { if (!this.resolved) services.input.touchAnswer?.(i); });
     root.add(hit);
     this.root.add(root);
-    return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 } };
+    return { root, inner, card, content, hint, dock: { x: 0, y: 0, s: 1 }, w: cw, h: ch };
   }
 
   /** Stacked layout (local coords, panel center = 0,0): question on top, three answers below. */
   private layoutPoses() {
     const pad = 14, gap = DIVIDER_GAP, cg = 14;
+    if (this.jbq) {
+      const { g, plan } = this.jbq;
+      this.dockW = g.areaW;
+      this.dockH = g.areaH;
+      this.promptH = plan.qH;
+      this.dividerGap = g.dividerGap;
+      this.promptDock = { x: 0, y: -this.dockH / 2 + g.pad + plan.qH / 2, s: 1 };
+      this.cells.forEach((c, k) => { c.dock = { x: 0, y: -this.dockH / 2 + plan.rowTop[k] + plan.rowH[k] / 2, s: 1 }; });
+      this.computeAnswerArea();
+      return;
+    }
     if (this.diamond) {
       const off = D_CARD_W / 2 + D_GAP / 2;
       const rows = 3 * D_CARD_H + 2 * D_GAP;
@@ -216,6 +254,7 @@ export class ChallengePanel {
       // slots: 0 left, 1 top, 2 right, 3 bottom
       const pos = [{ x: -off, y: y0 + step }, { x: 0, y: y0 }, { x: off, y: y0 + step }, { x: 0, y: y0 + 2 * step }];
       this.cells.forEach((c, k) => { c.dock = { ...pos[k], s: 1 }; });
+      this.computeAnswerArea();
       return;
     }
     const cellsW = 3 * CARD_W + 2 * cg;
@@ -225,6 +264,13 @@ export class ChallengePanel {
     this.promptDock = { x: 0, y: top + PROMPT_H / 2, s: 1 };
     const cy = top + PROMPT_H + gap + CARD_H / 2;
     this.cells.forEach((c, k) => { c.dock = { x: -cellsW / 2 + CARD_W / 2 + k * (CARD_W + cg), y: cy, s: 1 }; });
+    this.computeAnswerArea();
+  }
+
+  private computeAnswerArea() {
+    const x0 = Math.min(...this.cells.map((c) => c.dock.x - c.w / 2)), x1 = Math.max(...this.cells.map((c) => c.dock.x + c.w / 2));
+    const y0 = Math.min(...this.cells.map((c) => c.dock.y - c.h / 2)), y1 = Math.max(...this.cells.map((c) => c.dock.y + c.h / 2));
+    this.answerArea = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
   }
 
   // ───────────────────────── layout / update ─────────────────────────
@@ -245,13 +291,13 @@ export class ChallengePanel {
   /** Question-area tint + bold divider bar, so question and answers read as two zones. */
   private buildDivider(): Phaser.GameObjects.Container {
     const c = this.scene.add.container(0, 0);
-    const w = this.dockW, pad = 14;
+    const w = this.dockW, pad = this.jbq ? this.jbq.g.pad : 14;
     const top = -this.dockH / 2;
-    const qH = pad + PROMPT_H + DIVIDER_GAP / 2 - 4;
+    const qH = pad + this.promptH + this.dividerGap / 2 - 4;
     // tinted question zone (hugging the top of the panel inside its border)
     c.add(rrectImage(this.scene, { r: 28, fill: hexNum(this.color), fillA: 0.28 }, 0, top + 8 + (qH - 8) / 2, w - 16, qH - 8));
     // bold divider bar
-    const by = top + pad + PROMPT_H + DIVIDER_GAP / 2;
+    const by = top + pad + this.promptH + this.dividerGap / 2;
     c.add(rrectImage(this.scene, { r: 6, fill: 0xffffff, fillA: 1 }, 0, by, w - 40, 12));
     return c;
   }
@@ -331,8 +377,12 @@ export class ChallengePanel {
     }
     if (this.resolved) {
       this.resolveAge += dt;
-      if (this.result === 'wrong' && !this.hintShown && this.resolveAge >= HUD.panel.wrongHintDelaySec) this.showHint();
-      const hold = this.result === 'timeout' ? 0 : HUD.panel.resultHoldSec;
+      const reveal = this.result === 'wrong' && this.centered;
+      if (reveal && !this.revealed && this.resolveAge >= CHALLENGE.wrongRetrySec) this.startReveal();
+      if (this.result === 'wrong' && !reveal && !this.hintShown && this.resolveAge >= HUD.panel.wrongHintDelaySec) this.showHint();
+      // After a wrong answer the reveal stays up until the next question replaces this panel (a safety fade follows).
+      const hold = this.result === 'timeout' ? 0
+        : reveal ? CHALLENGE.wrongRetrySec + CHALLENGE.wrongRevealSec + HUD.jbq.revealFadeGraceSec : HUD.panel.resultHoldSec;
       const fadeDur = this.result === 'timeout' ? HUD.panel.timeoutFadeSec : HUD.panel.fadeSec;
       if (this.resolveAge > hold) {
         this.fadeAlpha = Math.max(0, 1 - (this.resolveAge - hold) / fadeDur);
@@ -405,10 +455,147 @@ export class ChallengePanel {
     this.hintShown = true;
     const cell = this.cells[this.challenge.correct];
     cell.hint.add([
-      rrectImage(this.scene, { r: 30, stroke: HUD.colors.green, strokeW: 12 }, 0, 0, this.cardW + 12, this.cardH + 12),
-      rrectImage(this.scene, { r: 36, stroke: 0xffffff, strokeW: 4, strokeA: 0.9 }, 0, 0, this.cardW + 28, this.cardH + 28),
+      rrectImage(this.scene, { r: 30, stroke: HUD.colors.green, strokeW: 12 }, 0, 0, cell.w + 12, cell.h + 12),
+      rrectImage(this.scene, { r: 36, stroke: 0xffffff, strokeW: 4, strokeA: 0.9 }, 0, 0, cell.w + 28, cell.h + 28),
     ]);
     this.scene.tweens.add({ targets: cell.hint, alpha: { from: 0, to: 1 }, duration: 250 });
+  }
+
+  // ───────────────────────── JBQ layout + reveal ─────────────────────────
+  private isJbq(): boolean {
+    return this.challenge.kind === 'jbq' || this.challenge.options.some((o) => o.kind === 'verse');
+  }
+
+  private bodyStyle(px: number, wrap: number, align: 'left' | 'center', color = '#14213d'): Phaser.Types.GameObjects.Text.TextStyle {
+    return {
+      fontFamily: this.isJbq() ? FONT_BODY : FONT_HEAD, fontStyle: 'bold', fontSize: `${px}px`, color,
+      align, wordWrap: { width: wrap }, lineSpacing: 0,
+    };
+  }
+
+  /** Decide font sizes and row heights for the JBQ layout from the space this panel gets. */
+  private planJbqLayout(): { g: JbqGeom; plan: JbqPlan } {
+    const v = this.view;
+    let areaW: number, areaH: number;
+    if (this.centered) {
+      areaW = Math.min(HUD.jbq.maxW, v.w - 40 - this.inset());
+      areaH = breakSplitRegion(v).h;
+    } else {
+      const z = this.zone();
+      areaW = Math.min(HUD.jbq.maxW, z.w - 2 * HUD.panel.shakePx);
+      areaH = z.h;
+    }
+    const badge = this.hooks.controllerDevice?.type !== 'touch';
+    const g = jbqGeometry({ areaW, areaH, quad: isQuadView(v), badge });
+    const mq = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.qTextW, 'center')).setVisible(false);
+    const mb = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.aTextW, 'left')).setVisible(false);
+    const mr = this.scene.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
+    mq.setText(this.challenge.prompt.kind === 'text' ? this.challenge.prompt.text : '');
+    const measureQ = (px: number) => { mq.setFontSize(px); return mq.height; };
+    const measureA = (i: number, px: number) => this.measureOption(mb, mr, this.challenge.options[i], px, g.aTextW);
+    const plan = planJbq(g, this.challenge.options.length, measureQ, measureA);
+    mq.destroy(); mb.destroy(); mr.destroy();
+    return { g, plan };
+  }
+
+  /** Height of an answer block (verse: reference line + text) at `px`, using scratch Text objects. */
+  private measureOption(body: Phaser.GameObjects.Text, ref: Phaser.GameObjects.Text, o: ChallengeOption, px: number, w: number): number {
+    if (o.kind === 'image') return 0;
+    body.setFontSize(px).setWordWrapWidth(w);
+    if (o.kind === 'verse') {
+      ref.setFontSize(Math.round(px * HUD.jbq.refScale)).setText(o.ref);
+      body.setText(o.text);
+      return ref.height + 4 + body.height;
+    }
+    body.setText(o.text);
+    return body.height;
+  }
+
+  /** Text block for an answer (origin top-left of the returned container). `maxH` ellipsizes the body to fit. */
+  private answerBlock(
+    o: ChallengeOption, px: number, w: number, align: 'left' | 'center', maxH?: number, color = '#14213d',
+  ): { c: Phaser.GameObjects.Container; h: number } {
+    const c = this.scene.add.container(0, 0);
+    if (o.kind === 'image') return { c, h: 0 };
+    const ox = align === 'center' ? w / 2 : 0, org = align === 'center' ? 0.5 : 0;
+    let y = 0;
+    if (o.kind === 'verse') {
+      const ref = this.scene.add.text(ox, 0, o.ref, {
+        fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: `${Math.round(px * HUD.jbq.refScale)}px`, color: '#1d4ed8', align,
+      }).setOrigin(org, 0);
+      c.add(ref);
+      y = ref.height + 4;
+    }
+    const body = this.scene.add.text(ox, y, o.text, this.bodyStyle(px, w, align, color)).setOrigin(org, 0);
+    c.add(body);
+    if (maxH !== undefined && y + body.height > maxH) {
+      body.setText(ellipsize(o.text, (str) => { body.setText(str); return y + body.height <= maxH; }));
+    }
+    return { c, h: y + body.height };
+  }
+
+  private buildJbqPrompt(p: ChallengePrompt): Phaser.GameObjects.Container {
+    const { g, plan } = this.jbq!;
+    const c = this.scene.add.container(0, 0);
+    c.add(this.makeCard(g.qW, plan.qH, QUESTION_FILL, hexNum(this.color), 10));
+    this.promptW = g.qW;
+    if (p.kind === 'text') {
+      c.add(this.scene.add.text(0, 0, p.text, this.bodyStyle(plan.fq, g.qTextW, 'center')).setOrigin(0.5));
+    } else if (this.scene.textures.exists(sceneTex(p.sceneId))) {
+      const img = this.scene.add.image(0, 0, sceneTex(p.sceneId));
+      fitImage(img, plan.qH - 24);
+      c.add(img);
+    }
+    const q = circle(this.scene, { r: 26, fill: hexNum(this.color), stroke: 0xffffff, strokeW: 4 }, 0, 0);
+    const qt = bigText(this.scene, 0, 0, '?', 40, '#ffffff', { font: FONT_BODY, stroke: 0 });
+    c.add(this.scene.add.container(-g.qW / 2 + 6, -plan.qH / 2 + 6, [q, qt]));
+    return c;
+  }
+
+  /** Wrong answer: the correct card grows (green, glowing) to fill the whole answer area, with its full content. */
+  private startReveal() {
+    this.revealed = true;
+    const sc = this.scene, a = this.answerArea, slot = this.challenge.correct;
+    const cell = this.cells[slot], o = this.challenge.options[slot];
+    const quad = isQuadView(this.view);
+    const rev = sc.add.container(a.x, a.y);
+    const glow = glowRect(sc, 0x7dff8a, 0.14, 4, 8, 30, 0, 0, a.w, a.h);
+    const card = rrectImage(sc, { r: 30, fill: HUD.colors.green, fillA: 1, stroke: 0xffffff, strokeW: 10 }, 0, 0, a.w, a.h);
+    rev.add([glow, card]);
+    const pad = HUD.jbq.revealPad;
+    const device = this.hooks.controllerDevice;
+    const bs = quad ? 60 : 84;
+    let left = pad;
+    if (device?.type !== 'touch') {
+      const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, slot) : undefined;
+      rev.add(circle(sc, { r: bs / 2 + 8, fill: 0xffffff }, -a.w / 2 + pad + bs / 2, 0));
+      rev.add(new FaceButtonBadge(sc, -a.w / 2 + pad + bs / 2, 0, bs, ANSWER_POSITIONS[slot], this.controllerFamily, key));
+      left += bs + 26;
+    }
+    const availW = a.w - left - pad, availH = a.h - 2 * pad;
+    if (o.kind === 'image') {
+      if (sc.textures.exists(sceneTex(o.sceneId))) {
+        const img = sc.add.image(-a.w / 2 + left + availW / 2, 0, sceneTex(o.sceneId));
+        fitImage(img, Math.min(availW, availH));
+        rev.add(img);
+      }
+    } else {
+      const mb = sc.add.text(0, 0, '', this.bodyStyle(40, availW, 'center')).setVisible(false);
+      const mr = sc.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
+      const px = largestFit((p) => this.measureOption(mb, mr, o, p, availW) <= availH, quad ? 26 : 36, HUD.jbq.revealMaxFont);
+      mb.destroy(); mr.destroy();
+      const blk = this.answerBlock(o, px, availW, 'center', availH);
+      blk.c.setPosition(-a.w / 2 + left, -blk.h / 2);
+      rev.add(blk.c);
+    }
+    this.root.add(rev);
+    const s0 = Math.min(cell.w / a.w, cell.h / a.h);
+    rev.setScale(s0).setPosition(cell.dock.x, cell.dock.y).setAlpha(0);
+    const grow = HUD.jbq.growSec * 1000;
+    sc.tweens.add({ targets: rev, scale: 1, x: a.x, y: a.y, alpha: 1, duration: grow, ease: 'Back.easeOut' });
+    sc.tweens.add({ targets: glow, alpha: { from: 0.45, to: 1 }, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    for (const c of this.cells) sc.tweens.add({ targets: c.root, alpha: 0, duration: c === cell ? 60 : grow * 0.7 });
+    this.extraTargets.push(rev, glow);
   }
 
   /** Screen rect covered by the docked panel (for overlap checks). */
@@ -419,7 +606,7 @@ export class ChallengePanel {
 
   destroy() {
     this.finished = true;
-    this.scene.tweens.killTweensOf([...this.cells.map((c) => c.inner), ...this.cells.map((c) => c.hint), ...this.extraTargets, ...this.fxObjects]);
+    this.scene.tweens.killTweensOf([...this.cells.map((c) => c.root), ...this.cells.map((c) => c.inner), ...this.cells.map((c) => c.hint), ...this.extraTargets, ...this.fxObjects]);
     this.fxObjects.forEach((o) => { if (o.scene) o.destroy(); });
     this.fxObjects = [];
     this.root.destroy();
