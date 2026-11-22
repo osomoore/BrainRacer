@@ -28,7 +28,7 @@ class InputManager implements IInput {
   private pads = new Map<number, PadSnapshot>();
   private connected = new Set<number>();
   private results = new Map<string, PlayerInput>();
-  private assigned: (InputDevice | null)[] = [null, null];
+  private assigned: (InputDevice | null)[] = [null, null, null, null];
   private overlay = new DebugOverlay();
 
   constructor() {
@@ -135,7 +135,7 @@ class InputManager implements IInput {
   }
 
   assign(player: PlayerId, device: InputDevice): void { this.assigned[player] = device; }
-  reset(): void { this.assigned = [null, null]; }
+  reset(): void { this.assigned = [null, null, null, null]; }
 
   get(player: PlayerId): PlayerInput {
     const d = this.assigned[player];

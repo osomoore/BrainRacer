@@ -15,7 +15,8 @@ import type { QueuedMap } from '../config/queuedMaps';
 export interface Vec2 { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
 
-export type PlayerId = 0 | 1;
+/** Up to MAX_PLAYERS (gameConfig) players; 1-2 keep the classic layouts, 3-4 use 2x2 quadrants. */
+export type PlayerId = 0 | 1 | 2 | 3;
 /** easyPlus sits between easy and normal (sums into the teens). */
 export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
 export type StarterCar = 'dino' | 'kart';
@@ -137,7 +138,7 @@ export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
   map: RaceMap;
-  players: PlayerSettings[];      // length 1 or 2; index = PlayerId
+  players: PlayerSettings[];      // length 1..4 (MAX_PLAYERS); index = PlayerId
   challengeMode: ChallengeMode | 'off';   // legacy fallback and race-wide dev off switch
   questionStyle: QuestionStyle;   // default 'pause'
   challengeIntervalSec: number;   // pause style: seconds of driving between question breaks (default 10); drive style: base period
@@ -332,10 +333,11 @@ export type SfxName =
 export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
-export type CameraMode = 'single' | 'merged' | 'split';
+/** quad = 3-4 players, fixed 2x2 quadrants (P1 top-left, P2 top-right, P3 bottom-left, P4 bottom-right). */
+export type CameraMode = 'single' | 'merged' | 'split' | 'quad';
 export interface CameraLayout {
   mode: CameraMode;
   /** Screen-space viewport rect (in 1920x1080 game coords) "belonging" to each player.
-   *  In 'merged' mode these are the left/right halves of the full screen. */
+   *  In 'merged' mode these are the left/right halves of the full screen; in 'quad' mode the quadrants. */
   playerViews: Rect[];
 }

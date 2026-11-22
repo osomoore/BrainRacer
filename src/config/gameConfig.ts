@@ -36,7 +36,8 @@ export const VEHICLE_CONDITION = {
   particleLimit: 72,
 };
 
-export const PLAYER_COLORS = ['#2ecc40', '#ff3b30'] as const;      // P1 green (dino), P2 red (kart)
+export const MAX_PLAYERS = 4;
+export const PLAYER_COLORS = ['#2ecc40', '#ff3b30', '#1e90ff', '#ffb300'] as const;      // P1 green (dino), P2 red (kart), P3 blue, P4 amber
 export const ANSWER_COLORS = ['#1e6fff', '#ffcc00', '#ff3b30', '#2ecc40'] as const; // X blue, Y yellow, B red, A green
 export const ANSWER_LABELS = ['X', 'Y', 'B', 'A'] as const;
 

@@ -25,8 +25,10 @@ export interface DeviceTuning {
   fpsCap: 60 | 30;
   /** Applies to the next race. */
   traffic: TrafficLevel;
-  /** Per player slot (P1, P2); gamepads only. */
-  gas: [GasMode, GasMode];
+  /** Per player slot (P1..P4); gamepads only. */
+  gas: [GasMode, GasMode, GasMode, GasMode];
+  /** Admin: in-race FPS + per-system timing overlay (src/core/perfProbe.ts). Off = zero cost. */
+  perfHud: boolean;
 }
 
 export const TUNING_KEY = 'brainracer.tuning.v1';
@@ -40,7 +42,8 @@ export const DEFAULT_TUNING: Readonly<DeviceTuning> = Object.freeze({
   debugReadout: false,
   fpsCap: 60,
   traffic: 'normal',
-  gas: ['a', 'a'] as [GasMode, GasMode],
+  gas: ['a', 'a', 'a', 'a'] as [GasMode, GasMode, GasMode, GasMode],
+  perfHud: false,
 });
 
 const pick = <T>(v: unknown, allowed: readonly T[], fallback: T): T =>
@@ -60,7 +63,8 @@ export function sanitizeTuning(raw: unknown): DeviceTuning {
     debugReadout: typeof r.debugReadout === 'boolean' ? r.debugReadout : d.debugReadout,
     fpsCap: pick(r.fpsCap, [60, 30] as const, d.fpsCap),
     traffic: pick(r.traffic, ['normal', 'reduced', 'minimal'] as const, d.traffic),
-    gas: [pick(gasArr[0], GAS_MODES, d.gas[0]), pick(gasArr[1], GAS_MODES, d.gas[1])],
+    gas: [0, 1, 2, 3].map((i) => pick(gasArr[i], GAS_MODES, d.gas[i])) as DeviceTuning['gas'],
+    perfHud: typeof r.perfHud === 'boolean' ? r.perfHud : d.perfHud,
   };
 }
 

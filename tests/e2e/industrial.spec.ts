@@ -113,7 +113,7 @@ async function stageCars(page: Page, drives: Drive[]) {
 
 async function driveAcross(page: Page, drives: Drive[]) {
   await Promise.all(drives.map(async ({ player, y, targetX, direction }) => {
-    await page.keyboard.down(THROTTLE[player]);
+    await page.keyboard.down(THROTTLE[player as 0 | 1]);
     try {
       await page.waitForFunction(({ player, targetX, direction }) => {
         const car = window.__race.players[player];
@@ -126,7 +126,7 @@ async function driveAcross(page: Page, drives: Drive[]) {
       expect(Math.abs(result.y - y)).toBeLessThan(24);
       expect(result.airborne).toBe(false);
     } finally {
-      await page.keyboard.up(THROTTLE[player]);
+      await page.keyboard.up(THROTTLE[player as 0 | 1]);
     }
   }));
 }

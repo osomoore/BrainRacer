@@ -2,9 +2,11 @@ import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPo
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD_MUSIC } from '../config/gameConfig';
+import { getTuning } from '../config/deviceTuning';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
+import { perfProbe } from '../core/perfProbe';
 import type { GameSystem, RaceContext } from '../core/race';
 import { selectedLoadout } from '../core/progression';
 import { playerRacer, teamRoundSec } from '../core/racerProfiles';
@@ -127,6 +129,25 @@ export class RaceScene extends Phaser.Scene {
     this.systems = createSystems();
     for (const s of this.systems) s.init(this.ctx);
 
+    // Profiling (admin "Perf overlay"): physics step and whole-game render, on top of the per-system timing in update().
+    perfProbe.enabled = getTuning().perfHud;
+    perfProbe.reset();
+    if (perfProbe.enabled) {
+      const physBegin = () => perfProbe.begin('physics'), physEnd = () => perfProbe.end('physics');
+      const renderBegin = () => perfProbe.begin('render'), renderEnd = () => perfProbe.end('render');
+      this.matter.world.on('beforeupdate', physBegin);
+      this.matter.world.on('afterupdate', physEnd);
+      this.game.events.on(Phaser.Core.Events.PRE_RENDER, renderBegin);
+      this.game.events.on(Phaser.Core.Events.POST_RENDER, renderEnd);
+      this.offs.push(() => {
+        this.matter.world?.off('beforeupdate', physBegin);
+        this.matter.world?.off('afterupdate', physEnd);
+        this.game.events.off(Phaser.Core.Events.PRE_RENDER, renderBegin);
+        this.game.events.off(Phaser.Core.Events.POST_RENDER, renderEnd);
+        perfProbe.enabled = false;
+      });
+    }
+
     const unlockAudio = () => { if (!services.audio.unlocked) void services.audio.unlock(); };
     this.input.keyboard?.on('keydown', unlockAudio);
     this.input.on('pointerdown', unlockAudio);
@@ -157,6 +178,7 @@ export class RaceScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number) {
     const dt = Math.min(deltaMs / 1000, 1 / 20);
+    perfProbe.frame(performance.now());
     services.input.poll();
 
     // Pause toggle (HUD hosts the overlay and emits game:resume; a second pause press also resumes).
@@ -181,13 +203,17 @@ export class RaceScene extends Phaser.Scene {
     if (!this.started) this.runCountdown(dt);
     else if (!this.ended) this.ctx.elapsedSec += dt;
 
+    perfProbe.begin('cars');
     for (const car of this.players) {
       const onIce = this.ctx.settings.map === 'tundra' && queuedIceAt(this.ctx.world, car.x, car.y);
       car.update(services.input.get(car.player), dt, onIce ? QUEUED_FEATURES.iceGrip : 1);
     }
     this.skids.update(dt);
+    perfProbe.end('cars');
     if (this.started) for (const s of this.systems) {
+      if (perfProbe.enabled) perfProbe.begin(`sys:${s.name}`);
       s.update(dt, this.ctx);
+      if (perfProbe.enabled) perfProbe.end(`sys:${s.name}`);
       if (this.ctx.timeExpired) break;
     }
     if (this.started && !this.ended && !this.ctx.questionBreak) this.built.update?.(dt);

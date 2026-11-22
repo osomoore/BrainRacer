@@ -15,7 +15,7 @@ describe('deviceTuning', () => {
   });
 
   it('defaults reproduce current behaviour', () => {
-    expect(getTuning()).toEqual({ engineSound: 'sample', audioMode: 'files', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60, traffic: 'normal', gas: ['a', 'a'] });
+    expect(getTuning()).toEqual({ engineSound: 'sample', audioMode: 'files', audioLatency: 'interactive', lookAheadSec: 0.1, compressor: true, debugReadout: false, fpsCap: 60, traffic: 'normal', gas: ['a', 'a', 'a', 'a'], perfHud: false });
   });
   it('invalid stored values fall back per field', () => {
     store.m.set(TUNING_KEY, JSON.stringify({ engineSound: 'loud', lookAheadSec: 0.2, compressor: 'yes', fpsCap: 45, debugReadout: true }));
@@ -58,8 +58,8 @@ describe('traffic and gas', () => {
     expect(scaledCount(0, 'minimal')).toBe(0);
   });
   it('validates traffic and per-player gas', () => {
-    expect(sanitizeTuning({ traffic: 'minimal', gas: ['auto', 'trigger'] })).toMatchObject({ traffic: 'minimal', gas: ['auto', 'trigger'] });
-    expect(sanitizeTuning({ traffic: 'lots', gas: ['x', 'auto'] })).toMatchObject({ traffic: 'normal', gas: ['a', 'auto'] });
-    expect(sanitizeTuning({ gas: 'auto' }).gas).toEqual(['a', 'a']);
+    expect(sanitizeTuning({ traffic: 'minimal', gas: ['auto', 'trigger', 'a', 'a'] })).toMatchObject({ traffic: 'minimal', gas: ['auto', 'trigger', 'a', 'a'] });
+    expect(sanitizeTuning({ traffic: 'lots', gas: ['x', 'auto'] })).toMatchObject({ traffic: 'normal', gas: ['a', 'auto', 'a', 'a'] });
+    expect(sanitizeTuning({ gas: 'auto' }).gas).toEqual(['a', 'a', 'a', 'a']);
   });
 });
