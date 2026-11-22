@@ -111,7 +111,7 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
     contexts: () => panes.slice(0, shell.count).map((p) => p.ctx),
     screens: () => panes.slice(0, shell.count).map((p) => p.screenId),
     screenIds,
-    state: () => ({ scene: shell.count === 0 ? 'title' : 'panes', count: shell.count, screens: panes.slice(0, shell.count).map((p) => p.screenId), adminOpen: shell.adminOpen, adminMode: adminFlag }),
+    state: () => ({ scene: shell.count > 0 ? 'panes' : game.scene.isActive('title') ? 'title' : 'boot', count: shell.count, screens: panes.slice(0, shell.count).map((p) => p.screenId), adminOpen: shell.adminOpen, adminMode: adminFlag }),
     device: () => store.device(),
   };
   return game;
