@@ -2,7 +2,7 @@
 import { CHALLENGE, DIFFICULTY } from '../config/gameConfig';
 import { normalizeQuestionTypes } from '../config/questionsPolicy';
 import type { Rng } from '../core/rng';
-import type { AnswerSlot, Challenge, ChallengeKind, ChallengeMode, ChallengeResult, Difficulty, PlayerId, QuestionTypes } from '../core/types';
+import type { AnswerSlot, Challenge, ChallengeKind, ChallengeMode, ChallengeResult, Difficulty, PlayerId, QuestionType, QuestionTypes } from '../core/types';
 import type { ChallengeGenerator } from './ChallengeGenerator';
 
 export type SchedulerEvent =
@@ -25,7 +25,7 @@ export interface SchedulerOptions {
 
 /**
  * Kinds allowed by the player's selections or by their legacy mode. Math is addition up to Normal and
- * multiplication on Hard. TODO(jbq-logic): add 'jbq' once the generator handles it.
+ * multiplication on Hard; reading is picture->word and word->picture; jbq is the Junior Bible Quiz.
  */
 export function kindsForMode(mode?: ChallengeMode, questionTypes?: QuestionTypes, difficulty: Difficulty = 'normal'): ChallengeKind[] {
   const types = normalizeQuestionTypes(questionTypes, mode);
@@ -33,8 +33,18 @@ export function kindsForMode(mode?: ChallengeMode, questionTypes?: QuestionTypes
   if (types.reading) kinds.push('picToWord');
   if (types.math) kinds.push(difficulty === 'hard' ? 'multiplication' : 'math');
   if (types.reading) kinds.push('wordToPic');
-  if (kinds.length === 0) kinds.push('picToWord', 'wordToPic');   // JBQ-only until the jbq generator lands
+  if (types.jbq) kinds.push('jbq');
   return kinds;
+}
+
+const typeOfKind = (k: ChallengeKind): QuestionType => k === 'jbq' ? 'jbq' : k === 'math' || k === 'multiplication' ? 'math' : 'reading';
+
+/** Pick weights for `kinds`: each enabled question TYPE (math, reading, jbq) gets an equal share, split by the difficulty's kind weights within a type. */
+export function kindWeights(kinds: readonly ChallengeKind[], difficulty: Difficulty): number[] {
+  const w = DIFFICULTY[difficulty].typeWeights;
+  const typeSum = new Map<QuestionType, number>();
+  for (const k of kinds) typeSum.set(typeOfKind(k), (typeSum.get(typeOfKind(k)) ?? 0) + w[k]);
+  return kinds.map((k) => w[k] / (typeSum.get(typeOfKind(k)) || 1) / typeSum.size);
 }
 
 export class ChallengeScheduler {
@@ -59,7 +69,9 @@ export class ChallengeScheduler {
     this.difficulty = o.difficulty;
     this.generator = o.generator;
     this.rng = o.rng;
-    this.kinds = kindsForMode(o.mode, o.questionTypes, o.difficulty);
+    // DEPRECATED drive style: JBQ is Stop & Answer only, so the drive scheduler never asks it.
+    const kinds = kindsForMode(o.mode, o.questionTypes, o.difficulty).filter((k) => k !== 'jbq');
+    this.kinds = kinds.length > 0 ? kinds : ['picToWord', 'wordToPic'];
     this.periodSec = o.intervalSec * DIFFICULTY[o.difficulty].periodMultiplier;
     this.startAt = o.startDelaySec;
   }
@@ -117,7 +129,7 @@ export class ChallengeScheduler {
   }
 
   private start(at: number, placeWord: string | null, events: SchedulerEvent[]): void {
-    const kind = this.rng.weighted(this.kinds, this.kinds.map((k) => DIFFICULTY[this.difficulty].typeWeights[k]));
+    const kind = this.rng.weighted(this.kinds, kindWeights(this.kinds, this.difficulty));
     const pool = this.generator.targetPool(this.difficulty);
     if (pool.every((w) => this.used.has(w))) this.used.clear();
     const body = this.generator.generate(kind, this.difficulty, {

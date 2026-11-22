@@ -179,6 +179,7 @@ export const CHALLENGE = {
   pauseOptions: 4,             // answers per question in pause style (drive = 3)
   // JBQ (Junior Bible Quiz) — package jbq-logic may ADD keys here
   jbqMasteredCorrect: 2,       // a question counts as learned after this many correct answers (per racer); when the whole pool is learned, the previous week's chunk is added
+  jbqUnmasteredWeight: 4,      // pick weight of a not-yet-learned question (learned ones weigh 1)
   // package B additions
   placeWordToPicChance: 0.5,       // place challenge: word->pictures (else picture->words)
   hardForgotCarryChance: 0.7,      // hard math: chance the "forgot to carry" distractor is included

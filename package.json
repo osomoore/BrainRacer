@@ -13,6 +13,7 @@
     "test": "node scripts/vitest.mjs",
     "e2e": "playwright test",
     "assets": "tsx scripts/build-assets.ts",
+    "jbq:data": "tsx scripts/jbqData.ts",
     "audio:render": "tsx scripts/renderAudio.ts"
   },
   "dependencies": {
