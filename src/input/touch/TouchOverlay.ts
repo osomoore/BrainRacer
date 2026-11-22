@@ -41,8 +41,9 @@ const SPOTS: Record<TouchLayout, Partial<Record<TouchButton, Spot>>> = {
   none: {},
   race: {
     left: { size: sb, x: 0, y: 0, corner: 'bl' },
-    right: { size: sb, x: sb + 3, y: 0, corner: 'bl' },
-    brake: { size: TOUCH_CFG.brakeBtnVh, x: 0, y: 0, corner: 'br' },
+    // Left thumb steers left, right thumb steers right; brake (rarely needed with auto-gas) sits above ▶.
+    right: { size: sb, x: 0, y: 0, corner: 'br' },
+    brake: { size: TOUCH_CFG.brakeBtnVh, x: (sb - TOUCH_CFG.brakeBtnVh) / 2, y: sb + 3, corner: 'br' },
     pause: { size: sm, x: 0, y: 0, corner: 'tr' },
     reset: { size: sm, x: sm + 3, y: 0, corner: 'tr' },
   },
