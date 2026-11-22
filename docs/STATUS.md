@@ -25,6 +25,17 @@ Each new track has a contrasting second section. The race mix brightens during t
 
 For a quick check, use `/?race=2&map=brickworks&seed=3&feature=now&dino=now` in dev. Set `map` from the table to preview any world. `feature=now` brings the first shortcut warning forward to one second of driving. The route closes for six seconds after the warning if the crossing is clear. Each world has an open alternate route. The shortcuts and movers pause during Stop & Answer breaks.
 
+## Up to four players (2026-11-21)
+
+Plan and decisions: [docs/FOUR_PLAYERS.md](FOUR_PLAYERS.md).
+
+- **Menus:** Title ("Press (A) to play") → **Join** (`SetupScene`, four panels; any pad or keyboard layout claims the next panel with confirm, picks a unique racer, car and buddy, then confirms **Ready**. A Ready panel is locked until B un-readies it. Only P1 can press Next, once everyone joined is Ready) → **Track select** (`TrackSelectScene`, P1 picks the world and starts) → race. 1–2 players use the same screens.
+- **Screen:** 1–2 players unchanged. 3–4 players: 2×2 quadrants (`CameraMode 'quad'`, `CAMERA.quadZoom`, `quadCarScreenY`), each view facing up. 4 players: centre score badge. 3 players: team panel in the bottom-right quadrant.
+- **Players 3–4:** P3 blue, P4 amber; gamepads only (keyboard has two layouts). Default racers Gideon, Abe, Helen, Daddy. P3/P4 start one row behind (`WORLD.spawnRowGapPx`). Sound pans P1/P3 left, P2/P4 right.
+- **Co-op rules:** goal = everyone arrives or the wait timer ends; boss TEAM hit = hits by two different players within `DINO.teamWindowSec`; the crystal stays until everyone boarded or time runs out.
+- **Quick test:** `?race=3` / `?race=4` (P1/P2 keyboard, P3/P4 gamepads 0/1, idle if missing).
+- **Profiling:** Admin Settings → **Perf overlay** shows FPS, 1% low, frame ms and the costliest sections (`cars`, `physics`, `render`, `sys:<name>`) from `src/core/perfProbe.ts`. Off = one boolean check per hook. Admin → **Performance test** runs an auto-driven 30 s race with 2 or 4 players and freezes the numbers on screen (`src/scenes/dev/FourViewPerf.ts`).
+
 ## Racer presets, question panel, boost FX (2026-11-20)
 
 - **Setup** has one **Racer** row per player instead of Difficulty plus question toggles: **Abe** (Easy, Addition + Spelling, 5 min), **Gideon** (Normal, Addition + Spelling, 5 min), **Helen** and **Daddy** (Hard, Multiplication + Spelling, 3 min). P1 defaults to Gideon, P2 to Abe; two players can't pick the same racer. **Race length** = `?round=` if given, else Admin Mode's 60 s, else the longer of the racers' times (`teamRoundSec`); the old global Round length row is gone. The pick is `PlayerSettings.profile`; `applyRacerProfile` (`src/core/racerProfiles.ts`) copies the preset into `difficulty`/`questionTypes` for ChallengeSystem. Defaults: `DEFAULT_RACER_PROFILES` / `DEFAULT_PLAYER_RACERS` in gameConfig.
