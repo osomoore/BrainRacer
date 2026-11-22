@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ellipsize, jbqGeometry, largestFit, planJbq, waterFill } from './jbqLayout';
+import { diamondIconGeom, ellipsize, jbqGeometry, largestFit, planJbq, waterFill } from './jbqLayout';
 
 // Fake measurer: ~0.55em per char, 1.2em line height.
 const block = (chars: number, px: number, w: number) => Math.max(1, Math.ceil((chars * 0.55 * px) / w)) * px * 1.2;
@@ -67,5 +67,23 @@ describe('waterFill', () => {
     expect(out[0]).toBe(50);
     expect(out[1]).toBeCloseTo(275, 3);
     expect(out[1] + out[2] + out[0]).toBeCloseTo(600, 3);
+  });
+});
+
+describe('diamondIconGeom', () => {
+  it('keeps every button inside the icon square and never swallows a neighbour', () => {
+    for (const size of [52, 72]) {
+      const g = diamondIconGeom(size);
+      for (const [x, y] of g.centers) {
+        expect(Math.abs(x) + g.big + g.ring).toBeLessThanOrEqual(size * 0.54);
+        expect(Math.abs(y) + g.big + g.ring).toBeLessThanOrEqual(size * 0.54);
+      }
+      const [l, t] = g.centers;   // the lit button may touch a neighbour but must not swallow it
+      expect(Math.hypot(l[0] - t[0], l[1] - t[1])).toBeGreaterThan(g.big + g.ring);
+    }
+  });
+  it('lists left, top, right, bottom', () => {
+    const c = diamondIconGeom(60).centers;
+    expect(c[0][0]).toBeLessThan(0); expect(c[1][1]).toBeLessThan(0); expect(c[2][0]).toBeGreaterThan(0); expect(c[3][1]).toBeGreaterThan(0);
   });
 });

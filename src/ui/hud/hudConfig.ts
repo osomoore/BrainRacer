@@ -31,7 +31,7 @@ export const HUD = {
   /** JBQ (Junior Bible Quiz) panel: long question + four full-width answer rows. Font sizes are in panel px (panel scale is ~1). */
   jbq: {
     pad: 14, dividerGap: 40, rowGap: 10, rowPadY: 12, rowPadX: 18, qPadY: 16, qSideInset: 56,
-    badge: 64, quadBadge: 44,
+    badge: 100, quadBadge: 66,   // mini button-diamond icon side (px) at the left of each answer row
     /** Tighter paddings for the 960x540 quadrant views (3-4 players). */
     quadPad: { pad: 10, dividerGap: 26, rowGap: 6, rowPadY: 6, rowPadX: 14, qPadY: 8 },
     maxW: 1700,               // widest the panel gets in a wide (1-player) view

@@ -1,5 +1,5 @@
 /**
- * Dev scene (?dev=JbqPanelTest&n=1|2|4&s=0..3&act=wrong|correct): the real HudScene showing JBQ question panels
+ * Dev scene (?dev=JbqPanelTest&n=1|2|4&s=0..3&act=wrong|correct&pad=xbox|switch|kb): the real HudScene showing JBQ question panels
  * (long text, verse answers) with a fake RaceContext. Keys: V cycle 1/2/4 players, N next sample (all players),
  * C correct answer, X wrong answer (then the correct card is revealed big), R re-ask, 1-4 answer P1 by slot.
  * `act` auto-triggers C/X for player 1 about 1.2 s after the panel shows (for screenshots).
@@ -109,8 +109,16 @@ export default class JbqPanelTest extends Phaser.Scene {
       worldToScreen: (p: PlayerId, x: number, y: number) => ({ x: views[p].x + views[p].w / 2 + x, y: carY(views[p]) + y }),
       viewRotation: () => 0,
     } as unknown as ICameraRig;
+    // ?pad=xbox|switch|kb picks the answer-badge family (default xbox colours).
+    const pad = new URLSearchParams(location.search).get('pad');
+    if (pad === 'xbox' || pad === 'switch') {
+      const inp = services.input as unknown as { controllerFamily?: (d?: unknown) => string };
+      inp.controllerFamily = () => (pad === 'switch' ? 'nintendo' : 'xbox');
+    }
+    const device = pad === 'kb' ? (i: number) => ({ type: 'keyboard', layout: i % 2 ? 'right' : 'left' })
+      : pad ? () => ({ type: 'gamepad', index: 0 }) : () => undefined;
     const settings = {
-      players: Array.from({ length: this.n }, () => ({})), challengeIntervalSec: 5, roundLengthSec: 300,
+      players: Array.from({ length: this.n }, (_, i) => ({ device: device(i) })), challengeIntervalSec: 5, roundLengthSec: 300,
       goalPointsPerCar: 3, seed: 1, musicVolume: 0, sfxVolume: 0, map: 'city', questionStyle: 'pause',
     } as unknown as Settings;
     const players = Array.from({ length: this.n }, () => ({ x: 0, y: 0, angle: 0 }));
