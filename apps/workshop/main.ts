@@ -1,22 +1,23 @@
 /**
- * Adventure Workshop entry. Currently the Coming Soon page; the shell package replaces the game part.
+ * Adventure Workshop entry. Boots the Phaser game (title / join -> one pane per player -> screens).
  * `?dev=<Name>` boots a bare Phaser game running `apps/workshop/dev/<Name>.ts` (default export = Scene class).
- * KEEP the ?dev= behaviour when replacing this file.
  */
-import { goToHub } from '../../shared/hub';
 import { installMobileShell } from '../../shared/mobile';
 import { ensureProfiles } from '../../shared/profiles';
-import { createMenuInput } from '../../shared/input/menuInput';
-import { fitScale } from './layout';
-import { sceneMarkup } from './scene';
-import './style.css';
 
 ensureProfiles();
 installMobileShell();
 
 const devName = new URLSearchParams(location.search).get('dev');
-if (devName) void bootDev(devName);
-else comingSoon();
+void (devName ? bootDev(devName) : bootGame());
+
+async function bootGame(): Promise<void> {
+  const { createWorkshopGame } = await import('./shell/game');
+  const stage = document.getElementById('stage')!;
+  stage.removeAttribute('id');
+  stage.style.cssText = 'position:fixed;inset:0';
+  createWorkshopGame(stage);
+}
 
 async function bootDev(name: string): Promise<void> {
   const mods = import.meta.glob<{ default: new () => Phaser.Scene }>('./dev/*.ts');
@@ -32,23 +33,4 @@ async function bootDev(name: string): Promise<void> {
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 1400 }, fixedStep: true, fps: 60 } },
     scene: [mod.default],
   });
-}
-
-function comingSoon(): void {
-  const stage = document.getElementById('stage');
-  if (!stage) throw new Error('missing #stage');
-  stage.innerHTML = sceneMarkup();
-  const fit = () => stage.style.setProperty('--s', String(fitScale(window.innerWidth, window.innerHeight)));
-  fit();
-  window.addEventListener('resize', fit);
-  let leaving = false;
-  const leave = () => { if (!leaving) { leaving = true; goToHub(); } };
-  document.getElementById('back-hint')?.addEventListener('click', leave);
-  const input = createMenuInput();
-  const frame = () => {
-    if (leaving) return;
-    if (input.poll().some((a) => a === 'back' || a === 'confirm')) { leave(); return; }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
 }

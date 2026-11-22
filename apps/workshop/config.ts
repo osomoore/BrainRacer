@@ -51,6 +51,18 @@ export const WS_UI = {
     p1: 0xff5a5f,
     p2: 0x2bb3ff,
   },
+  /** Minimum tap target (px) for any button a kid presses. */
+  tapMin: 120,
+  radius: 28,
+  maxPlayers: 2,
+  /** Pane divider width in 2-player mode. */
+  dividerW: 12,
+  /** Reading-level sample sentences (profile creation / reading screens). */
+  readingSamples: {
+    easy: 'The red car can go.',
+    medium: 'Build a car that can cross the muddy field.',
+    hard: 'Equip your vehicle with enough traction to cross slippery ground.',
+  },
 } as const;
 
 // ---------------------------------------------------------------- admin (apps/workshop/shell/admin)
@@ -59,6 +71,14 @@ export const WS_ADMIN = {
   gateMin: 6,
   gateMax: 9,
   gateMaxDigits: 3,
+  /** Grown-up screen text size (>= 36 px) and list metrics. */
+  font: 40,
+  rowH: 84,
+  visibleRows: 9,
+  /** Mobile gear icon: faint visible size and the larger invisible tap area (px). */
+  gearSize: 56,
+  gearHit: 150,
+  gearAlpha: 0.35,
 } as const;
 
 // ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
