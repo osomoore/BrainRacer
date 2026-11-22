@@ -44,6 +44,7 @@ test('fresh device: a phone player makes a profile by tapping only', async ({ pa
   await tapLogical(page, 960, 720); // age 8-9 (Medium)
   await page.waitForTimeout(800);
   await shot(page, '6-setup-after');
+  expect(await page.evaluate(() => { const sc = (window as any).__game.scene; const st = sc.getScene('Setup'); return { setup: sc.isActive('Setup'), ready: st.panels[0].ready, isNew: st.isNew[0] }; })).toEqual({ setup: true, ready: false, isNew: false }); // created and selected, not ready
 
   const profiles = await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles') ?? '[]') as { name: string }[]);
   expect(profiles.map((p) => p.name)).toEqual(['SAM']);
