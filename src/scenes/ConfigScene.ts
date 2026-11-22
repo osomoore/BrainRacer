@@ -133,6 +133,10 @@ export class ConfigScene extends Phaser.Scene {
     window.addEventListener('keydown', onKey);
     this.events.once('shutdown', () => window.removeEventListener('keydown', onKey));
     this.input.keyboard?.on('keydown-F9', () => this.toggle());
+    // Mobile setup gear (after its math gate) asks for the menu through a game-level event, so no contract change is needed.
+    const onAdminOpen = (): void => { if (!this.isOpen) this.toggle(); };
+    this.game.events.on('admin:open', onAdminOpen);
+    this.events.once('shutdown', () => this.game.events.off('admin:open', onAdminOpen));
     this.scene.bringToTop();
   }
 

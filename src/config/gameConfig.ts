@@ -1161,3 +1161,12 @@ export const QUEUED_ATMOSPHERE = {
     house: { columns: 4, rows: 5, speed: 51, scale: 1.4, alpha: .7, angle: -.23, period: 25 },
   },
 } as const;
+
+/** Mobile admin gate (setup-screen gear -> multiplication question -> hidden admin menu). */
+export const ADMIN_GATE = {
+  factorMin: 6,
+  factorMax: 12,
+  maxDigits: 3,
+  gear: { x: GAME_WIDTH - 90, y: 70, size: 110 },
+  key: { w: 200, h: 112, gap: 16, firstY: 440 },
+} as const;
