@@ -6,14 +6,13 @@ Read `AGENTS.md`, `CLAUDE.md` (rules 10, 11, 14, 15) and `docs/WORKSHOP.md` ("De
 
 ## Branch and checkout
 
-- Work on your own branch from `feature/workshop` (NOT `dev`), e.g. `art/workshop-polish`, in your own worktree:
-  ```powershell
-  git worktree add -q ".worktrees\ws-artpolish" -b "art/workshop-polish" feature/workshop
-  New-Item -ItemType Junction -Path ".worktrees\ws-artpolish\node_modules" -Target "$PWD\node_modules"
-  ```
-  Never remove the worktree with the junction in place (`cmd /c rmdir .worktrees\ws-artpolish\node_modules` first).
-- Vite does not hot-reload inside `.worktrees` (`watch.ignored`): restart the dev server after edits
-  (`npx vite --port 5198 --strictPort`).
+- **Already set up for you:** worktree `.worktrees\ws-artpolish` on branch `art/workshop-polish`, branched from
+  `feature/workshop`, with `node_modules` linked and assets generated. Work ONLY there. Do not create another
+  worktree (`git worktree add` would fail on the existing branch). Check with `git worktree list`.
+- Never remove that worktree with the junction in place (`cmd /c rmdir .worktrees\ws-artpolish\node_modules` first).
+- Vite does not hot-reload inside `.worktrees` (`watch.ignored`): restart the dev server after edits.
+  The server for this worktree runs on **port 5198** (`npx vite --port 5198 --strictPort`, from `.worktrees\ws-artpolish`).
+  Restart it by stopping the process on 5198 and starting it again, then reload the browser.
 - Before each commit: `npm run typecheck && npm test`. Before asking to merge: `npx playwright test tests/e2e/workshop --workers=1`.
 - **Do not touch `apps/workshop/run/dino/**` or `apps/workshop/dev/DinoStages.ts`**: a paused Claude agent owns them
   (`.worktrees/ws-rundino`). Everything below is fair game.
