@@ -34,6 +34,24 @@ Open:
 - **#10** Listen: loop seams in the title, race, farm and dino music, and in the siren and engine loops.
 - **#12** Next performance work (from the 6x-throttle profile): enable Matter sleeping plus off-screen NPC update skipping (about +10-15%, needs wake-on-contact checks); a render-resolution option (unmeasured, depends on the box GPU); trim the display list per camera. Matter iteration counts gave no gain.
 
+### Music (see [MUSIC_TODO.md](MUSIC_TODO.md))
+- **#66** Music loudness differs by up to 11 dB between worlds, the eight newest worlds get a muffling low-pass mix (only them), their songs are 12–18 s template loops, and City's song is 2–4× denser than the rest. Measurements and fixes are in `docs/MUSIC_TODO.md`.
+
+### Admin (hidden settings) menu rework (not started)
+- **#63** Too many items on screen; columns overwrite each other's screen space. Re-layout or paginate so nothing overlaps.
+- **#64** Up/down does not move in visual order, it jumps around. Make focus order follow the on-screen order within a column.
+- **#65** Edit mode: press A to start changing a field, A again to finish. Left/right changes the value only while editing, so a stray press can't flip a setting. When not editing, left/right moves between admin columns.
+
+### Session 5 playtest notes (2026-11-21, queued for later)
+- **#55** Airport: far too many random props scattered with no arrangement or order. Lay them out in rows/clusters (stands, cones by the runway, bags near terminals) and make many more of them knockable over.
+- **#56** Later worlds after the dark forest: add more of each world's own interactable props (flags etc.) and make them knockable over.
+- **#57** ~~Text like "<X> Defeated!" is drawn on top of the question/answer screens.~~ Done in dev: banners and popups use depth 5.5, below the question panel (6), in `HudScene`.
+- **#58** Giant light beams sometimes show on screen (seen on Castle, a wide yellow-white glow across the road behind the car). Find out what draws them (turbo/boost flavor reward, a light/glow effect, or a bug) and decide whether to keep, shrink or remove.
+- **#59** Police cars hit by a monster the player rides fly too far, too suddenly. Tone the knock-away down by one third.
+- **#60** Police Station art is missing (the "park" question showed a "? police stati" placeholder tile). Add the image and check `images/scenes/manifest.csv` / `scenes.json`.
+- **#61** Underwater world repeats the same art all over the screen at once (the same coral/shell cluster tiled). Spread it out and add more variety.
+- **#62** New feature: while a player controls a boss, pressing B fires its laser eyes to blast stuff (comic effect, kid-friendly: things poof or get knocked back, nothing gets destroyed or hurt).
+
 ### Session 4 follow-ups
 - **#13** Farm: tractors sometimes wander onto paved roads.
 - **#14** Farm: animals ignore fence bodies (zone rect only), so a flung animal walks back through a fence. Animals and farm vehicles cast no long shadow yet (`ensureCastShadow` in `buildingTex.ts`). The ridden dino launches animals by proximity.
@@ -87,7 +105,9 @@ Session 2 finished items 1–6 (Easy place words, reward delay, held-button armi
 
 ## Future worlds (ideas, not started)
 Each would follow the map kickoff template below (contracts → generator/art/audio → renderer/systems → wiring). Every world gets a boss; keep bosses kid-friendly (bounce, squash, poof; no gore).
-- **#52 Scary Ghost World** would have haunted lanes, drifting lanterns, and secret doors that open and close. A giant sheet ghost could guard the course. Aim for spooky atmosphere and playful scares for ages 5–9.
+- **#52 Spooky Ghost / Graveyard World** would have haunted graveyard lanes, drifting lanterns, and secret doors that open and close. A giant sheet ghost could guard the course. Aim for spooky atmosphere and playful scares for ages 5–9.
+- **#53 Día de los Muertos World**
+- **#54 Foam World**
 
 Brickworks, Mushroom Island, Frozen Tundra, Volcano, Candyland, Castle, Airport, and In My House are playable. See [STATUS.md](STATUS.md#new-worlds) for their race features and preview URLs.
 
