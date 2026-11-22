@@ -14,6 +14,7 @@ import { services } from './core/services';
 import type { TouchLayout } from './core/types';
 import type { RaceContext } from './core/race';
 import { installMobileShell } from '../shared/mobile';
+import { isMobile } from '../shared/device';
 
 /**
  * Dev scenes: any file in src/scenes/dev/*.ts whose default export is a Phaser.Scene subclass
@@ -44,7 +45,11 @@ game.events.once(Phaser.Core.Events.READY, () => game.scene.start(SCENE.config))
 
 installMobileShell();
 
-// Touch controls: race running -> 'race' buttons (hidden during a pause-style question break, answers are tapped); everything else -> 'menu'.
+// Touch controls: race running -> 'race' buttons (hidden during a pause-style question break, answers are tapped).
+// Mobile (single player): Title / Setup / Track select are fully tappable -> 'actions' (A/B only), Results -> 'none' (its buttons are tapped).
+// Everything else (and every screen on desktop) -> 'menu'.
+const mobile = isMobile();
+const ACTIONS_SCENES = [SCENE.title, SCENE.setup, SCENE.track];
 game.events.on(Phaser.Core.Events.POST_STEP, () => {
   const input = services.input;
   if (!input?.setTouchLayout) return;
@@ -56,6 +61,10 @@ game.events.on(Phaser.Core.Events.POST_STEP, () => {
     if (pauseOpen || ctx?.paused) layout = 'menu';
     else if (ctx?.questionBreak && (ctx.settings?.questionStyle ?? 'pause') === 'pause') layout = 'none';
     else layout = 'race';
+  }
+  else if (mobile) {
+    if (ACTIONS_SCENES.some((k) => mgr.isActive(k))) layout = 'actions';
+    else if (mgr.isActive(SCENE.results)) layout = 'none';
   }
   input.setTouchLayout(layout);
 });

@@ -27,15 +27,13 @@ async function shot(page: Page, name: string) {
 test('fresh device: a phone player makes a profile by tapping only', async ({ page }) => {
   await page.goto('/racer.html');
   await waitScene(page, 'Title');
-  await page.touchscreen.tap(450, 200); // wake the touch overlay
-  const a = await page.locator('.bt-b[data-btn="a"]').boundingBox();
-  await page.touchscreen.tap(a!.x + a!.width / 2, a!.y + a!.height / 2);
+  await tapLogical(page, 960, 500); // mobile: a tap anywhere on the title starts as player 1
   await waitScene(page, 'Setup');
   await page.waitForTimeout(600);
   await shot(page, '1-setup');
 
-  // Tap the "New Profile" racer row on the player card (panel 0, racer row).
-  await tapLogical(page, 240, 332);
+  // Tap the "New Profile" racer row on the (single, centered) player card.
+  await tapLogical(page, 960, 332);
   await page.waitForTimeout(400);
   for (const ch of 'SAM') await tapLogical(page, letter(ch).x, letter(ch).y);
   await shot(page, '2-name');

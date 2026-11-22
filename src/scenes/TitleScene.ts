@@ -4,6 +4,7 @@ import { TEX } from '../core/assetKeys';
 import { services } from '../core/services';
 import type { InputDevice } from '../core/types';
 import { goToHub } from '../../shared/hub';
+import { isMobile } from '../../shared/device';
 import { ConfirmPrompt } from '../ui/menu/FaceButtonBadge';
 import { bigText, FONT_HEAD } from '../ui/menu/style';
 import { buildLabel } from '../buildInfo';
@@ -20,7 +21,7 @@ export class TitleScene extends Phaser.Scene {
   private drivers: Driver[] = [];
   private dashes!: Phaser.GameObjects.Graphics;
   private dashOffset = 0;
-  private continueHint!: ConfirmPrompt;
+  private continueHint?: ConfirmPrompt;
   private audioStarted = false;
   private leaving = false;
 
@@ -35,20 +36,36 @@ export class TitleScene extends Phaser.Scene {
     this.buildLogo();
 
     // Any controller (or keyboard confirm key) starts: that device claims Player 1's panel on the Join screen.
-    this.continueHint = new ConfirmPrompt(this, GAME_WIDTH / 2, 600, 'to play!', 96);
-    this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    bigText(this, GAME_WIDTH / 2, 710, 'Keyboard: Space or Enter', 48, '#ffffff');
-    bigText(this, GAME_WIDTH / 2, 780, '1 to 4 players', 56, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
+    const mobile = isMobile();
+    if (mobile) {
+      // Phone/tablet: single player; a tap anywhere (or A on the touch buttons / a pad) starts as player 1.
+      const tap = bigText(this, GAME_WIDTH / 2, 640, 'Tap to play!', 120, '#ffffff', { font: FONT_HEAD, stroke: 14 });
+      tap.setName('tap-to-play');
+      this.tweens.add({ targets: tap, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    } else {
+      this.continueHint = new ConfirmPrompt(this, GAME_WIDTH / 2, 600, 'to play!', 96);
+      this.tweens.add({ targets: this.continueHint, scale: { from: 1, to: 1.08 }, duration: 550, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      bigText(this, GAME_WIDTH / 2, 710, 'Keyboard: Space or Enter', 48, '#ffffff');
+      bigText(this, GAME_WIDTH / 2, 780, '1 to 4 players', 56, '#ffd43b', { font: FONT_HEAD, stroke: 10 });
+    }
 
     // Nobody has joined on the title screen, so back (B / Backspace) returns to the game launcher.
     this.add.circle(64, 56, 31, 0xe03131).setStrokeStyle(4, 0xffffff);
     bigText(this, 64, 56, 'B', 44, '#ffffff', { stroke: 5, shadow: false });
     bigText(this, 112, 56, 'Back to games', 44, '#ffffff', { origin: [0, 0.5], stroke: 8 });
+    if (mobile) {
+      // Tappable on a phone (a tap anywhere else starts the game).
+      const back = this.add.zone(0, 0, 520, 130).setOrigin(0, 0).setInteractive();
+      back.on('pointerdown', () => { if (this.leaving) return; this.leaving = true; goToHub(); });
+    }
 
     bigText(this, GAME_WIDTH - 24, 20, buildLabel(), 32, '#ffffff', { origin: [1, 0], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
 
     this.input.keyboard?.on('keydown', () => this.startAudio());
-    this.input.on('pointerdown', () => this.startAudio());
+    this.input.on('pointerdown', (_p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      this.startAudio();
+      if (mobile && !this.leaving && over.length === 0) this.goJoin({ type: 'touch' });
+    });
   }
 
   private startAudio() {
@@ -144,7 +161,7 @@ export class TitleScene extends Phaser.Scene {
     const input = services.input;
     input.poll();
     const family = input.controllerFamily?.() ?? 'other';
-    this.continueHint.setFamily(family);
+    this.continueHint?.setFamily(family);
     if (this.leaving) return;
     const any = input.any();
     if (any.back) { this.leaving = true; goToHub(); return; }

@@ -8,6 +8,7 @@ import { getTuning } from '../config/deviceTuning';
 import { gasThrottle, mapGamepad, mergeInputs, newRepeatState, type PadSnapshot, type RepeatState } from './mapping';
 import { TouchOverlay } from './touch/TouchOverlay';
 import { emptyTouchState, mapTouch, type TouchState } from './touch/touchMap';
+import { isMobile } from '../../shared/device';
 import { DebugOverlay, formatDebug } from './overlay';
 
 const KB_LAYOUTS: KeyLayout[] = ['left', 'right'];
@@ -32,7 +33,7 @@ class InputManager implements IInput {
   private results = new Map<string, PlayerInput>();
   private assigned: (InputDevice | null)[] = [null, null, null, null];
   private overlay = new DebugOverlay();
-  // Touch: the device appears after the first real touch (or when assigned by a dev hook).
+  // Touch: on a phone/tablet (shared/device) the device exists from page load; elsewhere it appears after the first real touch (or when assigned by a dev hook).
   private touchSeen = false;
   private touchUi: TouchOverlay | null = null;
   private touchLayout: TouchLayout = 'none';
@@ -49,6 +50,7 @@ class InputManager implements IInput {
     window.addEventListener('pointerdown', this.onPointer, true);
     window.addEventListener('gamepadconnected', this.onPadConnected);
     window.addEventListener('gamepaddisconnected', this.onPadDisconnected);
+    if (isMobile()) this.activateTouch();
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -178,6 +180,7 @@ class InputManager implements IInput {
   }
 
   pollJoin(taken: InputDevice[]): InputDevice | null {
+    if (isMobile() && taken.length > 0) return null; // mobile is single player: nobody else can join
     for (const d of this.devices()) {
       if (taken.some((t) => sameDevice(t, d))) continue;
       if (this.results.get(devKey(d))?.confirm) return d;
@@ -192,7 +195,8 @@ class InputManager implements IInput {
   reset(): void { this.assigned = [null, null, null, null]; }
 
   get(player: PlayerId): PlayerInput {
-    const d = this.assigned[player];
+    let d = this.assigned[player];
+    if (d && isMobile() && player === 0 && d.type !== 'keyboard') d = this.mobileDevice(d);
     if (!d || !this.isConnected(d)) return ZERO_INPUT;
     const res = this.results.get(devKey(d)) ?? ZERO_INPUT;
     // Gas mode applies to gamepads only, and only here (races); any() stays raw so the settings combo and menus work.
@@ -200,6 +204,15 @@ class InputManager implements IInput {
     const snap = d.type === 'gamepad' ? this.pads.get(d.index) : undefined;
     if (!snap || mode === 'a') return res;
     return { ...res, throttle: gasThrottle(snap, resolvePadMap(snap.id, snap.mapping), mode) };
+  }
+
+  /** Mobile: the single player is driven by whichever of touch / a pad was used last (the overlay hides while the pad is in use). */
+  private mobileDevice(d: InputDevice): InputDevice {
+    if (this.lastPadAt > this.lastTouchAt && this.connected.size > 0) {
+      const index = d.type === 'gamepad' && this.connected.has(d.index) ? d.index : Math.min(...this.connected);
+      return { type: 'gamepad', index };
+    }
+    return { type: 'touch' };
   }
 
   any(): PlayerInput { return mergeInputs([...this.results.values()]); }

@@ -299,6 +299,12 @@ export class ResultsScene extends Phaser.Scene {
     ];
     this.buttons = defs.map((d) => new MenuButton(this, d.x, 1000, 430, 100, d.label, d.color, 52));
     this.actions.add(this.buttons);
+    // Tap a button to choose it (same path as the confirm key).
+    this.buttons.forEach((b, i) => {
+      const z = this.add.zone(0, 0, b.w + 20, 120).setInteractive();
+      z.on('pointerdown', () => { if (this.time.now >= this.readyAt) { this.sel = i; this.choose(i); } });
+      b.add(z);
+    });
     this.refreshButtons();
   }
 

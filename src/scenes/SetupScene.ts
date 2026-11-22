@@ -13,6 +13,7 @@ import { MenuButton } from '../ui/menu/MenuButton';
 import { DIFF_EXAMPLE, DIFF_LABEL, QUESTION_LABEL } from '../ui/menu/newRacerLogic';
 import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
+import { isMobile } from '../../shared/device';
 import { REG, SCENE } from './keys';
 
 /** Stand-in id for "New Profile": matches no shared profile, so no saved progress: only the starter cars/guides and City. */
@@ -45,10 +46,15 @@ export class SetupScene extends Phaser.Scene {
   private lastChangeAt = 0;
   private newPanel?: NewRacerPanel;
   private newPanelPlayer: PlayerId = 0;
+  /** Phone/tablet: one player, one centered card, tappable NEXT. */
+  private mobile = false;
+  private maxPlayers = MAX_PLAYERS;
 
   constructor() { super(SCENE.setup); }
 
   create(data: JoinSceneData = {}) {
+    this.mobile = isMobile();
+    this.maxPlayers = this.mobile ? 1 : MAX_PLAYERS;
     this.leaving = false; this.slots = []; this.cursors = []; this.isNew = []; this.panels = []; this.newPanel = undefined;
     const reg = this.registry.get(REG.settings) as Settings | undefined;
     const fresh = !!data.device || !reg?.players?.length;
@@ -64,7 +70,8 @@ export class SetupScene extends Phaser.Scene {
     this.buildBackground();
     bigText(this, GAME_WIDTH / 2, 62, 'GET READY!', 96, '#ffd43b', { font: FONT_HEAD, stroke: 14 });
     this.modeLabel = bigText(this, 36, 62, 'Admin Mode', 40, MENU.dim, { origin: [0, 0.5] });
-    this.panels = Array.from({ length: MAX_PLAYERS }, (_, i) => new JoinPanel(this, i, PLAYER_COLORS[i]));
+    this.panels = Array.from({ length: this.maxPlayers }, (_, i) => new JoinPanel(this, i, PLAYER_COLORS[i]));
+    if (this.mobile) this.panels[0].setX(GAME_WIDTH / 2); // one card, centered (the A/B buttons sit in the bottom corners)
     this.panels.forEach((pn, i) => { pn.onRowTap = (row, dir) => this.tapRow(i as PlayerId, row, dir); });
     this.buildBottom();
 
@@ -73,13 +80,13 @@ export class SetupScene extends Phaser.Scene {
       if (data.device) this.addPlayer(data.device, base.players);
     } else {
       // Returning from Track select / Results: everyone keeps their choices and their Ready state.
-      reg!.players.slice(0, MAX_PLAYERS).forEach((p) => {
+      reg!.players.slice(0, this.maxPlayers).forEach((p) => {
         if (!p.device) return;
         this.slots = claimSlot(this.slots, p.device);
         this.cursors.push(ROW_RACER); this.isNew.push(false);
         this.cfg.players.push(p as SetupPlayer);
       });
-      this.slots = this.slots.map((s) => ({ ...s, ready: data.keepReady === true }));
+      this.slots = this.slots.map((s) => ({ ...s, ready: data.keepReady === true && !this.mobile }));
       this.applyRacers();
       this.refreshAvailability();
     }
@@ -106,6 +113,11 @@ export class SetupScene extends Phaser.Scene {
     this.nextBtn = new MenuButton(this, cx, 1015, 760, 86, 'NEXT', hexNum(PLAYER_COLORS[0]), 60);
     this.nextBadge = new FaceButtonBadge(this, -300, 0, 62, 'bottom', 'other');
     this.nextBtn.add(this.nextBadge);
+    if (this.mobile) {
+      const z = this.add.zone(0, 0, 780, 120).setInteractive();
+      z.on('pointerdown', () => { this.nextBtn.pulse(); this.mobileNext(); });
+      this.nextBtn.add(z);
+    }
     this.statusText = bigText(this, cx, 1015, '', 48, '#ffffff');
   }
 
@@ -211,9 +223,10 @@ export class SetupScene extends Phaser.Scene {
   private refreshBottom() {
     const ready = allReady(this.slots);
     const first = this.slots[0]?.device;
-    this.nextBtn.setVisible(ready);
-    this.nextBtn.setSelected(ready, hexNum(PLAYER_COLORS[0]));
-    this.statusText.setVisible(!ready);
+    const showNext = ready || (this.mobile && this.slots.length > 0);
+    this.nextBtn.setVisible(showNext);
+    this.nextBtn.setSelected(showNext, hexNum(PLAYER_COLORS[0]));
+    this.statusText.setVisible(!showNext && !this.mobile);
     if (!this.slots.length) this.statusText.setText('Press your button to join!');
     else this.statusText.setText(`Waiting for ${waitingFor(this.slots).map((n) => `P${n}`).join(', ')}…`);
     this.nextBadge.setVisible(first?.type === 'gamepad');
@@ -229,7 +242,7 @@ export class SetupScene extends Phaser.Scene {
     for (let p = 0; p < this.slots.length; p++) {
       if (this.handle(p as PlayerId, time)) return;
     }
-    if (this.slots.length < MAX_PLAYERS) {
+    if (this.slots.length < this.maxPlayers) {
       const d = services.input.pollJoin(this.slots.map((s) => s.device));
       if (d) {
         this.addPlayer(d, loadSettings().players);
@@ -277,6 +290,7 @@ export class SetupScene extends Phaser.Scene {
     }
     if (inp.back) {
       services.audio.sfx('menuMove');
+      if (this.mobile) { this.leaving = true; this.scene.start(SCENE.title); return true; }
       this.removePlayer(p);
       this.refreshAll();
       return true;
@@ -290,6 +304,14 @@ export class SetupScene extends Phaser.Scene {
     this.cursors[p] = row;
     if (dir === 0 && row === ROW_RACER && this.isNew[p]) { this.openNewPanel(p); return; }
     this.change(p, row, dir || 1);
+  }
+
+  /** Mobile NEXT: a new profile opens the name flow first, otherwise the card counts as Ready and we go on. */
+  private mobileNext() {
+    if (this.leaving || this.newPanel || !this.slots.length) return;
+    if (this.isNew[0]) { this.openNewPanel(0); return; }
+    this.slots = setReady(this.slots, 0, true);
+    this.goNext();
   }
 
   private change(p: number, row: number, dir: 1 | -1) {

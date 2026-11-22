@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { guideArt } from '../../art/loadoutKeys';
 import type { CarKind, ControllerFamily, GuideKind, InputDevice } from '../../core/types';
+import { isMobile } from '../../../shared/device';
 import { ConfirmPrompt } from './FaceButtonBadge';
 import { OptionRow } from './OptionRow';
 import { bigText, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from './style';
@@ -143,7 +144,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.carRow.setSelected(!v.ready && v.cursor === ROW_CAR, this.color);
     this.guideRow.setSelected(!v.ready && v.cursor === ROW_GUIDE, this.color);
     this.readyBanner.setVisible(v.ready);
-    this.askBanner.setVisible(!v.ready);
+    this.askBanner.setVisible(!v.ready && !(isMobile() && v.device.type === 'touch')); // phone: NEXT is tapped
     this.askPrompt.setVisible(pad);
     this.askText.setVisible(!pad).setText(v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter = ready' : 'Space = ready');
     if (pad && v.family) this.askPrompt.setFamily(v.family);

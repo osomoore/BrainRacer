@@ -57,6 +57,9 @@ export class TrackSelectScene extends Phaser.Scene {
       this.startBtn.add(new FaceButtonBadge(this, -300, 0, 62, 'bottom', services.input.controllerFamily?.(first) ?? 'other'));
     }
     this.startBtn.setSelected(true, color);
+    const zone = this.add.zone(0, 0, 780, 120).setInteractive();
+    zone.on('pointerdown', () => this.start());
+    this.startBtn.add(zone);
     this.refresh();
     services.input.reset();
     this.settings.players.forEach((p, i) => services.input.assign(i as PlayerId, p.device));
@@ -73,6 +76,11 @@ export class TrackSelectScene extends Phaser.Scene {
       bigText(this, x, y - (open ? 0 : 22), MAP_LABEL[m], 44, open ? '#ffffff' : '#9aa6c8');
       if (!open) bigText(this, x, y + 32, 'Locked', 40, '#9aa6c8', { bold: false, shadow: false });
       this.tiles.push({ bg, map: m, x, y });
+      if (open) {
+        // Tap a world to pick it (the START RACE button starts).
+        const z = this.add.zone(x, y, TILE_W, TILE_H).setInteractive();
+        z.on('pointerdown', () => this.tapTile(m));
+      }
     });
   }
 
@@ -118,13 +126,24 @@ export class TrackSelectScene extends Phaser.Scene {
       return;
     }
     const comboHeld = inp.brake > 0.5 && inp.throttle > 0.5;
-    if ((inp.confirm || (inp.pause && !comboHeld)) && time - this.enteredAt >= START_GRACE_MS) {
-      this.leaving = true;
-      this.startBtn.pulse();
-      services.audio.sfx('menuSelect');
-      this.persist();
-      this.scene.start(SCENE.race);
-    }
+    if ((inp.confirm || (inp.pause && !comboHeld)) && time - this.enteredAt >= START_GRACE_MS) this.start();
+  }
+
+  private tapTile(map: RaceMap) {
+    if (this.leaving || !this.maps.includes(map)) return;
+    if (map === this.map) return;
+    this.map = map;
+    services.audio.sfx('menuMove');
+    this.refresh();
+  }
+
+  private start() {
+    if (this.leaving || this.time.now - this.enteredAt < START_GRACE_MS) return;
+    this.leaving = true;
+    this.startBtn.pulse();
+    services.audio.sfx('menuSelect');
+    this.persist();
+    this.scene.start(SCENE.race);
   }
 
   private persist() {

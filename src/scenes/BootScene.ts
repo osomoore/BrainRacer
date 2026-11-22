@@ -8,6 +8,7 @@ import { migrateLegacyRacers } from '../core/legacyRacers';
 import { ensureProfiles } from '../../shared/profiles';
 import { isRaceMap, loadSettings, savedSecondPlayer } from '../core/settings';
 import type { CarKind, InputDevice, PlayerId, Settings } from '../core/types';
+import { isMobile } from '../../shared/device';
 import { SCENES } from '../data/scenes';
 import { REG, SCENE } from './keys';
 
@@ -60,12 +61,14 @@ export class BootScene extends Phaser.Scene {
   }
 
   /** ?race=1|2 — skip menus: gamepads if connected, else keyboard WASD (P1) / arrows (P2). 3-4: P1/P2 keyboard, P3/P4 gamepads 0/1 (none = no input). */
-  private quickRace(count: number, map: string | null) {
+  private quickRace(requested: number, map: string | null) {
+    const mobile = isMobile();
+    const count = mobile ? 1 : requested; // mobile is single player
     const base = loadSettings();
     services.input.poll();
     const pads = services.input.devices().filter((d) => d.type === 'gamepad');
     const kb: InputDevice[] = [{ type: 'keyboard', layout: 'left' }, { type: 'keyboard', layout: 'right' }];
-    const touchP1 = new URLSearchParams(location.search).get('input') === 'touch'; // dev hook: P1 uses on-screen controls
+    const touchP1 = mobile || new URLSearchParams(location.search).get('input') === 'touch'; // dev hook: P1 uses on-screen controls
     const cars: CarKind[] = ['dino', 'kart', 'dino', 'kart'];
     const settings: Settings = {
       ...base,

@@ -2,6 +2,8 @@
  * Mobile shell shared by every page: a "turn your phone sideways" overlay on coarse-pointer devices held
  * in portrait, and fullscreen + landscape lock on the first tap (both best-effort; iOS Safari has neither).
  */
+import { isMobile } from './device';
+
 const STYLE_ID = 'bt-mobile-style';
 
 const CSS = `
@@ -30,6 +32,7 @@ export function isCoarsePointer(): boolean {
 }
 
 export function installMobileShell(): void {
+  isMobile(); // decide (and remember a ?mobile= override) on every page, so it survives launcher -> game navigation
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
   style.id = STYLE_ID;
