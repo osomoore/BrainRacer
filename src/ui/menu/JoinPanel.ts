@@ -250,7 +250,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
       this.carGroup.add(this.carObj);
       this.carKind = v.carKind;
     }
-    this.carObj.setScale(Math.min(layout.height / this.carObj.height, layout.width / this.carObj.width));
+    this.carObj.setVisible(!v.newProfile).setScale(Math.min(layout.height / this.carObj.height, layout.width / this.carObj.width));
     // locked look: dimmed choices, no cursor
     this.questionsGroup.setVisible(!v.newProfile);
     this.rowsGroup.setAlpha(v.ready ? 0.4 : 1);
