@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, MAX_PLAYERS, NEW_RACER, PLAYER_COLORS } from '../config/gameConfig';
+import { ADMIN_GATE, DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, MAX_PLAYERS, NEW_RACER, PLAYER_COLORS } from '../config/gameConfig';
 import { applyRacerProfile, createRacer, playerRacer, racerIds, racerName, racerProfiles, racerSettingsOf } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { selectedLoadout } from '../core/progression';
@@ -9,6 +9,7 @@ import type { CarKind, GuideKind, InputDevice, PlayerId, PlayerSettings, Questio
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
 import { JoinPanel, ROW_CAR, ROW_GUIDE, ROW_RACER, type PanelView } from '../ui/menu/JoinPanel';
+import { AdminGate, ensureGearTexture } from '../ui/menu/AdminGate';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { DIFF_EXAMPLE, DIFF_LABEL, QUESTION_LABEL } from '../ui/menu/newRacerLogic';
 import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
@@ -49,12 +50,14 @@ export class SetupScene extends Phaser.Scene {
   /** Phone/tablet: one player, one centered card, tappable NEXT. */
   private mobile = false;
   private maxPlayers = MAX_PLAYERS;
+  private gate?: AdminGate;
 
   constructor() { super(SCENE.setup); }
 
   create(data: JoinSceneData = {}) {
     this.mobile = isMobile();
     this.maxPlayers = this.mobile ? 1 : MAX_PLAYERS;
+    this.gate = undefined;
     this.leaving = false; this.slots = []; this.cursors = []; this.isNew = []; this.panels = []; this.newPanel = undefined;
     const reg = this.registry.get(REG.settings) as Settings | undefined;
     const fresh = !!data.device || !reg?.players?.length;
@@ -119,6 +122,26 @@ export class SetupScene extends Phaser.Scene {
       this.nextBtn.add(z);
     }
     this.statusText = bigText(this, cx, 1015, '', 48, '#ffffff');
+    if (this.mobile) this.buildGear();
+  }
+
+  /** Mobile only: top-right gear -> kid-proof multiplication gate -> hidden admin menu (ConfigScene, via the 'admin:open' game event). */
+  private buildGear() {
+    const { x, y, size, alpha, hit } = ADMIN_GATE.gear;
+    this.add.image(x, y, ensureGearTexture(this)).setDisplaySize(size, size).setAlpha(alpha);
+    // Invisible tap square, larger than the faint icon and clamped to the screen corner.
+    const half = hit / 2;
+    const zx = Math.min(x, GAME_WIDTH - half), zy = Math.max(y, half);
+    const zone = this.add.zone(zx, zy, hit, hit).setInteractive();
+    zone.on('pointerdown', () => {
+      if (this.gate || this.leaving || this.newPanel) return;
+      this.gate = new AdminGate(this, (ok) => {
+        this.gate?.destroy();
+        this.gate = undefined;
+        this.lastChangeAt = this.time.now;
+        if (ok) this.game.events.emit('admin:open');
+      });
+    });
   }
 
   // ───────────────────────── model ─────────────────────────
@@ -236,7 +259,7 @@ export class SetupScene extends Phaser.Scene {
   // ───────────────────────── logic ─────────────────────────
   update(time: number) {
     services.input.poll();
-    if (this.leaving) return;
+    if (this.leaving || this.gate) return;
     if (this.newPanel) { this.updateNewPanel(); return; }
     const hadPlayers = this.slots.length > 0;
     for (let p = 0; p < this.slots.length; p++) {
@@ -300,7 +323,7 @@ export class SetupScene extends Phaser.Scene {
 
   /** Tap/click on a player card row: same actions as the controller (arrows change the value, the body opens New Profile or cycles). */
   private tapRow(p: PlayerId, row: number, dir: -1 | 0 | 1) {
-    if (this.leaving || this.newPanel || p >= this.slots.length || isLocked(this.slots, p)) return;
+    if (this.leaving || this.gate || this.newPanel || p >= this.slots.length || isLocked(this.slots, p)) return;
     this.cursors[p] = row;
     if (dir === 0 && row === ROW_RACER && this.isNew[p]) { this.openNewPanel(p); return; }
     this.change(p, row, dir || 1);
@@ -308,7 +331,7 @@ export class SetupScene extends Phaser.Scene {
 
   /** Mobile NEXT: a new profile opens the name flow first, otherwise the card counts as Ready and we go on. */
   private mobileNext() {
-    if (this.leaving || this.newPanel || !this.slots.length) return;
+    if (this.leaving || this.gate || this.newPanel || !this.slots.length) return;
     if (this.isNew[0]) { this.openNewPanel(0); return; }
     this.slots = setReady(this.slots, 0, true);
     this.goNext();
