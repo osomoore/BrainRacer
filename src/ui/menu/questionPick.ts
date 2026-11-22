@@ -1,5 +1,6 @@
 /** Phaser-free rules for the Join screen's QUESTIONS rows (Math / Reading / JBQ chips, JBQ points and scope). */
 import type { JbqPoints, JbqScope, JbqSettings, QuestionTypes } from '../../core/types';
+import { jbqRange, jbqToday } from '../../challenge/jbqScope';
 import { toggleQuestionType } from './newRacerLogic';
 
 export const ROW_RACER = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUESTIONS = 3, ROW_POINTS = 4, ROW_SCOPE = 5;
@@ -9,7 +10,7 @@ export const CHIP_LABEL: Record<(typeof CHIP_KEYS)[number], string> = { math: 'M
 
 export const JBQ_POINTS: readonly JbqPoints[] = [10, 20, 30];
 export const JBQ_SCOPES: readonly JbqScope[] = ['week', 'month', 'all'];
-const SCOPE_LABEL: Record<JbqScope, string> = { week: 'This Week', month: 'This Month', all: 'All' };
+const SCOPE_LABEL: Record<JbqScope, string> = { week: 'Week', month: 'Month', all: 'All' };
 
 /** Rows in navigation order (top to bottom); the JBQ rows only exist while JBQ is on. */
 export function rowOrder(jbqOn: boolean): number[] {
@@ -48,8 +49,10 @@ export const jbqPointsLabel = (points: JbqPoints): string => `${points} pts`;
  * Text of the scope row. One place to change: later this can show the actual question range
  * (e.g. "Week · Q145–168") for the chosen points level.
  */
-export function jbqScopeLabel(_points: JbqPoints, scope: JbqScope): string {
-  return SCOPE_LABEL[scope];
+/** Scope plus the question numbers it covers on `date`, e.g. "Week 145–168". */
+export function jbqScopeLabel(points: JbqPoints, scope: JbqScope, date: string = jbqToday()): string {
+  const r = jbqRange(points, scope, date);
+  return `${SCOPE_LABEL[scope]} ${r.from}–${r.to}`;
 }
 
 /** Applies one left/right change on a JBQ row. */

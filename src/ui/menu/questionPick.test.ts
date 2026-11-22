@@ -38,6 +38,8 @@ describe('question rows', () => {
     expect(changeJbq({ points: 10, scope: 'week' }, ROW_CAR, 1)).toEqual({ points: 10, scope: 'week' });
   });
   it('labels the scope', () => {
-    expect(jbqScopeLabel(10, 'month')).toBe('This Month');
+    expect(jbqScopeLabel(10, 'month', '2026-11-22')).toBe('Month 145–288');
+    expect(jbqScopeLabel(10, 'week', '2026-11-22')).toBe('Week 145–168');
+    expect(jbqScopeLabel(30, 'all', '2026-11-22')).toBe('All 481–576');
   });
 });

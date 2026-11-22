@@ -14,18 +14,10 @@ import { ChallengeFactory } from '../challenge/ChallengeFactory';
 import { ChallengeGenerator } from '../challenge/ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from '../challenge/ChallengeScheduler';
 import { JbqProgressStore } from '../challenge/jbqProgress';
-import { localDateString } from '../challenge/jbqScope';
+import { jbqToday } from '../challenge/jbqScope';
 
 const RNG_SALT = 0xb1;
 
-/** Today's local date for the JBQ schedule; `?jbqDate=2026-12-10` overrides it for testing. */
-function jbqToday(): string {
-  try {
-    const o = new URLSearchParams(globalThis.location?.search ?? '').get('jbqDate');
-    if (o && /^\d{4}-\d{2}-\d{2}$/.test(o)) return o;
-  } catch { /* no location (tests) */ }
-  return localDateString(new Date());
-}
 
 export class ChallengeSystem implements GameSystem {
   readonly name = 'challenge';

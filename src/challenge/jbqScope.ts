@@ -15,6 +15,15 @@ export function localDateString(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Today's local date for the JBQ schedule; `?jbqDate=2026-12-10` overrides it for testing. */
+export function jbqToday(): string {
+  try {
+    const o = new URLSearchParams(globalThis.location?.search ?? '').get('jbqDate');
+    if (o && /^\d{4}-\d{2}-\d{2}$/.test(o)) return o;
+  } catch { /* no location (tests) */ }
+  return localDateString(new Date());
+}
+
 /** Index of the latest schedule row dated on/before `date` (the first row when the date is earlier; -1 after the last row). */
 function weekIndex(date: string): number {
   if (date > JBQ_SCHEDULE[JBQ_SCHEDULE.length - 1].date) return -1;
