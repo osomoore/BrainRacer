@@ -30,7 +30,9 @@ export class TitleScene extends Phaser.Scene {
   create() {
     this.letters = []; this.drivers = []; this.leaving = false;
     this.audioStarted = services.audio.unlocked;
-    if (this.audioStarted) services.audio.music('title');
+    // Always request title music: before the first gesture it is queued and starts the moment audio unlocks
+    // (on phones that tap usually also leaves this screen, so asking later would leave the menus silent).
+    services.audio.music('title');
     services.input.reset();
     this.buildBackground();
     this.buildLogo();

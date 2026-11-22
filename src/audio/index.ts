@@ -119,11 +119,26 @@ class AudioImpl implements IAudio {
         for (const e of this.engines.values()) e.reset();
       }
     });
-    const retry = (): void => { this.tryResume(); };
+    // iOS: play like media, so the ringer/silent switch doesn't mute Web Audio (Safari 16.4+; ignored elsewhere).
     try {
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) retry(); });
-      window.addEventListener('keydown', retry, true);
-      window.addEventListener('pointerdown', retry, true);
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = 'playback';
+    } catch { /* ignore */ }
+    // Browsers only let audio start inside a "user activation" gesture. For touch that is pointerup /
+    // touchend / click, NOT pointerdown (a touch pointerdown never qualifies), so listen to all of them.
+    const retry = (): void => {
+      if (this.unlocked) { this.tryResume(); return; }
+      if (!this.unlocking) { void this.unlock(); return; }
+      // An unlock started outside a valid gesture is still waiting on Tone.start(); resuming the
+      // context now (inside a real gesture) lets that pending start complete.
+      try {
+        const raw = Tone.getContext().rawContext as AudioContext;
+        if (raw.state !== 'running') void Promise.resolve(raw.resume()).catch(() => {});
+      } catch { /* ignore */ }
+    };
+    try {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden && this.unlocked) retry(); });
+      for (const ev of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) window.addEventListener(ev, retry, true);
     } catch { /* ignore */ }
   }
 
