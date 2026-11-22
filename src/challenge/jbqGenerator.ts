@@ -27,7 +27,8 @@ export interface GeneratedJbq {
   jbq: { id: number; points: JbqPoints };
 }
 
-const norm = (s: string) => s.trim().toLowerCase();
+/** Compare answers by words only: "Jesus (Christ)" and "(Jesus) Christ" are the same answer. */
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 /** What makes two answers "the same" (reference + text for quotations). */
 const answerKey = (q: JbqQuestion) => norm(q.ref !== undefined ? `${q.ref} ${q.verse ?? ''}` : q.a);
 const isQuote = (q: JbqQuestion) => q.ref !== undefined && q.verse !== undefined;

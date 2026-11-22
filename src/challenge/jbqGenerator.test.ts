@@ -113,3 +113,15 @@ describe('JbqGenerator', () => {
     expect([...ids].every((id) => id >= 145 && id <= 192)).toBe(true);
   });
 });
+
+describe('JBQ wrong answers ignore punctuation differences', () => {
+  it('never offers "(Jesus) Christ" next to "Jesus (Christ)"', () => {
+    const mk = (id: number, a: string) => ({ id, points: 10 as const, type: 'who', q: `q${id}`, a });
+    const qs = [mk(1, 'Jesus (Christ)'), mk(2, '(Jesus) Christ'), mk(3, 'Moses'), mk(4, 'Noah'), mk(5, 'Abraham'), mk(6, 'David')];
+    for (let seed = 1; seed < 40; seed++) {
+      const c = new JbqGenerator(new Rng(seed), qs).generate({ points: 10, scope: 'all', date: '2026-11-22', correctCount: () => 0 });
+      const texts = c.options.map((o) => (o.kind === 'text' ? o.text : ''));
+      expect(texts.includes('Jesus (Christ)') && texts.includes('(Jesus) Christ')).toBe(false);
+    }
+  });
+});
