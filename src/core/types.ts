@@ -92,9 +92,9 @@ export type InputDevice =
 
 /**
  * Which on-screen touch controls show (no-op without a touch device):
- * 'menu' = arrows + A/B, 'race' = steer left/right + brake (gas is automatic), 'none' = hidden.
+ * 'menu' = arrows + A/B, 'actions' = A/B only (screens where everything can be tapped), 'race' = steer left/right + brake (gas is automatic), 'none' = hidden.
  */
-export type TouchLayout = 'none' | 'menu' | 'race';
+export type TouchLayout = 'none' | 'menu' | 'actions' | 'race';
 
 /** Per-player input sampled once per frame. Edge fields are true only on the frame pressed. */
 export interface PlayerInput {

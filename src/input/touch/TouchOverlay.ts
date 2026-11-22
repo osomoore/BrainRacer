@@ -47,6 +47,10 @@ const SPOTS: Record<TouchLayout, Partial<Record<TouchButton, Spot>>> = {
     pause: { size: sm, x: 0, y: 0, corner: 'tr' },
     reset: { size: sm, x: sm + 3, y: 0, corner: 'tr' },
   },
+  actions: {
+    a: { size: ac, x: 0, y: 4, corner: 'br' },
+    b: { size: ac * 0.8, x: ac + 3, y: 0, corner: 'br' },
+  },
   menu: {
     left: { size: pd, x: 0, y: pd + 1, corner: 'bl' },
     right: { size: pd, x: 2 * pd + 2, y: pd + 1, corner: 'bl' },

@@ -14,6 +14,7 @@ export const LAYOUT_BUTTONS: Record<TouchLayout, readonly TouchButton[]> = {
   none: [],
   race: ['left', 'right', 'brake', 'pause', 'reset'],
   menu: ['left', 'right', 'up', 'down', 'a', 'b'],
+  actions: ['a', 'b'],
 };
 
 /**
