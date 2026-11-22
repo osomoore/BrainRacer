@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }, info) => {
   if (info.title.includes('fresh device')) return;
   await seedProfiles(page, { settings: { p3: HARD_TABLES, p4: HARD_TABLES } });
 });
-const HARD_TABLES = { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 };
+const HARD_TABLES = { difficulty: 'hard', questionTypes: { math: true, reading: true, jbq: false }, roundSec: 180 };
 
 const BTN_A = 0;
 const PAD_DOWN = 13, PAD_RIGHT = 15;
@@ -42,10 +42,30 @@ test('gamepads: two players customize and receive different questions', async ({
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
   await tapPad(page, 0, PAD_RIGHT); // P1 starts as Robin; right goes to Kim (hard, multiplication + spelling).
-  for (const player of [0, 1]) {
-    await tapPad(page, player, PAD_DOWN); // Car.
-    await tapPad(page, player, PAD_DOWN); // Guide.
-  }
+  const state = () => page.evaluate(() => {
+    const setup = window.__game.scene.getScene('Setup') as any;
+    return setup.cfg.players.map((p: any) => ({ q: p.questionTypes, jbq: p.jbq, profile: p.profile }));
+  });
+  // P1 (Kim): Questions row, move to the JBQ chip and switch it on; points + scope rows appear and cycle.
+  await tapPad(page, 0, PAD_DOWN);
+  await tapPad(page, 0, PAD_RIGHT);
+  await tapPad(page, 0, PAD_RIGHT);
+  await tapPad(page, 0, BTN_A);
+  let st = await state();
+  expect(st[0].q).toEqual({ math: true, reading: true, jbq: true });
+  expect(st[1].q.jbq).toBe(false);
+  await tapPad(page, 0, PAD_DOWN);   // points row
+  await tapPad(page, 0, PAD_RIGHT);  // 10 -> 20
+  await tapPad(page, 0, PAD_DOWN);   // scope row
+  await tapPad(page, 0, PAD_RIGHT);  // week -> month
+  st = await state();
+  expect(st[0].jbq).toEqual({ points: 20, scope: 'month' });
+  // The change is savedProfiles to Kim's racer profile right away.
+  const savedProfiles = await page.evaluate(() => (window.__game.registry.get('settings') as any).racerProfiles);
+  expect(savedProfiles.p3.questionTypes.jbq).toBe(true);
+  expect(savedProfiles.p3.jbq).toEqual({ points: 20, scope: 'month' });
+  await tapPad(page, 0, PAD_DOWN); await tapPad(page, 0, PAD_DOWN); // Car, Buddy.
+  for (let i = 0; i < 3; i++) await tapPad(page, 1, PAD_DOWN); // P2 has no JBQ rows: Questions, Car, Buddy.
 
   const previews = await page.evaluate(() => {
     type Column = { racerRow: Phaser.GameObjects.Container; carRow: Phaser.GameObjects.Container; hint: Phaser.GameObjects.Text };
@@ -55,11 +75,8 @@ test('gamepads: two players customize and receive different questions', async ({
       fits: racer.getBounds().bottom < hint.getBounds().top && hint.getBounds().bottom < car.getBounds().top,
     }));
   });
-  expect(previews[0].text).toContain('Tables up to 12');
-  expect(previews[0].text).not.toContain('Sums like');
-  expect(previews[0].text).toContain('Spelling');
-  expect(previews[1].text).toContain('Sums like');
-  expect(previews[1].text).not.toContain('Tables up to');
+  expect(previews[0].text).toContain('Hard');
+  expect(previews[1].text).not.toContain('Hard');
   expect(previews.every((preview) => preview.fits)).toBe(true);
 
   await tapPad(page, 0, BTN_A); // P1 ready (locks the panel)
@@ -81,8 +98,8 @@ test('gamepads: two players customize and receive different questions', async ({
   expect(s.players[1].device).toEqual({ type: 'gamepad', index: 1 });
   expect(s.players[0].car).not.toEqual(s.players[1].car);
   const questionTypes: QuestionTypes[] = [
-    { addition: false, multiplication: true, spelling: true },
-    { addition: true, multiplication: false, spelling: true },
+    { math: true, reading: true, jbq: true },
+    { math: true, reading: true, jbq: false },
   ];
   expect(s.players.map((p) => p.questionTypes)).toEqual(questionTypes);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
@@ -118,7 +135,7 @@ test('keyboard only: a launch override skips questions without changing Setup pr
   expect(s.players).toHaveLength(1);
   expect(s.players[0].device).toEqual({ type: 'keyboard', layout: 'left' });
   expect(s.challengeMode).toBe('words');
-  expect(s.players[0].questionTypes).toEqual({ addition: true, multiplication: false, spelling: true });
+  expect(s.players[0].questionTypes).toEqual({ math: true, reading: true, jbq: false });
   expect(await page.evaluate(() => window.__race.settings.challengeMode)).toBe('off');
   await waitPastFirstQuestion(page);
   expect(errors).toEqual([]);
@@ -166,7 +183,7 @@ test('single gamepad: A, A, A, A reaches the race', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode', async ({ page }) => {
+test('Setup wraps and the hidden hotkeys open Advanced', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
   await page.addInitScript(() => localStorage.setItem('brainracer.racers.v1', JSON.stringify(Object.fromEntries(['p1', 'p2', 'p3', 'p4'].map(id => [id, { worlds: ['industrial'], items: [], overrides: {} }])))));
@@ -186,12 +203,12 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   await tap('F9');
   await page.waitForFunction(() => window.__game.scene.isPaused('Setup'));
 
-  await tap('KeyW'); // Answer mode wraps to Close.
-  await tap('KeyS'); // Close wraps to Answer mode.
-  await tap('KeyD'); // Stop & Answer → While Driving.
-  expect((await settingsOf(page)).questionStyle).toBe('drive');
-  await tap('Space'); // Accepting from Answer mode closes the menu.
+  await tap('KeyW'); // The first row wraps to Close.
+  await tap('KeyS'); // And back to the first row (Question interval; no Answer mode row any more).
+  await tap('KeyW'); // Close again.
+  await tap('Space'); // Accepting Close closes the menu.
   await waitScene(page, 'Setup');
+  expect((await settingsOf(page)).questionStyle).toBe('pause');
 
   await page.waitForTimeout(500);
   await tapPad(page, 0, 9); // Start alone does nothing on the Join screen.
@@ -214,7 +231,7 @@ test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode'
   expect(await page.evaluate(() => {
     const { map, questionStyle } = window.__race.settings;
     return { map, questionStyle };
-  })).toEqual({ map: 'industrial', questionStyle: 'drive' });
+  })).toEqual({ map: 'industrial', questionStyle: 'pause' });
   expect(errors).toEqual([]);
 });
 
@@ -272,23 +289,26 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   await tapPad(page, 0, BTN_A);   // Join screen
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  const PAD_UP = 12;
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!))).toEqual([]); // fresh device: no profiles
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make your racer!');
   await page.screenshot({ path: 'test-results/menus-setup-new.png' });
-  await tapPad(page, 0, BTN_A);     // ready on New Profile -> creation overlay
+  expect(await page.evaluate(() => { const p = (window as any).__game.scene.getScene('Setup').panels[0]; return [p.racerRow.visible, (p as any).questionsGroup.visible, (p as any).carObj.visible]; })).toEqual([true, false, false]); // New Profile shows only the racer row
+  await tapPad(page, 0, BTN_A);     // confirm on New Profile -> creation overlay
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/menus-newracer-name.png' });
   await page.keyboard.type('Zed', { delay: 0 });
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-newracer-age.png' });
-  await tapPad(page, 0, BTN_A);     // YES
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: 'test-results/menus-newracer-options.png' });
-  await tapPad(page, 0, PAD_UP);    // wraps to GO
-  await tapPad(page, 0, BTN_A);     // creates the racer and readies the panel
+  await tapPad(page, 0, BTN_A);     // age 0-5 (Easy): creates the racer and selects it
+  await page.waitForTimeout(900);
+  expect(await page.evaluate(() => { const sc = (window as any).__game.scene; const st = sc.getScene('Setup'); return { active: sc.isActive('Setup'), track: sc.isActive('TrackSelect'), ready: st.panels[0].ready, isNew: st.isNew[0], q: st.panels[0].questionsGroup.visible }; }))
+    .toMatchObject({ active: true, track: false, ready: false, isNew: false, q: true }); // created, selected, NOT ready, rows visible
+  await page.screenshot({ path: 'test-results/menus-newracer-after.png' });
+  await tapPad(page, 0, PAD_DOWN);  // off the Questions row (A there toggles a chip)
+  await page.waitForTimeout(200);
+  await tapPad(page, 0, BTN_A);     // Ready
   await page.waitForTimeout(700);
   await tapPad(page, 0, BTN_A);     // Next
   await waitScene(page, 'TrackSelect');
@@ -300,7 +320,7 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   const id = s.players[0].profile!;
   expect(id).toMatch(/^p\d+$/);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!).map((p: { id: string; name: string }) => [p.id, p.name]))).toEqual([[id, 'ZED']]);
-  expect(s.racerProfiles?.[id]).toMatchObject({ roundSec: 300, difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } });
+  expect(s.racerProfiles?.[id]).toMatchObject({ roundSec: 300, difficulty: 'easy', questionTypes: { math: true, reading: true, jbq: false } });
   expect(await page.evaluate(() => window.__race.settings.players[0].profile)).toBe(id);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
   expect(saved.players[0].profile).toBe(id);

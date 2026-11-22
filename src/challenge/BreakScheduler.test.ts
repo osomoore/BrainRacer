@@ -9,7 +9,7 @@ const make = (p: PlayerId, place: string | null): Challenge => ({
   correct: 0, durationSec: 0, source: place ? 'place' : 'random', ...(place ? { placeWord: place } : {}),
 });
 const sched = (players = 2) => new BreakScheduler({
-  players, firstAtSec: 5, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, placeCooldownSec: 60, make,
+  players, firstAtSec: 5, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, wrongRevealSec: 2, placeCooldownSec: 60, make,
 });
 const types = (ev: BreakEvent[]) => ev.map((e) => e.type);
 
@@ -24,7 +24,7 @@ describe('BreakScheduler', () => {
     expect(s.current(1)).not.toBeNull();
   });
 
-  it('wrong answer gives a new question after the retry beat; no resume', () => {
+  it('wrong answer gives a new question after the retry beat plus the reveal time; no resume', () => {
     const s = sched();
     s.update(5, 0.1);
     const first = s.current(0)!;
@@ -33,7 +33,9 @@ describe('BreakScheduler', () => {
     expect(s.playerState(0)).toBe('retry');
     expect(s.answer(0, 0)).toEqual([]);      // ignored during the beat
     expect(s.update(5, 0.3)).toEqual([]);
-    const next = s.update(5, 0.3);
+    expect(s.update(5, 2.1)).toEqual([]);    // 2.4 s in: still showing the correct answer (0.5 + 2.0 = 2.5 s)
+    expect(s.playerState(0)).toBe('retry');
+    const next = s.update(5, 0.2);
     expect(types(next)).toEqual(['shown']);
     expect(s.current(0)!.id).not.toBe(first.id);
     expect(s.playerState(0)).toBe('asking');
@@ -79,5 +81,21 @@ describe('BreakScheduler', () => {
     s.notifyPlace(0, 'school');
     s.update(15, 0.1);
     expect(s.current(0)!.placeWord).toBeUndefined();
+  });
+});
+
+describe('per-kind wrong reveal', () => {
+  it('waits the reveal time returned for the wrong question before asking again', () => {
+    let n = 0;
+    const kinds = ['jbq', 'math'] as const;
+    const br = new BreakScheduler({
+      players: 1, firstAtSec: 0, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, placeCooldownSec: 60,
+      wrongRevealSec: (c) => (c.kind === 'jbq' ? 5 : 2),
+      make: (player) => ({ id: n, player, kind: kinds[n++ % 2], prompt: { kind: 'text', text: 'q' }, options: [], correct: 0, durationSec: 0, source: 'random' }),
+    });
+    br.update(0, 0);
+    br.answer(0, 1);                       // wrong on a JBQ question
+    expect(br.update(0, 5.4).some((e) => e.type === 'shown')).toBe(false);
+    expect(br.update(0, 0.2).some((e) => e.type === 'shown')).toBe(true);   // 5.6 s > 0.5 + 5
   });
 });

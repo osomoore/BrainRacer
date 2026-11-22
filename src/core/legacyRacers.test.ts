@@ -43,8 +43,8 @@ describe('legacy Brain Racer data remap', () => {
     expect(savedSecondPlayer()!.profile).toBe('p5');
     expect((s as unknown as Record<string, unknown>).customRacers).toBeUndefined();
     const rp = racerProfiles(s);
-    expect(rp.p1).toEqual({ difficulty: 'normal', questionTypes: { addition: true, multiplication: true, spelling: true }, roundSec: 420 });
-    expect(rp.p5).toEqual(custom);
+    expect(rp.p1).toEqual({ difficulty: 'normal', questionTypes: { math: true, reading: true, jbq: false }, roundSec: 420, jbq: { points: 10, scope: 'week' } });
+    expect(rp.p5).toEqual({ difficulty: 'hard', questionTypes: { math: true, reading: false, jbq: false }, roundSec: 240, jbq: { points: 10, scope: 'week' } });
     expect(rp.p2).toEqual(LEGACY_RACER_DEFAULTS[ID2]);
     expect(rp.p3).toEqual(LEGACY_RACER_DEFAULTS[ID3]);
     expect(JSON.stringify(s)).not.toContain('"name"');

@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { AGE_BANDS, bandDifficulty, bandRoundSec, difficultyBand } from '../core/ageBands';
+import { ageLabel } from '../ui/menu/newRacerLogic';
+import { changeJbq, jbqPointsLabel, jbqScopeLabel, ROW_POINTS, ROW_SCOPE } from '../ui/menu/questionPick';
 import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS, RACER_ROUND_SEC } from '../config/gameConfig';
 import { audioDiagnostics } from '../audio';
@@ -9,7 +12,7 @@ import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type 
 import { deleteRacer, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
-import type { Difficulty, QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
+import type { QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { LetterPicker } from '../ui/menu/LetterPicker';
 import { clampPage, pageCount, pageItems } from '../ui/menu/paging';
@@ -68,12 +71,10 @@ const CONTENT_PAGES = [
   ...contentPages('Worlds', RACE_MAPS.filter(map => map !== 'city')),
   ...RACE_MAPS.flatMap(map => contentPages(`${MAP_LABEL[map]} items`, worldRewards(map))),
 ];
-const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
-const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
 const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
-  { type: 'addition', label: 'Addition' },
-  { type: 'multiplication', label: 'Multiplication' },
-  { type: 'spelling', label: 'Spelling' },
+  { type: 'math', label: 'Math' },
+  { type: 'reading', label: 'Reading' },
+  { type: 'jbq', label: 'JBQ' },
 ];
 const PROFILES_PER_PAGE = 2;
 const CONTENT_OVERRIDES = [undefined, true, false] as const;
@@ -174,22 +175,20 @@ export class ConfigScene extends Phaser.Scene {
 
     const rowY = (i: number) => FIRST_ROW + i * ROW_STEP;
     header(0, 155, 'NEXT RACE');
-    option(0, rowY(0), 'Answer mode', () => this.settings().questionStyle === 'drive' ? 'While Driving' : 'Stop & Answer',
-      () => this.patchSettings({ questionStyle: this.settings().questionStyle === 'drive' ? 'pause' : 'drive' }));
     // Race length is per racer now (Racer Profiles → Race time); the longer of the two players' times is used.
-    option(0, rowY(1), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
+    option(0, rowY(0), 'Question interval', () => `${this.settings().challengeIntervalSec} s`,
       (d) => this.patchSettings({ challengeIntervalSec: cycleNum(EVERY_SEC, this.settings().challengeIntervalSec, d) }));
-    option(0, rowY(2), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
+    option(0, rowY(1), 'Traffic', () => TRAFFIC_LABEL[getTuning().traffic],
       (d) => setTuning({ traffic: cycle(TRAFFIC_LEVELS, getTuning().traffic, d) }));
 
-    action(0, rowY(3), 'Performance test', () => {
+    action(0, rowY(2), 'Performance test', () => {
       this.adminCursor = this.cursor;
       this.showPerf();
     });
 
-    header(0, rowY(4), 'GAMEPAD');
+    header(0, rowY(3), 'GAMEPAD');
     for (const p of [0, 1, 2, 3] as const) {
-      option(0, rowY(5 + p), `P${p + 1} gas`, () => {
+      option(0, rowY(4 + p), `P${p + 1} gas`, () => {
         const mode = getTuning().gas[p];
         const device = this.settings().players[p]?.device;
         const family = device ? services.input.controllerFamily?.(device) : undefined;
@@ -201,12 +200,12 @@ export class ConfigScene extends Phaser.Scene {
         setTuning({ gas });
       });
     }
-    header(0, rowY(9), 'DISPLAY   (* needs reload)');
-    option(0, rowY(10), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
+    header(0, rowY(8), 'DISPLAY   (* needs reload)');
+    option(0, rowY(9), 'Frame-rate cap*', () => `${getTuning().fpsCap} fps`,
       (d) => setTuning({ fpsCap: cycle(FPS, getTuning().fpsCap, d) }));
-    option(0, rowY(11), 'Debug readout', () => onOff(getTuning().debugReadout),
+    option(0, rowY(10), 'Debug readout', () => onOff(getTuning().debugReadout),
       () => setTuning({ debugReadout: !getTuning().debugReadout }));
-    option(0, rowY(12), 'Perf overlay', () => onOff(getTuning().perfHud),
+    option(0, rowY(11), 'Perf overlay', () => onOff(getTuning().perfHud),
       () => setTuning({ perfHud: !getTuning().perfHud }));
 
     header(1, 155, 'AUDIO');
@@ -264,11 +263,11 @@ export class ConfigScene extends Phaser.Scene {
     const colW = 840;
     const xs = [490, 1430];
     const y0 = 215;
-    const rowStep = 78;
+    const rowStep = 68;
     const opts = { width: colW, height: 60, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: RacerProfileId, mutate: (p: RacerProfile) => void): void => {
       const cur = racerProfiles(this.settings())[id];
-      const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec };
+      const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec, jbq: { ...cur.jbq } };
       mutate(next);
       this.patchSettings(withRacerProfile(this.settings(), id, next));
     };
@@ -282,10 +281,13 @@ export class ConfigScene extends Phaser.Scene {
       panel.add(bigText(this, x, y0, racerName(this.settings(), id).toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
       let n = 0;
       const rowY = () => y0 + 70 + (n++) * rowStep;
-      const diff = new OptionRow(this, x, rowY(), 'Level', { ...opts, valueX: 115, arrowSpan: 150 });
+      const diff = new OptionRow(this, x, rowY(), 'Age', { ...opts, valueX: 115, arrowSpan: 150 });
       panel.add(diff);
-      const changeDiff = (dir: 1 | -1) => save(id, p => { p.difficulty = DIFFICULTIES[Phaser.Math.Wrap(DIFFICULTIES.indexOf(p.difficulty) + dir, 0, DIFFICULTIES.length)]; });
-      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(DIFFICULTY_LABEL[racerProfiles(this.settings())[id].difficulty]), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
+      const changeDiff = (dir: 1 | -1) => save(id, p => {
+        const band = AGE_BANDS[Phaser.Math.Wrap(AGE_BANDS.indexOf(difficultyBand(p.difficulty)) + dir, 0, AGE_BANDS.length)];
+        p.difficulty = bandDifficulty(band); p.roundSec = bandRoundSec(band);
+      });
+      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(ageLabel(racerProfiles(this.settings())[id].difficulty)), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
       for (const { type, label } of PROFILE_TYPES) {
         const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 150, arrowSpan: 105 });
         panel.add(row);
@@ -296,6 +298,20 @@ export class ConfigScene extends Phaser.Scene {
           p.questionTypes[type] = on;
         });
         this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
+      }
+      for (const [label, rowId] of [['JBQ points', ROW_POINTS], ['JBQ scope', ROW_SCOPE]] as const) {
+        // Basics is a fixed set (Q1-144), so the scope row does not apply.
+        if (rowId === ROW_SCOPE && racerProfiles(this.settings())[id].jbq.points === 'basics') continue;
+        const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 115, arrowSpan: 150 });
+        panel.add(row);
+        const change = (dir: 1 | -1) => {
+          const was = racerProfiles(this.settings())[id].jbq.points === 'basics';
+          save(id, p => { p.jbq = changeJbq(p.jbq, rowId, dir); });
+          // Entering or leaving Basics adds or removes the scope row: rebuild the page after this input.
+          if (was !== (racerProfiles(this.settings())[id].jbq.points === 'basics')) this.time.delayedCall(0, () => this.showProfiles(this.profilePage, this.cursor));
+        };
+        const text = () => { const j = racerProfiles(this.settings())[id].jbq; return rowId === ROW_POINTS ? jbqPointsLabel(j.points) : jbqScopeLabel(j.points, j.scope); };
+        this.subRows.push({ selectable: row, refresh: () => row.setValue(text()), change, activate: () => change(1), bump: d => row.bump(d) });
       }
       const time = new OptionRow(this, x, rowY(), 'Race time', { ...opts, valueX: 150, arrowSpan: 105 });
       panel.add(time);

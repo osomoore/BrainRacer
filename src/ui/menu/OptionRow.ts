@@ -68,7 +68,14 @@ export class OptionRow extends Phaser.GameObjects.Container implements Selectabl
     return this;
   }
 
-  setValue(text: string): this { this.value.setText(text); return this; }
+  /** Sets the value text, shrinking its font when it would run into the arrows. */
+  setValue(text: string): this {
+    const fs = this.opts.fontSize ?? 44;
+    this.value.setFontSize(fs).setText(text);
+    const room = 2 * (this.opts.arrowSpan - 30);
+    if (this.value.width > room) this.value.setFontSize(Math.floor(fs * room / this.value.width));
+    return this;
+  }
 
   /** Flash the arrow on the side the value moved. */
   bump(dir: number) {

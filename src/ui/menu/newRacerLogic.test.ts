@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cycleChoice, nameTaken, racerChoices, toggleQuestionType } from './newRacerLogic';
+import { ageLabel, DIFF_LABEL, cycleChoice, nameTaken, racerChoices, toggleQuestionType } from './newRacerLogic';
 
 describe('newRacerLogic', () => {
   it('racerChoices excludes the other racer and appends new', () => {
@@ -12,12 +12,21 @@ describe('newRacerLogic', () => {
     expect(cycleChoice(['a', 'b'], 'zzz', 1)).toBe('a');
   });
   it('toggleQuestionType keeps at least one on', () => {
-    const q = { addition: true, multiplication: false, spelling: false };
-    expect(toggleQuestionType(q, 'addition')).toBe(q);
-    expect(toggleQuestionType(q, 'spelling')).toEqual({ addition: true, multiplication: false, spelling: true });
+    const q = { math: true, reading: false, jbq: false };
+    expect(toggleQuestionType(q, 'math')).toBe(q);
+    expect(toggleQuestionType(q, 'reading')).toEqual({ math: true, reading: true, jbq: false });
   });
   it('nameTaken is case-insensitive', () => {
     expect(nameTaken(' robin ', ['Robin'])).toBe(true);
     expect(nameTaken('Zed', ['Robin'])).toBe(false);
+  });
+});
+
+describe('age labels', () => {
+  it('uses Medium instead of Normal and shows band + level', () => {
+    expect(DIFF_LABEL.normal).toBe('Medium ★★');
+    expect(ageLabel('normal')).toBe('8–9 · Medium ★★');
+    expect(ageLabel('hard')).toBe('10+ · Hard ★★★');
+    expect(ageLabel('easyPlus')).toBe('6–7 · Easy+ ★½');
   });
 });

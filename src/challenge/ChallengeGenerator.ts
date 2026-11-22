@@ -58,6 +58,7 @@ export class ChallengeGenerator {
       return this.generateWord(k, difficulty, place, opts.recentWords, count);
     }
     if (kind === 'math' || kind === 'multiplication') return this.generateMathChallenge(kind, difficulty, count);
+    if (kind === 'jbq') throw new Error('jbq challenges are built by JbqGenerator (see ChallengeFactory)');
     return this.generateWord(kind, difficulty, undefined, opts.recentWords, count);
   }
 
