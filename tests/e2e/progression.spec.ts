@@ -88,11 +88,14 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
   await page.waitForTimeout(300);
 
   // P1 = Robin (starters + Night Owl), P2 = Sam (starters + Brick Buggy): each list is that racer's own.
+  await tapPad(page, 0, 13); // P1 Questions.
   await tapPad(page, 0, 13); // P1 Car.
   await tapPad(page, 0, 14); // Left from Dino wraps to the last car: Kart (Robin owns no extra car).
   await tapPad(page, 0, 13); // P1 Guide.
   await tapPad(page, 0, 15); // Star -> Night Owl.
   await page.waitForTimeout(300);
+  await tapPad(page, 1, 13); // P2 Questions.
+  await page.waitForTimeout(150);
   await tapPad(page, 1, 13); // P2 Car.
   await page.waitForTimeout(300);
   await tapPad(page, 1, 14); // P2 defaults to Kart: left to Dino,
@@ -153,6 +156,7 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
   };
   await toggleDeveloperMode('Setup');
   await page.waitForTimeout(300);
+  await tap(page, 'KeyS'); // Questions.
   await tap(page, 'KeyS'); // Car.
   await tap(page, 'KeyD');
   await tap(page, 'KeyD'); // Motor Trike.
