@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "fda24584f3883b6e",
+ "sourceHash": "f07a863eae024404",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -303,7 +303,9 @@
    "loop": true,
    "bpm": 130,
    "lengthBeats": 64,
-   "loopSeconds": 29.53846153846154
+   "loopSeconds": 29.53846153846154,
+   "meanDb": -17.5,
+   "peakDb": -4.7
   },
   "race": {
    "file": "music/race.ogg",
@@ -314,7 +316,9 @@
    "loop": true,
    "bpm": 156,
    "lengthBeats": 128,
-   "loopSeconds": 49.23076923076923
+   "loopSeconds": 49.23076923076923,
+   "meanDb": -17.5,
+   "peakDb": -4.6
   },
   "farm": {
    "file": "music/farm.ogg",
@@ -325,7 +329,9 @@
    "loop": true,
    "bpm": 132,
    "lengthBeats": 128,
-   "loopSeconds": 58.18181818181818
+   "loopSeconds": 58.18181818181818,
+   "meanDb": -17.6,
+   "peakDb": -2.9
   },
   "industrial": {
    "file": "music/industrial.ogg",
@@ -336,7 +342,9 @@
    "loop": true,
    "bpm": 112,
    "lengthBeats": 64,
-   "loopSeconds": 34.285714285714285
+   "loopSeconds": 34.285714285714285,
+   "meanDb": -17.6,
+   "peakDb": -5.7
   },
   "dino": {
    "file": "music/dino.ogg",
@@ -347,7 +355,9 @@
    "loop": true,
    "bpm": 156,
    "lengthBeats": 128,
-   "loopSeconds": 49.23076923076923
+   "loopSeconds": 49.23076923076923,
+   "meanDb": -17.5,
+   "peakDb": -4.8
   },
   "underground": {
    "file": "music/underground.ogg",
@@ -358,7 +368,9 @@
    "loop": true,
    "bpm": 132,
    "lengthBeats": 32,
-   "loopSeconds": 14.545454545454545
+   "loopSeconds": 14.545454545454545,
+   "meanDb": -17.6,
+   "peakDb": -2.1
   },
   "results": {
    "file": "music/results.ogg",
@@ -369,7 +381,9 @@
    "loop": false,
    "bpm": 140,
    "lengthBeats": 16,
-   "loopSeconds": 6.857142857142857
+   "loopSeconds": 6.857142857142857,
+   "meanDb": -17.6,
+   "peakDb": -3.6
   },
   "sky": {
    "file": "music/sky.ogg",
@@ -380,7 +394,9 @@
    "loop": true,
    "bpm": 138,
    "lengthBeats": 96,
-   "loopSeconds": 41.73913043478261
+   "loopSeconds": 41.73913043478261,
+   "meanDb": -17.7,
+   "peakDb": -3.9
   },
   "forest": {
    "file": "music/forest.ogg",
@@ -391,7 +407,9 @@
    "loop": true,
    "bpm": 126,
    "lengthBeats": 96,
-   "loopSeconds": 45.714285714285715
+   "loopSeconds": 45.714285714285715,
+   "meanDb": -17.6,
+   "peakDb": -2.3
   },
   "underwater": {
    "file": "music/underwater.ogg",
@@ -402,7 +420,9 @@
    "loop": true,
    "bpm": 116,
    "lengthBeats": 32,
-   "loopSeconds": 16.551724137931036
+   "loopSeconds": 16.551724137931036,
+   "meanDb": -17.6,
+   "peakDb": -2.5
   },
   "brickworks": {
    "file": "music/brickworks.ogg",
@@ -413,7 +433,9 @@
    "loop": true,
    "bpm": 124,
    "lengthBeats": 32,
-   "loopSeconds": 15.483870967741936
+   "loopSeconds": 15.483870967741936,
+   "meanDb": -17.8,
+   "peakDb": -4.6
   },
   "mushroom": {
    "file": "music/mushroom.ogg",
@@ -424,7 +446,9 @@
    "loop": true,
    "bpm": 105,
    "lengthBeats": 32,
-   "loopSeconds": 18.285714285714285
+   "loopSeconds": 18.285714285714285,
+   "meanDb": -18.4,
+   "peakDb": -1.8
   },
   "tundra": {
    "file": "music/tundra.ogg",
@@ -435,7 +459,9 @@
    "loop": true,
    "bpm": 114,
    "lengthBeats": 24,
-   "loopSeconds": 12.631578947368421
+   "loopSeconds": 12.631578947368421,
+   "meanDb": -17.6,
+   "peakDb": -2.4
   },
   "volcano": {
    "file": "music/volcano.ogg",
@@ -446,7 +472,9 @@
    "loop": true,
    "bpm": 144,
    "lengthBeats": 32,
-   "loopSeconds": 13.333333333333334
+   "loopSeconds": 13.333333333333334,
+   "meanDb": -17.5,
+   "peakDb": -4
   },
   "candy": {
    "file": "music/candy.ogg",
@@ -457,7 +485,9 @@
    "loop": true,
    "bpm": 132,
    "lengthBeats": 32,
-   "loopSeconds": 14.545454545454545
+   "loopSeconds": 14.545454545454545,
+   "meanDb": -17.5,
+   "peakDb": -4.6
   },
   "castle": {
    "file": "music/castle.ogg",
@@ -468,7 +498,9 @@
    "loop": true,
    "bpm": 120,
    "lengthBeats": 24,
-   "loopSeconds": 12
+   "loopSeconds": 12,
+   "meanDb": -17.8,
+   "peakDb": -5.6
   },
   "airport": {
    "file": "music/airport.ogg",
@@ -479,7 +511,9 @@
    "loop": true,
    "bpm": 136,
    "lengthBeats": 32,
-   "loopSeconds": 14.117647058823529
+   "loopSeconds": 14.117647058823529,
+   "meanDb": -17.8,
+   "peakDb": -5.6
   },
   "house": {
    "file": "music/house.ogg",
@@ -490,7 +524,9 @@
    "loop": true,
    "bpm": 116,
    "lengthBeats": 32,
-   "loopSeconds": 16.551724137931036
+   "loopSeconds": 16.551724137931036,
+   "meanDb": -17.6,
+   "peakDb": -1.8
   }
  }
 }
