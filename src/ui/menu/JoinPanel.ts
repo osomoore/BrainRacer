@@ -46,6 +46,8 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   private readonly joinPrompt: ConfirmPrompt;
   joined = false;
   ready = false;
+  /** Tap/click on a Racer/Car/Buddy row (dir 0 = the row body, -1/+1 = an arrow). */
+  onRowTap?: (row: number, dir: -1 | 0 | 1) => void;
 
   constructor(scene: Phaser.Scene, readonly slot: number, colorHex: string) {
     super(scene, joinPanelX(slot), JOIN_PANEL.top + JOIN_PANEL.h / 2);
@@ -76,6 +78,11 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.guideRow = new OptionRow(scene, 0, top + 717, '', opts);
     this.guideObj = scene.add.image(150, top + 665, guideArt('star'));
     this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, carCap, this.carRow, guideCap, this.guideRow, this.guideObj]);
+
+    const tapDir = { left: -1, body: 0, right: 1 } as const;
+    [[this.racerRow, ROW_RACER], [this.carRow, ROW_CAR], [this.guideRow, ROW_GUIDE]].forEach(([row, idx]) => {
+      (row as OptionRow).makeTappable((z) => this.onRowTap?.(idx as number, tapDir[z]), 100, this.rowsGroup);
+    });
 
     const askY = top + h - 32;
     this.askText = bigText(scene, 0, askY, '', 40, '#ffffff');

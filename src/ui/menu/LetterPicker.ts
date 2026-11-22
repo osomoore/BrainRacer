@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { services } from '../../core/services';
-import { appendChar, buildKeys, deleteLast, isValidName, moveCursor, type PickerKey } from './letterGrid';
+import { appendChar, buildKeys, clampPos, deleteLast, isValidName, keyAction, moveCursor, type PickerKey } from './letterGrid';
 import { bigText, FONT_HEAD, MENU } from './style';
 
 export interface LetterPickerOpts {
@@ -59,7 +59,8 @@ export class LetterPicker extends Phaser.GameObjects.Container {
     const kg = scene.add.graphics();
     const labels: Phaser.GameObjects.Text[] = [];
     this.hi = scene.add.rectangle(0, 0, KEY, KEY, this.color, 1).setStrokeStyle(8, 0xffffff, 1);
-    this.rows.forEach((row, r) => row.forEach((k) => {
+    const zones: Phaser.GameObjects.Zone[] = [];
+    this.rows.forEach((row, r) => row.forEach((k, idx) => {
       const w = k.span * PITCH - GAP;
       const kx = -GRID_W / 2 + k.col * PITCH + w / 2;
       const ky = top + r * PITCH + KEY / 2;
@@ -67,8 +68,12 @@ export class LetterPicker extends Phaser.GameObjects.Container {
       kg.fillStyle(MENU.panel, 1).fillRoundedRect(kx - w / 2, ky - KEY / 2, w, KEY, 24);
       kg.lineStyle(5, 0x7f94d6, 1).strokeRoundedRect(kx - w / 2, ky - KEY / 2, w, KEY, 24);
       labels.push(bigText(scene, kx, ky, k.label, k.kind === 'letter' ? 64 : 52, MENU.white, { font: FONT_HEAD }));
+      // Invisible tap target covering the key plus half the gap on each side (128 logical px).
+      const zone = scene.add.zone(kx, ky, w + GAP, PITCH).setInteractive();
+      zone.on('pointerdown', () => this.tap(r, idx));
+      zones.push(zone);
     }));
-    this.add([kg, this.hi, ...labels]);
+    this.add([kg, this.hi, ...labels, ...zones]);
 
     this.refresh();
     scene.add.existing(this);
@@ -127,6 +132,24 @@ export class LetterPicker extends Phaser.GameObjects.Container {
     else if (e.key === 'Enter') { if (isValidName(this.value)) this.pending = this.finish(); else this.bump(); }
   }
 
+  /** Tap/click on a key: the highlight jumps there and the key is pressed (same as moving there + confirm). 'done' is reported by the next handle(). */
+  tap(row: number, idx: number) {
+    if (!this.active || this.pending !== 'none') return;
+    this.pos = clampPos(this.rows, row, idx);
+    this.refresh();
+    this.scene.tweens.add({ targets: this.hi, scale: { from: 0.86, to: 1 }, duration: 140, ease: 'Back.Out' });
+    const r = this.press();
+    if (r !== 'none') this.pending = r;
+  }
+
+  private press(): PickerResult {
+    const a = keyAction(this.cur());
+    if (a.type === 'add') this.add1(a.ch);
+    else if (a.type === 'delete') { if (!this.del()) this.bump(); }
+    else return this.finish();
+    return 'none';
+  }
+
   /** Call every frame with the owning player's input edges. Also reports 'done' from a physical-keyboard Enter. */
   handle(inp: { navX: number; navY: number; confirm: boolean; back: boolean }): PickerResult {
     if (this.pending !== 'none') { const r = this.pending; this.pending = 'none'; return r; }
@@ -136,11 +159,7 @@ export class LetterPicker extends Phaser.GameObjects.Container {
     }
     if (inp.back) return this.del() ? 'none' : 'cancel';
     if (inp.confirm) {
-      const k = this.cur();
-      if (k.kind === 'letter') this.add1(k.label);
-      else if (k.kind === 'space') this.add1(' ');
-      else if (k.kind === 'delete') { if (!this.del()) this.bump(); }
-      else return this.finish();
+      return this.press();
     }
     return 'none';
   }

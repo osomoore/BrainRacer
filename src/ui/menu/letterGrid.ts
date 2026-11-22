@@ -22,6 +22,22 @@ export function buildKeys(cols = LETTER_COLS): PickerKey[][] {
   return rows;
 }
 
+export type KeyAction = { type: 'add'; ch: string } | { type: 'delete' } | { type: 'done' };
+
+/** What pressing a key does (shared by the confirm button and taps). */
+export function keyAction(k: PickerKey): KeyAction {
+  if (k.kind === 'letter') return { type: 'add', ch: k.label };
+  if (k.kind === 'space') return { type: 'add', ch: ' ' };
+  if (k.kind === 'delete') return { type: 'delete' };
+  return { type: 'done' };
+}
+
+/** Row / index for a key at grid row `row`, index `idx` (clamped), for tap-to-select. */
+export function clampPos(rows: PickerKey[][], row: number, idx: number): { row: number; idx: number } {
+  const r = Math.max(0, Math.min(rows.length - 1, row));
+  return { row: r, idx: Math.max(0, Math.min(rows[r].length - 1, idx)) };
+}
+
 const wrap = (n: number, m: number) => ((n % m) + m) % m;
 
 /** Move the cursor (row, index in row) with wrapping. Vertical moves keep the horizontal center as best as possible. */

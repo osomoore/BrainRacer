@@ -65,6 +65,7 @@ export class SetupScene extends Phaser.Scene {
     bigText(this, GAME_WIDTH / 2, 62, 'GET READY!', 96, '#ffd43b', { font: FONT_HEAD, stroke: 14 });
     this.modeLabel = bigText(this, 36, 62, 'Admin Mode', 40, MENU.dim, { origin: [0, 0.5] });
     this.panels = Array.from({ length: MAX_PLAYERS }, (_, i) => new JoinPanel(this, i, PLAYER_COLORS[i]));
+    this.panels.forEach((pn, i) => { pn.onRowTap = (row, dir) => this.tapRow(i as PlayerId, row, dir); });
     this.buildBottom();
 
     services.input.reset();
@@ -281,6 +282,14 @@ export class SetupScene extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  /** Tap/click on a player card row: same actions as the controller (arrows change the value, the body opens New Profile or cycles). */
+  private tapRow(p: PlayerId, row: number, dir: -1 | 0 | 1) {
+    if (this.leaving || this.newPanel || p >= this.slots.length || isLocked(this.slots, p)) return;
+    this.cursors[p] = row;
+    if (dir === 0 && row === ROW_RACER && this.isNew[p]) { this.openNewPanel(p); return; }
+    this.change(p, row, dir || 1);
   }
 
   private change(p: number, row: number, dir: 1 | -1) {

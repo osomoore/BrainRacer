@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendChar, buildKeys, deleteLast, isValidName, moveCursor } from './letterGrid';
+import { appendChar, buildKeys, clampPos, deleteLast, isValidName, keyAction, moveCursor } from './letterGrid';
 
 describe('letterGrid', () => {
   const rows = buildKeys();
@@ -27,5 +27,16 @@ describe('letterGrid', () => {
     expect(deleteLast('')).toBe('');
     expect(isValidName('  ')).toBe(false);
     expect(isValidName('A')).toBe(true);
+  });
+  it('maps keys to press actions', () => {
+    const last = rows.length - 1;
+    expect(keyAction(rows[0][0])).toEqual({ type: 'add', ch: 'A' });
+    expect(keyAction(rows[last][0])).toEqual({ type: 'add', ch: ' ' });
+    expect(keyAction(rows[last][1])).toEqual({ type: 'delete' });
+    expect(keyAction(rows[last][2])).toEqual({ type: 'done' });
+  });
+  it('clamps tapped positions into the grid', () => {
+    expect(clampPos(rows, 99, 99)).toEqual({ row: rows.length - 1, idx: 2 });
+    expect(clampPos(rows, -1, -1)).toEqual({ row: 0, idx: 0 });
   });
 });

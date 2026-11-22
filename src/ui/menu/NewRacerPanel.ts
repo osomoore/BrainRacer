@@ -30,6 +30,9 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private rows: OptionRow[] = [];
   private go?: MenuButton;
   private exampleText?: Phaser.GameObjects.Text;
+  /** Taps waiting for the next handle(): an optional row/button to select, plus the nav edge to apply. Same logic path as the controller. */
+  private taps: { sel?: number; nav: Partial<Nav> }[] = [];
+  private cancelTap = false;
 
   constructor(scene: Phaser.Scene, private readonly color: number, private readonly colorHex: string, private readonly playerNum: number,
     private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean) {
@@ -49,10 +52,13 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
     this.picker?.destroy(); this.picker = undefined;
     this.page?.destroy(); this.page = undefined;
     this.msg.setText('');
+    this.taps = [];
     const page = this.scene.add.container(0, 0);
     this.page = page;
     this.add(page);
     const cx = GAME_WIDTH / 2;
+    const back = new MenuButton(this.scene, GAME_WIDTH - 190, 70, 300, 100, 'BACK', this.color, 52);
+    page.add(this.tappable(back, () => { if (step === 'name') this.cancelTap = true; else this.taps.push({ nav: { back: true } }); }));
     page.add(bigText(this.scene, 40, 40, `PLAYER ${this.playerNum}`, 48, this.colorHex, { font: FONT_HEAD, stroke: 10, origin: [0, 0.5] }));
     if (step === 'name') {
       this.picker = new LetterPicker(this.scene, cx, 70, { title: 'WHAT\'S YOUR NAME?', initial: this.racerNameText, maxLen: NEW_RACER.nameMaxLen, color: this.color, keyboardTyping: this.keyboardTyping });
@@ -63,6 +69,7 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
         new MenuButton(this.scene, cx - 330, 620, 520, 220, 'YES', this.color, 110),
         new MenuButton(this.scene, cx + 330, 620, 520, 220, 'NO', this.color, 110),
       ];
+      this.ageBtns.forEach((b, i) => this.tappable(b, () => this.taps.push({ sel: i, nav: { confirm: true } })));
       page.add(this.ageBtns);
       this.sel = this.under10 ? 0 : 1;
       this.paintAge();
@@ -74,10 +81,20 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
       this.rows.push(new OptionRow(this.scene, cx, 570, 'Level', opts));
       this.exampleText = bigText(this.scene, cx, 665, '', 48, MENU.dim, { bold: false });
       this.go = new MenuButton(this.scene, cx, 850, 700, 150, 'GO!', this.color, 100);
+      this.rows.forEach((r, i) => r.makeTappable((z) => this.taps.push({ sel: i, nav: { navX: z === 'left' ? -1 : 1 } }), 96));
+      this.tappable(this.go, () => this.taps.push({ sel: ROW_GO, nav: { confirm: true } }));
       page.add([...this.rows, this.exampleText, this.go]);
       this.sel = 0;
       this.paintOptions();
     }
+  }
+
+  /** Adds an invisible tap zone over a button (at least 110 logical px tall) and a press squash. */
+  private tappable(b: MenuButton, onTap: () => void): MenuButton {
+    const z = this.scene.add.zone(0, 0, b.w + 20, Math.max(b.h, 110)).setInteractive();
+    z.on('pointerdown', () => { b.pulse(); onTap(); });
+    b.add(z);
+    return b;
   }
 
   private paintAge() {
@@ -92,7 +109,14 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   }
 
   /** 'done' once the player finished (see `result`), 'cancel' to abandon the whole flow. */
-  handle(inp: Nav): PickerResult {
+  handle(input: Nav): PickerResult {
+    if (this.cancelTap) { this.cancelTap = false; services.audio.sfx('menuMove'); return 'cancel'; }
+    let inp = input;
+    const t = this.step === 'name' ? undefined : this.taps.shift();
+    if (t) {
+      if (t.sel !== undefined) this.sel = t.sel;
+      inp = { navX: input.navX || t.nav.navX || 0, navY: input.navY, confirm: input.confirm || !!t.nav.confirm, back: input.back || !!t.nav.back };
+    }
     if (this.step === 'name') {
       const r = this.picker!.handle(inp);
       if (r === 'cancel') return 'cancel';

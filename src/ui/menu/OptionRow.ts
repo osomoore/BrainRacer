@@ -47,6 +47,27 @@ export class OptionRow extends Phaser.GameObjects.Container implements Selectabl
     this.bg.lineStyle(selected ? 6 : 3, selected ? color : 0xffffff, selected ? 1 : 0.25).strokeRoundedRect(-w / 2, -h / 2, w, h, 22);
   }
 
+  /**
+   * Make the row tappable: the whole row (body) plus both arrows (bigger hit areas on top). Pointer-down on the row,
+   * mouse or touch. With `host` the zones are added to that container (at this row's position) instead of the row, so they do not enlarge the row's bounds. `hitH` is the tap height in logical px (default 100, enlarged beyond the art).
+   */
+  makeTappable(onTap: (zone: 'left' | 'body' | 'right') => void, hitH = 100, host?: Phaser.GameObjects.Container): this {
+    const { valueX, arrowSpan } = this.opts;
+    const mk = (x: number, w: number, zone: 'left' | 'body' | 'right') => {
+      const z = this.scene.add.zone(host ? this.x + x : x, host ? this.y : 0, w, hitH).setInteractive();
+      z.on('pointerdown', () => {
+        this.scene.tweens.add({ targets: this.value, scale: { from: 0.82, to: 1 }, duration: 140, ease: 'Back.Out' });
+        onTap(zone);
+      });
+      (host ?? this).add(z);
+    };
+    mk(0, this.rw, 'body');
+    const aw = Math.max(110, arrowSpan);
+    mk(valueX - arrowSpan, aw, 'left');
+    mk(valueX + arrowSpan, aw, 'right');
+    return this;
+  }
+
   setValue(text: string): this { this.value.setText(text); return this; }
 
   /** Flash the arrow on the side the value moved. */
