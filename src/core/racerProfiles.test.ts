@@ -59,16 +59,17 @@ describe('racerProfiles', () => {
   });
 
   it('creates a shared profile plus its settings, ids opaque and never reused', () => {
-    const r = createRacer({}, { name: 'Robin', under10: true, difficulty: 'normal', questionTypes: q(true, false, true) })!;
+    const r = createRacer({}, { name: 'Robin', ageBand: '8-9', questionTypes: q(true, false, true) })!;
     expect(listProfiles().map(p => p.name)).toEqual(['Robin']);
     expect(r.patch.racerProfiles![r.id]).toEqual({ difficulty: 'normal', questionTypes: q(true, false, true), roundSec: 300, jbq: J });
     expect(racerSettingsOf(r.patch, r.id).roundSec).toBe(300);
-    const old = createRacer(r.patch, { name: 'Sam', under10: false, difficulty: 'easy', questionTypes: q(true, false, true) })!;
+    const old = createRacer(r.patch, { name: 'Sam', ageBand: '10+', questionTypes: q(true, false, true) })!;
     expect(old.patch.racerProfiles![old.id]!.roundSec).toBe(180);
+    expect(old.patch.racerProfiles![old.id]!.difficulty).toBe('hard');
     expect(old.patch.racerProfiles![r.id]).toBeDefined();
     deleteRacer(old.patch, old.id);
-    expect(createRacer({}, { name: 'Kim', under10: true, difficulty: 'easy', questionTypes: q(true, true, false) })!.id).not.toBe(old.id);
-    expect(createRacer({}, { name: '123', under10: true, difficulty: 'easy', questionTypes: q(true, true, false) })).toBeNull();
+    expect(createRacer({}, { name: 'Kim', ageBand: '0-5', questionTypes: q(true, true, false) })!.id).not.toBe(old.id);
+    expect(createRacer({}, { name: '123', ageBand: '0-5', questionTypes: q(true, true, false) })).toBeNull();
   });
 
   it('renames through the shared store and rejects invalid names', () => {

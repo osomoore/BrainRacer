@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { AGE_BANDS, bandDifficulty, bandRoundSec, difficultyBand } from '../core/ageBands';
+import { ageLabel } from '../ui/menu/newRacerLogic';
 import { changeJbq, jbqPointsLabel, jbqScopeLabel, ROW_POINTS, ROW_SCOPE } from '../ui/menu/questionPick';
 import { getTuning, resetTuning, setTuning, type DeviceTuning, type GasMode } from '../config/deviceTuning';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS, RACER_ROUND_SEC } from '../config/gameConfig';
@@ -10,7 +12,7 @@ import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type 
 import { deleteRacer, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
-import type { Difficulty, QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
+import type { QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { LetterPicker } from '../ui/menu/LetterPicker';
 import { clampPage, pageCount, pageItems } from '../ui/menu/paging';
@@ -69,8 +71,6 @@ const CONTENT_PAGES = [
   ...contentPages('Worlds', RACE_MAPS.filter(map => map !== 'city')),
   ...RACE_MAPS.flatMap(map => contentPages(`${MAP_LABEL[map]} items`, worldRewards(map))),
 ];
-const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
-const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
 const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
   { type: 'math', label: 'Math' },
   { type: 'reading', label: 'Reading' },
@@ -277,10 +277,13 @@ export class ConfigScene extends Phaser.Scene {
       panel.add(bigText(this, x, y0, racerName(this.settings(), id).toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
       let n = 0;
       const rowY = () => y0 + 70 + (n++) * rowStep;
-      const diff = new OptionRow(this, x, rowY(), 'Level', { ...opts, valueX: 115, arrowSpan: 150 });
+      const diff = new OptionRow(this, x, rowY(), 'Age', { ...opts, valueX: 115, arrowSpan: 150 });
       panel.add(diff);
-      const changeDiff = (dir: 1 | -1) => save(id, p => { p.difficulty = DIFFICULTIES[Phaser.Math.Wrap(DIFFICULTIES.indexOf(p.difficulty) + dir, 0, DIFFICULTIES.length)]; });
-      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(DIFFICULTY_LABEL[racerProfiles(this.settings())[id].difficulty]), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
+      const changeDiff = (dir: 1 | -1) => save(id, p => {
+        const band = AGE_BANDS[Phaser.Math.Wrap(AGE_BANDS.indexOf(difficultyBand(p.difficulty)) + dir, 0, AGE_BANDS.length)];
+        p.difficulty = bandDifficulty(band); p.roundSec = bandRoundSec(band);
+      });
+      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(ageLabel(racerProfiles(this.settings())[id].difficulty)), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
       for (const { type, label } of PROFILE_TYPES) {
         const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 150, arrowSpan: 105 });
         panel.add(row);

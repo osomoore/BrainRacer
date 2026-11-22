@@ -3,8 +3,9 @@
  * shared profile store (shared/profiles.ts); Brain Racer only keeps per-profile game settings
  * (`Settings.racerProfiles`, keyed by the shared profile id).
  */
-import { NEW_RACER, NEW_RACER_DEFAULTS } from '../config/gameConfig';
+import { NEW_RACER_DEFAULTS } from '../config/gameConfig';
 import { normalizeJbq, normalizeQuestionTypes } from '../config/questionsPolicy';
+import { bandDifficulty, bandRoundSec, type AgeBand } from './ageBands';
 import { createProfile, deleteProfile, getProfile, listProfiles, renameProfile, validProfileName } from '../../shared/profiles';
 import type { Difficulty, JbqSettings, PlayerSettings, QuestionTypes, RacerProfile, RacerProfileId, Settings } from './types';
 
@@ -79,16 +80,16 @@ export function teamRoundSec(players: readonly Pick<PlayerSettings, 'profile'>[]
   return Math.max(...players.map((p, i) => racerSettingsOf(settings, playerRacer(p, i, settings)).roundSec));
 }
 
-export interface NewRacerInput { name: string; under10: boolean; difficulty: Difficulty; questionTypes: QuestionTypes; jbq?: JbqSettings }
+export interface NewRacerInput { name: string; ageBand: AgeBand; questionTypes: QuestionTypes; jbq?: JbqSettings }
 
 /** Creates a shared profile plus its game settings. Returns its id and the settings patch to save (null: invalid name). */
 export function createRacer(settings: Src, input: NewRacerInput): { id: RacerProfileId; patch: Pick<Settings, 'racerProfiles'> } | null {
   const created = createProfile(input.name);
   if (!created) return null;
   const profile = normalizeProfile({
-    difficulty: input.difficulty,
+    difficulty: bandDifficulty(input.ageBand),
     questionTypes: input.questionTypes,
-    roundSec: input.under10 ? NEW_RACER.roundSecUnder10 : NEW_RACER.roundSecOver10,
+    roundSec: bandRoundSec(input.ageBand),
     jbq: input.jbq,
   }, NEW_RACER_DEFAULTS);
   return { id: created.id, patch: { racerProfiles: { ...racerProfiles(settings), [created.id]: profile } } };

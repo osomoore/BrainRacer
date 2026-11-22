@@ -10,7 +10,7 @@ import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
 import { JoinPanel, ROW_CAR, ROW_GUIDE, ROW_RACER, type PanelView } from '../ui/menu/JoinPanel';
 import { MenuButton } from '../ui/menu/MenuButton';
-import { DIFF_LABEL } from '../ui/menu/newRacerLogic';
+import { ageLabel } from '../ui/menu/newRacerLogic';
 import { changeJbq, CHIP_KEYS, jbqLimitNote, jbqPointsLabel, jbqScopeLabel, moveChip, moveRow, ROW_POINTS, ROW_QUESTIONS, ROW_SCOPE, toggleChip, visibleRow } from '../ui/menu/questionPick';
 import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
@@ -184,11 +184,10 @@ export class SetupScene extends Phaser.Scene {
   }
 
   // ───────────────────────── view ─────────────────────────
-  /** One short line under the racer name: level and race length (the question choices have their own rows). */
+  /** One short line under the racer name: age band and level (race length is the Admin Race time row; the card is too narrow for it). */
   private hintText(p: SetupPlayer, slot: number): string {
     if (this.isNew[slot]) return 'Make your racer!';
-    const sec = racerSettingsOf(this.cfg, playerRacer(p, slot, this.cfg)).roundSec;
-    return `${DIFF_LABEL[p.difficulty]} · ${sec % 60 ? (sec / 60).toFixed(1) : sec / 60} min`;
+    return `Age ${ageLabel(p.difficulty)}`;
   }
 
   private refreshAll() {
