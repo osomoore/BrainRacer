@@ -103,10 +103,19 @@ export class GuideSystem implements GameSystem {
   private holdFor(ctx: RaceContext, player: PlayerId, pos: Vec2, toward: Vec2, r: Rect | undefined, split: boolean): number {
     const cam = ctx.camera;
     if (!r) return GUIDE.holdDist;
-    // Split views keep the seam and top clear of the shared scoreboard and destination cards.
-    const seam = split ? GUIDE.seamInset : 0;
-    const top = ctx.players.length > 1 ? GUIDE.topInset : 0;
-    const view = { x: r.x + (player % 2 === 1 ? seam : 0), y: r.y + top, w: r.w - seam, h: r.h - top };
+    let view: Rect;
+    if (cam.layout().mode === 'quad') {
+      // Quad: no top scoreboard. With 4 players the score badge sits where the quadrants meet,
+      // so keep the guide off both inner edges (side and top/bottom). 3 players: no badge.
+      const inset = ctx.players.length >= 4 ? GUIDE.seamInset : 0;
+      const right = player % 2 === 1, bottom = player >= 2;
+      view = { x: r.x + (right ? inset : 0), y: r.y + (bottom ? inset : 0), w: r.w - inset, h: r.h - inset };
+    } else {
+      // Split views keep the seam and top clear of the shared scoreboard and destination cards.
+      const seam = split ? GUIDE.seamInset : 0;
+      const top = ctx.players.length > 1 ? GUIDE.topInset : 0;
+      view = { x: r.x + (player % 2 === 1 ? seam : 0), y: r.y + top, w: r.w - seam, h: r.h - top };
+    }
     const dx = toward.x - pos.x, dy = toward.y - pos.y, l = Math.hypot(dx, dy);
     if (l < 1e-3) return GUIDE.holdDist;
     const u = { x: dx / l, y: dy / l };
