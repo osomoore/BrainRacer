@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "f07a863eae024404",
+ "sourceHash": "e2d73b261989bd6f",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -345,6 +345,19 @@
    "loopSeconds": 34.285714285714285,
    "meanDb": -17.6,
    "peakDb": -5.7
+  },
+  "harbor": {
+   "file": "music/harbor.ogg",
+   "sampleRate": 32000,
+   "length": 1629091,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "bpm": 132,
+   "lengthBeats": 112,
+   "loopSeconds": 50.90909090909091,
+   "meanDb": -17.6,
+   "peakDb": -3.4
   },
   "dino": {
    "file": "music/dino.ogg",

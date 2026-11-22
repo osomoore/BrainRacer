@@ -1145,11 +1145,12 @@ export const WORLD_MUSIC = {
   finalSeconds: 30,
   finalFraction: .25,
   mixFadeSec: .3,
+  quietCutoffHz: 3000,
   mix: {
-    normal: { gain: 1, cutoffHz: 20000 },
-    driving: { gain: .9, cutoffHz: 5600 },
-    rush: { gain: 1, cutoffHz: 18000 },
-    quiet: { gain: .52, cutoffHz: 1300 },
+    normal: { gain: 1, lowpass: false },
+    driving: { gain: 1, lowpass: false },
+    rush: { gain: 1, lowpass: false },
+    quiet: { gain: .7, lowpass: true },
   },
 } as const;
 

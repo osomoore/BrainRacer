@@ -35,7 +35,7 @@ const RACE_WORLDS: Record<Exclude<RaceMap, QueuedMap>, { generate: (seed: number
   city: { generate: cityGen, music: 'race' },
   industrial: { generate: generateIndustrial, music: 'industrial' },
   farm: { generate: generateFarm, music: 'farm' },
-  harbor: { generate: generateHarbor, music: 'race' },
+  harbor: { generate: generateHarbor, music: 'harbor' },
   underground: { generate: generateUnderground, music: 'underground' },
   sky: { generate: generateSky, music: 'sky' },
   forest: { generate: generateForest, music: 'forest' },
@@ -240,8 +240,7 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private updateMusicMix(): void {
-    const { settings, paused, elapsedSec, roundLengthSec } = this.ctx;
-    if (!isQueuedMap(settings.map)) return;
+    const { paused, elapsedSec, roundLengthSec } = this.ctx;
     const finalStretch = roundLengthSec - elapsedSec <= Math.min(WORLD_MUSIC.finalSeconds, roundLengthSec * WORLD_MUSIC.finalFraction);
     const rushing = finalStretch || this.players.some(car => car.turbo);
     services.audio.setMusicMix(paused || this.inBreak ? 'quiet' : rushing ? 'rush' : 'driving');
