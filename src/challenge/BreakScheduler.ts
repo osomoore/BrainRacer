@@ -1,7 +1,7 @@
 /**
  * Pause-style question breaks (pure; time injected). One shared team timer: after `intervalSec` of
  * driving a break starts for ALL players at once. Each player answers until correct (a wrong answer
- * gives a fresh question after a short beat). When everyone is correct a short "GO" beat runs, then
+ * gives a fresh question after a short beat plus the answer-reveal time). When everyone is correct a short "GO" beat runs, then
  * the break ends and the timer restarts.
  */
 import type { AnswerSlot, Challenge, PlayerId } from '../core/types';
@@ -22,6 +22,8 @@ export interface BreakOptions {
   intervalSec: number;
   goSec: number;
   wrongRetrySec: number;
+  /** After a wrong answer the HUD shows the correct answer for this long; the next question waits for wrongRetrySec + wrongRevealSec. */
+  wrongRevealSec: number;
   placeCooldownSec: number;
   make: (player: PlayerId, placeWord: string | null) => Challenge;
 }
@@ -94,7 +96,7 @@ export class BreakScheduler {
       }
     } else {
       this.st[p] = 'retry';
-      this.retryLeft[p] = this.o.wrongRetrySec;
+      this.retryLeft[p] = this.o.wrongRetrySec + this.o.wrongRevealSec;
       ev.push({ type: 'resolved', challenge: c, result: 'wrong', chosen: slot });
     }
     return ev;
