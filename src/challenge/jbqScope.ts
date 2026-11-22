@@ -1,8 +1,18 @@
 /** JBQ study scope: which question numbers (Q#) a racer is studying on a given date. Pure; the date is passed in. */
-import type { JbqPoints, JbqScope } from '../core/types';
+import type { JbqLevel, JbqPoints, JbqScope } from '../core/types';
 import { JBQ_SCHEDULE, type JbqRange, type JbqScheduleRow } from '../data/jbqSchedule';
 
 export interface JbqRangeInfo { from: number; to: number; label: string }
+
+/** Basics: the fixed set Q1-144 (10-point questions); the scope does not apply. */
+export const JBQ_BASICS_RANGE: JbqRange = [1, 144];
+
+/** The real point value of a level (Basics are 10-point questions). */
+export const jbqPointsOf = (level: JbqLevel): JbqPoints => (level === 'basics' ? 10 : level);
+
+/** How many players may use a JBQ level in one race: Basics, 10 and 20 pts allow 1-2, 30 pts only 1. */
+export const jbqMaxPlayers = (level: JbqLevel): number => (level === 30 ? 1 : 2);
+export const jbqAllowed = (level: JbqLevel, playerCount: number): boolean => playerCount <= jbqMaxPlayers(level);
 
 export const JBQ_LEVEL_RANGE: Record<JbqPoints, JbqRange> = { 10: [1, 288], 20: [289, 480], 30: [481, 576] };
 
@@ -33,7 +43,9 @@ function weekIndex(date: string): number {
 }
 
 /** Range for a scope on a date. week = this week's row (review/meet weeks give the review range); month = the next review/meet row; all = whole level. After the schedule ends, week and month are the whole level. */
-export function jbqRange(points: JbqPoints, scope: JbqScope, date: string): JbqRangeInfo {
+export function jbqRange(level: JbqLevel, scope: JbqScope, date: string): JbqRangeInfo {
+  if (level === 'basics') return info(JBQ_BASICS_RANGE);
+  const points = level;
   const all = info(JBQ_LEVEL_RANGE[points]);
   if (scope === 'all') return all;
   if (scope === 'week') {

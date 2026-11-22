@@ -11,7 +11,7 @@ import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, ne
 import { JoinPanel, ROW_CAR, ROW_GUIDE, ROW_RACER, type PanelView } from '../ui/menu/JoinPanel';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { DIFF_LABEL } from '../ui/menu/newRacerLogic';
-import { changeJbq, CHIP_KEYS, jbqPointsLabel, jbqScopeLabel, moveChip, moveRow, ROW_POINTS, ROW_QUESTIONS, ROW_SCOPE, toggleChip, visibleRow } from '../ui/menu/questionPick';
+import { changeJbq, CHIP_KEYS, jbqLimitNote, jbqPointsLabel, jbqScopeLabel, moveChip, moveRow, ROW_POINTS, ROW_QUESTIONS, ROW_SCOPE, toggleChip, visibleRow } from '../ui/menu/questionPick';
 import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
 import { isMobile } from '../../shared/device';
@@ -208,8 +208,9 @@ export class SetupScene extends Phaser.Scene {
         hint: this.hintText(p, i),
         car: carName(car), guide: guideName(guide), carKind: car, guideKind: guide,
         chipsOn: CHIP_KEYS.map((k) => p.questionTypes[k]), chipFocus: this.chipFocus[i],
-        jbqPoints: jbqPointsLabel(p.jbq.points), jbqScope: jbqScopeLabel(p.jbq.points, p.jbq.scope),
-        cursor: visibleRow(this.cursors[i], p.questionTypes.jbq), ready: s.ready,
+        jbqPoints: jbqPointsLabel(p.jbq.points), jbqScope: jbqScopeLabel(p.jbq.points, p.jbq.scope), jbqBasics: p.jbq.points === 'basics',
+        jbqLimit: jbqLimitNote(p.jbq.points, this.slots.length),
+        cursor: visibleRow(this.cursors[i], p.questionTypes.jbq, p.jbq.points === 'basics'), ready: s.ready,
       };
       panel.render(view);
     });
@@ -272,7 +273,8 @@ export class SetupScene extends Phaser.Scene {
     }
     const cur = this.cursors[p];
     if (inp.navY) {
-      const n = moveRow(visibleRow(cur, this.cfg.players[p].questionTypes.jbq), inp.navY > 0 ? 1 : -1, this.cfg.players[p].questionTypes.jbq);
+      const pq = this.cfg.players[p].questionTypes, basics = this.cfg.players[p].jbq.points === 'basics';
+      const n = moveRow(visibleRow(cur, pq.jbq, basics), inp.navY > 0 ? 1 : -1, pq.jbq, basics);
       if (n !== cur) { this.cursors[p] = n; services.audio.sfx('menuMove'); this.refreshAll(); }
     }
     if (inp.navX) this.change(p, this.cursors[p], inp.navX > 0 ? 1 : -1);

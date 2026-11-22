@@ -293,9 +293,16 @@ export class ConfigScene extends Phaser.Scene {
         this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
       }
       for (const [label, rowId] of [['JBQ points', ROW_POINTS], ['JBQ scope', ROW_SCOPE]] as const) {
+        // Basics is a fixed set (Q1-144), so the scope row does not apply.
+        if (rowId === ROW_SCOPE && racerProfiles(this.settings())[id].jbq.points === 'basics') continue;
         const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 115, arrowSpan: 150 });
         panel.add(row);
-        const change = (dir: 1 | -1) => save(id, p => { p.jbq = changeJbq(p.jbq, rowId, dir); });
+        const change = (dir: 1 | -1) => {
+          const was = racerProfiles(this.settings())[id].jbq.points === 'basics';
+          save(id, p => { p.jbq = changeJbq(p.jbq, rowId, dir); });
+          // Entering or leaving Basics adds or removes the scope row: rebuild the page after this input.
+          if (was !== (racerProfiles(this.settings())[id].jbq.points === 'basics')) this.time.delayedCall(0, () => this.showProfiles(this.profilePage, this.cursor));
+        };
         const text = () => { const j = racerProfiles(this.settings())[id].jbq; return rowId === ROW_POINTS ? jbqPointsLabel(j.points) : jbqScopeLabel(j.points, j.scope); };
         this.subRows.push({ selectable: row, refresh: () => row.setValue(text()), change, activate: () => change(1), bump: d => row.bump(d) });
       }

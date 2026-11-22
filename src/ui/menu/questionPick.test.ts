@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   changeJbq, CHIP_KEYS, jbqScopeLabel, moveChip, moveRow, ROW_CAR, ROW_GUIDE, ROW_POINTS, ROW_QUESTIONS, ROW_RACER, ROW_SCOPE,
-  rowOrder, toggleChip, visibleRow,
+  jbqLimitNote, jbqPointsLabel, rowOrder, toggleChip, visibleRow,
 } from './questionPick';
 
 describe('question rows', () => {
@@ -33,7 +33,9 @@ describe('question rows', () => {
   });
   it('cycles points and scope', () => {
     expect(changeJbq({ points: 10, scope: 'week' }, ROW_POINTS, 1)).toEqual({ points: 20, scope: 'week' });
-    expect(changeJbq({ points: 10, scope: 'week' }, ROW_POINTS, -1).points).toBe(30);
+    expect(changeJbq({ points: 10, scope: 'week' }, ROW_POINTS, -1).points).toBe('basics');
+    expect(changeJbq({ points: 'basics', scope: 'week' }, ROW_POINTS, 1).points).toBe(10);
+    expect(changeJbq({ points: 30, scope: 'week' }, ROW_POINTS, 1).points).toBe('basics');
     expect(changeJbq({ points: 10, scope: 'all' }, ROW_SCOPE, 1).scope).toBe('week');
     expect(changeJbq({ points: 10, scope: 'week' }, ROW_CAR, 1)).toEqual({ points: 10, scope: 'week' });
   });
@@ -41,5 +43,19 @@ describe('question rows', () => {
     expect(jbqScopeLabel(10, 'month', '2026-11-22')).toBe('Month 145–288');
     expect(jbqScopeLabel(10, 'week', '2026-11-22')).toBe('Week 145–168');
     expect(jbqScopeLabel(30, 'all', '2026-11-22')).toBe('All 481–576');
+  });
+  it('hides the scope row for Basics', () => {
+    expect(rowOrder(true, true)).toEqual([ROW_RACER, ROW_QUESTIONS, ROW_POINTS, ROW_CAR, ROW_GUIDE]);
+    expect(moveRow(ROW_POINTS, 1, true, true)).toBe(ROW_CAR);
+    expect(visibleRow(ROW_SCOPE, true, true)).toBe(ROW_QUESTIONS);
+  });
+  it('labels Basics and the player limit', () => {
+    expect(jbqPointsLabel('basics')).toBe('Basics');
+    expect(jbqPointsLabel(20)).toBe('20 pts');
+    expect(jbqScopeLabel('basics', 'week', '2026-11-22')).toBe('Q1–144');
+    expect(jbqLimitNote(30, 1)).toBeNull();
+    expect(jbqLimitNote(30, 2)).toBe('JBQ: 1 player only');
+    expect(jbqLimitNote(10, 2)).toBeNull();
+    expect(jbqLimitNote('basics', 3)).toBe('JBQ: 1–2 players');
   });
 });

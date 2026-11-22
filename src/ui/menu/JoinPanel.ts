@@ -47,7 +47,7 @@ class QuestionChips extends Phaser.GameObjects.Container {
   }
 
   /** `focus` = chip with the ring, or -1 when the row is not selected. */
-  set(on: readonly boolean[], focus: number) {
+  set(on: readonly boolean[], focus: number, struck = -1) {
     const h = JBQ_SETUP.chipHeight, g = this.gfx;
     g.clear();
     if (focus >= 0) g.fillStyle(this.color, 0.35).fillRoundedRect(-215, -h / 2 - 7, 430, h + 14, 24);
@@ -57,6 +57,11 @@ class QuestionChips extends Phaser.GameObjects.Container {
       else g.fillStyle(0x000000, 0.3).fillRoundedRect(x, -h / 2, w, h, 18).lineStyle(3, 0xffffff, 0.35).strokeRoundedRect(x, -h / 2, w, h, 18);
       if (i === focus) g.lineStyle(6, 0xffffff, 1).strokeRoundedRect(x - 3, -h / 2 - 3, w + 6, h + 6, 20);
       this.labels[i].setColor(isOn ? '#0b1329' : MENU.dim);
+      if (i === struck) {   // not allowed with this many players: kept on, but crossed out
+        g.fillStyle(0x000000, 0.45).fillRoundedRect(x, -h / 2, w, h, 18);
+        g.lineStyle(7, 0xff6b6b, 1).lineBetween(x + 8, h / 2 - 8, x + w - 8, -h / 2 + 8);
+        this.labels[i].setColor('#ffb4b4');
+      }
     });
   }
 }
@@ -73,6 +78,10 @@ export interface PanelView {
   chipFocus: number;
   jbqPoints: string;
   jbqScope: string;
+  /** Basics has no scope row. */
+  jbqBasics: boolean;
+  /** Short note when the chosen JBQ level isn't allowed with this many players (else null). */
+  jbqLimit: string | null;
   carKind: CarKind;
   guideKind: GuideKind;
   cursor: number;
@@ -87,6 +96,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   readonly pointsRow: OptionRow;
   readonly scopeRow: OptionRow;
   readonly chips: QuestionChips;
+  private readonly qCap: Phaser.GameObjects.Text;
   private readonly jbqGroup: Phaser.GameObjects.Container;
   private readonly lowerGroup: Phaser.GameObjects.Container;
   readonly hint: Phaser.GameObjects.Text;
@@ -135,6 +145,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.racerRow = new OptionRow(scene, 0, top + Y.racer, '', opts);
     this.hint = bigText(scene, 0, top + Y.hint, '', 40, MENU.dim, { bold: false, shadow: false, stroke: 4, origin: [0.5, 0], wrap: w - 20 });
     const qCap = cap(Y.qCap, 'QUESTIONS');
+    this.qCap = qCap;
     this.chips = new QuestionChips(scene, 0, top + Y.chips, this.color);
     this.chips.onTap = (i) => this.onChipTap?.(i);
     const jbqOpts = { ...opts, height: 56 };
@@ -203,11 +214,15 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.guideRow.setValue(v.guide);
     const jbqOn = !!v.chipsOn[2];
     this.jbqGroup.setVisible(jbqOn);
-    const shift = jbqOn ? 0 : LOWER_SHIFT_NO_JBQ;
+    this.scopeRow.setVisible(!v.jbqBasics);
+    const shift = jbqOn && !v.jbqBasics ? 0 : LOWER_SHIFT_NO_JBQ;
     this.lowerGroup.setY(shift);
+    const limited = jbqOn && !!v.jbqLimit;
+    this.jbqGroup.setAlpha(limited ? 0.35 : 1);
+    this.qCap.setText(limited ? v.jbqLimit! : 'QUESTIONS').setColor(limited ? '#ffb4b4' : MENU.dim);
     this.pointsRow.setValue(v.jbqPoints);
     this.scopeRow.setValue(v.jbqScope);
-    this.chips.set(v.chipsOn, !v.ready && v.cursor === ROW_QUESTIONS ? v.chipFocus : -1);
+    this.chips.set(v.chipsOn, !v.ready && v.cursor === ROW_QUESTIONS ? v.chipFocus : -1, limited ? 2 : -1);
     this.guideObj.setTexture(guideArt(v.guideKind));
     this.guideObj.setScale(Math.min(1, 64 / this.guideObj.height, 90 / this.guideObj.width));
     if (this.carKind !== v.carKind) {
@@ -224,7 +239,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.carRow.setSelected(!v.ready && v.cursor === ROW_CAR, this.color);
     this.guideRow.setSelected(!v.ready && v.cursor === ROW_GUIDE, this.color);
     this.pointsRow.setSelected(!v.ready && v.cursor === ROW_POINTS, this.color);
-    this.scopeRow.setSelected(!v.ready && v.cursor === ROW_SCOPE, this.color);
+    this.scopeRow.setSelected(!v.ready && !v.jbqBasics && v.cursor === ROW_SCOPE, this.color);
     this.readyBanner.setVisible(v.ready);
     this.askBanner.setVisible(!v.ready && !(isMobile() && v.device.type === 'touch')); // phone: NEXT is tapped
     this.askPrompt.setVisible(pad);
