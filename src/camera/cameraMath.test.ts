@@ -237,3 +237,34 @@ describe('facing-up math', () => {
     expect(viewTargetHeading(0, { x: 10, y: 10 }, cfg)).toBe(0);
   });
 });
+
+import { isQuadCount, modeForCount, quadrantRects, teamPanelRect } from './cameraMath';
+
+describe('quad layout', () => {
+  it('quadrants are 960x540, abut exactly and tile the screen', () => {
+    const q = quadrantRects(W, H);
+    expect(q).toEqual([
+      { x: 0, y: 0, w: 960, h: 540 }, { x: 960, y: 0, w: 960, h: 540 },
+      { x: 0, y: 540, w: 960, h: 540 }, { x: 960, y: 540, w: 960, h: 540 },
+    ]);
+    expect(q.reduce((a, r) => a + r.w * r.h, 0)).toBe(W * H);
+  });
+  it('maps players to quadrants: P1 TL, P2 TR, P3 BL, P4 BR', () => {
+    const v4 = playerViewsFor(4, W, H);
+    expect(v4.length).toBe(4);
+    expect(v4[2]).toEqual({ x: 0, y: 540, w: 960, h: 540 });
+    expect(v4[3]).toEqual({ x: 960, y: 540, w: 960, h: 540 });
+  });
+  it('3 players get three views and a free bottom-right team panel', () => {
+    expect(playerViewsFor(3, W, H).length).toBe(3);
+    expect(teamPanelRect(3, W, H)).toEqual({ x: 960, y: 540, w: 960, h: 540 });
+    expect(teamPanelRect(4, W, H)).toBeNull();
+    expect(teamPanelRect(2, W, H)).toBeNull();
+  });
+  it('1-2 player views and modes are unchanged', () => {
+    expect(playerViewsFor(2, W, H).length).toBe(2);
+    expect(isQuadCount(2)).toBe(false);
+    expect(isQuadCount(3)).toBe(true);
+    expect([1, 2, 3, 4].map(modeForCount)).toEqual(['single', 'split', 'quad', 'quad']);
+  });
+});

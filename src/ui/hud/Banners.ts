@@ -51,8 +51,8 @@ export class Banners {
   }
 
   /** A dino-alert style banner: shaking, red text with yellow edge, plus a pulsing red screen frame. */
-  alert(x: number, y: number, text: string, durSec = 2.6) {
-    this.center(x, y, text, '#ff3b30', durSec, { size: 140, shake: 10, stroke: '#ffd43b' });
+  alert(x: number, y: number, text: string, durSec = 2.6, size = 140) {
+    this.center(x, y, text, '#ff3b30', durSec, { size, shake: 10, stroke: '#ffd43b' });
     this.flashT = durSec;
   }
 

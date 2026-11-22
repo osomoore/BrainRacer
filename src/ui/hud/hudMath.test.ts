@@ -91,3 +91,36 @@ describe('fitScale', () => {
     expect(fitScale(100, 100, 1000, 1000, 1.5)).toBe(1.5);
   });
 });
+
+import { perfLines } from './perfLines';
+import { scoreboardLayout, breakSplitRegion, isQuadView } from './hudConfig';
+
+describe('quad HUD', () => {
+  it('perfLines shows FPS, frame ms and the top sections', () => {
+    const lines = perfLines({ fps: 59.6, lowFps: 41.2, frameMs: 16.78, sections: [{ name: 'render', ms: 9.5 }, { name: 'sys:Goal', ms: 0.4 }] }, 6);
+    expect(lines[0]).toBe('FPS 60  low 41');
+    expect(lines[1]).toBe('frame 16.8 ms');
+    expect(lines.length).toBe(4);
+    expect(lines[3]).toContain('Goal');
+  });
+  it('scoreboard layouts: 4 players centred, 3 players in the bottom-right quadrant', () => {
+    const c = scoreboardLayout(4);
+    expect(c.rect.x + c.rect.w / 2).toBe(960);
+    expect(c.rect.y + c.rect.h / 2).toBe(540);
+    expect(c.pts.length).toBe(4);
+    const t = scoreboardLayout(3);
+    expect(t.rect.x).toBeGreaterThanOrEqual(960);
+    expect(t.rect.y).toBeGreaterThanOrEqual(540);
+    expect(t.rect.x + t.rect.w).toBeLessThanOrEqual(1920);
+    expect(t.pts.length).toBe(3);
+    expect(scoreboardLayout(1).pts.length).toBe(0);
+    expect(scoreboardLayout(2).pts.length).toBe(2);
+  });
+  it('quadrant views use nearly the whole view for the break panel', () => {
+    const q = { x: 0, y: 0, w: 960, h: 540 };
+    expect(isQuadView(q)).toBe(true);
+    expect(isQuadView({ x: 0, y: 0, w: 960, h: 1080 })).toBe(false);
+    const r = breakSplitRegion(q);
+    expect(r.h).toBeGreaterThan(500);
+  });
+});

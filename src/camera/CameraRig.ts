@@ -8,6 +8,9 @@
  *    edge) while each camera's center lerps from the screen-consistent merged framing to its
  *    own car, so the first frame of a split is identical to the merged view (and vice versa).
  *
+ *  - 3-4 targets → 'quad': fixed 2x2 quadrants (960x540), one camera per player, each rotated so
+ *    its car points up. (3 players: the bottom-right quadrant is left to the HUD team panel.)
+ *
  * All math lives in ./cameraMath (pure, unit-tested).
  */
 import Phaser from 'phaser';
@@ -17,7 +20,7 @@ import type { ICameraRig } from '../core/race';
 import type { CameraLayout, CameraMode, PlayerId, Rect, Vec2 } from '../core/types';
 import {
   SplitController, cameraRotationFor, clampCenter, facingCenter, followAngle, rotatedWorldAabb, viewTargetHeading, worldToScreenRot, clampLookToSlack, fitZoom, lerp, lerpVec, lookTarget, playerViewsFor,
-  screenConsistentCenter, shakeFalloff, smoothFactor, speedZoomOut, splitViewports,
+  isQuadCount, screenConsistentCenter, shakeFalloff, smoothFactor, speedZoomOut, splitViewports,
   type CameraTuning,
 } from './cameraMath';
 
@@ -53,6 +56,9 @@ export class CameraRig implements ICameraRig {
   private readonly bus: EventBus;
   private readonly main: Phaser.Cameras.Scene2D.Camera;
   private readonly second: Phaser.Cameras.Scene2D.Camera | null = null;
+  /** Cameras for players 1..n-1 (quad: players 1-3); `second` is extras[0]. */
+  private readonly extras: Phaser.Cameras.Scene2D.Camera[] = [];
+  private readonly quad: boolean;
   private readonly ctrl: SplitController;
   private readonly look: Vec2[];
   private readonly zoomOut: number[];
@@ -64,13 +70,13 @@ export class CameraRig implements ICameraRig {
   private destroyed = false;
   private shown: { obj: Phaser.GameObjects.GameObject; player: PlayerId }[] = [];
   private shownSynced = 0;
-  private lastIdx1 = 1;
+  private lastIdxSig = '';
 
   /** Debug/diagnostic: zoom needed to fit both cars in one view (1 player: baseZoom). */
   neededZoom: number;
 
   constructor(scene: Phaser.Scene, opts: CameraRigOptions) {
-    if (opts.targets.length < 1 || opts.targets.length > 2) throw new Error('CameraRig needs 1 or 2 targets');
+    if (opts.targets.length < 1 || opts.targets.length > 4) throw new Error('CameraRig needs 1 to 4 targets');
     this.scene = scene;
     this.cfg = { ...CAMERA, ...opts.tuning };
     this.targets = opts.targets;
@@ -78,18 +84,21 @@ export class CameraRig implements ICameraRig {
     this.bus = opts.bus;
     this.main = scene.cameras.main;
     this.main.setRoundPixels(true);
-    if (this.targets.length === 2) {
-      this.second = scene.cameras.add(W, 0, 1, H, false, 'p1');
-      this.second.setRoundPixels(true);
-      this.second.setVisible(false);
+    this.quad = isQuadCount(this.targets.length);
+    for (let i = 1; i < this.targets.length; i++) {
+      const cam = scene.cameras.add(W, 0, 1, H, false, `p${i}`);
+      cam.setRoundPixels(true);
+      cam.setVisible(false);
+      this.extras.push(cam);
     }
+    this.second = this.extras[0] ?? null;
     this.look = this.targets.map(() => ({ x: 0, y: 0 }));
     this.zoomOut = this.targets.map(() => 0);
     this.views = playerViewsFor(this.targets.length, W, H);
-    this.cams = [0, 1].map(() => ({ center: { x: 0, y: 0 }, zoom: this.cfg.baseZoom, viewport: { ...FULL }, visible: false, rot: 0 }));
+    this.cams = Array.from({ length: Math.max(2, this.targets.length) }, () => ({ center: { x: 0, y: 0 }, zoom: this.cfg.baseZoom, viewport: { ...FULL }, visible: false, rot: 0 }));
     this.viewHeading = this.targets.map((t) => this.headingOf(t));
-    this.facing = !!this.cfg.facingUp;
-    if (this.facing) { this.main.setRoundPixels(false); this.second?.setRoundPixels(false); }
+    this.facing = !!this.cfg.facingUp || this.quad;
+    if (this.facing) { this.main.setRoundPixels(false); for (const c of this.extras) c.setRoundPixels(false); }
     this.ctrl = new SplitController(this.targets.length, this.cfg);
     this.neededZoom = this.computeNeeded();
     this.ctrl.reset(this.neededZoom);
@@ -135,19 +144,23 @@ export class CameraRig implements ICameraRig {
     this.applyShown(obj, player);
   }
 
+  private allCams(): Phaser.Cameras.Scene2D.Camera[] { return [this.main, ...this.extras]; }
+
   private applyShown(obj: Phaser.GameObjects.GameObject, player: PlayerId): void {
     if (!this.second) return;
-    const mine = this.camIndexFor(player) === 0 ? this.main : this.second;
-    const other = mine === this.main ? this.second : this.main;
-    obj.cameraFilter = (obj.cameraFilter | other.id) & ~mine.id;
+    const mine = this.camera(this.camIndexFor(player));
+    if (!mine) return;
+    let others = 0;
+    for (const c of this.allCams()) if (c !== mine) others |= c.id;
+    obj.cameraFilter = (obj.cameraFilter | others) & ~mine.id;
   }
 
   /** Re-point showOnlyTo objects when the player->camera mapping changes (split/merge); drop destroyed ones. */
   private syncShown(): void {
     if (!this.second) return;
-    const idx1 = this.camIndexFor(1);
-    if (idx1 === this.lastIdx1 && this.shown.length === this.shownSynced) return;
-    this.lastIdx1 = idx1;
+    const sig = this.quad ? 'q' : String(this.camIndexFor(1));
+    if (sig === this.lastIdxSig && this.shown.length === this.shownSynced) return;
+    this.lastIdxSig = sig;
     this.shown = this.shown.filter((s) => !!s.obj.scene);
     for (const s of this.shown) this.applyShown(s.obj, s.player);
     this.shownSynced = this.shown.length;
@@ -222,9 +235,9 @@ export class CameraRig implements ICameraRig {
       this.zoomOut[i] += (zt - this.zoomOut[i]) * kZoom;
       const target = viewTargetHeading(this.headingOf(t), t.velocity, cfg);
       this.viewHeading[i] = dtSec > 0 ? followAngle(this.viewHeading[i], target, dtSec, cfg.rotTau, cfg.maxAngVel) : this.viewHeading[i];
-      const vp = n === 1 ? FULL : { x: i * (W / 2), y: 0, w: W / 2, h: H };
-      const zoom = (n === 1 ? cfg.baseZoom : cfg.facingSplitZoom) - this.zoomOut[i];
-      const center = facingCenter(t.boardingPosition ?? t, this.viewHeading[i], vp.h, zoom, cfg.carScreenY);
+      const vp = this.quad ? this.views[i] : n === 1 ? FULL : { x: i * (W / 2), y: 0, w: W / 2, h: H };
+      const zoom = (this.quad ? cfg.quadZoom : n === 1 ? cfg.baseZoom : cfg.facingSplitZoom) - this.zoomOut[i];
+      const center = facingCenter(t.boardingPosition ?? t, this.viewHeading[i], vp.h, zoom, this.quad ? cfg.quadCarScreenY : cfg.carScreenY);
       this.setCam(i, vp, center, zoom, cameraRotationFor(this.viewHeading[i]));
     });
     this.emitIfChanged();
@@ -238,20 +251,21 @@ export class CameraRig implements ICameraRig {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    if (this.second) this.scene.cameras?.remove(this.second, true);
+    for (const c of this.extras) this.scene.cameras?.remove(c, true);
     if (this.main.scene) this.main.setViewport(0, 0, W, H).setZoom(1);
   }
 
   // ───────────── debug getters (CameraTest) ─────────────
 
   get mode(): CameraMode {
+    if (this.quad) return 'quad';
     if (this.facing) return this.targets.length < 2 ? 'single' : 'split';
     return this.ctrl.mode;
   }
   /** 0 = merged … 1 = split (eased). */
   get splitAmount(): number { return this.ctrl.eased; }
-  camZoom(i: 0 | 1): number { return this.cams[i].zoom; }
-  camVisible(i: 0 | 1): boolean { return this.cams[i].visible; }
+  camZoom(i: number): number { return this.cams[i].zoom; }
+  camVisible(i: number): boolean { return this.cams[i].visible; }
 
   // ───────────── internals ─────────────
 
@@ -262,18 +276,21 @@ export class CameraRig implements ICameraRig {
   }
 
   /** Index of the camera currently showing `player` (0 = main). */
-  private camIndexFor(player: PlayerId): 0 | 1 {
+  private camIndexFor(player: PlayerId): number {
+    if (this.quad) return Math.min(player, this.targets.length - 1);
     if (this.facing) return this.second && player === 1 ? 1 : 0;
     if (player === 1 && this.second && this.ctrl.eased >= 0.5) return 1;
     return 0;
   }
 
-  private visibleCamIndices(): (0 | 1)[] {
-    return this.cams[1].visible ? [0, 1] : [0];
+  private visibleCamIndices(): number[] {
+    const out: number[] = [];
+    this.cams.forEach((c, i) => { if (c.visible && (i === 0 || this.camera(i))) out.push(i); });
+    return out.length ? out : [0];
   }
 
   private camera(i: number): Phaser.Cameras.Scene2D.Camera | null {
-    return i === 0 ? this.main : this.second;
+    return i === 0 ? this.main : this.extras[i - 1] ?? null;
   }
 
   private shakeCam(i: number, intensity: number, ms: number): void {

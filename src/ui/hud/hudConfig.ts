@@ -1,4 +1,4 @@
-import { CAMERA, GAME_WIDTH } from '../../config/gameConfig';
+import { CAMERA, GAME_HEIGHT, GAME_WIDTH } from '../../config/gameConfig';
 import type { Rect } from '../../core/types';
 
 /** HUD tunables (package I). */
@@ -26,8 +26,22 @@ export const HUD = {
   /** Small "Waiting…" pill (teammate wait) near the top of each view. */
   hint: { waitSec: 2.5, y: 112, textSize: 46 },
   popupSec: 1.4,
+  /** 2x2 quadrant layout (3-4 players): views are 960x540, so per-view elements use these tighter values. */
+  quad: { bannerSize: 100, alertSize: 84, centerClear: 240, maxViewH: 600, margin: 10, hintY: 56, popupMinY: 90, popupBottom: 100, bannerY: 250, bannerSeamGap: 160 },
+  /** Perf overlay corner (top-left of the screen). */
+  perf: { x: 12, y: 12, size: 38, intervalSec: 1, rows: 6 },
+  playerLight: ['#7dff8a', '#ff8a80', '#7fc3ff', '#ffd666'],
   colors: { navy: 0x14213d, card: 0xffffff, green: 0x2ecc40, gray: 0xaab2bd, red: 0xff3b30, gold: 0xffd43b },
 } as const;
+
+/** A view shorter than this is a quadrant (3-4 player layout). */
+export const isQuadView = (view: Rect): boolean => view.h <= HUD.quad.maxViewH;
+
+/** Centre scoreboard for 4 players, where the four quadrants meet. */
+export function quadScoreboardRect(): Rect {
+  const w = 460, h = 290;
+  return { x: (GAME_WIDTH - w) / 2, y: (GAME_HEIGHT - h) / 2, w, h };
+}
 
 export function scoreboardRect(players: number): Rect {
   const { w, h, top } = HUD.scoreboard;
@@ -41,7 +55,7 @@ export function scoreboardRect(players: number): Rect {
 
 /** Screen y of the car in a player's view (the camera keeps it at CAMERA.carScreenY). */
 export function carScreenPos(view: Rect): { x: number; y: number } {
-  return { x: view.x + view.w / 2, y: view.y + view.h * CAMERA.carScreenY };
+  return { x: view.x + view.w / 2, y: view.y + view.h * (isQuadView(view) ? CAMERA.quadCarScreenY : CAMERA.carScreenY) };
 }
 
 /** Free region under the car for the challenge panel (above the timer bar), centered on the car. */
@@ -55,9 +69,67 @@ export function challengeRegion(view: Rect): Rect {
 
 /** Region for the centered question-break panel: {y: top, h: height available}; null = use the default centered layout. */
 export function breakSplitRegion(view: Rect): { top: number; h: number } {
+  // Quadrant views have no scoreboard on top (it sits at the screen centre): use nearly the whole quadrant.
+  if (isQuadView(view)) return { top: view.y + HUD.quad.margin, h: view.h - 2 * HUD.quad.margin };
   // Split views (narrow) sit under the tall 2-player scoreboard; a full-width view under the shorter 1-player one.
   const sb = scoreboardRect(view.w > HUD.breakSplit.maxViewW ? 1 : 2);
   const top = sb.y + sb.h + HUD.breakSplit.gapBelowScoreboard;
   const bottom = view.y + view.h - HUD.breakSplit.bottomMargin;
   return { top, h: bottom - top };
+}
+
+interface TextSpot { x: number; y: number }
+export interface ScoreboardLayout {
+  /** Screen rect; the container is placed at the top-centre of it, local y runs 0..h. */
+  rect: Rect;
+  label: TextSpot & { text: string; size: number; origin: [number, number] };
+  team: TextSpot & { size: number; origin: [number, number] };
+  timer: TextSpot & { size: number };
+  goals: TextSpot & { dx: number; size: number };
+  flagScale: number;
+  pts: TextSpot[];
+  ptsSize: number;
+  /** Where "+1" should fly to, relative to the container origin. */
+  fly: TextSpot;
+}
+
+/** Local layout (container at the rect's top-centre) of the scoreboard for 1, 2, or 3-4 players. */
+export function scoreboardLayout(players: number): ScoreboardLayout {
+  const base = { flagScale: 1, ptsSize: 48 };
+  if (players >= 4) {
+    const rect = quadScoreboardRect();
+    return {
+      ...base, rect,
+      label: { x: -rect.w / 2 + 28, y: 56, text: 'TEAM', size: 46, origin: [0, 0.5] },
+      team: { x: rect.w / 2 - 28, y: 56, size: 104, origin: [1, 0.5] },
+      timer: { x: HUD.scoreboard.timerX - 8, y: 130, size: 56 },
+      goals: { x: HUD.scoreboard.goalsX + 8, y: 130, dx: 26, size: 56 },
+      pts: [{ x: -110, y: 196 }, { x: 110, y: 196 }, { x: -110, y: 252 }, { x: 110, y: 252 }],
+      fly: { x: 60, y: 56 },
+    };
+  }
+  if (players === 3) {
+    // Team panel in the free bottom-right quadrant.
+    const q = { x: GAME_WIDTH / 2 + 30, y: GAME_HEIGHT / 2 + 24, w: GAME_WIDTH / 2 - 60, h: GAME_HEIGHT / 2 - 48 };
+    return {
+      flagScale: 1.6, ptsSize: 64, rect: q,
+      label: { x: 0, y: 46, text: 'TEAM SCORE', size: 54, origin: [0.5, 0.5] },
+      team: { x: 0, y: 140, size: 160, origin: [0.5, 0.5] },
+      timer: { x: -200, y: 276, size: 84 },
+      goals: { x: 150, y: 276, dx: 44, size: 84 },
+      pts: [{ x: -270, y: 384 }, { x: 0, y: 384 }, { x: 270, y: 384 }],
+      fly: { x: 0, y: 150 },
+    };
+  }
+  const two = players > 1;
+  const rect = scoreboardRect(players);
+  return {
+    ...base, rect,
+    label: { x: -rect.w / 2 + 28, y: 66, text: 'TEAM', size: 46, origin: [0, 0.5] },
+    team: { x: rect.w / 2 - 28, y: 66, size: 104, origin: [1, 0.5] },
+    timer: { x: HUD.scoreboard.timerX, y: two ? 208 : 152, size: 56 },
+    goals: { x: HUD.scoreboard.goalsX, y: two ? 208 : 152, dx: 26, size: 56 },
+    pts: two ? [{ x: -95, y: 138 }, { x: 95, y: 138 }] : [],
+    fly: { x: 60, y: 66 },
+  };
 }

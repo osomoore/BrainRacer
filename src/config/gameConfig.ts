@@ -701,6 +701,9 @@ export const CAMERA = {
   maxAngVel: 3,              // rad/s cap on view rotation speed (spins never whip the screen)
   velBlendMinSpeed: 150,     // px/s: above this (moving forward) the view leans toward the velocity direction
   velBlend: 0.5,             // 0..1 share of (velocity dir - heading) the view follows while sliding
+  // Package B: 2x2 quadrant view (3-4 players), each 960x540
+  quadZoom: 0.72,            // zoom of each quadrant (a quadrant shows ~1330x750 world px)
+  quadCarScreenY: 0.6,       // car sits lower in a quadrant: more road ahead, room below for the question panel
 };
 
 // ───────────────────────── guide buddies (package U1) ─────────────────────────
