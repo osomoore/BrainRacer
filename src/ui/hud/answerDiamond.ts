@@ -7,7 +7,8 @@ import { diamondIconGeom } from './jbqLayout';
 
 const RING = 0x14213d;       // dark ring around the active button (visible on the white row and on the green reveal)
 const DIM = 0xb4bfd6;        // the three buttons this row does NOT use
-const FAMILY_DIM_A = 0.5;    // Xbox: the other buttons keep their own colour, faded
+const FAMILY_DIM_A = 0.45;   // Xbox: the other buttons keep their own colour, faded
+const DIM_EDGE = 0x8a96b0;   // thin outline so the unlit buttons still read as a diamond on the white row
 
 /**
  * Mini face-button diamond for a JBQ answer row: four button circles in the pad's layout (left, top, right, bottom);
@@ -27,6 +28,7 @@ export function answerDiamondIcon(
       if (i === slot) return;
       const own = family === 'xbox' ? hexNum(faceButton(family, ANSWER_POSITIONS[i]).color) : DIM;
       g.fillStyle(own, family === 'xbox' ? FAMILY_DIM_A : 1).fillCircle(c + dx * k, c + dy * k, geom.small * k);
+      g.lineStyle(Math.max(1.5, geom.ring * 0.6) * k, DIM_EDGE, 1).strokeCircle(c + dx * k, c + dy * k, geom.small * k);
     });
     const [bx, by] = geom.centers[slot];
     g.fillStyle(0xffffff, 1).fillCircle(c + bx * k, c + by * k, geom.big * k + geom.ring * k);

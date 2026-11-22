@@ -14,8 +14,9 @@ export interface DiamondIconGeom {
 
 /** Geometry of the mini button diamond shown on each answer row (a `size` x `size` square). */
 export function diamondIconGeom(size: number): DiamondIconGeom {
-  const d = size * 0.22, big = size * 0.24, ring = size * 0.04;   // like a real pad: the lit button slightly overlaps its neighbours
-  return { centers: [[-d, 0], [0, -d], [d, 0], [0, d]], big, small: size * 0.07, ring };
+  // Spread out like a pad's face buttons: the unlit ones are big enough to read the diamond shape, the lit one bigger still.
+  const d = size * 0.29, big = size * 0.19, ring = size * 0.035;
+  return { centers: [[-d, 0], [0, -d], [d, 0], [0, d]], big, small: size * 0.12, ring };
 }
 
 export interface JbqGeomIn { areaW: number; areaH: number; quad: boolean; badge: boolean }
