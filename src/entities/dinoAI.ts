@@ -118,6 +118,12 @@ export function isTeamHit(otherLastHit: number, now: number, window: number): bo
   return now - otherLastHit <= window;
 }
 
+/** N-player team hit: some player other than `id` hit within `window` sec before `now`. */
+export function isTeamHitBy(lastHit: readonly number[], id: number, now: number, window: number): boolean {
+  for (let i = 0; i < lastHit.length; i++) if (i !== id && isTeamHit(lastHit[i], now, window)) return true;
+  return false;
+}
+
 export function isDefeated(hp: number): boolean { return hp <= 0; }
 
 export interface OrbitOpts {

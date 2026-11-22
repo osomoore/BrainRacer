@@ -1,4 +1,4 @@
-import { DINO, DINO_LASER, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
+import { DINO, DINO_LASER, MAX_PLAYERS, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
 import { MAP_BOSSES } from '../art/boss';
 import { isQueuedMap } from '../config/queuedMaps';
 import { BossCrystal } from '../entities/BossCrystal';
@@ -6,7 +6,7 @@ import { Dino } from '../entities/Dino';
 import { HayWagon } from '../entities/HayWagon';
 import { STEP_HZ } from '../entities/Vehicle';
 import {
-  capsuleHit, closestOnSegment, dinoCapsule, dist, isTeamHit, orbitStep, steer, wrapAngle, type Capsule, type DinoWalk,
+  capsuleHit, closestOnSegment, dinoCapsule, dist, isTeamHitBy, orbitStep, steer, wrapAngle, type Capsule, type DinoWalk,
 } from '../entities/dinoAI';
 import {
   addHits, canBoardCrystal, claimResult, clampInside, crystalFinished, healthFrac, hitValue, newRideTimer, stepRide, type RideTimer,
@@ -64,18 +64,18 @@ export class DinoSystem implements GameSystem {
   private boarded = new Set<PlayerId>();
   private claimedBy: PlayerId | null = null;
   private readonly riderTm: LaserTiming = { chargeSec: DINO_RIDE.laserChargeSec, fireSec: DINO_RIDE.laserFireSec, arc: DINO_RIDE.laserArc };
-  private question = [false, false];
+  private question: boolean[] = new Array(MAX_PLAYERS).fill(false);
   private roundOver = false;
   private hitBy = new Set<PlayerId>();
-  private lastHit = [-1e9, -1e9];
+  private lastHit: number[] = new Array(MAX_PLAYERS).fill(-1e9);
   private faceT = 0;
   private devNow = false;
   private halfSpawned = false;
   private offs: (() => void)[] = [];
   private roarTimer = 0;
   private stepTimer = 0;
-  private hitCooldown: number[] = [0, 0];
-  private tossCooldown: number[] = [0, 0];
+  private hitCooldown: number[] = new Array(MAX_PLAYERS).fill(0);
+  private tossCooldown: number[] = new Array(MAX_PLAYERS).fill(0);
   private clock = 0;
   private obstacleCheckLeft = 0;
   private obstacleContacts = new Set<MatterJS.BodyType>();
@@ -83,7 +83,7 @@ export class DinoSystem implements GameSystem {
   private obstacleProbe?: { spine: MatterJS.BodyType; front: MatterJS.BodyType; back: MatterJS.BodyType };
   private laser: LaserState = newLaser(DINO_LASER.firstDelaySec);
   private laserDev = false;
-  private laserHitCd: number[] = [0, 0];
+  private laserHitCd: number[] = new Array(MAX_PLAYERS).fill(0);
   private readonly laserTm: LaserTiming = { chargeSec: DINO_LASER.chargeSec, fireSec: DINO_LASER.fireSec, arc: DINO_LASER.arc };
 
   init(ctx: RaceContext): void {
@@ -139,7 +139,7 @@ export class DinoSystem implements GameSystem {
   private updateBoss(dt: number, ctx: RaceContext, d: Dino): void {
     d.updateTosses(dt);
     this.modeT += dt;
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < MAX_PLAYERS; i++) {
       this.hitCooldown[i] -= dt;
       this.tossCooldown[i] -= dt;
       this.laserHitCd[i] -= dt;
@@ -227,7 +227,7 @@ export class DinoSystem implements GameSystem {
     st.claimedBy = this.claimedBy;
     st.riders = ids;
     st.rider = ids.length ? ids[0] : null;
-    const left = [0, 0];
+    const left: number[] = new Array(MAX_PLAYERS).fill(0);
     for (const [p, r] of this.rides) left[p] = r.timer.left;
     st.rideLeftByPlayer = left;
     st.rideLeftSec = first?.timer.left ?? 0;
@@ -282,7 +282,7 @@ export class DinoSystem implements GameSystem {
     this.claimedBy = null;
     this.crystalShown = false;
     this.hitBy.clear();
-    this.lastHit = [-1e9, -1e9];
+    this.lastHit.fill(-1e9);
     this.hitCooldown.fill(0);
     this.tossCooldown.fill(0);
     this.faceT = 0;
@@ -399,7 +399,7 @@ export class DinoSystem implements GameSystem {
         // harmless bounce: no damage, no points lost; brief slowdown + a sideways spin-out
         this.laserHitCd[car.player] = DINO_LASER.playerCooldownSec;
         const n = beamSideNormal(ang, eye, car);
-        car.applyImpulse(n.x * DINO_LASER.playerPush, n.y * DINO_LASER.playerPush, DINO_LASER.playerSpin * (car.player === 0 ? 1 : -1));
+        car.applyImpulse(n.x * DINO_LASER.playerPush, n.y * DINO_LASER.playerPush, DINO_LASER.playerSpin * (car.player % 2 === 0 ? 1 : -1));
         car.slow(DINO_LASER.playerSlowMult, DINO_LASER.playerSlowSec);
         d.zap(car.x, car.y);
         services.audio.sfx('pop', { pan: this.panFor(ctx), volume: 0.9 });
@@ -527,17 +527,16 @@ export class DinoSystem implements GameSystem {
   private ram(ctx: RaceContext, d: Dino, id: PlayerId, closing: number, nx: number, ny: number): void {
     const car = ctx.players[id];
     this.hitCooldown[id] = DINO.ramCooldownSec;
-    const other = (1 - id) as PlayerId;
-    const team = ctx.players.length > 1 && isTeamHit(this.lastHit[other], this.clock, DINO.teamWindowSec);
+    const team = ctx.players.length > 1 && isTeamHitBy(this.lastHit, id, this.clock, DINO.teamWindowSec);
     // every counted ram is one hit (speed/turbo don't matter); a TEAM hit counts DINO.teamHits
     const res = addHits(this.hits, hitValue(team, DINO.teamHits), this.hitsToDefeat);
     this.lastHit[id] = this.clock;
-    if (team) this.lastHit = [-1e9, -1e9];
+    if (team) this.lastHit.fill(-1e9);
     this.hits = res.hits;
     this.hitBy.add(id);
 
     const bounce = Math.min(DINO.ramBounceMax, closing * 1.3 + DINO.ramBounceBase);
-    car.applyImpulse(nx * bounce, ny * bounce, DINO.ramSpin * (id === 0 ? 1 : -1));
+    car.applyImpulse(nx * bounce, ny * bounce, DINO.ramSpin * (id % 2 === 0 ? 1 : -1));
     const stagger = { x: this.walk.x - nx * DINO.flinchStagger, y: this.walk.y - ny * DINO.flinchStagger };
     if (!this.guardsOnRoad || this.hasGuardGround(stagger)) {
       this.walk.x = stagger.x; this.walk.y = stagger.y;

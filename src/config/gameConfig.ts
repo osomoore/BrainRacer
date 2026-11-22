@@ -377,6 +377,8 @@ export const WORLD = {
   /** Longest straight run of building tiles (either axis) before an alley is cut through it. */
   maxBuildingRun: 6,
   spawnSpacingPx: 100,
+  /** Players 3-4 start one row behind (or ahead of) the first two, this far apart along the heading. */
+  spawnRowGapPx: 170,
   spawnRoadSearchTiles: 4,
   rampSpacingTiles: 6,
   rampW: 128,

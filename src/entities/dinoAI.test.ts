@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DINO } from '../config/gameConfig';
 import { Rng } from '../core/rng';
-import { capsuleHit, chooseWaypoint, dinoCapsule, dist, isDefeated, isTeamHit, patrolPoint, ramDamage, orbitStep, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
+import { capsuleHit, chooseWaypoint, dinoCapsule, dist, isDefeated, isTeamHit, isTeamHitBy, patrolPoint, ramDamage, orbitStep, shouldSpawn, steer, wrapAngle, type DinoWalk } from './dinoAI';
 
 const sites = Array.from({ length: 40 }, (_, i) => ({ x: (i % 8) * 600 + 100, y: Math.floor(i / 8) * 600 + 100 }));
 const opts = { goalChance: 0.6, goalRadius: 250, minDist: 300 };
@@ -149,5 +149,15 @@ describe('orbitStep (goal guard)', () => {
     const w: DinoWalk = { x: center.x + R + 250, y: center.y, angle: 0, pauseLeft: 0 };
     for (let i = 0; i < 60 * 30; i++) orbitStep(w, center, i / 60, 1 / 60, o);
     expect(Math.abs(dist(w, center) - R)).toBeLessThanOrEqual(DINO.orbitBreathe + 15);
+  });
+});
+
+describe('isTeamHitBy (N players)', () => {
+  it('counts any different player inside the window, never the same player', () => {
+    const last = [-1e9, -1e9, 10, -1e9];
+    expect(isTeamHitBy(last, 0, 11, 1.5)).toBe(true);
+    expect(isTeamHitBy(last, 3, 11, 1.5)).toBe(true);
+    expect(isTeamHitBy(last, 2, 11, 1.5)).toBe(false);
+    expect(isTeamHitBy(last, 0, 12, 1.5)).toBe(false);
   });
 });

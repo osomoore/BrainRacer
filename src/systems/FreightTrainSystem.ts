@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAT, DEPTH, FREIGHT } from '../config/gameConfig';
+import { CAT, DEPTH, FREIGHT, MAX_PLAYERS } from '../config/gameConfig';
 import { TEX } from '../core/assetKeys';
 import type { GameSystem, IVehicle, RaceContext } from '../core/race';
 import { services } from '../core/services';
@@ -75,7 +75,7 @@ export class FreightTrainSystem implements GameSystem {
   private length = 0;
   private pool!: ParticlePool;
   private rng!: RaceContext['rng'];
-  private cooldown: number[] = [0, 0];
+  private cooldown: number[] = new Array(MAX_PLAYERS).fill(0);
   private clockOffset = 0;
   private devNear = false;
   private devPlaced = false;
@@ -239,7 +239,7 @@ export class FreightTrainSystem implements GameSystem {
       const distance = Math.hypot(player.x - center.x, player.y - center.y);
       if (distance >= closest) continue;
       closest = distance;
-      pan = this.ctx.players.length === 1 ? 0 : player.player === 0 ? -0.6 : 0.6;
+      pan = this.ctx.players.length === 1 ? 0 : player.player % 2 === 0 ? -0.6 : 0.6;
     }
     if (closest < FREIGHT.soundRadius) {
       services.audio.sfx('crossing', { pan, volume: FREIGHT.soundVolume * (1 - closest / FREIGHT.soundRadius) });
@@ -289,7 +289,7 @@ export class FreightTrainSystem implements GameSystem {
     const speed = Math.hypot(vx, vy);
     const dir = speed > 0.02 ? { x: vx / speed, y: vy / speed } : { x: Math.cos(car.angle), y: Math.sin(car.angle) };
     this.smash(train, hit, dir, Math.max(speed * 0.5, FREIGHT.debrisLaunch));
-    services.audio.sfx('crashBig', { pan: this.ctx.players.length === 1 ? 0 : player === 0 ? -0.6 : 0.6 });
+    services.audio.sfx('crashBig', { pan: this.ctx.players.length === 1 ? 0 : player % 2 === 0 ? -0.6 : 0.6 });
     services.audio.sfx('pop');
     this.ctx.camera.shakeAt(car.x, car.y, 900, 0.012, 260);
     this.ctx.bus.emit('ui:popup', { player, text: `+${FREIGHT.smashScore}`, world: { x: car.x, y: car.y }, color: '#ffd34d' });

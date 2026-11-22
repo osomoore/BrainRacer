@@ -185,6 +185,6 @@ export class ChallengeSystem implements GameSystem {
 
   private pan(player: PlayerId): number {
     if (this.nPlayers < 2) return 0;
-    return player === 0 ? -CHALLENGE.teamPan : CHALLENGE.teamPan;
+    return player % 2 === 0 ? -CHALLENGE.teamPan : CHALLENGE.teamPan;
   }
 }

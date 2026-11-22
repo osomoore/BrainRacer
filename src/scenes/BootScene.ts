@@ -53,17 +53,17 @@ export class BootScene extends Phaser.Scene {
     const dev = params.get('dev');
     const quick = Number(params.get('race'));
     if (dev && this.scene.get(dev)) this.scene.start(dev);
-    else if (quick === 1 || quick === 2) this.quickRace(quick, params.get('map'));
+    else if (quick >= 1 && quick <= 4) this.quickRace(quick, params.get('map'));
     else this.scene.start(SCENE.title);
   }
 
-  /** ?race=1|2 — skip menus: gamepads if connected, else keyboard WASD (P1) / arrows (P2). */
-  private quickRace(count: 1 | 2, map: string | null) {
+  /** ?race=1|2 — skip menus: gamepads if connected, else keyboard WASD (P1) / arrows (P2). 3-4: P1/P2 keyboard, P3/P4 gamepads 0/1 (none = no input). */
+  private quickRace(count: number, map: string | null) {
     const base = loadSettings();
     services.input.poll();
     const pads = services.input.devices().filter((d) => d.type === 'gamepad');
     const kb: InputDevice[] = [{ type: 'keyboard', layout: 'left' }, { type: 'keyboard', layout: 'right' }];
-    const cars: CarKind[] = ['dino', 'kart'];
+    const cars: CarKind[] = ['dino', 'kart', 'dino', 'kart'];
     const settings: Settings = {
       ...base,
       map: isRaceMap(map) ? map : base.map,
@@ -71,7 +71,7 @@ export class BootScene extends Phaser.Scene {
         const saved = base.players[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
         return {
           ...saved,
-          device: pads[i] ?? kb[i],
+          device: count > 2 ? (i < 2 ? kb[i] : pads[i - 2] ?? { type: 'gamepad', index: 100 + i }) : pads[i] ?? kb[i],
           difficulty: saved?.difficulty ?? 'normal',
           car: saved?.car ?? cars[i],
         };

@@ -258,7 +258,7 @@ class AudioImpl implements IAudio {
   engine(player: PlayerId): IEngineSound {
     const existing = this.engines.get(player);
     if (existing) return existing;
-    const pan = player === 0 ? -0.4 : 0.4;
+    const pan = player % 2 === 0 ? -0.4 : 0.4;
     const handle = new LazyEngine(
       () => {
         if (!this.unlocked || !this.mixer) return null;

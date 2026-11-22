@@ -148,7 +148,7 @@ export class AnimalSystem implements GameSystem {
     v.sprite.setTexture(v.tumble).setDepth(DEPTH.airborne);
     v.tex = v.tumble;
     const twoP = this.ctx.players.length > 1;
-    const pan = player === null || !twoP ? 0 : player === 0 ? -0.6 : 0.6;
+    const pan = player === null || !twoP ? 0 : player % 2 === 0 ? -0.6 : 0.6;
     services.audio.sfx(ANIMALS.sfx[a.kind], { pan, volume: 1 });
     this.burst(a.x, a.y, true);
   }

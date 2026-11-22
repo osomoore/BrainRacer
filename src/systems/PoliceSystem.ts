@@ -131,7 +131,7 @@ export class PoliceSystem implements GameSystem {
   }
 
   private pan(p: PlayerId): number {
-    return this.ctx.players.length > 1 ? (p === 0 ? -0.6 : 0.6) : 0;
+    return this.ctx.players.length > 1 ? (p % 2 === 0 ? -0.6 : 0.6) : 0;
   }
 
   // ───────────────────────── update ─────────────────────────

@@ -1,7 +1,7 @@
 import { questionsOffAllowed, resolveRaceQuestions } from '../config/questionsPolicy';
 import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
-import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD_MUSIC } from '../config/gameConfig';
+import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD, WORLD_MUSIC } from '../config/gameConfig';
 import { getTuning } from '../config/deviceTuning';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
@@ -25,6 +25,8 @@ import { generateSky } from '../world/gen/sky';
 import { generateForest } from '../world/gen/forest';
 import { generateUnderwater } from '../world/gen/underwater';
 import { generateQueuedWorld, queuedIceAt } from '../world/gen/queuedWorlds';
+import { isDrivable } from '../world/geometry';
+import { spreadSpawns } from '../world/spawnSpread';
 import { buildWorld, type BuiltWorld } from '../world/WorldBuilder';
 import { REG, SCENE } from './keys';
 
@@ -96,8 +98,9 @@ export class RaceScene extends Phaser.Scene {
     this.built = buildWorld(this, world, settings.map);
     this.skids = new SkidMarks(this);
 
+    const spawns = spreadSpawns(world.playerSpawns, settings.players.length, (x, y) => isDrivable(world, x, y), WORLD.spawnRowGapPx);
     this.players = settings.players.map((p, i) => {
-      const s = world.playerSpawns[i] ?? world.playerSpawns[0];
+      const s = spawns[i];
       const car = new PlayerCar(this, i as PlayerId, p.car, s.x, s.y, s.angle, this.skids);
       car.setControlEnabled(false);
       return car;

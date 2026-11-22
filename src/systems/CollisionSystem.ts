@@ -99,7 +99,7 @@ export class CollisionSystem implements GameSystem {
     const big = impact >= COLLISION.bigImpact;
     const volume = Math.min(1, Math.max(0.25, impact / 700));
     const twoPlayers = this.ctx.players.length > 1;
-    const pan = player === null || !twoPlayers ? 0 : player === 0 ? -0.6 : 0.6;
+    const pan = player === null || !twoPlayers ? 0 : player % 2 === 0 ? -0.6 : 0.6;
     services.audio.sfx(big ? 'crashBig' : 'crash', { pan, volume });
     if (player !== null) {
       services.input.rumble(player, Math.min(1, impact / 800), big ? 220 : 100);

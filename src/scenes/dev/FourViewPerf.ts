@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { cameraRotationFor, facingCenter } from '../../camera/cameraMath';
 import { CAMERA, GAME_HEIGHT, GAME_WIDTH } from '../../config/gameConfig';
 import { loadAllProgress } from '../../core/racerProgress';
-import type { INpcVehicle, RaceContext } from '../../core/race';
+import type { RaceContext } from '../../core/race';
 import { isRaceMap, loadSettings } from '../../core/settings';
 import { services } from '../../core/services';
 import type { AnswerSlot, CarKind, PlayerId, PlayerInput, RaceMap, Settings } from '../../core/types';
@@ -11,7 +11,7 @@ import { REG, SCENE } from '../keys';
 /**
  * Throwaway performance spike (?dev=FourViewPerf&map=city&seed=3&questions=off&views=4|2).
  * Runs a REAL race with scripted autopilot cars and either the normal 2 views or 4 quadrant views
- * (views 3-4 follow traffic NPCs, rotated so the car points up). Overlay = FPS stats; after
+ * (views=4 is a real 4-player race, all four cars auto-driven; the quadrant cameras are this scene's own hack until the camera rig lays out 'quad'). Overlay = FPS stats; after
  * WINDOW_SEC the numbers freeze on screen and are stored in window.__perf.
  * Build with VITE_ALLOW_QUESTIONS_OFF=1 so questions=off works in a production build.
  */
@@ -35,13 +35,12 @@ export default class FourViewPerf extends Phaser.Scene {
   private ctx: RaceContext | null = null;
   private text!: Phaser.GameObjects.Text;
   private extra: Phaser.Cameras.Scene2D.Camera[] = [];
-  private followed: (INpcVehicle | null)[] = [null, null];
-  private pilots: Pilot[] = [{ node: -1, stuck: 0, backing: 0 }, { node: -1, stuck: 0, backing: 0 }];
+  private pilots: Pilot[] = [0, 1, 2, 3].map(() => ({ node: -1, stuck: 0, backing: 0 }));
   private frames: number[] = [];
   private last = 0;
   private startT = -1;
   private winMs = 0;
-  private askTick = [0, 0];
+  private askTick = [0, 0, 0, 0];
   private done = false;
   private gpu = 'n/a';
   private fpsNow = 0;
@@ -60,15 +59,16 @@ export default class FourViewPerf extends Phaser.Scene {
     this.exiting = false;
     this.gpu = this.gpuString();
     delete (window as unknown as { __race?: RaceContext }).__race;
-    this.frames = []; this.extra = []; this.followed = [null, null]; this.done = false; this.startT = -1; this.winMs = 0; this.ctx = null;
+    this.frames = []; this.extra = []; this.pilots = [0, 1, 2, 3].map(() => ({ node: -1, stuck: 0, backing: 0 })); this.done = false; this.startT = -1; this.winMs = 0; this.ctx = null;
 
     const base = loadSettings();
-    const kinds: CarKind[] = ['dino', 'kart'];
+    const kinds: CarKind[] = ['dino', 'kart', 'dino', 'kart'];
     const settings = {
       ...base,
       map: this.mapName as RaceMap,
-      players: [0, 1].map((i) => ({
-        ...base.players[i], device: { type: 'keyboard', layout: i === 0 ? 'left' : 'right' },
+      players: Array.from({ length: this.views }, (_, i) => ({
+        ...base.players[i],
+        device: i < 2 ? { type: 'keyboard', layout: i === 0 ? 'left' : 'right' } : { type: 'gamepad', index: 100 + i },
         difficulty: base.players[i]?.difficulty ?? 'normal', car: base.players[i]?.car ?? kinds[i],
       })),
     } as Settings;
@@ -162,7 +162,7 @@ export default class FourViewPerf extends Phaser.Scene {
   // ───── view layout (runs right after the race scene's update, before render) ─────
   private layoutViews() {
     const ctx = this.ctx;
-    if (this.views !== 4 || !ctx || ctx.players.length < 2) return;
+    if (this.views !== 4 || !ctx || ctx.players.length < 4) return;
     const main = this.race.cameras.main;
     const second = this.race.cameras.getCamera('p1');
     if (!second) return;
@@ -181,14 +181,9 @@ export default class FourViewPerf extends Phaser.Scene {
         this.extra.push(c);
       }
     }
+    // Players 3-4: own cameras in the bottom row, rotated so the car points up.
     this.extra.forEach((cam, i) => {
-      let t = this.followed[i];
-      if (!t || t.destroyed) {
-        const pool = [...ctx.npcs].filter((n) => !n.destroyed && n.npcKind === 'traffic' && !this.followed.includes(n));
-        t = pool.length ? pool[0] : null;
-        this.followed[i] = t;
-      }
-      if (!t) { cam.setVisible(false); return; }
+      const t = ctx.players[2 + i];
       const zoom = CAMERA.facingSplitZoom;
       cam.setVisible(true);
       cam.setZoom(zoom);

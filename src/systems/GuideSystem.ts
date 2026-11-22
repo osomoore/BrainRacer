@@ -70,7 +70,7 @@ export class GuideSystem implements GameSystem {
       if (!g) return;
       const pos: Vec2 = { x: car.x, y: car.y };
       const view = layout.mode === 'merged' ? FULL_VIEW : layout.playerViews[i];
-      const holdFor = (toward: Vec2) => this.holdFor(ctx, car.player, pos, toward, view, layout.mode === 'split');
+      const holdFor = (toward: Vec2) => this.holdFor(ctx, car.player, pos, toward, view, layout.mode === 'split' || layout.mode === 'quad');
       let target: Vec2;
       if (!goal) {
         g.goalMode = false;
@@ -106,7 +106,7 @@ export class GuideSystem implements GameSystem {
     // Split views keep the seam and top clear of the shared scoreboard and destination cards.
     const seam = split ? GUIDE.seamInset : 0;
     const top = ctx.players.length > 1 ? GUIDE.topInset : 0;
-    const view = { x: r.x + (player === 1 ? seam : 0), y: r.y + top, w: r.w - seam, h: r.h - top };
+    const view = { x: r.x + (player % 2 === 1 ? seam : 0), y: r.y + top, w: r.w - seam, h: r.h - top };
     const dx = toward.x - pos.x, dy = toward.y - pos.y, l = Math.hypot(dx, dy);
     if (l < 1e-3) return GUIDE.holdDist;
     const u = { x: dx / l, y: dy / l };

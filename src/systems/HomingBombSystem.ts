@@ -109,7 +109,7 @@ export class HomingBombSystem implements GameSystem {
       const glow = scene.add.image(this.x, this.y, TEX.homingBombGlow).setName(`homing-bomb-fuse${suffix}`)
         .setDepth(DEPTH.fx).setBlendMode(Phaser.BlendModes.ADD);
       sprite.cameraFilter = glow.cameraFilter = mask & ~camera.id;
-      return { camera, player: i === 0 ? 0 : 1, sprite, glow };
+      return { camera, player: Math.min(i, 3) as PlayerId, sprite, glow };
     });
     return true;
   }

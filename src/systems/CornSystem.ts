@@ -115,7 +115,7 @@ export class CornSystem implements GameSystem {
 
   private pan(player: number): number {
     if (player < 0 || this.ctx.players.length < 2) return 0;
-    return player === 0 ? -FARM_CORN.pan : FARM_CORN.pan;
+    return player % 2 === 0 ? -FARM_CORN.pan : FARM_CORN.pan;
   }
 
   private stamp(x: number, y: number, angle: number, now: number): void {
