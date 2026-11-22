@@ -93,6 +93,12 @@ export const WS_RUN = {
   stageSec: 7,
   /** Fake camera roll between side and top views, seconds. */
   viewRollSec: 0.7,
+  /** Quick wipe between two stages with the same view, seconds. */
+  wipeSec: 0.45,
+  /** How long a failure gag is held at the end, ms. */
+  failHoldMs: 1500,
+  /** Pause after a success celebration before the car leaves, ms. */
+  winHoldMs: 700,
   /** Fixed physics step (cosmetic physics only; never decides pass/fail). */
   physicsHz: 60,
 } as const;
