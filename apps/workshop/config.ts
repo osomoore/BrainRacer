@@ -85,6 +85,27 @@ export const WS_ADMIN = {
 export const WS_ROOM = {
   /** Character walk speed, px/s. */
   walkSpeed: 520,
+  /** Seconds between footstep sounds while walking, and the walk bob height (px). */
+  stepSec: 0.27,
+  bobPx: 12,
+  /** Character height (px). */
+  charH: 150,
+  /** Side-view model scale in the room (before fitting into the model area) per layout. */
+  modelScale: { wide: 1.5, tall: 0.95 },
+  /** Station sign size per layout (px). */
+  signSize: { wide: { w: 300, h: 170 }, tall: { w: 230, h: 160 } },
+  /** Station screen: camera zoom tween, sparkle burst before returning to the room (ms), max total scale. */
+  stationZoomMs: 550,
+  stationConfirmMs: 650,
+  stationMaxScale: 4.2,
+  /** Station screen swatches: visible count per layout, swatch size (px). */
+  swatchVisible: { wide: 5, tall: 3 },
+  swatchSize: { wide: 250, tall: 220 },
+  /** Board: side-view model scale (wide / tall), detail font sizes tried from large to small (px). */
+  boardModelScale: { wide: 1.05, tall: 0.7 },
+  detailFontsWide: [52, 48, 44, 40],
+  detailFontsTall: [48, 44, 40],
+  detailLineGap: 1.28,
 } as const;
 
 // ---------------------------------------------------------------- runs (apps/workshop/run)
