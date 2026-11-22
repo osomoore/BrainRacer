@@ -22,7 +22,7 @@ export interface GameInfo {
 
 export const GAMES: readonly GameInfo[] = [
   { id: 'racer', title: 'Brain Racer', page: 'racer.html', ready: true },
-  { id: 'workshop', title: 'Adventure Workshop', page: 'workshop.html', ready: false },
+  { id: 'workshop', title: 'Adventure Workshop', page: 'workshop.html', ready: true },
 ];
 
 /** Launcher page, relative to the site root. */
