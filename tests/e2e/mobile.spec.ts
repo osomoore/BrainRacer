@@ -64,9 +64,7 @@ test('phone: touch controls from load, Tap to play, one card, tap through to a o
   const done = keyXY(4, 4, 3);
   await tapLogical(page, done.x, done.y);
   await page.waitForTimeout(400);
-  await tapLogical(page, 960 - 330, 620); // YES
-  await page.waitForTimeout(400);
-  await tapLogical(page, 960, 800); // GO!
+  await tapLogical(page, 960, 380); // age 0-5
   await page.waitForTimeout(700);
   await shot(page, 'setup-after');
 

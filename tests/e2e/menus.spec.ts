@@ -289,7 +289,6 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   await tapPad(page, 0, BTN_A);   // Join screen
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  const PAD_UP = 12;
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!))).toEqual([]); // fresh device: no profiles
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make your racer!');
@@ -301,11 +300,7 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/menus-newracer-age.png' });
-  await tapPad(page, 0, BTN_A);     // YES
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: 'test-results/menus-newracer-options.png' });
-  await tapPad(page, 0, PAD_UP);    // wraps to GO
-  await tapPad(page, 0, BTN_A);     // creates the racer and readies the panel
+  await tapPad(page, 0, BTN_A);     // age 0-5 (Easy): creates the racer and readies the panel
   await page.waitForTimeout(700);
   await tapPad(page, 0, BTN_A);     // Next
   await waitScene(page, 'TrackSelect');

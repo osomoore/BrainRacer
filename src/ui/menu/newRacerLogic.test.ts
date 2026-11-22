@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cycleChoice, nameTaken, racerChoices, toggleQuestionType } from './newRacerLogic';
+import { ageLabel, DIFF_LABEL, cycleChoice, nameTaken, racerChoices, toggleQuestionType } from './newRacerLogic';
 
 describe('newRacerLogic', () => {
   it('racerChoices excludes the other racer and appends new', () => {
@@ -19,5 +19,14 @@ describe('newRacerLogic', () => {
   it('nameTaken is case-insensitive', () => {
     expect(nameTaken(' robin ', ['Robin'])).toBe(true);
     expect(nameTaken('Zed', ['Robin'])).toBe(false);
+  });
+});
+
+describe('age labels', () => {
+  it('uses Medium instead of Normal and shows band + level', () => {
+    expect(DIFF_LABEL.normal).toBe('Medium ★★');
+    expect(ageLabel('normal')).toBe('8–9 · Medium ★★');
+    expect(ageLabel('hard')).toBe('10+ · Hard ★★★');
+    expect(ageLabel('easyPlus')).toBe('6–7 · Easy+ ★½');
   });
 });

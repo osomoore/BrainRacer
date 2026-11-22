@@ -1,4 +1,5 @@
 /** Phaser-free helpers for the Setup "New Profile" flow. */
+import { AGE_BAND_LABEL, difficultyBand, type AgeBand } from '../../core/ageBands';
 import type { Difficulty, QuestionTypes, RacerProfileId } from '../../core/types';
 
 export type RacerChoice = RacerProfileId | 'new';
@@ -28,5 +29,10 @@ export function toggleQuestionType(q: QuestionTypes, key: keyof QuestionTypes): 
 export const nameTaken = (name: string, existing: readonly string[]): boolean =>
   existing.some((n) => n.trim().toLowerCase() === name.trim().toLowerCase());
 
-export const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
+export const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Medium ★★', hard: 'Hard ★★★' };
 export const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
+
+/** "8–9 · Medium ★★" for an age band. */
+export const bandChoiceLabel = (b: AgeBand, d: Difficulty): string => `${AGE_BAND_LABEL[b]} · ${DIFF_LABEL[d]}`;
+/** Same, from a profile's difficulty (the band is derived from it). */
+export const ageLabel = (d: Difficulty): string => bandChoiceLabel(difficultyBand(d), d);
