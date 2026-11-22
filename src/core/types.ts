@@ -350,7 +350,7 @@ export type SfxName =
   | 'menuMove' | 'menuSelect' | 'join' | 'crossing'
   | 'moo' | 'baa' | 'oink' | 'neigh' | 'cluck' | 'quack' | 'cornRustle' | 'mudSplash';
 
-export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'harbor' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 /** quad = 3-4 players, fixed 2x2 quadrants (P1 top-left, P2 top-right, P3 bottom-left, P4 bottom-right). */

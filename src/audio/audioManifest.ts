@@ -19,6 +19,9 @@ export interface MusicFileEntry extends AudioFileEntry {
   lengthBeats: number;
   /** Duration of one loop (or of the track for one-shots, excluding the ring-out tail), in seconds. */
   loopSeconds: number;
+  /** RMS and sample peak of the decoded Opus file, in dBFS. */
+  meanDb: number;
+  peakDb: number;
 }
 
 export interface AudioManifest {

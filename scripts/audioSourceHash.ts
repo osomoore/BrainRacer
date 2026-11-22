@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const FILES = [
+  'scripts/renderAudio.ts', 'src/audio/musicLoudness.ts',
   'src/audio/sfx.ts', 'src/audio/musicPlayer.ts', 'src/audio/engineSound.ts',
   'src/audio/bufferUtils.ts', 'src/audio/musicTheory.ts',
 ];

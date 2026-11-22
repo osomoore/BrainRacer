@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { createAudio } from '../../audio';
+import { MUSIC_TRACKS } from '../../audio/musicPlayer';
+import { DEFAULT_SETTINGS } from '../../config/gameConfig';
 import type { IAudio, IEngineSound } from '../../core/services';
 import type { MusicTrack, SfxName } from '../../core/types';
 
@@ -19,8 +21,8 @@ export default class AudioTest extends Phaser.Scene {
   private engine: IEngineSound | null = null;
   private speed = 0.4;
   private boost = false;
-  private music = 0.7;
-  private sfxVol = 0.8;
+  private music = DEFAULT_SETTINGS.musicVolume;
+  private sfxVol = DEFAULT_SETTINGS.sfxVolume;
   private status!: Phaser.GameObjects.Text;
   private info!: Phaser.GameObjects.Text;
   private sliderKnob!: Phaser.GameObjects.Rectangle;
@@ -42,14 +44,18 @@ export default class AudioTest extends Phaser.Scene {
     this.add.text(60, 110, 'Click or press any key to unlock audio. SFX (click or hotkey):', { fontFamily: FONT, fontSize: '32px', color: '#cfe3ff' });
 
     SFX.forEach((name, i) => {
-      const col = Math.floor(i / 8);
-      const row = i % 8;
-      this.button(60 + col * 465, 170 + row * 70, `[${SFX_KEYS[i].toUpperCase()}] ${name}`, () => this.playSfx(i), 450);
+      const col = Math.floor(i / 6);
+      const row = i % 6;
+      this.button(60 + col * 364, 158 + row * 61, `[${SFX_KEYS[i].toUpperCase()}] ${name}`, () => this.playSfx(i), 350);
     });
 
-    this.add.text(60, 760, 'Music:', { fontFamily: FONT, fontSize: '36px', color: '#cfe3ff' });
-    TRACKS.forEach((t, i) => this.button(220 + i * 270, 750, `[${t.key.toUpperCase()}] ${t.name}`, () => this.audio.music(t.name), 260));
-    this.button(1560, 750, '[M] stop', () => this.audio.music(null), 300);
+    this.add.text(60, 528, 'Music', { fontFamily: FONT, fontSize: '36px', color: '#cfe3ff' });
+    MUSIC_TRACKS.forEach((name, i) => {
+      const key = TRACKS.find((track) => track.name === name)?.key;
+      const label = key ? `[${key.toUpperCase()}] ${name}` : name;
+      this.button(60 + (i % 7) * 260, 578 + Math.floor(i / 7) * 61, label, () => this.audio.music(name), 250);
+    });
+    this.button(60 + (MUSIC_TRACKS.length % 7) * 260, 578 + Math.floor(MUSIC_TRACKS.length / 7) * 61, '[M] stop', () => this.audio.music(null), 250);
 
     this.add.text(60, 840, 'Engine speed (drag, or Left/Right):', { fontFamily: FONT, fontSize: '36px', color: '#cfe3ff' });
     this.add.rectangle(this.SL_X, this.SL_Y, this.SL_W, 10, 0x6a7fa8).setOrigin(0, 0.5);
@@ -59,6 +65,7 @@ export default class AudioTest extends Phaser.Scene {
     track.on('pointerdown', setFromPointer);
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => { if (p.isDown && Math.abs(p.y - this.SL_Y) < 60) setFromPointer(p); });
     this.button(1100, 870, '[B] boost: off', () => { this.boost = !this.boost; }, 360, 'boost');
+    this.button(1100, 799, 'engine: off', () => this.toggleEngine(), 360, 'engine');
     this.button(1500, 870, 'siren loop', () => this.toggleSiren(), 300);
     this.button(1500, 940, 'skid loop', () => this.toggleSkid(), 300);
 
@@ -78,11 +85,13 @@ export default class AudioTest extends Phaser.Scene {
   }
 
   private boostLabel?: Phaser.GameObjects.Text;
+  private engineLabel?: Phaser.GameObjects.Text;
 
-  private button(x: number, y: number, label: string, onClick: () => void, w: number, tag?: string): void {
+  private button(x: number, y: number, label: string, onClick: () => void, w: number, tag?: 'boost' | 'engine'): void {
     const bg = this.add.rectangle(x, y, w, 56, 0x2b4a86).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     const txt = this.add.text(x + 14, y + 8, label, { fontFamily: FONT, fontSize: '36px', color: '#ffffff' });
     if (tag === 'boost') this.boostLabel = txt;
+    if (tag === 'engine') this.engineLabel = txt;
     bg.on('pointerover', () => bg.setFillStyle(0x3d66b8));
     bg.on('pointerout', () => bg.setFillStyle(0x2b4a86));
     bg.on('pointerdown', () => { void this.doUnlock().then(onClick); });
@@ -90,8 +99,17 @@ export default class AudioTest extends Phaser.Scene {
 
   private async doUnlock(): Promise<void> {
     await this.audio.unlock();
-    if (this.audio.unlocked && !this.engine) this.engine = this.audio.engine(0);
     this.refreshText();
+  }
+
+  private toggleEngine(): void {
+    if (this.engine) {
+      this.engine.stop();
+      this.engine = null;
+    } else if (this.audio.unlocked) {
+      this.engine = this.audio.engine(0);
+    }
+    this.engineLabel?.setText(this.engine ? 'engine: on' : 'engine: off');
   }
 
   private playSfx(i: number): void {

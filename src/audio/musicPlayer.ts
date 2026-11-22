@@ -5,6 +5,8 @@ import { QUEUED_MAPS } from '../config/queuedMaps';
 import { QUEUED_TRACKS } from './music/queuedTracks';
 import type { Mixer } from './mixer';
 import { foldTail, loopOffsetSec, planChunks, renderQueue } from './bufferUtils';
+import { applyMusicGain, musicNormalizationGain } from './musicLoudness';
+import musicGains from './musicGains.json';
 import {
   beatsToSeconds, drumKind, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
   type TrackData, type TrackLayer,
@@ -12,6 +14,7 @@ import {
 import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
+import harbor from './music/tracks/harbor.json';
 import dino from './music/tracks/dino.json';
 import farm from './music/tracks/farm.json';
 import underground from './music/tracks/underground.json';
@@ -30,6 +33,7 @@ const BUILTIN: Record<MusicTrack, TrackData> = {
   title: title as TrackData,
   race: race as TrackData,
   industrial: industrial as TrackData,
+  harbor: harbor as TrackData,
   farm: farm as TrackData,
   underground: underground as TrackData,
   sky: sky as TrackData,
@@ -50,8 +54,9 @@ const MAX_LEAD_SEC = 4.5;
 const ONESHOT_TAIL_SEC = 2.5;
 const SWAP_FADE_SEC = 0.3;
 /** Background render order: title first, then the race tracks. */
-export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'dino', 'underground', 'results', 'sky', 'forest', 'underwater', ...QUEUED_MAPS];
+export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial', 'harbor', 'dino', 'underground', 'results', 'sky', 'forest', 'underwater', ...QUEUED_MAPS];
 const TICK_SEC = 0.1;
+const LIVE_GAINS: Partial<Record<MusicTrack, number>> = musicGains;
 
 type NoteFn = (note: { p: number; d: number; v: number }, time: number) => void;
 
@@ -159,10 +164,10 @@ class Playback implements Running {
   private cursor: number; // absolute beats (since startBeat origin) already scheduled up to
   private disposed = false;
 
-  constructor(readonly data: TrackData, mixer: Mixer, startPhaseBeats: number, fadeInSec: number) {
-    this.gain = new Tone.Gain(fadeInSec > 0 ? 0 : 1).connect(mixer.musicBus);
+  constructor(readonly data: TrackData, mixer: Mixer, startPhaseBeats: number, fadeInSec: number, level: number) {
+    this.gain = new Tone.Gain(fadeInSec > 0 ? 0 : level).connect(mixer.musicBus);
     this.nodes.push(this.gain);
-    if (fadeInSec > 0) this.gain.gain.rampTo(1, fadeInSec);
+    if (fadeInSec > 0) this.gain.gain.rampTo(level, fadeInSec);
     this.layers.push(...buildLayers(data, this.gain, this.nodes));
     this.startAudio = Tone.now() + 0.08;
     this.startBeat = startPhaseBeats;
@@ -465,6 +470,8 @@ export class MusicPlayer {
       const data = await this.resolve(name);
       const t0 = performance.now();
       const buf = await renderTrackBuffer(data);
+      const channels = [buf.getChannelData(0), buf.getChannelData(1)];
+      applyMusicGain(channels, musicNormalizationGain(channels));
       this.renderMs.set(name, Math.round(performance.now() - t0));
       this.cache.set(name, buf);
       return buf;
@@ -504,7 +511,7 @@ export class MusicPlayer {
     if (buf) return new BufferPlayback(data, buf, this.mixer, phase, fadeIn);
     const t = Tone.getTransport();
     if (t.state !== 'started') t.start();
-    return new Playback(data, this.mixer, phase, fadeIn);
+    return new Playback(data, this.mixer, phase, fadeIn, LIVE_GAINS[name] ?? 1);
   }
 
   constructor(private readonly mixer: Mixer) {}
