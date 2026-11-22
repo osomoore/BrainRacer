@@ -1,9 +1,10 @@
 /** Dinosaur, SIDE view parts (faces +x). One drawing function per aspect; numbers come from ./looks. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, rrectPath } from '../bake';
-import { type Pt, deg, quad, tubeOutline } from '../geom';
+import { type Pt, deg, quad, rotPt } from '../geom';
 import { type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
 import { drawFrill, type SkinSpec, skinFill, tubeShapes } from './skin';
 import type { BodyLook } from './looks';
+import type { Skeleton } from './skeleton';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -45,16 +46,29 @@ export function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: num
 
 // ---------------------------------------------------------------- torso & body extras
 
-export function torsoSide(b: BodyLook, sk: SkinSpec, bodyId: string): PartSpec {
-  const W = b.rx * 2 + 60, H = b.ry * 2 + 60;
+export function torsoSide(b: BodyLook, h: HeadLook, pose: Skeleton, sk: SkinSpec, bodyId: string, headId: string): PartSpec {
+  const { rx, ry, rot } = pose.torso;
+  const angle = pose.neckAng - rot;
+  const joint = rotPt({ x: pose.neckBase.x - pose.torso.x, y: pose.neckBase.y - pose.torso.y }, -rot);
+  const baseWidth = h.neckLen > 120 ? 30 : 38;
+  const tipWidth = h.neckLen > 120 ? 16 : 22;
+  const neck = quad({ x: -24, y: 0 }, { x: h.neckLen * 0.5, y: 9 }, { x: h.neckLen, y: 0 }, 14)
+    .map((p) => rotPt(p, angle))
+    .map((p) => ({ x: p.x + joint.x, y: p.y + joint.y }));
+  const widths = neck.map((_, i) => baseWidth + (tipWidth - baseWidth) * (i / (neck.length - 1)));
+  const edge = neck[neck.length - 1];
+  const x0 = -rx, y0 = Math.min(-ry, edge.y - tipWidth), x1 = Math.max(rx, edge.x + tipWidth), y1 = Math.max(ry, edge.y + tipWidth);
+  const pad = baseWidth + OL;
   return {
-    key: `ws:d:torso:${bodyId}:${sk.key}`, w: W, h: H, ox: W / 2, oy: H / 2,
+    key: `ws:d:torso:${bodyId}:${headId}:${pose.pose}:${sk.key}`,
+    w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2, ox: pad - x0, oy: pad - y0,
     draw: (g) => {
-      const box = { x0: -b.rx, y0: -b.ry, x1: b.rx, y1: b.ry };
-      const sh: Shape[] = [{ path: (c) => ellipsePath(c, 0, 0, b.rx, b.ry), fill: skinFill(sk, box, 1), detail: (c) => {
-        c.fillStyle = sk.look.belly; c.globalAlpha = 0.95; c.beginPath(); c.ellipse(b.rx * 0.08, b.ry * (b.kind === 'belly' ? 0.45 : 0.78), b.rx * 0.86, b.ry * (b.kind === 'belly' ? 0.75 : 0.5), 0, 0, 6.3); c.fill(); c.globalAlpha = 1;
-        if (b.kind === 'belly') { c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; c.beginPath(); c.arc(b.rx * 0.08, b.ry * 0.5, b.ry * 0.2, 0.3, 2.8); c.stroke(); }
-      } }];
+      const fill = skinFill(sk, { x0, y0, x1, y1 }, 1);
+      const sh = tubeShapes(neck, widths, fill);
+      sh.push({ path: (c) => ellipsePath(c, 0, 0, rx, ry), fill, detail: (c) => {
+        c.fillStyle = sk.look.belly; c.globalAlpha = 0.95; c.beginPath(); c.ellipse(rx * 0.08, ry * (b.kind === 'belly' ? 0.45 : 0.78), rx * 0.86, ry * (b.kind === 'belly' ? 0.75 : 0.5), 0, 0, 6.3); c.fill(); c.globalAlpha = 1;
+        if (b.kind === 'belly') { c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; c.beginPath(); c.arc(rx * 0.08, ry * 0.5, ry * 0.2, 0.3, 2.8); c.stroke(); }
+      } });
       drawShapes(g, sh, OL);
     },
   };
@@ -97,30 +111,6 @@ export function sailSide(b: BodyLook): PartSpec {
 }
 
 // ---------------------------------------------------------------- neck, head, jaw, teeth
-
-export function neckSide(h: HeadLook, sk: SkinSpec, headId: string): PartSpec {
-  const len = h.neckLen, tb = h.neckLen > 120 ? 26 : 34, te = h.neckLen > 120 ? 18 : 30;
-  const W = len + 120, H = len + 140;
-  return {
-    key: `ws:d:neck:${headId}:${sk.key}`, w: W, h: H, ox: 60, oy: H / 2,
-    draw: (g) => {
-      const base = -36;
-      const pts = quad({ x: base, y: 0 }, { x: len * 0.5, y: len > 120 ? 12 : 4 }, { x: len, y: 0 }, 14);
-      const hw = pts.map((_, i) => tb + (te - tb) * (i / 14));
-      const box = { x0: base, y0: -tb, x1: len, y1: tb };
-      drawShapes(g, [{ path: (c) => polyPath(c, tubeOutline(pts, hw)), fill: skinFill(sk, box, 2, true) }], OL);
-      // Fade the shoulder overlap into the torso while the neck moves.
-      g.save();
-      g.globalCompositeOperation = 'destination-in';
-      const join = g.createLinearGradient(base, 0, 4, 0);
-      join.addColorStop(0, 'transparent');
-      join.addColorStop(1, '#fff');
-      g.fillStyle = join;
-      g.fillRect(-60, -H / 2, W, H);
-      g.restore();
-    },
-  };
-}
 
 function skullPath(g: G, h: HeadLook): void {
   const { len, top, snout } = h;
@@ -199,7 +189,21 @@ export function teethSide(h: HeadLook, teethId: string): PartSpec | null {
   const W = h.len + 80, H = t.h + 50;
   return {
     key: `ws:d:teeth:${teethId}:${h.len}`, w: W, h: H, ox: 40, oy: 20,
-    draw: (g) => teethRow(g, t, h.len * 0.32, h.len * 0.97, 0, 1),
+    draw: (g) => teethRow(g, t, h.len * 0.39, h.len * 0.96, 1, 1),
+  };
+}
+
+/** A baked triangle that scales and rotates with the two edges of the opening jaw. */
+export function mouthInterior(h: HeadLook): PartSpec {
+  const len = h.len * 0.96;
+  return {
+    key: `ws:d:mouth:${h.len}`, w: h.len + 8, h: h.len * 2 + 8, ox: 4, oy: h.len + 4,
+    draw: (g) => {
+      g.fillStyle = '#562339';
+      g.beginPath();
+      polyPath(g, [{ x: 0, y: 0 }, { x: len, y: -len }, { x: len, y: len }]);
+      g.fill();
+    },
   };
 }
 
@@ -218,7 +222,7 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
       }];
       if (t.kind === 'beak') sh.push({ path: (c) => { c.moveTo(len * 0.5, -3); c.lineTo(len + 14, -3); c.quadraticCurveTo(len + 16, jaw * 0.7, len * 0.7, jaw * 0.9); c.lineTo(len * 0.5, jaw * 0.5); c.closePath(); }, fill: t.color });
       drawShapes(g, sh, OL);
-      if (t.kind !== 'beak') teethRow(g, { ...t, n: Math.max(2, t.n - 1), h: t.h * 0.7 }, len * 0.4, len * 0.9, -3, -1);
+      if (t.kind !== 'beak') teethRow(g, { ...t, n: Math.max(2, t.n - 2), h: t.h * 0.43 }, len * 0.51, len * 0.91, -2, -1);
     },
   };
 }
@@ -343,10 +347,10 @@ export function wingSide(sk: SkinSpec, far: boolean): PartSpec {
 
 export function frillSide(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.frill'];
-  const W = h.top * 2 + 40;
+  const W = h.top * 2.4 + 34;
   return {
-    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2 + h.top * 0.37,
-    draw: (g) => drawFrill(g, -h.top * 0.12, 0, h.top * 0.62, h.top * 0.65, ex),
+    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2 + h.top * 0.47,
+    draw: (g) => drawFrill(g, -h.top * 0.20, 0, h.top * 0.79, h.top * 0.79, ex),
   };
 }
 

@@ -9,15 +9,22 @@ const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r
 
 export function topHalfW(b: BodyLook, pose: string): number { return b.ry * (pose === 'swim' ? 0.62 : 0.74); }
 
-export function torsoTop(b: BodyLook, pose: string, sk: SkinSpec, bodyId: string): PartSpec {
+export function torsoTop(b: BodyLook, h: HeadLook, pose: string, sk: SkinSpec, bodyId: string, headId: string): PartSpec {
   const hw = topHalfW(b, pose);
-  const W = b.rx * 2 + 60, H = hw * 2 + 60;
+  const neckStart = b.rx * 0.65;
+  const neckEnd = b.rx * 0.78 + h.neckLen;
+  const baseWidth = h.neckLen > 120 ? 23 : 30;
+  const tipWidth = h.neckLen > 120 ? 15 : 23;
+  const x0 = -b.rx, x1 = neckEnd + tipWidth;
+  const pad = 30;
   return {
-    key: `ws:d:ttorso:${bodyId}:${pose}:${sk.key}`, w: W, h: H, ox: W / 2, oy: H / 2,
+    key: `ws:d:ttorso:${bodyId}:${headId}:${pose}:${sk.key}`,
+    w: x1 - x0 + pad * 2, h: hw * 2 + pad * 2, ox: pad - x0, oy: hw + pad,
     draw: (g) => {
-      const box = { x0: -b.rx, y0: -hw, x1: b.rx, y1: hw };
-      // top view: pattern runs along the length, belly colour not visible
-      drawShapes(g, [{ path: (c) => ellipsePath(c, 0, 0, b.rx, hw), fill: skinFill(sk, box, 1) }], OL);
+      const fill = skinFill(sk, { x0, y0: -hw, x1, y1: hw }, 1);
+      const sh = tubeShapes([{ x: neckStart, y: 0 }, { x: neckEnd, y: 0 }], [baseWidth, tipWidth], fill);
+      sh.push({ path: (c) => ellipsePath(c, 0, 0, b.rx, hw), fill });
+      drawShapes(g, sh, OL);
     },
   };
 }
@@ -45,18 +52,6 @@ export function sailTop(b: BodyLook, pose: string): PartSpec {
       const x0 = -b.rx * 0.7, x1 = b.rx * 0.7;
       const sh: Shape[] = [{ path: (c) => { c.moveTo(x0, 0); for (let i = 0; i <= 6; i++) { const x = x0 + (i / 6) * (x1 - x0); c.lineTo(x, -(11 + (i % 2 ? 7 : 0))); } for (let i = 6; i >= 0; i--) { const x = x0 + (i / 6) * (x1 - x0); c.lineTo(x, 11 + (i % 2 ? 7 : 0)); } c.closePath(); }, fill: b.accent }];
       drawShapes(g, sh, 4);
-    },
-  };
-}
-
-export function neckTop(h: HeadLook, sk: SkinSpec, headId: string): PartSpec {
-  const len = h.neckLen, tb = h.neckLen > 120 ? 20 : 28, te = h.neckLen > 120 ? 14 : 24;
-  const W = len + 100, H = 100;
-  return {
-    key: `ws:d:tneck:${headId}:${sk.key}`, w: W, h: H, ox: 40, oy: 50,
-    draw: (g) => {
-      const pts = quad({ x: 0, y: 0 }, { x: len * 0.5, y: 0 }, { x: len, y: 0 }, 10);
-      drawShapes(g, tubeShapes(pts, pts.map((_, i) => tb + (te - tb) * (i / 10)), skinFill(sk, { x0: 0, y0: -tb, x1: len, y1: tb }, 2)), OL);
     },
   };
 }
@@ -154,6 +149,6 @@ export function frillTop(h: HeadLook, sk: SkinSpec): PartSpec {
   const W = h.top * 2 + 40;
   return {
     key: `ws:d:tfrill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2,
-    draw: (g) => drawFrill(g, -h.top * 0.1, 0, h.top * 0.43, h.top * 0.73, ex),
+    draw: (g) => drawFrill(g, -h.top * 0.12, 0, h.top * 0.58, h.top * 0.87, ex),
   };
 }

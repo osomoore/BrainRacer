@@ -82,7 +82,7 @@ export const SIZE_SCALE: Record<VariantId, number> = { 'size.small': 0.7, 'size.
 export interface ExtraLook { kind: 'feathers' | 'frill' | 'glow' | 'camo' | 'stripes'; c1: string; c2: string; c3: string }
 export const EXTRA: Record<VariantId, ExtraLook> = {
   'extra.feathers': { kind: 'feathers', c1: '#ff4d6d', c2: '#ffd21f', c3: '#3ac7ff' },
-  'extra.frill': { kind: 'frill', c1: '#de6578', c2: '#ffc2a1', c3: '#9e405c' },
+  'extra.frill': { kind: 'frill', c1: '#f4777a', c2: '#ffd09a', c3: '#bd4e65' },
   'extra.glow': { kind: 'glow', c1: '#f3ff7a', c2: '#c4ff3a', c3: '#ffffff' },
   'extra.camo': { kind: 'camo', c1: '#2f7a2a', c2: '#6bbf45', c3: '#1f5a1f' },
   'extra.stripes': { kind: 'stripes', c1: '#2a1a14', c2: '#2a1a14', c3: '#2a1a14' },

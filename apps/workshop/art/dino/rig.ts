@@ -2,7 +2,7 @@
 import type Phaser from 'phaser';
 import type { RigAnim } from '../../core/runtime';
 import type { Model, View } from '../../core/types';
-import { partImage, type PartSpec } from '../bake';
+import { partImage, type PartSpec, Q } from '../bake';
 import { rotPt } from '../geom';
 import { BaseRig } from '../rigBase';
 import { CLAWS, TEETH } from './looks';
@@ -18,7 +18,9 @@ const ASPECTS = ['color', 'head', 'teeth', 'claws', 'legs', 'move', 'tail', 'bod
 interface LimbRef { c: C; slot: { y: number; far: boolean; front: boolean; rot: number; len: number } }
 
 export class DinoRig extends BaseRig {
-  private bodyG!: C; private torsoC!: C; private tailC!: C; private neckC!: C; private headC!: C; private jaw!: C;
+  private bodyG!: C; private torsoC!: C; private tailC!: C; private headC!: C; private jaw!: C;
+  private mouthInterior: Img | null = null;
+  private jawRest = 0;
   private legs: LimbRef[] = [];
   private arms: LimbRef[] = [];
   private wings: { c: C; far: boolean }[] = [];
@@ -95,21 +97,22 @@ export class DinoRig extends BaseRig {
     for (const s of k.legs.filter((q) => q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => q.far)) this.armImg(s, B, sk, claw, m.claws);
     if (k.pose === 'crawl') for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
-    // The neck overlaps the shoulder so the torso outline doesn't cut across it.
+    const h = l.head;
+    const hinge = hingePos(k, h);
+    // A single silhouette keeps the neck rooted at the shoulder through the poses.
     this.torsoC = this.mk(B, k.torso.x, k.torso.y, k.torso.rot);
     if (l.body.kind === 'sail') this.img(this.torsoC, S.sailSide(l.body), ['body']);
-    const torso = this.img(this.torsoC, S.torsoSide(l.body, sk, m.body), ['color', 'body']);
-    if (torso) torso.scaleY *= k.torso.ry / l.body.ry;
+    this.img(this.torsoC, S.torsoSide(l.body, h, k, sk, m.body, m.head), ['color', 'body']);
     if (l.body.kind === 'armor') this.img(this.torsoC, S.platesSide(l.body), ['body']);
-    // neck + head
-    const h = l.head;
-    this.neckC = this.mk(B, k.neckBase.x, k.neckBase.y, k.neckAng);
-    this.img(this.neckC, S.neckSide(h, sk, m.head), ['head']);
-    this.headC = this.mk(this.neckC, h.neckLen, 0, k.headRot - k.neckAng);
+    const joint = rotPt({ x: hinge.x - k.torso.x, y: hinge.y - k.torso.y }, -k.torso.rot);
+    this.headC = this.mk(this.torsoC, joint.x, joint.y, k.headRot - k.torso.rot);
     if (sk.ex?.kind === 'frill') this.img(this.headC, S.frillSide(h, sk), ['extra']);
-    this.img(this.headC, S.headSide(h, sk, m.head, m.teeth), ['head', 'color']);
+    const teeth = TEETH[m.teeth] ?? TEETH['teeth.flat'];
+    this.jawRest = teeth.kind === 'beak' ? 0.06 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
+    this.mouthInterior = this.img(this.headC, S.mouthInterior(h), []);
     this.jaw = this.mk(this.headC, 0, 0);
     this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth), ['teeth']);
+    this.img(this.headC, S.headSide(h, sk, m.head, m.teeth), ['head', 'color']);
     const up = S.teethSide(h, m.teeth);
     this.img(this.headC, up, ['teeth']);
     if (TEETH[m.teeth]?.kind === 'beak') P.teeth.push(this.headC);
@@ -124,9 +127,8 @@ export class DinoRig extends BaseRig {
     this.tailRot = 0;
     this.cy = Math.max(60, -k.torso.y);
     // anchors / foci (design px, ground = 0)
-    const hinge = hingePos(k, h);
     const hr = k.headRot;
-    const mouth = rotPt({ x: h.len * 0.95, y: 4 }, hr);
+    const mouth = rotPt({ x: h.len * 0.95, y: Math.sin(this.jawRest) * h.len * 0.4 }, hr);
     const headTop = rotPt({ x: h.len * 0.4, y: -h.top }, hr);
     const tailTip = { x: k.tailBase.x - l.tail.len, y: k.tailBase.y + l.tail.droop };
     const tc = { x: k.torso.x, y: k.torso.y };
@@ -189,21 +191,18 @@ export class DinoRig extends BaseRig {
       this.arms.push({ c, slot: { y: c.y, far: sy < 0, front: false, rot: c.rotation, len: claw.arm } });
     }
     const h = l.head;
-    this.neckC = this.mk(B, rx * 0.78, 0, 0);
-    this.img(this.neckC, T.neckTop(h, sk, m.head), ['head']);
-    this.headC = this.mk(this.neckC, h.neckLen, 0, 0);
-    if (sk.ex?.kind === 'frill') this.img(this.headC, T.frillTop(h, sk), ['extra']);
-    this.img(this.headC, T.headTop(h, sk, m.head, m.teeth), ['head', 'color']);
-    this.jaw = this.mk(this.headC, 0, 0);
+    const hx = rx * 0.78 + h.neckLen;
     this.torsoC = this.mk(B, 0, 0);
-    this.img(this.torsoC, T.torsoTop(l.body, k.pose, sk, m.body), ['color', 'body']);
+    this.img(this.torsoC, T.torsoTop(l.body, h, k.pose, sk, m.body, m.head), ['color', 'body']);
     if (l.body.kind === 'armor') this.img(this.torsoC, T.platesTop(l.body, k.pose), ['body']);
     if (l.body.kind === 'sail') this.img(this.torsoC, T.sailTop(l.body, k.pose), ['body']);
+    this.headC = this.mk(this.torsoC, hx, 0);
+    if (sk.ex?.kind === 'frill') this.img(this.headC, T.frillTop(h, sk), ['extra']);
+    this.img(this.headC, T.headTop(h, sk, m.head, m.teeth), ['head', 'color']);
     P.size.push(this.bodyG);
     if (sk.ex && !['feathers', 'frill'].includes(sk.ex.kind)) P.extra.push(this.torsoC);
     this.cy = 0;
     const tip = { x: -rx * 0.88 - l.tail.len, y: 0 };
-    const hx = rx * 0.78 + h.neckLen;
     this.anchors = {
       mouth: { x: hx + h.len, y: 0 }, headTop: { x: hx + h.len * 0.4, y: 0 }, tail: tip, feet: { x: 0, y: 0 }, belly: { x: 0, y: 0 },
       front: { x: hx + h.len, y: 0 }, back: tip,
@@ -243,10 +242,13 @@ export class DinoRig extends BaseRig {
     }
     this.tailC.rotation = this.tailRot - S0.wag * 0.3 + Math.sin(S0.gait) * 0.09 * amp + Math.sin(S0.sway * Math.PI) * 0.02;
     if (!side) this.tailC.rotation = S0.wag * 0.35 + Math.sin(S0.gait) * 0.15 * amp;
-    const nk = side ? k.neckAng : 0;
-    this.neckC.rotation = nk + (side ? Math.sin(S0.gait * 2) * 0.03 * amp : 0) + S0.sway * 0.02 + S0.nod + S0.tilt * 0.5 - S0.crouch * 0.1;
-    this.headC.rotation = (side ? k.headRot : 0) - nk + S0.tilt * 0.8 + Math.sin(S0.gait * 2) * 0.03 * amp;
-    this.jaw.rotation = S0.jaw;
+    const headPose = side ? k.headRot - this.torsoC.rotation : 0;
+    this.headC.rotation = headPose + S0.sway * 0.02 + S0.nod + S0.tilt * 1.3 - S0.crouch * 0.1 + Math.sin(S0.gait * 2) * 0.06 * amp;
+    if (side && this.mouthInterior) {
+      const angle = Math.min(0.88, this.jawRest + S0.jaw);
+      this.jaw.rotation = angle;
+      this.mouthInterior.setRotation(angle / 2).setScale(Math.cos(angle / 2) / Q, Math.sin(angle / 2) / Q);
+    }
   }
 }
 
