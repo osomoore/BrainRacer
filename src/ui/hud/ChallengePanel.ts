@@ -215,7 +215,7 @@ export class ChallengePanel {
     } else if (o.kind === 'text') {
       content.add(this.textFit(o.text, 56, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 36));
     } else {
-      content.add(this.textFit(`${o.ref}\n${o.text}`, 40, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 24));
+      content.add(this.textFit(`${o.ref} (NLT)\n${o.text}`, 40, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 24));
     }
     inner.add(hint);
     const bx = jb ? -cw / 2 + jb.g.rowPadX + jb.g.badgeSize / 2 : dia ? -cw / 2 + 52 : 0, by = dia || jb ? 0 : BADGE_DY;
@@ -509,7 +509,7 @@ export class ChallengePanel {
     if (o.kind === 'image') return 0;
     body.setFontSize(px).setWordWrapWidth(w);
     if (o.kind === 'verse') {
-      ref.setFontSize(Math.round(px * HUD.jbq.refScale)).setText(o.ref);
+      ref.setFontSize(Math.round(px * HUD.jbq.refScale)).setText(`${o.ref} (NLT)`);
       body.setText(o.text);
       return ref.height + 4 + body.height;
     }
@@ -526,7 +526,7 @@ export class ChallengePanel {
     const ox = align === 'center' ? w / 2 : 0, org = align === 'center' ? 0.5 : 0;
     let y = 0;
     if (o.kind === 'verse') {
-      const ref = this.scene.add.text(ox, 0, o.ref, {
+      const ref = this.scene.add.text(ox, 0, `${o.ref} (NLT)`, {
         fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: `${Math.round(px * HUD.jbq.refScale)}px`, color: '#1d4ed8', align,
       }).setOrigin(org, 0);
       c.add(ref);

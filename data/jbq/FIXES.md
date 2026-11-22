@@ -1,5 +1,13 @@
 # JBQ data fixes
 
+## NLT quotation answers
+
+BrainRacer's MASTER CSV uses complete verses from [Tyndale's American English NLT API](https://api.nlt.to/Documentation) for its 95 quotation questions. The November 22, 2026 fetch used the existing Bible references and omitted section headings, verse numbers, and footnotes. Regenerate the game's data with `npm run jbq:data`. The per-level Blooket CSVs are the legacy exports.
+
+Scripture quotations marked (NLT) are taken from the Holy Bible, New Living Translation, copyright © 1996, 2004, 2015 by Tyndale House Ministries. Used by permission. All rights reserved.
+
+## 2016 export cleanup
+
 Source: PDF-extracted CSVs in Downloads. Only intra-word splits / truncations were changed; wording and the intentional `Holy Spirit [Ghost]` bracket are untouched.
 The per-level files (10pt/20pt/30pt) received the identical text replacements (their Q# restarts at 1 in each file: 10pt = Q1-288, 20pt = Q289-480, 30pt = Q481-576 of MASTER).
 
