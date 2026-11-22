@@ -9,7 +9,7 @@ export const INPUT_CFG = {
 /** Touch (on-screen controls) tunables. Sizes are % of the viewport height. */
 export const TOUCH_CFG = {
   steerBtnVh: 26,
-  brakeBtnVh: 26,
+  brakeBtnVh: 20,
   smallBtnVh: 13,
   padBtnVh: 17,
   actionBtnVh: 22,
