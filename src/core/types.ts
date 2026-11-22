@@ -141,7 +141,9 @@ export type QuestionTypes = Record<QuestionType, boolean>;
 export type JbqPoints = 10 | 20 | 30;
 /** week = this week's study chunk, month = the range of the next review/meet, all = the whole point level. */
 export type JbqScope = 'week' | 'month' | 'all';
-export interface JbqSettings { points: JbqPoints; scope: JbqScope }
+/** What a racer studies: a point level, or 'basics' = the 10-point questions Q1-144 (fixed set, scope does not apply). */
+export type JbqLevel = 'basics' | JbqPoints;
+export interface JbqSettings { points: JbqLevel; scope: JbqScope }
 
 /** A shared player profile id (see shared/profiles.ts): opaque, e.g. 'p1'. */
 export type RacerProfileId = string;

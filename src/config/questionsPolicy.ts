@@ -1,4 +1,4 @@
-import type { JbqPoints, JbqScope, JbqSettings, QuestionTypes, Settings } from '../core/types';
+import type { JbqLevel, JbqScope, JbqSettings, QuestionTypes, Settings } from '../core/types';
 
 /**
  * Questions are mandatory in normal play. The `?questions=off` URL override only works when
@@ -40,14 +40,14 @@ export function normalizeQuestionTypes(raw: unknown, mode?: ChallengeSetting): Q
   return Object.values(types).some(Boolean) ? types : questionTypesForMode(mode);
 }
 
-const JBQ_POINTS: readonly JbqPoints[] = [10, 20, 30];
+const JBQ_LEVELS: readonly JbqLevel[] = ['basics', 10, 20, 30];
 const JBQ_SCOPES: readonly JbqScope[] = ['week', 'month', 'all'];
 
 /** Valid JBQ settings from saved data (invalid fields fall back to `fallback`). */
 export function normalizeJbq(raw: unknown, fallback: JbqSettings): JbqSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<JbqSettings>;
   return {
-    points: JBQ_POINTS.includes(r.points as JbqPoints) ? r.points as JbqPoints : fallback.points,
+    points: JBQ_LEVELS.includes(r.points as JbqLevel) ? r.points as JbqLevel : fallback.points,
     scope: JBQ_SCOPES.includes(r.scope as JbqScope) ? r.scope as JbqScope : fallback.scope,
   };
 }
