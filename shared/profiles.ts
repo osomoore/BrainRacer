@@ -65,6 +65,10 @@ export function renameProfile(id: string, name: string): boolean {
   return true;
 }
 
+/**
+ * Deletes a profile for EVERY app. Product rule: only the grown-up admin menu may call this
+ * (Brain Racer's hidden ConfigScene). Kid-facing screens (setup, launcher, other games) never offer delete.
+ */
 export function deleteProfile(id: string): void {
   const list = listProfiles();
   if (list.some((p) => p.id === id)) writeShared(PROFILES_KEY, list.filter((p) => p.id !== id));
