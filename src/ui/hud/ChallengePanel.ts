@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CHALLENGE, GAME_WIDTH } from '../../config/gameConfig';
+import { wrongRevealSecFor } from '../../challenge/reveal';
 import { sceneTex, TEX } from '../../core/assetKeys';
 import { services } from '../../core/services';
 import type {
@@ -382,7 +383,7 @@ export class ChallengePanel {
       if (this.result === 'wrong' && !reveal && !this.hintShown && this.resolveAge >= HUD.panel.wrongHintDelaySec) this.showHint();
       // After a wrong answer the reveal stays up until the next question replaces this panel (a safety fade follows).
       const hold = this.result === 'timeout' ? 0
-        : reveal ? CHALLENGE.wrongRetrySec + CHALLENGE.wrongRevealSec + HUD.jbq.revealFadeGraceSec : HUD.panel.resultHoldSec;
+        : reveal ? CHALLENGE.wrongRetrySec + wrongRevealSecFor(this.challenge.kind) + HUD.jbq.revealFadeGraceSec : HUD.panel.resultHoldSec;
       const fadeDur = this.result === 'timeout' ? HUD.panel.timeoutFadeSec : HUD.panel.fadeSec;
       if (this.resolveAge > hold) {
         this.fadeAlpha = Math.max(0, 1 - (this.resolveAge - hold) / fadeDur);

@@ -22,8 +22,8 @@ export interface BreakOptions {
   intervalSec: number;
   goSec: number;
   wrongRetrySec: number;
-  /** After a wrong answer the HUD shows the correct answer for this long; the next question waits for wrongRetrySec + wrongRevealSec. */
-  wrongRevealSec: number;
+  /** After a wrong answer the HUD shows the correct answer for this long (per question kind); the next question waits for wrongRetrySec + this. */
+  wrongRevealSec: number | ((c: Challenge) => number);
   placeCooldownSec: number;
   make: (player: PlayerId, placeWord: string | null) => Challenge;
 }
@@ -96,7 +96,8 @@ export class BreakScheduler {
       }
     } else {
       this.st[p] = 'retry';
-      this.retryLeft[p] = this.o.wrongRetrySec + this.o.wrongRevealSec;
+      const reveal = typeof this.o.wrongRevealSec === 'function' ? this.o.wrongRevealSec(c) : this.o.wrongRevealSec;
+      this.retryLeft[p] = this.o.wrongRetrySec + reveal;
       ev.push({ type: 'resolved', challenge: c, result: 'wrong', chosen: slot });
     }
     return ev;

@@ -11,6 +11,7 @@ import { EventBus } from '../../core/events';
 import type { ICameraRig, RaceContext } from '../../core/race';
 import { services } from '../../core/services';
 import type { AnswerSlot, CameraLayout, Challenge, ChallengeOption, PlayerId, Rect, Settings } from '../../core/types';
+import { wrongRevealSecFor } from '../../challenge/reveal';
 import { REG, SCENE } from '../keys';
 
 const SHADE = [0x33485c, 0x4a3a5c, 0x3a5c48, 0x5c4a33];
@@ -136,7 +137,7 @@ export default class JbqPanelTest extends Phaser.Scene {
     this.bus.emit('challenge:resolved', { challenge: c, result: ok ? 'correct' : 'wrong', chosen });
     if (!ok) {
       // Mimic BreakScheduler: the next question arrives after wrongRetrySec + wrongRevealSec.
-      this.time.delayedCall((CHALLENGE.wrongRetrySec + CHALLENGE.wrongRevealSec) * 1000, () => { if (!this.current[p]) this.show(p); });
+      this.time.delayedCall((CHALLENGE.wrongRetrySec + wrongRevealSecFor(c.kind)) * 1000, () => { if (!this.current[p]) this.show(p); });
     }
   }
 

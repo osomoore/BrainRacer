@@ -83,3 +83,19 @@ describe('BreakScheduler', () => {
     expect(s.current(0)!.placeWord).toBeUndefined();
   });
 });
+
+describe('per-kind wrong reveal', () => {
+  it('waits the reveal time returned for the wrong question before asking again', () => {
+    let n = 0;
+    const kinds = ['jbq', 'math'] as const;
+    const br = new BreakScheduler({
+      players: 1, firstAtSec: 0, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, placeCooldownSec: 60,
+      wrongRevealSec: (c) => (c.kind === 'jbq' ? 5 : 2),
+      make: (player) => ({ id: n, player, kind: kinds[n++ % 2], prompt: { kind: 'text', text: 'q' }, options: [], correct: 0, durationSec: 0, source: 'random' }),
+    });
+    br.update(0, 0);
+    br.answer(0, 1);                       // wrong on a JBQ question
+    expect(br.update(0, 5.4).some((e) => e.type === 'shown')).toBe(false);
+    expect(br.update(0, 0.2).some((e) => e.type === 'shown')).toBe(true);   // 5.6 s > 0.5 + 5
+  });
+});

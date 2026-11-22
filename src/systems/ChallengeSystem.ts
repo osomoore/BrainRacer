@@ -11,6 +11,7 @@ import { services } from '../core/services';
 import type { Challenge, PlayerId } from '../core/types';
 import { BreakScheduler, type BreakEvent } from '../challenge/BreakScheduler';
 import { ChallengeFactory } from '../challenge/ChallengeFactory';
+import { wrongRevealSecFor } from '../challenge/reveal';
 import { ChallengeGenerator } from '../challenge/ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from '../challenge/ChallengeScheduler';
 import { JbqProgressStore } from '../challenge/jbqProgress';
@@ -73,7 +74,7 @@ export class ChallengeSystem implements GameSystem {
         intervalSec: ctx.settings.challengeIntervalSec,
         goSec: CHALLENGE.breakGoSec,
         wrongRetrySec: CHALLENGE.wrongRetrySec,
-        wrongRevealSec: CHALLENGE.wrongRevealSec,
+        wrongRevealSec: (c) => wrongRevealSecFor(c.kind),
         placeCooldownSec: CHALLENGE.placeCooldownSec,
         make: (p, place) => factories[p].make(place),
       });
