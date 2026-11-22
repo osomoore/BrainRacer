@@ -1,4 +1,4 @@
-# BrainRacer — Status (as of 2026-11-20)
+# BrainRacer — Status (as of 2026-11-22)
 
 **Sixteen maps are playable:** City, Factory, Beach & Harbor, Mine, Farm, Sky City, Dark Forest, Underwater, and the eight worlds below.
 
@@ -24,6 +24,20 @@ Factory, Mine, Dark Forest, Brickworks, Mushroom Island, Candyland, Airport, and
 Each new track has a contrasting second section. The race mix brightens during turbo and the final stretch, and softens during question breaks and pauses. Mushroom Island and Castle both have two-leaf bridges that rise and lower on a timer.
 
 For a quick check, use `/?race=2&map=brickworks&seed=3&feature=now&dino=now` in dev. Set `map` from the table to preview any world. `feature=now` brings the first shortcut warning forward to one second of driving. The route closes for six seconds after the warning if the crossing is clear. Each world has an open alternate route. The shortcuts and movers pause during Stop & Answer breaks.
+
+## Question types: Math, Reading, JBQ (2026-11-22)
+
+- **Join screen:** each player panel has a **QUESTIONS** row with three chips, **Math**, **Reading**, and **JBQ**. Any combination can be on, but at least one stays on. Left/right moves the focus ring and A toggles the focused chip. A on any other row still means Ready. Choices save to the racer profile right away.
+- **Math** is addition on Easy, Easy+, and Normal, and multiplication on Hard. **Reading** is the picture/word spelling questions (place-word questions are Reading only). Older saves carry forward: Addition or Multiplication becomes Math, and Spelling becomes Reading.
+- **JBQ (Junior Bible Quiz):** with JBQ on, two more rows appear: points (**10 / 20 / 30 pts**) and scope (**Week / Month / All**). The scope row shows the current question numbers, e.g. "Week 145–168".
+  - Point levels: 10s = Q1–288, 20s = Q289–480, 30s = Q481–576. Data: `src/data/jbq.json`, built by `npm run jbq:data` from the cleaned CSV `data/jbq/Junior_Bible_Quiz_2016_MASTER_fixed.csv` (text fixes are listed in `data/jbq/FIXES.md`).
+  - Schedule: `src/data/jbqSchedule.ts` (Nov 2026 – Mar 2027). **Week** = the latest schedule row on or before today (review and meet weeks give the review range). **Month** = the next REVIEW or MEET row on or after today. **All** = the whole level. After the schedule ends, Week and Month mean All.
+  - **Pool growth:** each racer's correct answers per question are saved in localStorage `brainracer.jbq.v1`. When every question in the pool has been answered correctly `CHALLENGE.jbqMasteredCorrect` (2) times, the previous week's chunk is added, and so on. Not-yet-learned questions come up `jbqUnmasteredWeight` (4×) as often. Quick races without a profile keep progress in memory only.
+  - **Answers:** 4 options. The wrong ones come from the whole point level, the same question type first, preferring similar length (`jbqLengthRatio`). Quote questions show 4 verse answers: the reference in bold blue, then as much verse as fits, ending in "…".
+  - **Panel:** question card on top, four full-width answer rows (slot order top to bottom, with the button badge on the left). Fonts fit the card: 40–76 px in 1–2 player views, down to 26 px in 4-player quadrants for the longest verses (`HUD.jbq`). Dev preview: `?dev=JbqPanelTest` (`V` view count, `N` sample, `C` correct, `X` wrong).
+  - Test another date with `&jbqDate=2026-12-10` (also changes the Join screen ranges).
+- **Wrong answer reveal (all question types):** after the short wrong shake, the correct answer turns green and grows to fill the answer area for `CHALLENGE.wrongRevealSec` (2 s), then the next question comes.
+- **While Driving is retired:** the Answer mode row is gone and a saved "drive" style loads as Stop & Answer. The drive code still compiles but is unused.
 
 ## Up to four players (2026-11-21)
 
@@ -83,11 +97,11 @@ Plan and decisions: [docs/FOUR_PLAYERS.md](FOUR_PLAYERS.md).
 
 ## How the game plays now
 - **Menus:** The bottom face button joins (up to 2 players) and confirms. In Setup, use left/right to change options and Confirm on any option to start. Moving up from the first row wraps to the last row.
-  Setup includes per-player difficulty, car, companion, and separate **Addition**, **Multiplication**, and **Spelling** toggles. The map is shared. **Answer mode** lives in Advanced and defaults to **Stop & Answer**. Round length, question interval, and volumes also support launch options.
+  Setup includes per-player racer, question types (**Math**, **Reading**, **JBQ**, see above), car, and companion. The map is shared. Questions are always **Stop & Answer**. Round length, question interval, and volumes also support launch options.
 - **Multiplication** uses factors from 1 through 3 on Easy, 5 on Easy+, 9 on Normal, and 12 on Hard (level 4). Any combination of enabled types works in both answer modes. Older Words, Math, and Mix settings carry forward as Spelling, Addition, and both, respectively.
 - **Camera:** facing-up. Each player's view rotates so their car points up (car at 52% height). 2 players = always split screen.
 - **Question breaks (default "Stop & Answer"):** shared team timer. Every ~10 s of driving the world freezes for everyone, but the round clock keeps counting down. The four answer positions match the face-button diamond. Xbox shows Y/X/B/A (top/left/right/bottom), and Switch Pro shows X/Y/A/B for the same positions. Answer with face buttons, D-pad buttons, WASD/arrows, 1–4 (P1) or `, . / M` (P2). Wrong → sad sound + new question. Right → ✓ (2P waits for teammate). All right during the race → "GO!" → turbo + boost jump for everyone.
-- **"While Driving" style:** three answers (left, top, and right face buttons) in a panel centered below the car, a timer bar, and a slowdown after a miss. In both styles, driving freezes at zero and open questions remain answerable. Results includes those answers.
+- **"While Driving" style (retired, hidden):** three answers (left, top, and right face buttons) in a panel centered below the car, a timer bar, and a slowdown after a miss. In both styles, driving freezes at zero and open questions remain answerable. Results includes those answers.
 - **Right answer reward:** turbo (1.6× speed, flames), a **boost jump** over traffic/buildings (lands on drivable ground), **punch-through** (traffic/props thrown aside, speed kept), plus a random bonus (rainbow/shockwave/ghost/magnet).
 - **Guide buddies:** a pink flying dino (dino-car) or a twinkling star (kart) leads directly toward the destination, including when it is off-screen. It circles the goal when near or waiting. Each player sees only their own buddy. There is no on-screen destination text: players follow their buddy, and the goal ring marks the place. The team score and timer sit at the top left in single player and at the top center in split screen.
 - **Goals:** shared place destinations (bakery, school, …). Both players must arrive (20 s teammate wait). Jumping through counts. +3 points per arriving car.
