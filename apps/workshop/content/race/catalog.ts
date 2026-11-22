@@ -1,19 +1,23 @@
-/**
- * Race Shop catalog. STUB from the orchestrator: the Race Shop content package replaces stats, scenarios,
- * phrases, unlock order and starters (keep the export name and type).
- */
+/** Race Shop catalog (Race Shop content package). */
 import type { WorkshopCatalog } from '../../core/types';
 import { RACE_ASPECTS, RACE_VARIANTS } from './variants';
+import { RACE_STATS } from './stats';
+import { RACE_SCENARIOS } from './scenarios';
+import { RACE_FACET_PHRASES, RACE_SCENARIO_PHRASES } from './phrases';
+import { RACE_UNLOCK_ORDER } from './unlocks';
+import { RACE_STARTERS } from './starters';
+
+export { RACE_SCENE_NOTES } from './sceneNotes';
 
 export const RACE_CATALOG: WorkshopCatalog = {
   id: 'race',
   title: 'Race Shop',
-  stats: [],
+  stats: RACE_STATS,
   aspects: RACE_ASPECTS,
   variants: RACE_VARIANTS,
-  scenarios: [],
-  facetPhrases: [],
-  scenarioPhrases: [],
-  unlockOrder: [],
-  starters: [],
+  scenarios: RACE_SCENARIOS,
+  facetPhrases: RACE_FACET_PHRASES,
+  scenarioPhrases: RACE_SCENARIO_PHRASES,
+  unlockOrder: RACE_UNLOCK_ORDER,
+  starters: RACE_STARTERS,
 };
