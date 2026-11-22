@@ -4,7 +4,7 @@
  * never rename/remove existing keys.
  */
 import { PROFILE_NAME } from '../../shared/profiles';
-import type { ChallengeKind, Difficulty, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
+import type { ChallengeKind, Difficulty, JbqSettings, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
 
 export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
@@ -96,7 +96,8 @@ export const NEW_RACER = {
   roundSecUnder10: 300,
   roundSecOver10: 180,
   defaultDifficulty: 'easy' as Difficulty,
-  defaultQuestionTypes: { addition: true, multiplication: false, spelling: true } as QuestionTypes,
+  defaultQuestionTypes: { math: true, reading: true, jbq: false } as QuestionTypes,
+  defaultJbq: { points: 10, scope: 'week' } as JbqSettings,
   maxCustomRacers: 12,
 };
 /** Settings of a brand-new profile, and the fallback when saved data is missing or invalid. */
@@ -104,6 +105,7 @@ export const NEW_RACER_DEFAULTS: RacerProfile = {
   difficulty: NEW_RACER.defaultDifficulty,
   questionTypes: { ...NEW_RACER.defaultQuestionTypes },
   roundSec: NEW_RACER.roundSecUnder10,
+  jbq: { ...NEW_RACER.defaultJbq },
 };
 
 // ───────────────────────── challenges (package B) ─────────────────────────
@@ -128,7 +130,7 @@ export interface DifficultyProfile {
 export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   easy: {
     periodMultiplier: 1.5,
-    typeWeights: { picToWord: 30, math: 30, wordToPic: 40, multiplication: 30 },
+    typeWeights: { picToWord: 30, math: 30, wordToPic: 40, multiplication: 30, jbq: 33 },
     multiplication: { maxFactor: 3 },
     math: { minA: 1, maxA: 9, minB: 1, maxB: 9, maxSum: 10, requireCarry: false },
     words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
@@ -136,21 +138,21 @@ export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   // Easy+: sums 2..19 (about half are teen sums); mostly simple single words, some harder ones.
   easyPlus: {
     periodMultiplier: 1.25,
-    typeWeights: { picToWord: 32, math: 32, wordToPic: 36, multiplication: 32 },
+    typeWeights: { picToWord: 32, math: 32, wordToPic: 36, multiplication: 32, jbq: 33 },
     multiplication: { maxFactor: 5 },
     math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false, teenChance: 0.5, offByOneFirst: true },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: false, simpleTargetChance: 0.65 },
   },
   normal: {
     periodMultiplier: 1.0,
-    typeWeights: { picToWord: 34, math: 33, wordToPic: 33, multiplication: 33 },
+    typeWeights: { picToWord: 34, math: 33, wordToPic: 33, multiplication: 33, jbq: 33 },
     multiplication: { maxFactor: 9 },
     math: { minA: 10, maxA: 25, minB: 1, maxB: 9, maxSum: 30, requireCarry: false },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: true },
   },
   hard: {
     periodMultiplier: 0.7,
-    typeWeights: { picToWord: 40, math: 35, wordToPic: 25, multiplication: 35 },
+    typeWeights: { picToWord: 40, math: 35, wordToPic: 25, multiplication: 35, jbq: 33 },
     multiplication: { maxFactor: 12 },
     math: { minA: 12, maxA: 89, minB: 12, maxB: 89, maxSum: 150, requireCarry: true },
     words: { simpleOnly: false, allowMultiWord: true, sameCategoryDistractors: true },
@@ -168,12 +170,15 @@ export const CHALLENGE = {
   firstBreakSec: 5,            // driving seconds after GO until the first break
   breakGoSec: 0.6,             // GO beat after everyone answered correctly
   wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
+  wrongRevealSec: 2.0,         // after a wrong answer: the correct answer is highlighted and enlarged for this long (added after wrongRetrySec) before the next question
   breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
   breakMaxScale: 2.0,          // cap on the centered question panel scale
   rewardDelayAfterBreakSec: 0.7, // game-time wait after the question panel has fully faded, before turbo/jump/bonus
   rewardPanelClearSec: 1.05,   // answer -> HUD panel fully gone (hudConfig panel.resultHoldSec 0.7 + fadeSec 0.35); keep in sync
   answerGuardSec: 0.25,        // ignore answers this long after a break question appears
   pauseOptions: 4,             // answers per question in pause style (drive = 3)
+  // JBQ (Junior Bible Quiz) — package jbq-logic may ADD keys here
+  jbqMasteredCorrect: 2,       // a question counts as learned after this many correct answers (per racer); when the whole pool is learned, the previous week's chunk is added
   // package B additions
   placeWordToPicChance: 0.5,       // place challenge: word->pictures (else picture->words)
   hardForgotCarryChance: 0.7,      // hard math: chance the "forgot to carry" distractor is included

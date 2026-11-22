@@ -16,13 +16,15 @@ const SECOND_PLAYER_KEY = 'brainracer.secondPlayer.v1';
 const LEGACY_UNLOCKS = 'brainracer.unlocks.v1';
 const LEGACY_ACCESS = 'brainracer.content.v1';
 
-const Q = (addition: boolean, multiplication: boolean) => ({ addition, multiplication, spelling: true });
+/** Old addition/multiplication flags both map to Math now (the kind follows the difficulty). */
+const Q = (_addition: boolean, _multiplication: boolean) => ({ math: true, reading: true, jbq: false });
+const J = { points: 10, scope: 'week' } as const;
 /** The old per-family default settings, kept for the migrated profiles unless they were edited in Admin Settings. */
 export const LEGACY_RACER_DEFAULTS: Record<string, RacerProfile> = {
-  abe: { difficulty: 'easy', questionTypes: Q(true, false), roundSec: 300 },
-  gideon: { difficulty: 'normal', questionTypes: Q(true, false), roundSec: 300 },
-  helen: { difficulty: 'hard', questionTypes: Q(false, true), roundSec: 180 },
-  daddy: { difficulty: 'hard', questionTypes: Q(false, true), roundSec: 180 },
+  abe: { difficulty: 'easy', questionTypes: Q(true, false), roundSec: 300, jbq: J },
+  gideon: { difficulty: 'normal', questionTypes: Q(true, false), roundSec: 300, jbq: J },
+  helen: { difficulty: 'hard', questionTypes: Q(false, true), roundSec: 180, jbq: J },
+  daddy: { difficulty: 'hard', questionTypes: Q(false, true), roundSec: 180, jbq: J },
 };
 
 function readJson(key: string): unknown {

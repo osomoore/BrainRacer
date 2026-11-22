@@ -4,11 +4,11 @@
  * (`Settings.racerProfiles`, keyed by the shared profile id).
  */
 import { NEW_RACER, NEW_RACER_DEFAULTS } from '../config/gameConfig';
+import { normalizeJbq, normalizeQuestionTypes } from '../config/questionsPolicy';
 import { createProfile, deleteProfile, getProfile, listProfiles, renameProfile, validProfileName } from '../../shared/profiles';
-import type { Difficulty, PlayerSettings, QuestionType, QuestionTypes, RacerProfile, RacerProfileId, Settings } from './types';
+import type { Difficulty, JbqSettings, PlayerSettings, QuestionTypes, RacerProfile, RacerProfileId, Settings } from './types';
 
 const DIFFS: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
-const TYPES: readonly QuestionType[] = ['addition', 'multiplication', 'spelling'];
 
 type Src = Pick<Settings, 'racerProfiles'>;
 
@@ -18,13 +18,13 @@ export const validRacerName = validProfileName;
 function normalizeProfile(raw: unknown, fallback: RacerProfile): RacerProfile {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<RacerProfile>;
   const difficulty = DIFFS.includes(r.difficulty as Difficulty) ? r.difficulty as Difficulty : fallback.difficulty;
-  const q = (r.questionTypes && typeof r.questionTypes === 'object' ? r.questionTypes : undefined) as Partial<QuestionTypes> | undefined;
-  const questionTypes = q
-    ? Object.fromEntries(TYPES.map(t => [t, q[t] === true])) as QuestionTypes
-    : { ...fallback.questionTypes };
+  const q = r.questionTypes && typeof r.questionTypes === 'object' ? r.questionTypes as unknown as Record<string, unknown> : undefined;
+  // A saved selection with nothing on (or garbage) falls back to the defaults, not to a legacy preset.
+  const picked = !!q && Object.values(q).some(v => v === true);
+  const questionTypes = picked ? normalizeQuestionTypes(q) : { ...fallback.questionTypes };
   const roundSec = typeof r.roundSec === 'number' && Number.isFinite(r.roundSec) && r.roundSec >= 30 && r.roundSec <= 3600
     ? Math.round(r.roundSec) : fallback.roundSec;
-  return { difficulty, questionTypes: TYPES.some(t => questionTypes[t]) ? questionTypes : { ...fallback.questionTypes }, roundSec };
+  return { difficulty, questionTypes, roundSec, jbq: normalizeJbq(r.jbq, fallback.jbq) };
 }
 
 /** Existing profile ids in creation order (from the shared store). */
@@ -63,10 +63,10 @@ export function playerRacer(player: Pick<PlayerSettings, 'profile'> | undefined,
 }
 
 /** Copies the racer's difficulty and question types onto the player (the values ChallengeSystem reads). */
-export function applyRacerProfile<P extends PlayerSettings>(player: P, slot: number, settings: Src): P & { questionTypes: QuestionTypes } {
+export function applyRacerProfile<P extends PlayerSettings>(player: P, slot: number, settings: Src): P & { questionTypes: QuestionTypes; jbq: JbqSettings } {
   const profile = playerRacer(player, slot, settings);
   const r = racerSettingsOf(settings, profile);
-  return { ...player, profile, difficulty: r.difficulty, questionTypes: { ...r.questionTypes } };
+  return { ...player, profile, difficulty: r.difficulty, questionTypes: { ...r.questionTypes }, jbq: { ...r.jbq } };
 }
 
 /** Returns a settings patch that replaces one profile's game settings (normalized). */
@@ -79,7 +79,7 @@ export function teamRoundSec(players: readonly Pick<PlayerSettings, 'profile'>[]
   return Math.max(...players.map((p, i) => racerSettingsOf(settings, playerRacer(p, i, settings)).roundSec));
 }
 
-export interface NewRacerInput { name: string; under10: boolean; difficulty: Difficulty; questionTypes: QuestionTypes }
+export interface NewRacerInput { name: string; under10: boolean; difficulty: Difficulty; questionTypes: QuestionTypes; jbq?: JbqSettings }
 
 /** Creates a shared profile plus its game settings. Returns its id and the settings patch to save (null: invalid name). */
 export function createRacer(settings: Src, input: NewRacerInput): { id: RacerProfileId; patch: Pick<Settings, 'racerProfiles'> } | null {
@@ -89,6 +89,7 @@ export function createRacer(settings: Src, input: NewRacerInput): { id: RacerPro
     difficulty: input.difficulty,
     questionTypes: input.questionTypes,
     roundSec: input.under10 ? NEW_RACER.roundSecUnder10 : NEW_RACER.roundSecOver10,
+    jbq: input.jbq,
   }, NEW_RACER_DEFAULTS);
   return { id: created.id, patch: { racerProfiles: { ...racerProfiles(settings), [created.id]: profile } } };
 }

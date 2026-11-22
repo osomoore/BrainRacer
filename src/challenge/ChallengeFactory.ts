@@ -21,7 +21,7 @@ export class ChallengeFactory {
   private readonly used = new Set<string>();
 
   constructor(private readonly o: FactoryOptions) {
-    this.kinds = kindsForMode(o.mode, o.questionTypes);
+    this.kinds = kindsForMode(o.mode, o.questionTypes, o.difficulty);
   }
 
   make(placeWord: string | null = null): Challenge {

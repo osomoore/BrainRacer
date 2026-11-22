@@ -11,7 +11,7 @@ import { bigText, FONT_HEAD, MENU } from './style';
 
 type Step = 'name' | 'age' | 'options';
 type Nav = { navX: number; navY: number; confirm: boolean; back: boolean };
-const TYPE_KEYS = ['addition', 'multiplication', 'spelling'] as const;
+const TYPE_KEYS = ['math', 'reading', 'jbq'] as const;
 const ROW_LEVEL = 3, ROW_GO = 4;
 
 /** Full-screen "make a new racer" flow driven by one player's input. Call handle() every frame. */
@@ -104,7 +104,7 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private paintOptions() {
     TYPE_KEYS.forEach((k, i) => this.rows[i].setValue(this.types[k] ? 'ON' : 'OFF').setSelected(this.sel === i, this.color));
     this.rows[ROW_LEVEL].setValue(DIFF_LABEL[this.difficulty]).setSelected(this.sel === ROW_LEVEL, this.color);
-    this.exampleText?.setText(this.types.addition ? `Sums like ${DIFF_EXAMPLE[this.difficulty]}` : '');
+    this.exampleText?.setText(!this.types.math ? '' : this.difficulty === 'hard' ? 'Times tables' : `Sums like ${DIFF_EXAMPLE[this.difficulty]}`);
     this.go?.setSelected(this.sel === ROW_GO, this.color);
   }
 

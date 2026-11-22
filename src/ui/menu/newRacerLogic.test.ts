@@ -12,9 +12,9 @@ describe('newRacerLogic', () => {
     expect(cycleChoice(['a', 'b'], 'zzz', 1)).toBe('a');
   });
   it('toggleQuestionType keeps at least one on', () => {
-    const q = { addition: true, multiplication: false, spelling: false };
-    expect(toggleQuestionType(q, 'addition')).toBe(q);
-    expect(toggleQuestionType(q, 'spelling')).toEqual({ addition: true, multiplication: false, spelling: true });
+    const q = { math: true, reading: false, jbq: false };
+    expect(toggleQuestionType(q, 'math')).toBe(q);
+    expect(toggleQuestionType(q, 'reading')).toEqual({ math: true, reading: true, jbq: false });
   });
   it('nameTaken is case-insensitive', () => {
     expect(nameTaken(' robin ', ['Robin'])).toBe(true);

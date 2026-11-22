@@ -23,14 +23,17 @@ export interface SchedulerOptions {
   mode?: ChallengeMode;
 }
 
-/** Kinds allowed by the player's selections or by their legacy mode. */
-export function kindsForMode(mode?: ChallengeMode, questionTypes?: QuestionTypes): ChallengeKind[] {
+/**
+ * Kinds allowed by the player's selections or by their legacy mode. Math is addition up to Normal and
+ * multiplication on Hard. TODO(jbq-logic): add 'jbq' once the generator handles it.
+ */
+export function kindsForMode(mode?: ChallengeMode, questionTypes?: QuestionTypes, difficulty: Difficulty = 'normal'): ChallengeKind[] {
   const types = normalizeQuestionTypes(questionTypes, mode);
   const kinds: ChallengeKind[] = [];
-  if (types.spelling) kinds.push('picToWord');
-  if (types.addition) kinds.push('math');
-  if (types.spelling) kinds.push('wordToPic');
-  if (types.multiplication) kinds.push('multiplication');
+  if (types.reading) kinds.push('picToWord');
+  if (types.math) kinds.push(difficulty === 'hard' ? 'multiplication' : 'math');
+  if (types.reading) kinds.push('wordToPic');
+  if (kinds.length === 0) kinds.push('picToWord', 'wordToPic');   // JBQ-only until the jbq generator lands
   return kinds;
 }
 
@@ -56,7 +59,7 @@ export class ChallengeScheduler {
     this.difficulty = o.difficulty;
     this.generator = o.generator;
     this.rng = o.rng;
-    this.kinds = kindsForMode(o.mode, o.questionTypes);
+    this.kinds = kindsForMode(o.mode, o.questionTypes, o.difficulty);
     this.periodSec = o.intervalSec * DIFFICULTY[o.difficulty].periodMultiplier;
     this.startAt = o.startDelaySec;
   }

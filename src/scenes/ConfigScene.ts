@@ -71,9 +71,9 @@ const CONTENT_PAGES = [
 const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
 const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
 const PROFILE_TYPES: readonly { type: QuestionType; label: string }[] = [
-  { type: 'addition', label: 'Addition' },
-  { type: 'multiplication', label: 'Multiplication' },
-  { type: 'spelling', label: 'Spelling' },
+  { type: 'math', label: 'Math' },
+  { type: 'reading', label: 'Reading' },
+  { type: 'jbq', label: 'JBQ' },
 ];
 const PROFILES_PER_PAGE = 2;
 const CONTENT_OVERRIDES = [undefined, true, false] as const;
@@ -264,7 +264,7 @@ export class ConfigScene extends Phaser.Scene {
     const opts = { width: colW, height: 60, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: RacerProfileId, mutate: (p: RacerProfile) => void): void => {
       const cur = racerProfiles(this.settings())[id];
-      const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec };
+      const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec, jbq: { ...cur.jbq } };
       mutate(next);
       this.patchSettings(withRacerProfile(this.settings(), id, next));
     };

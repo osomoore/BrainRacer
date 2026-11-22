@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }, info) => {
   if (info.title.includes('fresh device')) return;
   await seedProfiles(page, { settings: { p3: HARD_TABLES, p4: HARD_TABLES } });
 });
-const HARD_TABLES = { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 };
+const HARD_TABLES = { difficulty: 'hard', questionTypes: { math: true, reading: true, jbq: false }, roundSec: 180 };
 
 const BTN_A = 0;
 const PAD_DOWN = 13, PAD_RIGHT = 15;
@@ -81,8 +81,8 @@ test('gamepads: two players customize and receive different questions', async ({
   expect(s.players[1].device).toEqual({ type: 'gamepad', index: 1 });
   expect(s.players[0].car).not.toEqual(s.players[1].car);
   const questionTypes: QuestionTypes[] = [
-    { addition: false, multiplication: true, spelling: true },
-    { addition: true, multiplication: false, spelling: true },
+    { math: true, reading: true, jbq: false },
+    { math: true, reading: true, jbq: false },
   ];
   expect(s.players.map((p) => p.questionTypes)).toEqual(questionTypes);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
@@ -118,7 +118,7 @@ test('keyboard only: a launch override skips questions without changing Setup pr
   expect(s.players).toHaveLength(1);
   expect(s.players[0].device).toEqual({ type: 'keyboard', layout: 'left' });
   expect(s.challengeMode).toBe('words');
-  expect(s.players[0].questionTypes).toEqual({ addition: true, multiplication: false, spelling: true });
+  expect(s.players[0].questionTypes).toEqual({ math: true, reading: true, jbq: false });
   expect(await page.evaluate(() => window.__race.settings.challengeMode)).toBe('off');
   await waitPastFirstQuestion(page);
   expect(errors).toEqual([]);
@@ -300,7 +300,7 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   const id = s.players[0].profile!;
   expect(id).toMatch(/^p\d+$/);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!).map((p: { id: string; name: string }) => [p.id, p.name]))).toEqual([[id, 'ZED']]);
-  expect(s.racerProfiles?.[id]).toMatchObject({ roundSec: 300, difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } });
+  expect(s.racerProfiles?.[id]).toMatchObject({ roundSec: 300, difficulty: 'easy', questionTypes: { math: true, reading: true, jbq: false } });
   expect(await page.evaluate(() => window.__race.settings.players[0].profile)).toBe(id);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
   expect(saved.players[0].profile).toBe(id);

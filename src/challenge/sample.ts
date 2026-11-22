@@ -9,6 +9,7 @@ const SLOT_LABELS = ['X', 'Y', 'B'];
 
 function show(x: ChallengePrompt | ChallengeOption): string {
   if (x.kind === 'text') return x.text;
+  if (x.kind === 'verse') return `${x.ref} ${x.text}`;
   return `[img:${sceneById(x.sceneId)?.word ?? x.sceneId}]`;
 }
 

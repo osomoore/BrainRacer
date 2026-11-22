@@ -8,8 +8,9 @@ import {
 import type { PlayerSettings, QuestionTypes, Settings } from './types';
 
 const base: PlayerSettings = { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' };
-const q = (addition: boolean, multiplication: boolean, spelling: boolean): QuestionTypes => ({ addition, multiplication, spelling });
-const NEW_DEFAULT = { difficulty: 'easy', questionTypes: q(true, false, true), roundSec: 300 };
+const q = (math: boolean, reading: boolean, jbq: boolean): QuestionTypes => ({ math, reading, jbq });
+const J = { points: 10, scope: 'week' } as const;
+const NEW_DEFAULT = { difficulty: 'easy', questionTypes: q(true, true, false), roundSec: 300, jbq: J };
 
 /** Makes profiles Robin, Sam, Kim (ids p1..p3 on a clean store). */
 const seed = (...names: string[]) => names.map(n => createProfile(n)!.id);
@@ -23,13 +24,13 @@ describe('racerProfiles', () => {
     expect(playerRacer(undefined, 0)).toBeUndefined();
     expect(playerRacer({ profile: 'gone' }, 1)).toBeUndefined();
     expect(teamRoundSec([{}], {})).toBe(300);
-    expect(applyRacerProfile(base, 0, {})).toMatchObject({ profile: undefined, difficulty: 'easy', questionTypes: q(true, false, true) });
+    expect(applyRacerProfile(base, 0, {})).toMatchObject({ profile: undefined, difficulty: 'easy', questionTypes: q(true, true, false) });
   });
 
   it('every profile starts from the new-profile defaults and normalizes bad saved values', () => {
     const [a, b] = seed('Robin', 'Sam');
     expect(racerProfiles({})).toEqual({ [a]: NEW_DEFAULT, [b]: NEW_DEFAULT });
-    const bad = { difficulty: 'bogus' as never, questionTypes: q(false, false, false), roundSec: 5 };
+    const bad = { difficulty: 'bogus' as never, questionTypes: q(false, false, false), roundSec: 5, jbq: { points: 7, scope: 'year' } as never };
     expect(racerProfiles({ racerProfiles: { [a]: bad } })[a]).toEqual(NEW_DEFAULT);
   });
 
@@ -45,8 +46,8 @@ describe('racerProfiles', () => {
 
   it('applies saved settings onto the player', () => {
     const [a] = seed('Robin');
-    const s = withRacerProfile({}, a, { difficulty: 'easyPlus', questionTypes: q(true, true, false), roundSec: 240 });
-    expect(applyRacerProfile({ ...base, profile: a }, 0, s)).toMatchObject({ profile: a, difficulty: 'easyPlus', questionTypes: q(true, true, false) });
+    const s = withRacerProfile({}, a, { difficulty: 'easyPlus', questionTypes: q(true, false, true), roundSec: 240, jbq: { points: 30, scope: 'month' } });
+    expect(applyRacerProfile({ ...base, profile: a }, 0, s)).toMatchObject({ profile: a, difficulty: 'easyPlus', questionTypes: q(true, false, true), jbq: { points: 30, scope: 'month' } });
   });
 
   it('race length is the longest time among the racers', () => {
@@ -58,16 +59,16 @@ describe('racerProfiles', () => {
   });
 
   it('creates a shared profile plus its settings, ids opaque and never reused', () => {
-    const r = createRacer({}, { name: 'Robin', under10: true, difficulty: 'normal', questionTypes: q(true, true, false) })!;
+    const r = createRacer({}, { name: 'Robin', under10: true, difficulty: 'normal', questionTypes: q(true, false, true) })!;
     expect(listProfiles().map(p => p.name)).toEqual(['Robin']);
-    expect(r.patch.racerProfiles![r.id]).toEqual({ difficulty: 'normal', questionTypes: q(true, true, false), roundSec: 300 });
+    expect(r.patch.racerProfiles![r.id]).toEqual({ difficulty: 'normal', questionTypes: q(true, false, true), roundSec: 300, jbq: J });
     expect(racerSettingsOf(r.patch, r.id).roundSec).toBe(300);
     const old = createRacer(r.patch, { name: 'Sam', under10: false, difficulty: 'easy', questionTypes: q(true, false, true) })!;
     expect(old.patch.racerProfiles![old.id]!.roundSec).toBe(180);
     expect(old.patch.racerProfiles![r.id]).toBeDefined();
     deleteRacer(old.patch, old.id);
-    expect(createRacer({}, { name: 'Kim', under10: true, difficulty: 'easy', questionTypes: q(true, false, true) })!.id).not.toBe(old.id);
-    expect(createRacer({}, { name: '123', under10: true, difficulty: 'easy', questionTypes: q(true, false, true) })).toBeNull();
+    expect(createRacer({}, { name: 'Kim', under10: true, difficulty: 'easy', questionTypes: q(true, true, false) })!.id).not.toBe(old.id);
+    expect(createRacer({}, { name: '123', under10: true, difficulty: 'easy', questionTypes: q(true, true, false) })).toBeNull();
   });
 
   it('renames through the shared store and rejects invalid names', () => {

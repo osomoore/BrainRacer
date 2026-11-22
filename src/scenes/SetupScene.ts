@@ -185,8 +185,7 @@ export class SetupScene extends Phaser.Scene {
     const { difficulty: d, questionTypes } = p;
     const names = (Object.keys(QUESTION_LABEL) as (keyof QuestionTypes)[]).filter((t) => questionTypes[t]).map((t) => QUESTION_LABEL[t]);
     const examples: string[] = [];
-    if (questionTypes.addition) examples.push(`Sums like ${DIFF_EXAMPLE[d]}`);
-    if (questionTypes.multiplication) examples.push(`Tables up to ${DIFFICULTY[d].multiplication.maxFactor}`);
+    if (questionTypes.math) examples.push(d === 'hard' ? `Tables up to ${DIFFICULTY[d].multiplication.maxFactor}` : `Sums like ${DIFF_EXAMPLE[d]}`);
     const lines = [`${DIFF_LABEL[d]} · ${names.join(' + ')}`];
     const sec = racerSettingsOf(this.cfg, playerRacer(p, slot, this.cfg)).roundSec;
     examples.push(`${sec % 60 ? (sec / 60).toFixed(1) : sec / 60} min races`);

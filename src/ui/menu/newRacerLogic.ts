@@ -22,7 +22,7 @@ export function cycleChoice<T>(list: readonly T[], cur: T, dir: 1 | -1): T {
 /** Flips one question type, but never turns the last one off. */
 export function toggleQuestionType(q: QuestionTypes, key: keyof QuestionTypes): QuestionTypes {
   const next = { ...q, [key]: !q[key] };
-  return next.addition || next.multiplication || next.spelling ? next : q;
+  return next.math || next.reading || next.jbq ? next : q;
 }
 
 export const nameTaken = (name: string, existing: readonly string[]): boolean =>
@@ -30,4 +30,4 @@ export const nameTaken = (name: string, existing: readonly string[]): boolean =>
 
 export const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Normal ★★', hard: 'Hard ★★★' };
 export const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
-export const QUESTION_LABEL: Record<keyof QuestionTypes, string> = { addition: 'Addition', multiplication: 'Multiplication', spelling: 'Spelling' };
+export const QUESTION_LABEL: Record<keyof QuestionTypes, string> = { math: 'Math', reading: 'Reading', jbq: 'JBQ' };
