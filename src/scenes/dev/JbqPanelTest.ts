@@ -6,6 +6,7 @@
  */
 import Phaser from 'phaser';
 import { playerViewsFor } from '../../camera/cameraMath';
+import { JBQ_QUESTIONS } from '../../challenge/jbqGenerator';
 import { CAMERA, CHALLENGE, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../../config/gameConfig';
 import { EventBus } from '../../core/events';
 import type { ICameraRig, RaceContext } from '../../core/race';
@@ -16,7 +17,11 @@ import { REG, SCENE } from '../keys';
 
 const SHADE = [0x33485c, 0x4a3a5c, 0x3a5c48, 0x5c4a33];
 const t = (text: string): ChallengeOption => ({ kind: 'text', text });
-const v = (ref: string, text: string): ChallengeOption => ({ kind: 'verse', ref, text });
+const verseOption = (id: number): ChallengeOption => {
+  const question = JBQ_QUESTIONS.find((row) => row.id === id);
+  if (!question?.ref || !question.verse) throw new Error(`Missing quotation sample Q${id}`);
+  return { kind: 'verse', ref: question.ref, text: question.verse };
+};
 
 interface Sample { label: string; q: string; options: ChallengeOption[]; correct: AnswerSlot; kind?: 'wordToPic' }
 
@@ -28,12 +33,7 @@ const SAMPLES: Sample[] = [
   },
   {
     label: 'quote', q: 'Which verse tells what happened when the Holy Spirit came at Pentecost?',
-    options: [
-      v('Genesis 1:1', 'In the beginning God created the heavens and the earth.'),
-      v('Exodus 20:3', 'You shall have no other gods before me.'),
-      v('Exodus 20:4', 'You shall not make for yourself an image in the form of anything in heaven above or on the earth beneath or in the waters below.'),
-      v('Acts 2:4', 'All of them were filled with the Holy Spirit and began to speak in other tongues as the Spirit enabled them.'),
-    ],
+    options: [24, 86, 87, 409].map(verseOption),
     correct: 3,
   },
   {

@@ -39,6 +39,7 @@ export const HUD = {
     refScale: 1.25,           // verse reference size vs. verse text size
     font: { answerMax: 60, answerMin: 40, answerHard: 30, questionMax: 76, questionMin: 40, questionHard: 30 },
     fontQuad: { answerMax: 44, answerMin: 30, answerHard: 26, questionMax: 50, questionMin: 30, questionHard: 26 },
+    quoteAnswerHard: 20,      // complete verse ranges can need smaller text in the four answer rows
     growSec: 0.3,             // wrong-answer reveal: correct answer grows to fill the answer area
     revealPad: 22,
     revealFadeGraceSec: 0.3,  // keep the reveal this long past wrongRevealSec before fading (the next question normally replaces it first)

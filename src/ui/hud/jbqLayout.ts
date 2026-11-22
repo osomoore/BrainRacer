@@ -19,7 +19,7 @@ export function diamondIconGeom(size: number): DiamondIconGeom {
   return { centers: [[-d, 0], [0, -d], [d, 0], [0, d]], big, small: size * 0.12, ring };
 }
 
-export interface JbqGeomIn { areaW: number; areaH: number; quad: boolean; badge: boolean }
+export interface JbqGeomIn { areaW: number; areaH: number; quad: boolean; badge: boolean; quotation?: boolean }
 
 export interface JbqGeom {
   areaW: number; areaH: number;
@@ -48,6 +48,7 @@ export function jbqGeometry(i: JbqGeomIn): JbqGeom {
   const c = HUD.jbq;
   const { pad, dividerGap, rowGap, rowPadY, rowPadX, qPadY } = i.quad ? c.quadPad : c;
   const badgeSize = i.quad ? c.quadBadge : c.badge;
+  const fonts = i.quad ? c.fontQuad : c.font;
   const rowW = i.areaW - 2 * pad;
   const textLeft = rowPadX + (i.badge ? badgeSize + 14 : 0);
   return {
@@ -55,7 +56,7 @@ export function jbqGeometry(i: JbqGeomIn): JbqGeom {
     rowW, qW: rowW, qTextW: rowW - 2 * c.qSideInset, aTextW: rowW - textLeft - rowPadX, textLeft,
     minRowH: badgeSize + 8,
     availH: i.areaH - 2 * pad - dividerGap - 3 * rowGap,
-    fonts: i.quad ? c.fontQuad : c.font,
+    fonts: i.quotation ? { ...fonts, answerHard: c.quoteAnswerHard } : fonts,
   };
 }
 

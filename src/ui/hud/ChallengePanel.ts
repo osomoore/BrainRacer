@@ -215,7 +215,7 @@ export class ChallengePanel {
     } else if (o.kind === 'text') {
       content.add(this.textFit(o.text, 56, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 36));
     } else {
-      content.add(this.textFit(`${o.ref}\n${o.text}`, 40, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 24));
+      content.add(this.textFit(`${o.ref} (NLT)\n${o.text}`, 40, cw - 24 - (dia && !noBadge ? 84 : 0), ch - 20, 24));
     }
     inner.add(hint);
     const bx = jb ? -cw / 2 + jb.g.rowPadX + jb.g.badgeSize / 2 : dia ? -cw / 2 + 52 : 0, by = dia || jb ? 0 : BADGE_DY;
@@ -492,7 +492,8 @@ export class ChallengePanel {
       areaH = z.h;
     }
     const badge = this.hooks.controllerDevice?.type !== 'touch';
-    const g = jbqGeometry({ areaW, areaH, quad: isQuadView(v), badge });
+    const quotation = this.challenge.options.some((o) => o.kind === 'verse');
+    const g = jbqGeometry({ areaW, areaH, quad: isQuadView(v), badge, quotation });
     const mq = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.qTextW, 'center')).setVisible(false);
     const mb = this.scene.add.text(0, 0, '', this.bodyStyle(40, g.aTextW, 'left')).setVisible(false);
     const mr = this.scene.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
@@ -509,7 +510,7 @@ export class ChallengePanel {
     if (o.kind === 'image') return 0;
     body.setFontSize(px).setWordWrapWidth(w);
     if (o.kind === 'verse') {
-      ref.setFontSize(Math.round(px * HUD.jbq.refScale)).setText(o.ref);
+      ref.setFontSize(Math.round(px * HUD.jbq.refScale)).setText(`${o.ref} (NLT)`);
       body.setText(o.text);
       return ref.height + 4 + body.height;
     }
@@ -526,7 +527,7 @@ export class ChallengePanel {
     const ox = align === 'center' ? w / 2 : 0, org = align === 'center' ? 0.5 : 0;
     let y = 0;
     if (o.kind === 'verse') {
-      const ref = this.scene.add.text(ox, 0, o.ref, {
+      const ref = this.scene.add.text(ox, 0, `${o.ref} (NLT)`, {
         fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: `${Math.round(px * HUD.jbq.refScale)}px`, color: '#1d4ed8', align,
       }).setOrigin(org, 0);
       c.add(ref);
@@ -588,7 +589,8 @@ export class ChallengePanel {
     } else {
       const mb = sc.add.text(0, 0, '', this.bodyStyle(40, availW, 'center')).setVisible(false);
       const mr = sc.add.text(0, 0, '', { fontFamily: FONT_HEAD, fontStyle: 'bold', fontSize: '40px' }).setVisible(false);
-      const px = largestFit((p) => this.measureOption(mb, mr, o, p, availW) <= availH, quad ? 26 : 36, HUD.jbq.revealMaxFont);
+      const minPx = o.kind === 'verse' ? HUD.jbq.quoteAnswerHard : quad ? 26 : 36;
+      const px = largestFit((p) => this.measureOption(mb, mr, o, p, availW) <= availH, minPx, HUD.jbq.revealMaxFont);
       mb.destroy(); mr.destroy();
       const blk = this.answerBlock(o, px, availW, 'center', availH);
       blk.c.setPosition(-a.w / 2 + left, -blk.h / 2);

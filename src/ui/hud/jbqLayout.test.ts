@@ -52,6 +52,17 @@ describe('planJbq', () => {
     expect(plan.fa).toBeLessThan(g.fonts.answerMin);
     expect(plan.fa).toBeGreaterThanOrEqual(g.fonts.answerHard);
   });
+  it('fits complete quotations in the answer rows with a smaller font', () => {
+    const lengths = [417, 376, 319, 234];
+    const geometry = { areaW: 1700, areaH: 800, quad: false, badge: true };
+    const fit = (quotation: boolean) => {
+      const g = jbqGeometry({ ...geometry, quotation });
+      return planJbq(g, lengths.length, (px) => block(90, px, g.qTextW),
+        (i, px) => block(lengths[i], px, g.aTextW) + px * 1.4 + 4);
+    };
+    expect(fit(false).truncate.some(Boolean)).toBe(true);
+    expect(fit(true).truncate).toEqual([false, false, false, false]);
+  });
   it('very long content shrinks to the hard floor and flags truncation instead of overflowing', () => {
     const { g, plan } = run(680, 520, true, 130, [160, 160, 160, 160]);
     expect(plan.fa).toBeLessThanOrEqual(g.fonts.answerMin);
