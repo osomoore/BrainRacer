@@ -79,7 +79,11 @@ export class JbqGenerator {
       (c) => c.points === q.points && isQuote(c) === quote,
       (c) => isQuote(c) === quote,
     ];
-    for (const tier of tiers) {
+    // Each tier first tries answers of similar length (so the right one doesn't stand out by size), then any length.
+    const len = (c: JbqQuestion) => Math.max(1, answerKey(c).length);
+    const similar = (c: JbqQuestion) => Math.max(len(c), len(q)) / Math.min(len(c), len(q)) <= CHALLENGE.jbqLengthRatio;
+    const passes = tiers.flatMap((t) => [(c: JbqQuestion) => t(c) && similar(c), t]);
+    for (const tier of passes) {
       const hits = this.rng.shuffle(this.questions.filter((c) => c.id !== q.id && tier(c)));
       for (const c of hits) {
         if (chosen.length >= n) break;
