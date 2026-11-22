@@ -7,6 +7,7 @@ import type {
   AnswerSlot, Challenge, ChallengeOption, ChallengePrompt, ChallengeResult, ControllerFamily, InputDevice, Rect,
 } from '../../core/types';
 import { ANSWER_POSITIONS, keyboardAnswerLabel } from '../../input/buttonPrompts';
+import { answerDiamondIcon } from './answerDiamond';
 import { FaceButtonBadge } from '../menu/FaceButtonBadge';
 import { bigText, FONT_BODY, FONT_HEAD, hexNum } from '../menu/style';
 import { bakedImage, circle, glowRect, resizeRR, rrectImage, type RRectSpec } from './bake';
@@ -220,7 +221,11 @@ export class ChallengePanel {
     const bx = jb ? -cw / 2 + jb.g.rowPadX + jb.g.badgeSize / 2 : dia ? -cw / 2 + 52 : 0, by = dia || jb ? 0 : BADGE_DY;
     const device = this.hooks.controllerDevice;
     const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, i) : undefined;
-    if (device?.type !== 'touch') inner.add(new FaceButtonBadge(this.scene, bx, by, jb ? jb.g.badgeSize : 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
+    if (device?.type !== 'touch') {
+      inner.add(jb
+        ? answerDiamondIcon(this.scene, bx, by, jb.g.badgeSize, i, this.controllerFamily, key)
+        : new FaceButtonBadge(this.scene, bx, by, 64, ANSWER_POSITIONS[i], this.controllerFamily, key));
+    }
     // Big invisible hit area so a finger (or mouse) can answer directly.
     const hit = (jb ? this.scene.add.zone(0, 0, cw, ch + jb.g.rowGap) : this.scene.add.zone(0, 0, cw + 20, ch + 20)).setInteractive();
     hit.on('pointerdown', () => { if (!this.resolved) services.input.touchAnswer?.(i); });
@@ -565,12 +570,12 @@ export class ChallengePanel {
     rev.add([glow, card]);
     const pad = HUD.jbq.revealPad;
     const device = this.hooks.controllerDevice;
-    const bs = quad ? 60 : 84;
+    const bs = quad ? 110 : 170;
     let left = pad;
     if (device?.type !== 'touch') {
       const key = device?.type === 'keyboard' ? keyboardAnswerLabel(device.layout, slot) : undefined;
-      rev.add(circle(sc, { r: bs / 2 + 8, fill: 0xffffff }, -a.w / 2 + pad + bs / 2, 0));
-      rev.add(new FaceButtonBadge(sc, -a.w / 2 + pad + bs / 2, 0, bs, ANSWER_POSITIONS[slot], this.controllerFamily, key));
+      rev.add(circle(sc, { r: bs / 2 + 4, fill: 0xffffff }, -a.w / 2 + pad + bs / 2, 0));
+      rev.add(answerDiamondIcon(sc, -a.w / 2 + pad + bs / 2, 0, bs, slot, this.controllerFamily, key));
       left += bs + 26;
     }
     const availW = a.w - left - pad, availH = a.h - 2 * pad;

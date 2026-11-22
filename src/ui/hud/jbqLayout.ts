@@ -6,6 +6,18 @@ import { HUD } from './hudConfig';
 
 export interface JbqFonts { answerMax: number; answerMin: number; answerHard: number; questionMax: number; questionMin: number; questionHard: number }
 
+export interface DiamondIconGeom {
+  /** Button centres relative to the icon centre, in ANSWER_POSITIONS order (left, top, right, bottom). */
+  centers: [number, number][];
+  big: number; small: number; ring: number;
+}
+
+/** Geometry of the mini button diamond shown on each answer row (a `size` x `size` square). */
+export function diamondIconGeom(size: number): DiamondIconGeom {
+  const d = size * 0.22, big = size * 0.24, ring = size * 0.04;   // like a real pad: the lit button slightly overlaps its neighbours
+  return { centers: [[-d, 0], [0, -d], [d, 0], [0, d]], big, small: size * 0.07, ring };
+}
+
 export interface JbqGeomIn { areaW: number; areaH: number; quad: boolean; badge: boolean }
 
 export interface JbqGeom {
@@ -40,7 +52,7 @@ export function jbqGeometry(i: JbqGeomIn): JbqGeom {
   return {
     areaW: i.areaW, areaH: i.areaH, pad, dividerGap, rowGap, rowPadY, rowPadX, qPadY, badgeSize,
     rowW, qW: rowW, qTextW: rowW - 2 * c.qSideInset, aTextW: rowW - textLeft - rowPadX, textLeft,
-    minRowH: badgeSize + 16,
+    minRowH: badgeSize + 8,
     availH: i.areaH - 2 * pad - dividerGap - 3 * rowGap,
     fonts: i.quad ? c.fontQuad : c.font,
   };
