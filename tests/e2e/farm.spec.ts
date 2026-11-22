@@ -5,6 +5,9 @@ import { TEX } from '../../src/core/assetKeys';
 import type { RaceContext } from '../../src/core/race';
 import type { HayWagon } from '../../src/entities/HayWagon';
 import { installGamepadMock } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+test.beforeEach(({ page }) => seedProfiles(page)); // Setup needs profiles (Robin, Sam, Kim, Lee)
 
 declare global {
   interface Window {
@@ -86,7 +89,7 @@ test('Setup can select Farm', async ({ page }) => {
   await installGamepadMock(page, 0);
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off', map: 'city' }));
-    localStorage.setItem('brainracer.content.v1', JSON.stringify({ overrides: { industrial: true, farm: true } }));
+    localStorage.setItem('brainracer.racers.v1', JSON.stringify(Object.fromEntries(['p1', 'p2', 'p3', 'p4'].map(id => [id, { worlds: [], items: [], overrides: { industrial: true, farm: true } }]))));
   });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');

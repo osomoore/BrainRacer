@@ -3,6 +3,9 @@ import type Phaser from 'phaser';
 import type { RaceContext } from '../../src/core/race';
 import type { IndustrialDecoration, PlayerId, RaceMap } from '../../src/core/types';
 import { installGamepadMock } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+test.beforeEach(({ page }) => seedProfiles(page)); // Setup needs profiles (Robin, Sam, Kim, Lee)
 
 declare global {
   interface Window {
@@ -62,7 +65,7 @@ test('legacy settings start in City and Setup can switch to Industrial and back'
   await installGamepadMock(page, 0);
   await page.addInitScript(() => {
     localStorage.setItem('brainracer.settings.v1', JSON.stringify({ challengeMode: 'off' }));
-    localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] }));
+    localStorage.setItem('brainracer.racers.v1', JSON.stringify(Object.fromEntries(['p1', 'p2', 'p3', 'p4'].map(id => [id, { worlds: ['industrial'], items: [], overrides: {} }]))));
   });
   await page.goto('/?questions=off');
   await openSetup(page);

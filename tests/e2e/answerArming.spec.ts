@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+test.beforeEach(({ page }) => seedProfiles(page)); // Setup needs profiles (Robin, Sam, Kim, Lee)
 
 // Gas keys (W / Arrow Up) held through the start of a question break must not register as an answer.
 test('holding gas into a question break does not answer', async ({ page }) => {

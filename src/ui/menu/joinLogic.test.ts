@@ -47,24 +47,30 @@ describe('ready, lock and advance', () => {
 });
 
 describe('unique racers', () => {
-  const ids = R('abe', 'gideon', 'helen', 'daddy', 'u1');
+  const ids = R('robin', 'sam', 'kim', 'lee', 'u1');
   it('excludes racers held by other players', () => {
-    expect(racerOptions(ids, R('abe', 'helen'), true)).toEqual(['gideon', 'daddy', 'u1', 'new']);
+    expect(racerOptions(ids, R('robin', 'kim'), true)).toEqual(['sam', 'lee', 'u1', 'new']);
   });
   it('cycles over the free ones with wrap', () => {
-    expect(nextRacer(ids, R('abe', 'gideon', 'helen'), false, 'daddy' as RacerProfileId, 1)).toBe('u1');
-    expect(nextRacer(ids, R('abe', 'gideon', 'helen'), false, 'u1' as RacerProfileId, 1)).toBe('daddy');
+    expect(nextRacer(ids, R('robin', 'sam', 'kim'), false, 'lee' as RacerProfileId, 1)).toBe('u1');
+    expect(nextRacer(ids, R('robin', 'sam', 'kim'), false, 'u1' as RacerProfileId, 1)).toBe('lee');
   });
   it('freeRacer prefers the wish, else the first free', () => {
-    expect(freeRacer(ids, R('gideon'), 'gideon' as RacerProfileId)).toBe('abe');
-    expect(freeRacer(ids, R('abe'), 'gideon' as RacerProfileId)).toBe('gideon');
+    expect(freeRacer(ids, R('sam'), 'sam' as RacerProfileId)).toBe('robin');
+    expect(freeRacer(ids, R('robin'), 'sam' as RacerProfileId)).toBe('sam');
+    expect(freeRacer(ids, R(...ids))).toBeUndefined();
+    expect(freeRacer([], [])).toBeUndefined();
   });
   it('new joiners get distinct defaults', () => {
     const taken: RacerProfileId[] = [];
     for (let i = 0; i < 4; i++) {
-      const p = newJoinPlayer(i, pad(i), undefined, undefined, ids, taken, i === 0 ? 'gideon' as RacerProfileId : i === 1 ? 'abe' as RacerProfileId : undefined);
+      const p = newJoinPlayer(i, pad(i), undefined, undefined, ids, taken, i === 0 ? 'sam' as RacerProfileId : i === 1 ? 'robin' as RacerProfileId : undefined);
       taken.push(p.profile!);
     }
-    expect(taken).toEqual(['gideon', 'abe', 'helen', 'daddy']);
+    expect(taken).toEqual(['sam', 'robin', 'kim', 'lee']);
+  });
+  it('a joiner with no free racer gets no profile (they make one)', () => {
+    expect(newJoinPlayer(0, pad(0), undefined, undefined, [], [], undefined).profile).toBeUndefined();
+    expect(newJoinPlayer(1, pad(1), undefined, undefined, R('robin'), R('robin'), 'robin').profile).toBeUndefined();
   });
 });

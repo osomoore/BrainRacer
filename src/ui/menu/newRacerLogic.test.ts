@@ -3,8 +3,8 @@ import { cycleChoice, nameTaken, racerChoices, toggleQuestionType } from './newR
 
 describe('newRacerLogic', () => {
   it('racerChoices excludes the other racer and appends new', () => {
-    expect(racerChoices(['abe', 'gideon', 'u1'], 'abe', true)).toEqual(['gideon', 'u1', 'new']);
-    expect(racerChoices(['abe', 'gideon'], undefined, false)).toEqual(['abe', 'gideon']);
+    expect(racerChoices(['robin', 'sam', 'u1'], 'robin', true)).toEqual(['sam', 'u1', 'new']);
+    expect(racerChoices(['robin', 'sam'], undefined, false)).toEqual(['robin', 'sam']);
   });
   it('cycleChoice wraps', () => {
     expect(cycleChoice(['a', 'b', 'c'], 'c', 1)).toBe('a');
@@ -17,7 +17,7 @@ describe('newRacerLogic', () => {
     expect(toggleQuestionType(q, 'spelling')).toEqual({ addition: true, multiplication: false, spelling: true });
   });
   it('nameTaken is case-insensitive', () => {
-    expect(nameTaken(' abe ', ['Abe'])).toBe(true);
-    expect(nameTaken('Zed', ['Abe'])).toBe(false);
+    expect(nameTaken(' robin ', ['Robin'])).toBe(true);
+    expect(nameTaken('Zed', ['Robin'])).toBe(false);
   });
 });

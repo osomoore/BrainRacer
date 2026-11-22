@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { Settings } from '../../src/core/types';
 import { installGamepadMock } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+test.beforeEach(({ page }) => seedProfiles(page)); // Setup needs profiles (Robin, Sam, Kim, Lee)
 
 async function waitScene(page: Page, key: string) {
   await page.waitForFunction((k) => (window as any).__game?.scene.isActive(k), key, { timeout: 30_000 });

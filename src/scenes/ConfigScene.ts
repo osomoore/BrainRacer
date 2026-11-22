@@ -6,7 +6,7 @@ import { BUILD_ID } from '../buildInfo';
 import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
 import { developerModeSettings, MAP_LABEL, RACE_MAPS } from '../core/progression';
 import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
-import { deleteRacer, isBuiltinRacerId, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
+import { deleteRacer, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
 import type { Difficulty, QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
@@ -300,11 +300,9 @@ export class ConfigScene extends Phaser.Scene {
       const rename = new MenuButton(this, x, rowY(), colW, 60, 'Rename', color, 44, false);
       panel.add(rename);
       this.subRows.push({ selectable: rename, activate: () => this.openRename(id) });
-      if (!isBuiltinRacerId(id)) {
-        const del = new MenuButton(this, x, rowY(), colW, 60, 'Delete', color, 44, false);
-        panel.add(del);
-        this.subRows.push({ selectable: del, activate: () => this.openDelete(id) });
-      }
+      const del = new MenuButton(this, x, rowY(), colW, 60, 'Delete', color, 44, false);
+      panel.add(del);
+      this.subRows.push({ selectable: del, activate: () => this.openDelete(id) });
     });
     const back = new MenuButton(this, GAME_WIDTH / 2, 935, 600, ROW_H, 'Back', color, 44, false);
     panel.add(back);
@@ -337,7 +335,7 @@ export class ConfigScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setDepth(DEPTH + 1);
     c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
     c.add(bigText(this, GAME_WIDTH / 2, 330, `Delete ${racerName(this.settings(), id).toUpperCase()}?`, 72, MENU.yellow, { font: FONT_HEAD }));
-    c.add(bigText(this, GAME_WIDTH / 2, 430, 'Their unlocks are lost.', 52, MENU.white));
+    c.add(bigText(this, GAME_WIDTH / 2, 430, 'Their unlocks are lost, and the name is removed from every game.', 52, MENU.white));
     const yes = new MenuButton(this, GAME_WIDTH / 2, 600, 600, 80, 'Yes, delete', color, 52, false);
     const no = new MenuButton(this, GAME_WIDTH / 2, 710, 600, 80, 'No', color, 52, false);
     c.add([yes, no]);
@@ -384,7 +382,7 @@ export class ConfigScene extends Phaser.Scene {
         if (!name) m.msg?.setText('Use letters only.');
         else if (taken) { m.msg?.setText(`${name.toUpperCase()} is already taken.`); services.audio.sfx('menuMove'); }
         else {
-          this.patchSettings(renameRacer(s, m.id, name));
+          renameRacer(m.id, name);
           this.closeModal();
           this.showProfiles(this.profilePage, this.cursor);
         }
@@ -409,6 +407,15 @@ export class ConfigScene extends Phaser.Scene {
     const ids = racerIds(this.settings());
     this.contentRacer = clampPage(this.contentRacer, ids.length);
     const racer = ids[this.contentRacer];
+    if (racer === undefined) {
+      panel.add(bigText(this, cx, 300, 'No profiles yet. Make one in Setup.', 52, MENU.white));
+      const back = new MenuButton(this, cx, 935, 600, ROW_H, 'Back', hexNum(PLAYER_COLORS[0]), 44, false);
+      panel.add(back);
+      this.subRows.push({ selectable: back, activate: () => this.closeSub() });
+      this.cursor = 0;
+      this.refreshRows();
+      return;
+    }
     const racerRow = new OptionRow(this, cx, 219, 'Racer', opts);
     panel.add(racerRow);
     racerRow.setValue(racerName(this.settings(), racer));
@@ -506,17 +513,9 @@ export class ConfigScene extends Phaser.Scene {
       musicVolume: d.musicVolume, sfxVolume: d.sfxVolume,
       challengeIntervalSec: d.challengeIntervalSec,
       questionStyle: d.questionStyle,
-      ...this.presetReset(),
     });
     services.audio.sfx('menuSelect');
     this.refreshRows();
-  }
-
-  /** Resets built-in presets only; custom racers (and their names) stay. */
-  private presetReset(): Pick<Settings, 'racerProfiles'> {
-    const s = this.settings();
-    const custom = Object.fromEntries(Object.entries(racerProfiles(s)).filter(([id]) => !isBuiltinRacerId(id)));
-    return { racerProfiles: Object.keys(custom).length ? custom : undefined };
   }
 
   private refreshRows(): void {

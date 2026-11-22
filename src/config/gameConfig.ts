@@ -3,7 +3,8 @@
  * and may ADD new keys only inside the section for their own package (mark with the package id),
  * never rename/remove existing keys.
  */
-import type { BuiltinRacerId, ChallengeKind, Difficulty, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
+import { PROFILE_NAME } from '../../shared/profiles';
+import type { ChallengeKind, Difficulty, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
 
 export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
@@ -85,29 +86,20 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export const DEVELOPER_ROUND_SEC = 60;
 
-/** Racer presets (Setup "Racer" row). Admin Settings can change them; these are the defaults. */
-export const DEFAULT_RACER_PROFILES: Record<BuiltinRacerId, RacerProfile> = {
-  abe: { difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true }, roundSec: 300 },
-  gideon: { difficulty: 'normal', questionTypes: { addition: true, multiplication: false, spelling: true }, roundSec: 300 },
-  helen: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 },
-  daddy: { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 },
-};
 /** Race-time choices for a racer profile (Admin Settings → Racer Profiles). */
 export const RACER_ROUND_SEC: readonly number[] = [60, 120, 180, 240, 300, 420, 600];
-/** Default racer per player slot. */
-export const DEFAULT_PLAYER_RACERS: readonly BuiltinRacerId[] = ['gideon', 'abe', 'helen', 'daddy'];
-/** Custom racers created in Setup ("New Profile"). Names: letters and spaces only. */
+/** New profiles made in Setup ("New Profile"). Names: letters and spaces only (rules shared with the other apps). */
 export const NEW_RACER = {
-  nameMaxLen: 10,
+  nameMaxLen: PROFILE_NAME.maxLen,
   /** Letters (any language) and single spaces. */
-  nameChars: /^[\p{L} ]+$/u,
+  nameChars: PROFILE_NAME.chars,
   roundSecUnder10: 300,
   roundSecOver10: 180,
   defaultDifficulty: 'easy' as Difficulty,
   defaultQuestionTypes: { addition: true, multiplication: false, spelling: true } as QuestionTypes,
   maxCustomRacers: 12,
 };
-/** Fallback profile for a custom racer whose saved data is missing or invalid. */
+/** Settings of a brand-new profile, and the fallback when saved data is missing or invalid. */
 export const NEW_RACER_DEFAULTS: RacerProfile = {
   difficulty: NEW_RACER.defaultDifficulty,
   questionTypes: { ...NEW_RACER.defaultQuestionTypes },

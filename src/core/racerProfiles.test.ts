@@ -1,124 +1,101 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createProfile, listProfiles } from '../../shared/profiles';
+import { removeShared } from '../../shared/storage';
 import {
-  applyRacerProfile, createRacer, deleteRacer, isRacerProfileId, playerRacer, racerIds, racerName, racerProfiles, renameRacer, teamRoundSec,
+  applyRacerProfile, createRacer, deleteRacer, isRacerProfileId, playerRacer, racerIds, racerName, racerProfiles, racerSettingsOf, renameRacer, teamRoundSec,
   validRacerName, withRacerProfile,
 } from './racerProfiles';
-import type { Settings } from './types';
-import type { PlayerSettings } from './types';
+import type { PlayerSettings, QuestionTypes, Settings } from './types';
 
 const base: PlayerSettings = { device: { type: 'keyboard', layout: 'left' }, difficulty: 'normal', car: 'dino' };
+const q = (addition: boolean, multiplication: boolean, spelling: boolean): QuestionTypes => ({ addition, multiplication, spelling });
+const NEW_DEFAULT = { difficulty: 'easy', questionTypes: q(true, false, true), roundSec: 300 };
+
+/** Makes profiles Robin, Sam, Kim (ids p1..p3 on a clean store). */
+const seed = (...names: string[]) => names.map(n => createProfile(n)!.id);
 
 describe('racerProfiles', () => {
-  it('has the requested defaults', () => {
-    const p = racerProfiles({});
-    expect(p.abe).toEqual({ difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true }, roundSec: 300 });
-    expect(p.gideon).toEqual({ difficulty: 'normal', questionTypes: { addition: true, multiplication: false, spelling: true }, roundSec: 300 });
-    expect(p.helen).toEqual({ difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 });
-    expect(p.daddy).toEqual(p.helen);
+  beforeEach(() => { removeShared('profiles'); removeShared('profileSeq'); });
+
+  it('a fresh device has no racers and no default racer', () => {
+    expect(racerIds({})).toEqual([]);
+    expect(racerProfiles({})).toEqual({});
+    expect(playerRacer(undefined, 0)).toBeUndefined();
+    expect(playerRacer({ profile: 'gone' }, 1)).toBeUndefined();
+    expect(teamRoundSec([{}], {})).toBe(300);
+    expect(applyRacerProfile(base, 0, {})).toMatchObject({ profile: undefined, difficulty: 'easy', questionTypes: q(true, false, true) });
   });
 
-  it('falls back on invalid saved data and never leaves all types off', () => {
-    const p = racerProfiles({ racerProfiles: { abe: { difficulty: 'bogus' as never, questionTypes: { addition: false, multiplication: false, spelling: false }, roundSec: 300 } } });
-    expect(p.abe.difficulty).toBe('easy');
-    expect(p.abe.questionTypes.spelling).toBe(true);
+  it('every profile starts from the new-profile defaults and normalizes bad saved values', () => {
+    const [a, b] = seed('Robin', 'Sam');
+    expect(racerProfiles({})).toEqual({ [a]: NEW_DEFAULT, [b]: NEW_DEFAULT });
+    const bad = { difficulty: 'bogus' as never, questionTypes: q(false, false, false), roundSec: 5 };
+    expect(racerProfiles({ racerProfiles: { [a]: bad } })[a]).toEqual(NEW_DEFAULT);
   });
 
-  it('defaults P1 to Gideon and P2 to Abe', () => {
-    expect(playerRacer(undefined, 0)).toBe('gideon');
-    expect(playerRacer({}, 1)).toBe('abe');
-    expect(playerRacer({ profile: 'helen' }, 0)).toBe('helen');
+  it('defaults each slot to its own position, and keeps the last choice while it exists', () => {
+    const [a, b, c] = seed('Robin', 'Sam', 'Kim');
+    expect(playerRacer(undefined, 0)).toBe(a);
+    expect(playerRacer({}, 1)).toBe(b);
+    expect(playerRacer({ profile: c }, 0)).toBe(c);
+    expect(playerRacer({}, 3)).toBeUndefined();
+    deleteRacer({}, c);
+    expect(playerRacer({ profile: c }, 0)).toBe(a);
   });
 
-  it('applies edited profiles to the player', () => {
-    const s = withRacerProfile({}, 'helen', { difficulty: 'easyPlus', questionTypes: { addition: true, multiplication: true, spelling: false }, roundSec: 240 });
-    const p = applyRacerProfile({ ...base, profile: 'helen' }, 0, s);
-    expect(p.difficulty).toBe('easyPlus');
-    expect(p.questionTypes).toEqual({ addition: true, multiplication: true, spelling: false });
+  it('applies saved settings onto the player', () => {
+    const [a] = seed('Robin');
+    const s = withRacerProfile({}, a, { difficulty: 'easyPlus', questionTypes: q(true, true, false), roundSec: 240 });
+    expect(applyRacerProfile({ ...base, profile: a }, 0, s)).toMatchObject({ profile: a, difficulty: 'easyPlus', questionTypes: q(true, true, false) });
   });
 
-  it('uses the longer race time of the two racers, and admin edits', () => {
-    expect(teamRoundSec([{ profile: 'helen' }], {})).toBe(180);
-    expect(teamRoundSec([{ profile: 'helen' }, { profile: 'abe' }], {})).toBe(300);
-    expect(teamRoundSec([{ profile: 'daddy' }, { profile: 'helen' }], {})).toBe(180);
-    const s = withRacerProfile({}, 'daddy', { ...racerProfiles({}).daddy, roundSec: 420 });
-    expect(teamRoundSec([{ profile: 'daddy' }, { profile: 'gideon' }], s)).toBe(420);
-    expect(racerProfiles({ racerProfiles: { abe: { ...racerProfiles({}).abe, roundSec: -5 } } }).abe.roundSec).toBe(300);
-  });
-});
-
-const qt = { addition: true, multiplication: true, spelling: false };
-const mk = (s: Pick<Settings, 'racerProfiles' | 'customRacers'>, name: string, under10 = true) => {
-  const r = createRacer(s, { name, under10, difficulty: 'normal', questionTypes: qt });
-  return { id: r.id, s: { ...s, ...r.patch } };
-};
-
-describe('custom racers', () => {
-  it('allocates ids, including after deletes', () => {
-    const a = mk({}, 'Ann');
-    const b = mk(a.s, 'Bo');
-    expect([a.id, b.id]).toEqual(['u1', 'u2']);
-    const d = { ...b.s, ...deleteRacer(b.s, 'u1') };
-    expect(racerIds(d)).toEqual(['abe', 'gideon', 'helen', 'daddy', 'u2']);
-    expect(mk(d, 'Cy').id).toBe('u3');
-    expect(mk({ ...d, ...deleteRacer(d, 'u2') }, 'Di').id).toBe('u1');
+  it('race length is the longest time among the racers', () => {
+    const [a, b] = seed('Robin', 'Sam');
+    let s: Pick<Settings, 'racerProfiles'> = withRacerProfile({}, a, { ...NEW_DEFAULT, difficulty: 'hard', roundSec: 180 } as never);
+    s = { ...s, ...withRacerProfile(s, b, { ...NEW_DEFAULT, roundSec: 420 } as never) };
+    expect(teamRoundSec([{ profile: a }], s)).toBe(180);
+    expect(teamRoundSec([{ profile: a }, { profile: b }], s)).toBe(420);
   });
 
-  it('sets round time from under10 and keeps types/name', () => {
-    const a = mk({}, 'ann', true);
-    const b = mk(a.s, 'Bo', false);
-    expect(racerProfiles(b.s).u1.roundSec).toBe(300);
-    expect(racerProfiles(b.s).u2.roundSec).toBe(180);
-    expect(racerProfiles(b.s).u1).toMatchObject({ name: 'ann', difficulty: 'normal', questionTypes: qt });
-    const none = createRacer({}, { name: 'X', under10: true, difficulty: 'easy', questionTypes: { addition: false, multiplication: false, spelling: false } });
-    expect(Object.values(none.patch.racerProfiles![none.id]!.questionTypes).some(Boolean)).toBe(true);
+  it('creates a shared profile plus its settings, ids opaque and never reused', () => {
+    const r = createRacer({}, { name: 'Robin', under10: true, difficulty: 'normal', questionTypes: q(true, true, false) })!;
+    expect(listProfiles().map(p => p.name)).toEqual(['Robin']);
+    expect(r.patch.racerProfiles![r.id]).toEqual({ difficulty: 'normal', questionTypes: q(true, true, false), roundSec: 300 });
+    expect(racerSettingsOf(r.patch, r.id).roundSec).toBe(300);
+    const old = createRacer(r.patch, { name: 'Sam', under10: false, difficulty: 'easy', questionTypes: q(true, false, true) })!;
+    expect(old.patch.racerProfiles![old.id]!.roundSec).toBe(180);
+    expect(old.patch.racerProfiles![r.id]).toBeDefined();
+    deleteRacer(old.patch, old.id);
+    expect(createRacer({}, { name: 'Kim', under10: true, difficulty: 'easy', questionTypes: q(true, false, true) })!.id).not.toBe(old.id);
+    expect(createRacer({}, { name: '123', under10: true, difficulty: 'easy', questionTypes: q(true, false, true) })).toBeNull();
   });
 
-  it('normalizes and validates names', () => {
-    expect(validRacerName('  Mary   Jo ')).toBe('Mary Jo');
-    expect(validRacerName('ABCDEFGHIJKLMNOP')).toBe('ABCDEFGHIJ');
-    expect(validRacerName('')).toBeUndefined();
-    expect(validRacerName('   ')).toBeUndefined();
+  it('renames through the shared store and rejects invalid names', () => {
+    const [a] = seed('Robin');
+    expect(racerName({}, a)).toBe('Robin');
+    expect(renameRacer(a, 'Robyn')).toBe(true);
+    expect(racerName({}, a)).toBe('Robyn');
+    expect(renameRacer(a, '')).toBe(false);
+    expect(racerName({}, a)).toBe('Robyn');
+    expect(racerName({}, 'gone')).toBe('Racer');
+    expect(racerName({}, undefined)).toBe('Racer');
+  });
+
+  it('deletes a racer everywhere and drops its settings', () => {
+    const [a, b] = seed('Robin', 'Sam');
+    const s = withRacerProfile({}, a, { ...NEW_DEFAULT, roundSec: 60 } as never);
+    const patch = deleteRacer(s, a);
+    expect(racerIds({})).toEqual([b]);
+    expect(patch.racerProfiles![a]).toBeUndefined();
+    expect(isRacerProfileId(a)).toBe(false);
+    expect(isRacerProfileId(b)).toBe(true);
+  });
+
+  it('validates names with the shared rules', () => {
+    expect(validRacerName('  Mia   Lou ')).toBe('Mia Lou');
+    expect(validRacerName('Abcdefghijklmnop')).toBe('Abcdefghij');
     expect(validRacerName('R2D2')).toBeUndefined();
-    expect(validRacerName(5)).toBeUndefined();
-  });
-
-  it('lists only custom racers with a valid profile, deduped', () => {
-    const a = mk({}, 'Ann');
-    expect(racerIds({ ...a.s, customRacers: ['u1', 'u1', 'u9', 'bad' as never] })).toEqual(['abe', 'gideon', 'helen', 'daddy', 'u1']);
-    expect(isRacerProfileId('u1', a.s)).toBe(true);
-    expect(isRacerProfileId('u9', a.s)).toBe(false);
-    expect(isRacerProfileId('u9')).toBe(true);
-    expect(isRacerProfileId('x')).toBe(false);
-  });
-
-  it('falls back to the slot default when a custom racer was deleted', () => {
-    const a = mk({}, 'Ann');
-    expect(playerRacer({ profile: 'u1' }, 1, a.s)).toBe('u1');
-    const d = { ...a.s, ...deleteRacer(a.s, 'u1') };
-    expect(playerRacer({ profile: 'u1' }, 1, d)).toBe('abe');
-    expect(playerRacer({ profile: 'u1' }, 0, d)).toBe('gideon');
-  });
-
-  it('works with apply/team time and names', () => {
-    const a = mk({}, 'Ann', false);
-    expect(applyRacerProfile({ ...base, profile: 'u1' }, 0, a.s)).toMatchObject({ profile: 'u1', difficulty: 'normal', questionTypes: qt });
-    expect(teamRoundSec([{ profile: 'u1' }, { profile: 'abe' }], a.s)).toBe(300);
-    const e = { ...a.s, ...withRacerProfile(a.s, 'u1', { ...racerProfiles(a.s).u1, roundSec: 240 }) };
-    expect(racerName(e, 'u1')).toBe('Ann');
-    expect(teamRoundSec([{ profile: 'u1' }], e)).toBe(240);
-  });
-
-  it('renames built-ins (reset on empty) and ignores empty for custom', () => {
-    let s: Pick<Settings, 'racerProfiles'> = { ...renameRacer({}, 'abe', 'Abraham') };
-    expect(racerName(s, 'abe')).toBe('Abraham');
-    s = { ...s, ...renameRacer(s, 'abe', '') };
-    expect(racerName(s, 'abe')).toBe('Abe');
-    const a = mk({}, 'Ann');
-    expect(racerName({ ...a.s, ...renameRacer(a.s, 'u1', '') }, 'u1')).toBe('Ann');
-    expect(racerName({ ...a.s, ...renameRacer(a.s, 'u1', 'Anna') }, 'u1')).toBe('Anna');
-  });
-
-  it('does not delete built-ins', () => {
-    expect(deleteRacer({}, 'abe')).toEqual({});
+    expect(validRacerName('')).toBeUndefined();
+    expect(validRacerName(7)).toBeUndefined();
   });
 });

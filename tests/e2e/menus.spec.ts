@@ -2,6 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import type { Challenge, QuestionTypes, Settings } from '../../src/core/types';
 import { installGamepadMock, setPad, tapPad } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+// Setup needs profiles: every test starts with Robin, Sam, Kim and Lee except the first-run (fresh device) ones.
+test.beforeEach(async ({ page }, info) => {
+  if (info.title.includes('fresh device')) return;
+  await seedProfiles(page, { settings: { p3: HARD_TABLES, p4: HARD_TABLES } });
+});
+const HARD_TABLES = { difficulty: 'hard', questionTypes: { addition: false, multiplication: true, spelling: true }, roundSec: 180 };
 
 const BTN_A = 0;
 const PAD_DOWN = 13, PAD_RIGHT = 15;
@@ -33,7 +41,7 @@ test('gamepads: two players customize and receive different questions', async ({
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/menus-setup.png' });
 
-  await tapPad(page, 0, PAD_RIGHT); // P1 starts as Gideon; right goes to Helen (hard, multiplication + spelling).
+  await tapPad(page, 0, PAD_RIGHT); // P1 starts as Robin; right goes to Kim (hard, multiplication + spelling).
   for (const player of [0, 1]) {
     await tapPad(page, player, PAD_DOWN); // Car.
     await tapPad(page, player, PAD_DOWN); // Guide.
@@ -83,8 +91,8 @@ test('gamepads: two players customize and receive different questions', async ({
   expect(s.questionStyle).toBe('pause');
   await page.waitForFunction(() => [0, 1].every((p) => (window as any).__challenge?.current(p)));
   const kinds = await page.evaluate(() => [0, 1].map((p) => ((window as any).__challenge.current(p) as Challenge).kind));
-  expect(kinds[0]).not.toBe('math');            // Helen: multiplication + spelling
-  expect(kinds[1]).not.toBe('multiplication');  // Abe: addition + spelling
+  expect(kinds[0]).not.toBe('math');            // Kim: multiplication + spelling
+  expect(kinds[1]).not.toBe('multiplication');  // Sam: addition + spelling
   expect(errors).toEqual([]);
 });
 
@@ -161,7 +169,7 @@ test('single gamepad: A, A, A, A reaches the race', async ({ page }) => {
 test('Setup wraps and the hidden hotkeys open Advanced for changing answer mode', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
-  await page.addInitScript(() => localStorage.setItem('brainracer.content.v1', JSON.stringify({ worlds: ['industrial'] })));
+  await page.addInitScript(() => localStorage.setItem('brainracer.racers.v1', JSON.stringify(Object.fromEntries(['p1', 'p2', 'p3', 'p4'].map(id => [id, { worlds: ['industrial'], items: [], overrides: {} }])))));
   await page.goto('/racer.html');
   await waitScene(page, 'Title');
   await page.keyboard.press('Space');   // Title -> Join
@@ -216,7 +224,7 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   await page.addInitScript(() => {
     if (localStorage.getItem('brainracer.racers.v1')) return;
     const none = { worlds: [], items: [], overrides: {} };
-    localStorage.setItem('brainracer.racers.v1', JSON.stringify({ abe: none, gideon: { ...none, worlds: ['industrial'] }, helen: none, daddy: none }));
+    localStorage.setItem('brainracer.racers.v1', JSON.stringify({ p2: none, p1: { ...none, worlds: ['industrial'] }, p3: none, p4: none }));
   });
   await page.goto('/racer.html');
   await waitScene(page, 'Title');
@@ -228,24 +236,24 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   await page.waitForTimeout(300);
 
   const racers = () => page.evaluate(() => (window.__game.scene.getScene('Setup') as any).cfg.players.map((p: any) => p.profile) as string[]);
-  expect(await racers()).toEqual(['gideon', 'abe']);
-  await tapPad(page, 1, PAD_RIGHT);   // Abe -> (Gideon is taken) -> Helen
-  expect(await racers()).toEqual(['gideon', 'helen']);
-  await tapPad(page, 1, PAD_RIGHT);   // Helen -> Daddy
-  expect(await racers()).toEqual(['gideon', 'daddy']);
-  await tapPad(page, 1, PAD_RIGHT);   // Daddy -> New Profile
-  await tapPad(page, 1, PAD_RIGHT);   // New Profile -> Abe
-  expect(await racers()).toEqual(['gideon', 'abe']);
-  await tapPad(page, 0, PAD_RIGHT);   // Gideon -> Helen
-  await tapPad(page, 0, PAD_RIGHT);   // Helen -> Daddy
-  await tapPad(page, 0, PAD_RIGHT);   // Daddy -> New Profile
-  await tapPad(page, 0, PAD_RIGHT);   // New Profile -> (Abe is taken) -> Gideon
-  expect(await racers()).toEqual(['gideon', 'abe']);
+  expect(await racers()).toEqual(['p1', 'p2']);
+  await tapPad(page, 1, PAD_RIGHT);   // Sam -> (Robin is taken) -> Kim
+  expect(await racers()).toEqual(['p1', 'p3']);
+  await tapPad(page, 1, PAD_RIGHT);   // Kim -> Lee
+  expect(await racers()).toEqual(['p1', 'p4']);
+  await tapPad(page, 1, PAD_RIGHT);   // Lee -> New Profile
+  await tapPad(page, 1, PAD_RIGHT);   // New Profile -> Sam
+  expect(await racers()).toEqual(['p1', 'p2']);
+  await tapPad(page, 0, PAD_RIGHT);   // Robin -> Kim
+  await tapPad(page, 0, PAD_RIGHT);   // Kim -> Lee
+  await tapPad(page, 0, PAD_RIGHT);   // Lee -> New Profile
+  await tapPad(page, 0, PAD_RIGHT);   // New Profile -> (Sam is taken) -> Robin
+  expect(await racers()).toEqual(['p1', 'p2']);
   expect(new Set(await racers()).size).toBe(2);
   // A ready panel is locked: P2 readies, then cannot change racer.
   await tapPad(page, 1, BTN_A);
   await tapPad(page, 1, PAD_RIGHT);
-  expect(await racers()).toEqual(['gideon', 'abe']);
+  expect(await racers()).toEqual(['p1', 'p2']);
   await tapPad(page, 0, BTN_A);
   await page.waitForTimeout(700);
   await tapPad(page, 0, BTN_A);
@@ -255,7 +263,7 @@ test('Setup: P2 cannot select P1\'s racer and loadouts follow each racer\'s unlo
   expect(errors).toEqual([]);
 });
 
-test('Setup: New Profile asks name, age and settings, then races as the new racer', async ({ page }) => {
+test('Setup on a fresh device: the first player makes their racer (name, age, settings), then races as them', async ({ page }) => {
   const errors = watchErrors(page);
   await installGamepadMock(page, 1);
   await page.goto('/racer.html');
@@ -264,11 +272,10 @@ test('Setup: New Profile asks name, age and settings, then races as the new race
   await tapPad(page, 0, BTN_A);   // Join screen
   await waitScene(page, 'Setup');
   await page.waitForTimeout(400);
-  const PAD_LEFT = 14, PAD_UP = 12;
-  await tapPad(page, 0, PAD_LEFT);  // Gideon -> Abe
-  await tapPad(page, 0, PAD_LEFT);  // Abe -> New Profile
+  const PAD_UP = 12;
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!))).toEqual([]); // fresh device: no profiles
   await page.waitForTimeout(150);
-  expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make a new racer!');
+  expect(await page.evaluate(() => (window.__game.scene.getScene('Setup') as any).panels[0].hint.text)).toBe('Make your racer!');
   await page.screenshot({ path: 'test-results/menus-setup-new.png' });
   await tapPad(page, 0, BTN_A);     // ready on New Profile -> creation overlay
   await page.waitForTimeout(500);
@@ -291,11 +298,11 @@ test('Setup: New Profile asks name, age and settings, then races as the new race
 
   const s = await settingsOf(page);
   const id = s.players[0].profile!;
-  expect(id).toMatch(/^u\d+$/);
-  expect(s.customRacers).toEqual([id]);
-  expect(s.racerProfiles?.[id]).toMatchObject({ name: 'ZED', roundSec: 300, difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } });
+  expect(id).toMatch(/^p\d+$/);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!).map((p: { id: string; name: string }) => [p.id, p.name]))).toEqual([[id, 'ZED']]);
+  expect(s.racerProfiles?.[id]).toMatchObject({ roundSec: 300, difficulty: 'easy', questionTypes: { addition: true, multiplication: false, spelling: true } });
   expect(await page.evaluate(() => window.__race.settings.players[0].profile)).toBe(id);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.settings.v1')!) as Settings);
-  expect(saved.customRacers).toEqual([id]);
+  expect(saved.players[0].profile).toBe(id);
   expect(errors).toEqual([]);
 });

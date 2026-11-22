@@ -50,7 +50,7 @@ export class ResultsScene extends Phaser.Scene {
     const world = rewards.find(r => r.world)?.world;
     const earners = rewards.filter(r => r.reward);
     const world0 = MAP_LABEL[this.settings.map];
-    const nothing = !world && !earners.length && results.goalsCompleted >= COMPLETION_OBJECTIVES && !this.settings.developerMode && rewards.length > 0;
+    const nothing = !world && !earners.length && results.goalsCompleted >= COMPLETION_OBJECTIVES && !this.settings.developerMode && rewards.some(r => r.racer !== undefined);
     // Racers reveal one after another; with several reels each runs faster so the screen stays about as long as before.
     const reveal = (i: number) => {
       const r = earners[i];

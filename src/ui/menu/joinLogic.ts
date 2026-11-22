@@ -46,13 +46,13 @@ export function nextRacer(
   return cycleChoice(racerOptions(ids, takenByOthers, canNew), current, dir);
 }
 
-/** First free racer, preferring `preferred`. Falls back to `preferred` itself if everything is taken. */
-export function freeRacer(ids: readonly RacerProfileId[], taken: readonly RacerProfileId[], preferred?: RacerProfileId): RacerProfileId {
+/** First free racer, preferring `preferred`; undefined when there is none (the player makes a new one). */
+export function freeRacer(ids: readonly RacerProfileId[], taken: readonly RacerProfileId[], preferred?: RacerProfileId): RacerProfileId | undefined {
   if (preferred && ids.includes(preferred) && !taken.includes(preferred)) return preferred;
-  return ids.find((r) => !taken.includes(r)) ?? preferred ?? ids[0];
+  return ids.find((r) => !taken.includes(r));
 }
 
-/** Settings for a player who just joined slot `index` (saved choices reused when the racer is still free). */
+/** Settings for a player who just joined slot `index` (saved choices reused when the racer is still free; no `profile` when none is free). */
 export function newJoinPlayer(
   index: number, device: InputDevice, prev: Partial<PlayerSettings> | undefined, firstCar: CarKind | undefined,
   ids: readonly RacerProfileId[], taken: readonly RacerProfileId[], defaultRacer?: RacerProfileId,

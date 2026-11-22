@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { DEFAULT_PLAYER_RACERS, DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, MAX_PLAYERS, NEW_RACER, PLAYER_COLORS } from '../config/gameConfig';
-import { applyRacerProfile, createRacer, playerRacer, racerIds, racerName, racerProfiles } from '../core/racerProfiles';
+import { DEFAULT_SETTINGS, DIFFICULTY, GAME_HEIGHT, GAME_WIDTH, MAX_PLAYERS, NEW_RACER, PLAYER_COLORS } from '../config/gameConfig';
+import { applyRacerProfile, createRacer, playerRacer, racerIds, racerName, racerProfiles, racerSettingsOf } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { selectedLoadout } from '../core/progression';
 import { loadAllProgress, racerProgressOf, racerLoadouts, teamPlayableMap, type AllProgress } from '../core/racerProgress';
@@ -15,8 +15,8 @@ import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
 import { REG, SCENE } from './keys';
 
-/** Stand-in id for "New Profile": no saved progress, so only starter cars/guides. */
-const NEW_PROFILE_ID = 'u0' as RacerProfileId;
+/** Stand-in id for "New Profile": matches no shared profile, so no saved progress: only the starter cars/guides and City. */
+const NEW_PROFILE_ID = 'new-profile' as RacerProfileId;
 const NEXT_GRACE_MS = 500;
 const ROWS = 3;
 
@@ -119,10 +119,12 @@ export class SetupScene extends Phaser.Scene {
     const ids = racerIds(this.cfg);
     const taken = this.cfg.players.map((p, k) => (this.isNew[k] ? undefined : playerRacer(p, k, this.cfg))).filter(Boolean) as RacerProfileId[];
     const prev = savedPlayers[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
-    const p = newJoinPlayer(i, device, prev, savedPlayers[0]?.car, ids, taken, DEFAULT_PLAYER_RACERS[i]);
+    const p = newJoinPlayer(i, device, prev, savedPlayers[0]?.car, ids, taken, ids[i]);
     this.slots = claimSlot(this.slots, device);
-    this.cursors.push(ROW_RACER); this.isNew.push(false);
-    this.cfg.players.push(applyRacerProfile(p, i, this.cfg) as SetupPlayer);
+    this.cursors.push(ROW_RACER);
+    // No free profile (a fresh device, or all taken): the player starts on "New Profile" and makes their racer.
+    this.isNew.push(p.profile === undefined);
+    this.cfg.players.push((p.profile === undefined ? { ...p, questionTypes: { ...NEW_RACER.defaultQuestionTypes } } : applyRacerProfile(p, i, this.cfg)) as SetupPlayer);
     this.refreshAvailability();
   }
 
@@ -155,7 +157,6 @@ export class SetupScene extends Phaser.Scene {
     this.cfg.sfxVolume = latest.sfxVolume;
     this.cfg.developerMode = latest.developerMode;
     this.cfg.racerProfiles = racerProfiles(latest);
-    this.cfg.customRacers = latest.customRacers;
     this.applyRacers();
     this.refreshAvailability();
     this.refreshAll();
@@ -167,14 +168,14 @@ export class SetupScene extends Phaser.Scene {
 
   // ───────────────────────── view ─────────────────────────
   private hintText(p: SetupPlayer, slot: number): string {
-    if (this.isNew[slot]) return 'Make a new racer!';
+    if (this.isNew[slot]) return 'Make your racer!';
     const { difficulty: d, questionTypes } = p;
     const names = (Object.keys(QUESTION_LABEL) as (keyof QuestionTypes)[]).filter((t) => questionTypes[t]).map((t) => QUESTION_LABEL[t]);
     const examples: string[] = [];
     if (questionTypes.addition) examples.push(`Sums like ${DIFF_EXAMPLE[d]}`);
     if (questionTypes.multiplication) examples.push(`Tables up to ${DIFFICULTY[d].multiplication.maxFactor}`);
     const lines = [`${DIFF_LABEL[d]} · ${names.join(' + ')}`];
-    const sec = racerProfiles(this.cfg)[playerRacer(p, slot, this.cfg)].roundSec;
+    const sec = racerSettingsOf(this.cfg, playerRacer(p, slot, this.cfg)).roundSec;
     examples.push(`${sec % 60 ? (sec / 60).toFixed(1) : sec / 60} min races`);
     lines.push(examples.join(' · '));
     if (this.cfg.questionStyle !== 'pause') {
@@ -292,8 +293,7 @@ export class SetupScene extends Phaser.Scene {
       const takenByOthers = c.players
         .map((o, k) => (k === p || this.isNew[k] ? undefined : playerRacer(o, k, c)))
         .filter(Boolean) as RacerProfileId[];
-      const customCount = racerIds(c).filter((r) => r.startsWith('u')).length;
-      const next = nextRacer(racerIds(c), takenByOthers, customCount < NEW_RACER.maxCustomRacers, this.isNew[p] ? 'new' : playerRacer(ps, p, c), dir);
+      const next = nextRacer(racerIds(c), takenByOthers, racerIds(c).length < NEW_RACER.maxCustomRacers, this.isNew[p] ? 'new' : playerRacer(ps, p, c) ?? 'new', dir);
       if (next === 'new') this.isNew[p] = true;
       else { this.isNew[p] = false; c.players[p] = applyRacerProfile({ ...ps, profile: next }, p, c) as SetupPlayer; }
       this.refreshAvailability();
@@ -344,7 +344,9 @@ export class SetupScene extends Phaser.Scene {
     panel.destroy();
     if (res === 'cancel') { services.audio.sfx('menuMove'); return; }
     const p = this.newPanelPlayer;
-    const { id, patch } = createRacer(this.cfg, panel.result!);
+    const created = createRacer(this.cfg, panel.result!);
+    if (!created) { services.audio.sfx('menuMove'); return; }
+    const { id, patch } = created;
     Object.assign(this.cfg, patch);
     this.isNew[p] = false;
     this.cfg.players[p] = applyRacerProfile({ ...this.cfg.players[p], profile: id }, p, this.cfg) as SetupPlayer;

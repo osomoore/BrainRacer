@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { WORLD_REWARDS } from '../../src/config/collectibles';
 import { installGamepadMock, tapPad } from './gamepadMock';
+import { seedProfiles } from './profiles';
+
+test.beforeEach(({ page }) => seedProfiles(page)); // Robin (p1), Sam (p2), Kim (p3), Lee (p4)
 
 type Racers = Record<string, { worlds: string[]; items: string[]; overrides: Record<string, boolean> }>;
 const racers = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('brainracer.racers.v1') ?? '{}') as Racers);
@@ -9,7 +12,7 @@ const seedRacers = (page: Page, seed: Record<string, { worlds?: string[]; items?
   const key = 'brainracer.racers.v1';
   if (localStorage.getItem(key)) return;
   const empty = { worlds: [], items: [], overrides: {} };
-  localStorage.setItem(key, JSON.stringify(Object.fromEntries(['abe', 'gideon', 'helen', 'daddy'].map(id => [id, { ...empty, ...value[id] }]))));
+  localStorage.setItem(key, JSON.stringify(Object.fromEntries(['p2', 'p1', 'p3', 'p4'].map(id => [id, { ...empty, ...value[id] }]))));
 }, seed);
 
 async function waitScene(page: Page, key: string) {
@@ -39,15 +42,15 @@ async function waitSummary(page: Page) {
 }
 
 test('two objectives replay the City and three reveal Factory before the racer reward', async ({ page }) => {
-  await seedRacers(page, { gideon: { items: ['owl'] } });
-  await page.goto('/?race=1&seed=3&questions=off'); // One player: Gideon.
+  await seedRacers(page, { p1: { items: ['owl'] } });
+  await page.goto('/?race=1&seed=3&questions=off'); // One player: Robin.
   await waitScene(page, 'Race');
-  expect(await items(page, 'gideon')).toEqual(['owl']);
+  expect(await items(page, 'p1')).toEqual(['owl']);
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
 
   await finishRound(page, 2);
   await waitSummary(page);
-  expect(await racers(page)).toMatchObject({ gideon: { worlds: [], items: ['owl'] } });
+  expect(await racers(page)).toMatchObject({ p1: { worlds: [], items: ['owl'] } });
   await tap(page, 'Space');
   await waitScene(page, 'Race');
   expect(await page.evaluate(() => window.__race.settings.map)).toBe('city');
@@ -60,12 +63,12 @@ test('two objectives replay the City and three reveal Factory before the racer r
   });
   await waitSummary(page);
   const after = await racers(page);
-  expect(after.gideon.worlds).toContain('industrial');
-  expect(after.gideon.items).toHaveLength(2);
-  expect(after.gideon.items[0]).toBe('owl');
+  expect(after.p1.worlds).toContain('industrial');
+  expect(after.p1.items).toHaveLength(2);
+  expect(after.p1.items[0]).toBe('owl');
   const cityRewards = [...WORLD_REWARDS.city.cars, WORLD_REWARDS.city.buddy] as string[];
-  expect(cityRewards).toContain(after.gideon.items[1]);
-  expect(after.abe).toMatchObject({ worlds: [], items: [] });
+  expect(cityRewards).toContain(after.p1.items[1]);
+  expect(after.p2).toMatchObject({ worlds: [], items: [] });
 
   await tap(page, 'Space');
   await waitScene(page, 'Race');
@@ -75,7 +78,7 @@ test('two objectives replay the City and three reveal Factory before the racer r
 
 test('each racer earns their own reward in turn and keeps it after a reload', async ({ page }) => {
   await installGamepadMock(page, 2);
-  await seedRacers(page, { abe: { items: ['brickBuggy'] }, gideon: { items: ['owl'] } });
+  await seedRacers(page, { p2: { items: ['brickBuggy'] }, p1: { items: ['owl'] } });
   await page.goto('/?seed=4&questions=off');
   await waitScene(page, 'Title');
   await tapPad(page, 0, 0);   // Title -> Join (P1)
@@ -84,16 +87,16 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
   await tapPad(page, 1, 0);   // P2 joins
   await page.waitForTimeout(300);
 
-  // P1 = Gideon (starters + Night Owl), P2 = Abe (starters + Brick Buggy): each list is that racer's own.
+  // P1 = Robin (starters + Night Owl), P2 = Sam (starters + Brick Buggy): each list is that racer's own.
   await tapPad(page, 0, 13); // P1 Car.
-  await tapPad(page, 0, 14); // Left from Dino wraps to the last car: Kart (Gideon owns no extra car).
+  await tapPad(page, 0, 14); // Left from Dino wraps to the last car: Kart (Robin owns no extra car).
   await tapPad(page, 0, 13); // P1 Guide.
   await tapPad(page, 0, 15); // Star -> Night Owl.
   await page.waitForTimeout(300);
   await tapPad(page, 1, 13); // P2 Car.
   await page.waitForTimeout(300);
   await tapPad(page, 1, 14); // P2 defaults to Kart: left to Dino,
-  await tapPad(page, 1, 14); // then wrapping to Abe's Brick Buggy.
+  await tapPad(page, 1, 14); // then wrapping to Sam's Brick Buggy.
   await page.waitForTimeout(500);
   await tapPad(page, 1, 0);   // P2 ready
   await tapPad(page, 0, 0);   // P1 ready
@@ -107,26 +110,26 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
     car: window.__race.players[slot].kind,
     racer: player.profile,
   })));
-  expect(loadouts).toEqual([{ car: 'kart', racer: 'gideon' }, { car: 'brickBuggy', racer: 'abe' }]);
+  expect(loadouts).toEqual([{ car: 'kart', racer: 'p1' }, { car: 'brickBuggy', racer: 'p2' }]);
   expect(await page.evaluate(() => window.__race.settings.players[0].guide)).toBe('owl');
 
   await finishRound(page);
   await page.waitForFunction(() => window.__game.scene.getScene('Results').children.getByName('collectible-reveal'));
-  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON'S REWARD REEL/.test(o.text ?? '')));
-  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /GIDEON GOT .*!/.test(o.text ?? '')));
-  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /ABE'S REWARD REEL/.test(o.text ?? '')), undefined, { timeout: 20000 });
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /ROBIN'S REWARD REEL/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /ROBIN GOT .*!/.test(o.text ?? '')));
+  await page.waitForFunction(() => ((window.__game.scene.getScene('Results').children.getByName('collectible-reveal') as unknown as { list: { text?: string }[] } | null)?.list ?? []).some(o => /SAM'S REWARD REEL/.test(o.text ?? '')), undefined, { timeout: 20000 });
   await waitSummary(page);
 
   const after = await racers(page);
   const city = [...WORLD_REWARDS.city.cars, WORLD_REWARDS.city.buddy] as string[];
-  expect(after.gideon.items).toHaveLength(2);
-  expect(after.abe.items).toHaveLength(2);
-  expect(city).toContain(after.gideon.items[1]);
-  expect(city).toContain(after.abe.items[1]);
-  expect(after.gideon.items[1]).not.toBe(after.abe.items[1]); // Distinct when each has a choice.
-  expect(after.gideon.worlds).toContain('industrial');
-  expect(after.abe.worlds).toContain('industrial');
-  expect(after.helen).toMatchObject({ worlds: [], items: [] });
+  expect(after.p1.items).toHaveLength(2);
+  expect(after.p2.items).toHaveLength(2);
+  expect(city).toContain(after.p1.items[1]);
+  expect(city).toContain(after.p2.items[1]);
+  expect(after.p1.items[1]).not.toBe(after.p2.items[1]); // Distinct when each has a choice.
+  expect(after.p1.worlds).toContain('industrial');
+  expect(after.p2.worlds).toContain('industrial');
+  expect(after.p3).toMatchObject({ worlds: [], items: [] });
 
   await page.reload();
   await waitScene(page, 'Title');
@@ -134,7 +137,7 @@ test('each racer earns their own reward in turn and keeps it after a reload', as
 });
 
 test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for normal play', async ({ page }) => {
-  await seedRacers(page, { gideon: { items: ['owl'] } });
+  await seedRacers(page, { p1: { items: ['owl'] } });
   await page.goto('/?questions=off');
   await waitScene(page, 'Title');
   await tap(page, 'Space');   // Title -> Join
@@ -172,7 +175,7 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
 
   await finishRound(page);
   await waitSummary(page);
-  expect(await items(page, 'gideon')).toEqual(['owl']);
+  expect(await items(page, 'p1')).toEqual(['owl']);
   await toggleDeveloperMode('Results');
   await page.waitForTimeout(500);
   await tap(page, 'F9');
@@ -181,7 +184,6 @@ test('Admin Mode previews locked loadouts and Racer Unlocks can open a world for
   await tap(page, 'KeyW'); // Racer Profiles.
   await tap(page, 'KeyW'); // Racer Unlocks.
   await tap(page, 'Space');
-  await tap(page, 'KeyD'); // Racer: Abe to Gideon (P1's default).
   await tap(page, 'KeyS'); // Category.
   await tap(page, 'KeyS'); // Factory.
   await tap(page, 'KeyD'); // Auto (Locked) to Open.

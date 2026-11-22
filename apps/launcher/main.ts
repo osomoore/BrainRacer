@@ -1,6 +1,9 @@
 import { GAMES, gameUrl, goToGame, lastGame, type GameId } from '../../shared/hub';
+import { ensureProfiles } from '../../shared/profiles';
 import { createMenuInput } from '../../shared/input/menuInput';
 import { moveSelection, shouldForward } from './logic';
+
+ensureProfiles();
 
 const CAR_ART = `
 <svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg">
