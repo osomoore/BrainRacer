@@ -3,14 +3,62 @@
 export type InstrumentKind = 'square' | 'pulse25' | 'triangle' | 'sawtooth' | 'pluck' | 'noise';
 export const INSTRUMENTS: readonly InstrumentKind[] = ['square', 'pulse25', 'triangle', 'sawtooth', 'pluck', 'noise'];
 
+/** Note start (t) and duration (d) are measured in beats. */
 export interface TrackNote { t: number; d: number; p: number; v: number }
 export interface TrackLayer { instrument: InstrumentKind; volume: number; notes: TrackNote[] }
+/** How a track's note durations (`d`) are interpreted and what the synth chain does to them. */
+export interface TrackStyle {
+  /** 'seconds' (default, the original behaviour): `d` is played as seconds. 'beats': `d` is converted at the track tempo. */
+  durationUnit?: 'beats' | 'seconds';
+  /** Stretch pitched notes (not percussion) up to the next onset in the layer, by at most MUSIC_SUSTAIN_FACTOR. Default false. */
+  sustain?: boolean;
+  /** Optional lowpass on the whole track (Hz), applied in the synth chain. */
+  lowpassHz?: number;
+}
 export interface TrackData {
+  /** Playback style; set at load time from `music/trackStyles.json`. Missing = defaults. */
+  style?: TrackStyle;
   name: string;
   bpm: number;
   loop: boolean;
   lengthBeats: number;
   tracks: TrackLayer[];
+}
+
+export const MUSIC_SUSTAIN_FACTOR = 1.4;
+
+export interface RuntimeNote {
+  t: number; // beat position
+  durationSec: number;
+  p: number;
+  v: number;
+}
+
+/** Notes with durations resolved to seconds, honouring the track style (shared by live synthesis and the renderer). */
+export function prepareLayerNotes(layer: TrackLayer, bpm: number, lengthBeats: number, style: TrackStyle = {}): RuntimeNote[] {
+  const toSec = style.durationUnit === 'beats' ? (d: number) => beatsToSeconds(d, bpm) : (d: number) => d;
+  const notes = layer.notes
+    .map(({ t, d, p, v }) => ({ t, durationSec: toSec(d), p, v }))
+    .sort((a, b) => a.t - b.t);
+  if (!style.sustain || layer.instrument === 'noise') return notes;
+
+  // Lengthen pitched notes up to the next onset, while preserving any overlap already written in the score.
+  let nextBeat = lengthBeats;
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const note = notes[i];
+    const next = notes[i + 1];
+    if (next && next.t > note.t) nextBeat = next.t;
+    const available = Math.max(note.durationSec, beatsToSeconds(nextBeat - note.t, bpm));
+    note.durationSec = Math.min(note.durationSec * MUSIC_SUSTAIN_FACTOR, available);
+  }
+  return notes;
+}
+
+/** Longest a note can sound after its start (seconds, before the release tail). */
+export function maxNoteSeconds(data: TrackData): number {
+  let m = 0;
+  for (const layer of data.tracks) for (const n of prepareLayerNotes(layer, data.bpm, data.lengthBeats, data.style)) m = Math.max(m, n.durationSec);
+  return m;
 }
 
 export function beatsToSeconds(beats: number, bpm: number): number {
