@@ -60,7 +60,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** `npm run art:review` captures every variant of both workshops (side + top) and opens the grading
   page; grades persist in localStorage; export works; the old test-results copy is no longer needed.
 
-## C2 — Accent colors and base colors · `OPEN`
+## C2 — Accent colors and base colors · `DONE (codex/c2)`
 - **Scope:** `apps/workshop/art/race/looks.ts`, `art/dino/looks.ts`, `art/dino/skin.ts`, `art/race/drawSide.ts`/`drawTop.ts`
   only where accents are drawn.
 - **Do:** give every dino color (`color.*`) and every car paint (`paint.*`) its own fixed **accent color** in the look

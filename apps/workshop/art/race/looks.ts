@@ -8,18 +8,20 @@ import type { VariantId } from '../../core/types';
 
 export interface PaintLook {
   main: string; dark: string; light: string;
-  /** Rainbow: horizontal bands top to bottom. */
+  /** Fixed trim and stripe color for this paint. */
+  accent: string;
+  /** Rainbow bands from the rear to the nose, in either view. */
   bands?: readonly string[];
 }
 export const PAINT: Record<VariantId, PaintLook> = {
-  'paint.blue': { main: '#2f8cff', dark: '#1659c4', light: '#8cc4ff' },
-  'paint.yellow': { main: '#ffd21f', dark: '#e09a00', light: '#fff09a' },
-  'paint.red': { main: '#ee3b3b', dark: '#b11d2c', light: '#ff9a8a' },
-  'paint.green': { main: '#35c24a', dark: '#1b8a35', light: '#9ef0a0' },
-  'paint.black': { main: '#3a3d4c', dark: '#1d1f2a', light: '#9096ac' },
+  'paint.blue': { main: '#2f8cff', dark: '#1659c4', light: '#8cc4ff', accent: '#ffd21f' },
+  'paint.yellow': { main: '#ffd21f', dark: '#e09a00', light: '#fff09a', accent: '#2456b8' },
+  'paint.red': { main: '#ee3b3b', dark: '#b11d2c', light: '#ff9a8a', accent: '#abe8ff' },
+  'paint.green': { main: '#35c24a', dark: '#1b8a35', light: '#9ef0a0', accent: '#fff2c2' },
+  'paint.black': { main: '#3a3d4c', dark: '#1d1f2a', light: '#9096ac', accent: '#48d7e8' },
   'paint.rainbow': {
-    main: '#ffd21f', dark: '#b44bd0', light: '#fff09a',
-    bands: ['#ff4b4b', '#ff9f2e', '#ffd21f', '#46d15a', '#3aa0ff', '#a45cf0'],
+    main: '#ff4b4b', dark: '#a45cf0', light: '#fff09a', accent: '#ffffff',
+    bands: ['#a45cf0', '#3a8eff', '#42ca69', '#ffd21f', '#ff922c', '#ff4b4b'],
   },
 };
 

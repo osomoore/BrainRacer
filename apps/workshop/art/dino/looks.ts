@@ -7,8 +7,8 @@ import type { VariantId } from '../../core/types';
 
 export interface SkinLook { main: string; dark: string; belly: string; light: string; accent: string; spots?: boolean }
 export const SKIN: Record<VariantId, SkinLook> = {
-  'color.orange': { main: '#ff7f0e', dark: '#ca4908', belly: '#ffe0a3', light: '#ffb842', accent: '#ff4d6d' },
-  'color.green': { main: '#287548', dark: '#154730', belly: '#c0dd87', light: '#6bac65', accent: '#e8ad4a' },
+  'color.orange': { main: '#ff941f', dark: '#bd4b0b', belly: '#ffe0a3', light: '#ffc15c', accent: '#79320d' },
+  'color.green': { main: '#1e6338', dark: '#123e29', belly: '#c0dd87', light: '#5e9c60', accent: '#e8ad4a' },
   'color.sandy': { main: '#d9ae6c', dark: '#a8763a', belly: '#f6e2b4', light: '#ecc98c', accent: '#bb5763' },
   'color.blue': { main: '#4aa8ff', dark: '#2569c9', belly: '#cfeaff', light: '#8ccaff', accent: '#ff8261' },
   'color.purple': { main: '#a55be0', dark: '#6d2fa8', belly: '#e8cdfb', light: '#c996f2', accent: '#65ddba' },

@@ -2,7 +2,8 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
 import { darken, lighten } from '../geom';
 import { BUMPER, ENGINE, EXTRA, PAINT, RACE_WINDOW, RACE_WINDOW_DARK, WHEEL } from './looks';
-import { type RaceLooks, topOutline } from './geometry';
+import { rainbowFill } from './drawSide';
+import { type RaceLooks, topHalfWidth, topOutline } from './geometry';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -16,22 +17,27 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
     key: `ws:r:tbody:${ids.body}:${ids.shape}:${paintId}`, w: W, h: H, ox: W / 2, oy: H / 2,
     draw: (g) => {
       const out = topOutline(b, s);
-      const fill = (c: G) => {
-        if (paint.bands) {
-          const gr = c.createLinearGradient(0, -b.hw, 0, b.hw);
-          const n = paint.bands.length;
-          paint.bands.forEach((col, i) => { gr.addColorStop(i / n + 0.001, col); gr.addColorStop((i + 1) / n - 0.001, col); });
-          c.fillStyle = gr;
-        } else {
-          const gr = c.createLinearGradient(0, -b.hw, 0, b.hw);
-          gr.addColorStop(0, lighten(paint.main, 0.15)); gr.addColorStop(0.5, paint.main); gr.addColorStop(1, paint.dark);
-          c.fillStyle = gr;
-        }
+      const bandFill = paint.bands && rainbowFill(paint.bands, b.len, -H / 2, H / 2);
+      const fill = bandFill || ((c: G) => {
+        const gr = c.createLinearGradient(0, -b.hw, 0, b.hw);
+        gr.addColorStop(0, lighten(paint.main, 0.15)); gr.addColorStop(0.5, paint.main); gr.addColorStop(1, paint.dark);
+        c.fillStyle = gr;
         c.fill();
-      };
+      });
       const [c0, c1] = b.cab;
       const cw = b.hw * (b.kind === 'sports' ? 0.62 : 0.76);
-      const sh: Shape[] = [{ path: (c) => roundedPolyPath(c, out, 3 + s.r * 0.4), fill }];
+      const sh: Shape[] = [{ path: (c) => roundedPolyPath(c, out, 3 + s.r * 0.4), fill, detail: (c) => {
+        c.strokeStyle = paint.accent;
+        c.lineWidth = 6;
+        for (const sign of [-1, 1]) {
+          c.beginPath();
+          for (let i = 2; i <= 18; i++) {
+            const t = i / 20;
+            c.lineTo(b.len * (t - 0.5), sign * (topHalfWidth(b.hw, s, t) - 10));
+          }
+          c.stroke();
+        }
+      } }];
       if (b.bedH > 0) sh.push({ path: (c) => rrectPath(c, -b.len / 2 + 8, -b.hw * 0.78, c0 + b.len / 2 - 14, b.hw * 1.56, 6), fill: '#2f3140', noStroke: true, detail: (c) => { c.fillStyle = '#c98a4b'; c.fillRect(-b.len / 2 + 30, -22, 40, 44); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(-b.len / 2 + 48, -22, 5, 44); } });
       drawShapes(g, sh, OL);
       // cabin: rear window, roof, windshield
@@ -42,7 +48,7 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
         gr.addColorStop(0, RACE_WINDOW); gr.addColorStop(1, RACE_WINDOW_DARK);
         g.fillStyle = gr; g.beginPath(); polyPath(g, pts); g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.stroke();
       };
-      const cab: Shape[] = [{ path: (c) => rrectPath(c, c0, -cw, c1 - c0, cw * 2, 8 + s.rc * 0.3), fill: lighten(paint.bands ? '#ffd21f' : paint.main, 0.1) }];
+      const cab: Shape[] = [{ path: (c) => rrectPath(c, c0, -cw, c1 - c0, cw * 2, 8 + s.rc * 0.3), fill: bandFill || lighten(paint.main, 0.1) }];
       drawShapes(g, cab, 4);
       glass([{ x: roofX1, y: -cw + 4 }, { x: c1 - 3, y: -cw * 0.82 }, { x: c1 - 3, y: cw * 0.82 }, { x: roofX1, y: cw - 4 }]);
       if (rs > 2 || b.kind !== 'pickup') glass([{ x: c0 + 3, y: -cw * 0.8 }, { x: roofX0, y: -cw + 4 }, { x: roofX0, y: cw - 4 }, { x: c0 + 3, y: cw * 0.8 }]);
