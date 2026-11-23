@@ -44,8 +44,8 @@ export interface BodyLook {
 }
 export const BODY: Record<VariantId, BodyLook> = {
   'body.car': { kind: 'car', len: 340, chH: 60, wheelX: 105, cab: [-110, 55], cabH: 58, slantF: 1, slantR: 1, hw: 62, bedH: 0, spare: false },
-  'body.truck': { kind: 'pickup', len: 390, chH: 64, wheelX: 122, cab: [-12, 102], cabH: 56, slantF: 0.9, slantR: 0.2, hw: 66, bedH: 22, spare: false },
-  'body.sports': { kind: 'sports', len: 370, chH: 46, wheelX: 118, cab: [-80, 55], cabH: 38, slantF: 1.3, slantR: 1.3, hw: 62, bedH: 0, spare: false },
+  'body.truck': { kind: 'pickup', len: 390, chH: 64, wheelX: 122, cab: [-12, 102], cabH: 56, slantF: 0.9, slantR: 0.2, hw: 66, bedH: 14, spare: false },
+  'body.sports': { kind: 'sports', len: 370, chH: 46, wheelX: 118, cab: [-128, 26], cabH: 38, slantF: 1.3, slantR: 1.3, hw: 62, bedH: 0, spare: false },
   'body.van': { kind: 'van', len: 360, chH: 72, wheelX: 112, cab: [-176, 138], cabH: 70, slantF: 1, slantR: 0.1, hw: 66, bedH: 0, spare: false },
   'body.jeep': { kind: 'jeep', len: 330, chH: 62, wheelX: 100, cab: [-104, 46], cabH: 60, slantF: 0.15, slantR: 0.1, hw: 64, bedH: 0, spare: true },
 };
@@ -62,9 +62,9 @@ export interface ShapeLook {
 }
 export const SHAPE: Record<VariantId, ShapeLook> = {
   'shape.boxy': { slantF: 0.3, slantR: 0.25, r: 8, rc: 6, cabK: 1, noseK: 1, tailK: 1, topN: 9, topTail: 1, topNose: 1 },
-  'shape.round': { slantF: 0.95, slantR: 0.95, r: 36, rc: 34, cabK: 1.1, noseK: 0.95, tailK: 0.95, topN: 2.1, topTail: 1, topNose: 1 },
-  'shape.sleek': { slantF: 1.6, slantR: 1.9, r: 20, rc: 24, cabK: 0.88, noseK: 0.7, tailK: 0.9, topN: 2.6, topTail: 0.88, topNose: 0.72 },
-  'shape.wedge': { slantF: 0.9, slantR: 0.15, r: 5, rc: 4, cabK: 0.95, noseK: 0.38, tailK: 1.2, topN: 4, topTail: 1, topNose: 0.5 },
+  'shape.round': { slantF: 0.76, slantR: 0.72, r: 36, rc: 30, cabK: 1.24, noseK: 0.95, tailK: 0.95, topN: 2.1, topTail: 1, topNose: 1 },
+  'shape.sleek': { slantF: 1.03, slantR: 1.08, r: 20, rc: 21, cabK: 1.10, noseK: 0.76, tailK: 0.92, topN: 2.6, topTail: 0.93, topNose: 0.80 },
+  'shape.wedge': { slantF: 0.82, slantR: 0.22, r: 7, rc: 5, cabK: 0.96, noseK: 0.65, tailK: 1.13, topN: 4, topTail: 1, topNose: 0.68 },
 };
 
 export const SIZE_SCALE: Record<VariantId, number> = {
@@ -81,7 +81,7 @@ export const WHEEL: Record<VariantId, WheelLook> = {
   'wheels.road': { r: 38, topW: 24, tire: '#2c2c3a', tread: 'grooves', treadColor: '#14141f', rim: '#d7dde6', rimDark: '#8d97a6', rimK: 0.58, spokes: 5 },
   'wheels.mud': { r: 46, topW: 36, tire: '#5a4631', tread: 'lugs', treadColor: '#2a1d12', rim: '#aab2bd', rimDark: '#6d7682', rimK: 0.46, spokes: 6 },
   'wheels.racing': { r: 34, topW: 40, tire: '#23232b', tread: 'slick', treadColor: '#111118', stripe: '#ffd21f', rim: '#ffcf33', rimDark: '#c78a00', rimK: 0.74, spokes: 7 },
-  'wheels.snow': { r: 41, topW: 28, tire: '#eaf6ff', tread: 'zigzag', treadColor: '#5fa3d6', rim: '#3d7fd0', rimDark: '#1f4f96', rimK: 0.5, spokes: 6 },
+  'wheels.snow': { r: 48, topW: 34, tire: '#eaf6ff', tread: 'zigzag', treadColor: '#5fa3d6', rim: '#3d7fd0', rimDark: '#1f4f96', rimK: 0.5, spokes: 6 },
   'wheels.monster': { r: 78, topW: 54, tire: '#2a2a34', tread: 'monster', treadColor: '#10101a', rim: '#ff5a3c', rimDark: '#b3261a', rimK: 0.5, spokes: 8 },
 };
 
@@ -96,7 +96,7 @@ export const SPRING: Record<VariantId, SpringLook> = {
   'springs.soft': { lift: 16, coil: '#7fc4ff', coilDark: '#2d7cc4', turns: 4, width: 28, thick: 7, shock: null },
   'springs.sport': { lift: 6, coil: '#ff4d4d', coilDark: '#a01c28', turns: 6, width: 20, thick: 5, shock: '#ffd21f' },
   'springs.lifted': { lift: 58, coil: '#ffb02e', coilDark: '#b36b00', turns: 7, width: 26, thick: 7, shock: '#3a3d4c' },
-  'springs.bouncy': { lift: 30, coil: '#ff6fd0', coilDark: '#b0268e', turns: 5, width: 44, thick: 8, shock: null },
+  'springs.bouncy': { lift: 30, coil: '#ff6fd0', coilDark: '#b0268e', turns: 4, width: 30, thick: 6, shock: null },
 };
 
 export interface EngineLook {

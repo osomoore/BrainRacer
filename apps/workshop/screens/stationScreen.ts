@@ -54,6 +54,13 @@ const stationScreen: ScreenFactory = (): Screen => {
       const bg = roomBackdrop(scene, ws, ctx.layout, RL.floorY);
       world.add(scene.add.image(0, 0, bg.key).setOrigin(0));
       rig = ctx.buildRig(scene, ws, progress.model, 'side');
+      const setStationPreviewAlpha = () => {
+        if (ws !== 'race' || aspect !== 'springs') return;
+        for (const part of rig!.parts.wheels ?? []) {
+          if ('setAlpha' in part && typeof part.setAlpha === 'function') part.setAlpha(aspect === 'springs' ? 0.4 : 1);
+        }
+      };
+      setStationPreviewAlpha();
       const s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, rig.width), RL.model.maxH / Math.max(1, rig.height));
       rig.root.setPosition(RL.model.x, RL.model.groundY).setScale(s0);
       world.add(rig.root);
@@ -141,6 +148,7 @@ const stationScreen: ScreenFactory = (): Screen => {
 
       const preview = () => {
         rig!.setModel(withVariant(progress.model, aspect, options[index]));
+        setStationPreviewAlpha();
         zoomTo(260);
       };
       const select = (i: number) => {

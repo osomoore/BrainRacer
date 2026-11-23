@@ -49,7 +49,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 
 ---
 
-## C1 — Rescue and commit the art reviewer · `OPEN`
+## C1 — Rescue and commit the art reviewer · `DONE (codex/c1)`
 - **Why:** the grading tool lives in `.worktrees/ws-artpolish/test-results/workshop-review/` (gitignored; Playwright
   wipes `test-results/` on every e2e run). Backup copy: `C:\Users\osomo\AppData\Local\Temp\claude\art-review-backup\`.
 - **Scope:** new `tools/art-review/**`, one npm script `"art:review"` in `package.json`.
@@ -70,7 +70,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   (graded 2/5: make it a clean rainbow band layout that reads at small size).
 - **Done when:** each color/paint shows a clear, pleasant accent in both views; review items above addressed.
 
-## C3 — Car part layering · `OPEN`
+## C3 — Car part layering · `DONE (codex/c3-c4)`
 - **Scope:** `apps/workshop/art/race/**`.
 - **Do (from review):**
   - Bumpers drawn **behind** the body in side view so they never cover the lights.
@@ -89,7 +89,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - Pickup Truck: rear bed edge lower.
 - **Done when:** every item above is visibly fixed in `WorkshopParts` side + top; no part covers lights/windows wrongly.
 
-## C4 — Car shapes · `OPEN`
+## C4 — Car shapes · `DONE (codex/c3-c4)`
 - **Scope:** `apps/workshop/art/race/**`.
 - **Do:** Sports Car: brand-new low, long-hood supercar profile (think Porsche / Ferrari silhouettes, cartoon-ified).
   Round and Sleek shapes: the cabin/greenhouse is far too small — make it larger and blend smoothly into the lower
@@ -140,4 +140,4 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 ---
 
 ## Done
-- (none yet)
+- C1 · `DONE (codex/c1)`
