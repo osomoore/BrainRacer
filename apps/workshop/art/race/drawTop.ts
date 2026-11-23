@@ -67,9 +67,18 @@ export function wheelTop(id: string): PartSpec {
       g.save(); g.beginPath(); rrectPath(g, -L / 2, -T / 2, L, T, Math.min(12, T / 2)); g.clip();
       g.strokeStyle = w.tread === 'slick' && w.stripe ? w.stripe : w.treadColor; g.lineWidth = 4;
       if (w.tread === 'slick') { g.beginPath(); g.moveTo(-L / 2, 0); g.lineTo(L / 2, 0); g.stroke(); }
-      else {
+      else if (w.tread === 'zigzag') {
+        const chains: Shape[] = [];
+        for (let x = -L / 2 + 9; x < L / 2; x += 17) {
+          chains.push({ path: (c) => rrectPath(c, x - 3, -T / 2, 6, T, 2), fill: w.treadColor });
+          for (const y of [-T / 2 + 6, T / 2 - 6]) {
+            chains.push({ path: (c) => circle(c, x, y, 2.8), fill: '#f8fcff' });
+          }
+        }
+        drawShapes(g, chains, 1.6);
+      } else {
         const step = w.tread === 'monster' ? 22 : w.tread === 'lugs' ? 14 : 10;
-        for (let x = -L / 2 + 6; x < L / 2; x += step) { g.beginPath(); if (w.tread === 'zigzag') { g.moveTo(x, -T / 2); g.lineTo(x + 5, 0); g.lineTo(x, T / 2); } else { g.moveTo(x, -T / 2 + 3); g.lineTo(x, T / 2 - 3); } g.stroke(); }
+        for (let x = -L / 2 + 6; x < L / 2; x += step) { g.beginPath(); g.moveTo(x, -T / 2 + 3); g.lineTo(x, T / 2 - 3); g.stroke(); }
       }
       g.restore();
     },
@@ -87,7 +96,13 @@ export function engineTop(id: string): PartSpec {
         case 'scoop': sh.push({ path: (c) => rrectPath(c, -30, -24, 60, 48, 10), fill: e.accent, detail: (c) => { c.fillStyle = e.accent2; c.fillRect(-4, -18, 30, 36); c.strokeStyle = '#8d97a6'; c.lineWidth = 2.5; for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(0, -12 + i * 8); c.lineTo(24, -12 + i * 8); c.stroke(); } } }); break;
         case 'leaf': sh.push({ path: (c) => circle(c, 0, 0, 24), fill: '#e8f9ee' }); sh.push({ path: (c) => { c.moveTo(-14, 10); c.quadraticCurveTo(-18, -18, 14, -16); c.quadraticCurveTo(18, 14, -14, 10); c.closePath(); }, fill: e.accent }); break;
         case 'turbo': sh.push({ path: (c) => circle(c, 6, 0, 22), fill: e.accent, detail: (c) => { c.strokeStyle = e.accent2; c.lineWidth = 4; c.beginPath(); c.arc(6, 0, 12, 0.5, 5.2); c.stroke(); } }); for (const y of [-26, 26]) sh.push({ path: (c) => circle(c, -22, y * 0.8, 8), fill: '#c3c9d4', detail: (c) => { c.fillStyle = '#222'; c.beginPath(); circle(c, -22, y * 0.8, 4); c.fill(); } }); break;
-        case 'bolt': sh.push({ path: (c) => circle(c, 0, 0, 24), fill: e.accent2, detail: (c) => { c.fillStyle = e.accent; c.beginPath(); c.moveTo(4, -20); c.lineTo(-12, 2); c.lineTo(-1, 2); c.lineTo(-6, 20); c.lineTo(13, -4); c.lineTo(2, -4); c.closePath(); c.fill(); } }); break;
+        case 'bolt':
+          sh.push({ path: (c) => rrectPath(c, -25, -22, 50, 44, 7), fill: '#c3c9d4' });
+          sh.push({ path: (c) => rrectPath(c, -19, -17, 34, 32, 5), fill: e.accent2, detail: (c) => { c.fillStyle = '#f4fbff'; c.fillRect(-13, -11, 7, 10); c.fillRect(0, -11, 7, 10); } });
+          g.lineCap = 'round'; g.lineWidth = 4;
+          g.strokeStyle = '#ee3b3b'; g.beginPath(); g.moveTo(-10, -17); g.quadraticCurveTo(-24, -29, -7, -31); g.stroke();
+          g.strokeStyle = '#3d7fd0'; g.beginPath(); g.moveTo(5, -17); g.quadraticCurveTo(22, -26, 22, -10); g.stroke();
+          break;
       }
       drawShapes(g, sh, 4);
     },

@@ -52,6 +52,19 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       });
       shapes.push({ path: (c) => roundedPolyPath(c, geo.cabin, s.rc), fill });
       drawShapes(g, shapes, OL);
+      // Clear the opening inside each arch so the suspension can show through the wheel.
+      g.save();
+      g.beginPath();
+      const archClip = geo.chassis.map((p) => p.y === geo.bottom ? { x: p.x, y: p.y + OL + 2 } : p);
+      roundedPolyPath(g, archClip, [s.r * 0.8, s.r, s.r, s.r * 0.8]);
+      g.clip();
+      g.globalCompositeOperation = 'destination-out';
+      for (const axle of [geo.frontAxle, geo.rearAxle]) {
+        g.beginPath();
+        circle(g, axle, geo.hubY, l.wheel.r + 4);
+        g.fill();
+      }
+      g.restore();
       // windows
       const win = insetPoly(geo.cabin, 0.86, 0.7).map((p) => ({ x: p.x, y: p.y + b.cabH * s.cabK * 0.1 }));
       g.beginPath(); roundedPolyPath(g, win, Math.max(3, s.rc * 0.4));
@@ -83,7 +96,7 @@ export function wheelSide(id: string): PartSpec {
     draw: (g) => {
       const shapes: Shape[] = [];
       if (w.tread === 'lugs' || w.tread === 'monster') {
-        const n = w.tread === 'lugs' ? 12 : 11, rr = w.tread === 'lugs' ? 9 : 17;
+        const n = w.tread === 'lugs' ? 16 : 11, rr = w.tread === 'lugs' ? 9 : 17;
         for (let i = 0; i < n; i++) {
           const a = (i / n) * Math.PI * 2, d = R - rr * 0.35;
           shapes.push({ path: (c) => circle(c, Math.cos(a) * d, Math.sin(a) * d, rr), fill: w.treadColor });
@@ -100,11 +113,15 @@ export function wheelSide(id: string): PartSpec {
       } else if (w.tread === 'slick' && w.stripe) {
         g.strokeStyle = w.stripe; g.lineWidth = 4; g.beginPath(); circle(g, 0, 0, R - 6); g.stroke();
       } else if (w.tread === 'zigzag') {
-        g.beginPath();
-        for (let i = 0; i <= 28; i++) { const a = (i / 28) * Math.PI * 2, rr = R - 9 + (i % 2 ? 5 : -2); const x = Math.cos(a) * rr, y = Math.sin(a) * rr; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
-        g.stroke();
-        g.fillStyle = '#c3c9d4';
-        for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2 + 0.2; g.beginPath(); circle(g, Math.cos(a) * (R - 18), Math.sin(a) * (R - 18), 2.6); g.fill(); }
+        for (let i = 0; i < 12; i++) {
+          g.save();
+          g.rotate(i * Math.PI * 2 / 12);
+          drawShapes(g, [
+            { path: (c) => rrectPath(c, R - 15, -4, 17, 8, 3), fill: w.treadColor },
+            { path: (c) => circle(c, R - 14, 0, 3), fill: '#f8fcff' },
+          ], 2);
+          g.restore();
+        }
       }
       // rim
       const rr = R * w.rimK;
@@ -139,11 +156,16 @@ export function engineSide(id: string): PartSpec {
           sh.push({ path: (c) => { c.moveTo(-12, -2); c.quadraticCurveTo(-10, -30, 14, -34); c.quadraticCurveTo(18, -8, -12, -2); c.closePath(); }, fill: e.accent, detail: (c) => { c.strokeStyle = e.accent2; c.lineWidth = 3; c.beginPath(); c.moveTo(-10, -4); c.lineTo(10, -28); c.stroke(); } });
           break;
         case 'turbo':
-          for (const sx of [-26, -10]) sh.push({ path: (c) => rrectPath(c, sx - 5, -42, 10, 46, 4), fill: '#c3c9d4', detail: (c) => { c.fillStyle = e.accent; c.fillRect(sx - 6, -43, 12, 7); } });
+          sh.push({ path: (c) => rrectPath(c, -20, -42, 12, 46, 4), fill: '#c3c9d4', detail: (c) => { c.fillStyle = e.accent; c.fillRect(-21, -43, 14, 7); } });
           sh.push({ path: (c) => { circle(c, 18, -16, 20); }, fill: e.accent, detail: (c) => { c.strokeStyle = e.accent2; c.lineWidth = 4; c.beginPath(); c.arc(18, -16, 12, 0.5, 5.2); c.stroke(); c.beginPath(); c.arc(18, -16, 5, 0, 6); c.stroke(); } });
           break;
         case 'bolt':
-          sh.push({ path: (c) => circle(c, 0, -22, 22), fill: e.accent2, detail: (c) => { c.fillStyle = e.accent; c.beginPath(); c.moveTo(4, -40); c.lineTo(-12, -20); c.lineTo(-1, -20); c.lineTo(-6, -5); c.lineTo(13, -26); c.lineTo(2, -26); c.closePath(); c.fill(); } });
+          sh.push({ path: (c) => rrectPath(c, -26, -13, 52, 18, 6), fill: '#c3c9d4' });
+          sh.push({ path: (c) => rrectPath(c, -22, -38, 30, 26, 5), fill: e.accent2, detail: (c) => { c.fillStyle = '#f4fbff'; c.fillRect(-17, -33, 6, 14); c.fillRect(-3, -33, 6, 14); } });
+          sh.push({ path: (c) => rrectPath(c, 13, -28, 10, 17, 4), fill: e.accent });
+          g.lineCap = 'round'; g.lineWidth = 5;
+          g.strokeStyle = '#ee3b3b'; g.beginPath(); g.moveTo(-16, -39); g.bezierCurveTo(-26, -51, 6, -54, 16, -44); g.stroke();
+          g.strokeStyle = '#3d7fd0'; g.beginPath(); g.moveTo(-2, -39); g.bezierCurveTo(2, -51, 25, -50, 24, -31); g.stroke();
           break;
       }
       drawShapes(g, sh, 4);
@@ -161,8 +183,19 @@ export function exhaustSide(id: string): PartSpec | null {
     draw: (g) => {
       const sh: Shape[] = [];
       for (let i = 0; i < e.pipes; i++) {
-        const y = i * (e.pipeW + 4) - 2;
-        sh.push({ path: (c) => rrectPath(c, -len, y - e.pipeW / 2, len + 4, e.pipeW, e.pipeW / 2), fill: '#b5bdca', detail: (c) => { c.fillStyle = e.accent; c.fillRect(-len - 2, y - 20, 7, 40); } });
+        const y = i * (e.pipeW + 2) * 0.55 - 2;
+        sh.push({
+          path: (c) => {
+            c.moveTo(-len, y - e.pipeW / 2);
+            c.lineTo(-10, y - e.pipeW / 2);
+            c.quadraticCurveTo(-3, y - e.pipeW / 2, 4, -10);
+            c.lineTo(8, 0);
+            c.quadraticCurveTo(-5, y + e.pipeW / 2, -10, y + e.pipeW / 2);
+            c.lineTo(-len, y + e.pipeW / 2);
+            c.closePath();
+          },
+          fill: '#b5bdca',
+        });
       }
       drawShapes(g, sh, 3.5);
     },
@@ -241,7 +274,8 @@ export function springSide(id: string, H: number): PartSpec {
         g.beginPath();
         for (let i = 0; i < sp.turns; i++) {
           const y = -4 - i * pitch;
-          g.moveTo(-sp.width / 2, y); g.lineTo(sp.width / 2, y - pitch * 0.55);
+          g.moveTo(-sp.width / 2, y);
+          g.lineTo(sp.width / 2, y - pitch * 0.55);
         }
         g.stroke();
       };

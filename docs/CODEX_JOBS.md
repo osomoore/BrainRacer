@@ -70,7 +70,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   (graded 2/5: make it a clean rainbow band layout that reads at small size).
 - **Done when:** each color/paint shows a clear, pleasant accent in both views; review items above addressed.
 
-## C3 — Car part layering · `OPEN`
+## C3 — Car part layering · `DONE (codex/c3-c4)`
 - **Scope:** `apps/workshop/art/race/**`.
 - **Do (from review):**
   - Bumpers drawn **behind** the body in side view so they never cover the lights.
