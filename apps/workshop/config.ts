@@ -63,6 +63,12 @@ export const WS_UI = {
     medium: 'Build a car that can cross the muddy field.',
     hard: 'Equip your vehicle with enough traction to cross slippery ground.',
   },
+  /** Public-beta notice on the title screen (grown-ups read it; never shown during runs). */
+  beta: {
+    line1: 'Under construction — progress may be lost.',
+    line2: 'Thanks for testing! Tell us what you think.',
+    y: 895, w: 1500, h: 124, fill: 0xfff4c2,
+  },
 } as const;
 
 // ---------------------------------------------------------------- admin (apps/workshop/shell/admin)

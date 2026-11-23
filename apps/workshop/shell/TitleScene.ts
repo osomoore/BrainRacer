@@ -29,9 +29,18 @@ export class TitleScene extends Phaser.Scene {
     this.tweens.add({ targets: title, y: 244, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     shell.baseAudio.music('title');
 
+    this.buildBetaNotice();
     if (shell.mobile) this.buildMobile();
     else this.buildJoin();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
+  }
+
+  /** Calm, always-visible beta notice (baked card + text). Does not take input. */
+  private buildBetaNotice(): void {
+    const b = WS_UI.beta;
+    this.add.image(STAGE.w / 2, b.y, roundedTexture(this, b.w, b.h, b.fill, { radius: 36 })).setOrigin(0.5, roundedOriginY(b.h));
+    makeText(this, STAGE.w / 2, b.y - 24, b.line1, { size: 52, color: COLORS.ink, wrap: b.w - 60 });
+    makeText(this, STAGE.w / 2, b.y + 28, b.line2, { size: 40, bold: false, color: COLORS.ink, wrap: b.w - 60 });
   }
 
   private buildMobile(): void {
@@ -49,7 +58,7 @@ export class TitleScene extends Phaser.Scene {
       this.slotTexts.push(makeText(this, x, 505, '', { size: 56, color: i === 0 ? COLORS.p1 : COLORS.p2, wrap: cw - 40 }));
       this.slotSubs.push(makeText(this, x, 570, '', { size: 40, bold: false, wrap: cw - 40 }));
     }
-    this.play = new Button(this, { x: STAGE.w / 2, y: 790, w: 640, h: 170, label: 'PLAY', fontSize: 84, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
+    this.play = new Button(this, { x: STAGE.w / 2, y: 760, w: 640, h: 170, label: 'PLAY', fontSize: 84, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
     makeBadge(this, 'B', 120, STAGE.h - 70);
     makeText(this, 170, STAGE.h - 70, 'Back to games', { size: 44, color: COLORS.paper, stroke: COLORS.ink, origin: [0, 0.5] });
     this.refresh();
