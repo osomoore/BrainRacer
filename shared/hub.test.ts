@@ -8,6 +8,9 @@ describe('hub', () => {
     expect(new Set(GAMES.map((g) => g.page)).size).toBe(GAMES.length);
     expect(gameUrl('racer', '?race=1')).toBe('racer.html?race=1');
   });
+  it('marks only Adventure Workshop as beta', () => {
+    expect(GAMES.filter((g) => g.beta).map((g) => g.id)).toEqual(['workshop']);
+  });
   it('remembers the last game (in-memory fallback without localStorage)', () => {
     expect(lastGame()).toBeNull();
     setLastGame('workshop');
