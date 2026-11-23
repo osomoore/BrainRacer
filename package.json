@@ -17,7 +17,8 @@
     "audio:render": "tsx scripts/renderAudio.ts",
     "audio:workshop": "tsx scripts/renderWorkshopAudio.ts",
     "art:shapes": "tsx scripts/art/exportShapes.ts",
-    "art:paint": "tsx scripts/art/paint.ts"
+    "art:paint": "tsx scripts/art/paint.ts",
+    "art:pick": "node tools/art-pick/server.mjs"
   },
   "dependencies": {
     "@tonejs/midi": "2.0.28",

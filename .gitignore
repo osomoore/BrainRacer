@@ -12,3 +12,7 @@ playwright-report/
 
 # ComfyUI art pipeline: exported shape PNGs (regenerate with npm run art:shapes)
 art-src/
+
+# ComfyUI art candidates (npm run art:paint -- --candidates N; vote with npm run art:pick)
+art-candidates/
+__pycache__/

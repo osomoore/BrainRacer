@@ -20,6 +20,7 @@ import { raceGeom, raceLooks } from '../race/geometry';
 import { SPRING } from '../race/looks';
 import * as RS from '../race/drawSide';
 import * as RT from '../race/drawTop';
+import picksData from './picks.json';
 
 export type ArtGroup = 'race' | 'dino' | 'scene';
 
@@ -53,15 +54,29 @@ export interface ArtJob {
   genH?: number;
   /** Prompt jobs: make the result tile seamlessly. */
   tileable?: boolean;
+  /**
+   * `features`: the shape carries eyes/nostrils/brows (dino heads). The paint pass then only repaints the skin
+   * (masked img2img around a feature mask exported from the shape), copies the feature pixels back exactly and scrubs
+   * any dark stroke the model invented on the skin (extra mouths).
+   */
+  protect?: 'features';
+  /** The seed the job had before a vote (hash of the key); candidates derive their seeds from it. */
+  defaultSeed: number;
   specHash: string;
 }
+
+/** Votes from `npm run art:pick` (apps/workshop/art/paint/picks.json): key -> a candidate seed, 'shape' (keep the code shape) or 'more' ('pending' = only a comment). */
+export interface ArtPick { pick: number | 'shape' | 'more' | 'pending'; comment?: string }
+export const PICKS = picksData as unknown as Record<string, ArtPick>;
 
 export const HOUSE_STYLE = 'Stickers, cute cartoon game asset, thick dark navy outline, bold saturated flat colors with soft cel shading and a glossy highlight, friendly, for kids, clean sharp edges, plain light grey background, centered, full object visible';
 export const NEGATIVE = 'realistic, photo, 3d render, scary, blood, text, letters, watermark, blurry, noisy, extra limbs, cropped, background scenery, shadow on the ground';
 export const BACKDROP_STYLE = 'cute cartoon illustration for a kids game, bold colors, soft cel shading, thick friendly shapes, cheerful, no people, no text, no letters';
 
 /** Tuning knobs (the only numbers to touch when a look needs adjusting). */
-export const PAINT_TUNE = { denoise: 0.62, control: 0.9, sticker: 0.6, bodyDenoise: 0.55, bodySticker: 0.2 };
+export const PAINT_TUNE = { denoise: 0.62, control: 0.9, sticker: 0.6, bodyDenoise: 0.55, bodySticker: 0.2, faceDenoise: 0.55, faceControl: 0.95, faceSticker: 0.4 };
+/** Extra negatives for parts that carry facial features: the model must not invent mouths, eyes or face lines. */
+export const FACE_NEGATIVE = 'mouth, lips, teeth, tongue, smile, extra eyes, second eye, face, nose, nostrils, eyebrows, wrinkles, lines on the face, open jaw';
 
 export const artFile = (key: string): string => key.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
 
@@ -78,8 +93,10 @@ export function hash53(s: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
 }
 
-export function jobSpecHash(j: Pick<ArtJob, 'key' | 'kind' | 'prompt' | 'negative' | 'seed' | 'w' | 'h' | 'denoise' | 'control' | 'sticker' | 'genW' | 'genH' | 'tileable'>): string {
-  return hash53(JSON.stringify([j.key, j.kind, j.prompt, j.negative, j.seed, j.w, j.h, j.denoise, j.control, j.sticker, j.genW ?? 0, j.genH ?? 0, !!j.tileable]));
+export function jobSpecHash(j: Pick<ArtJob, 'key' | 'kind' | 'prompt' | 'negative' | 'seed' | 'w' | 'h' | 'denoise' | 'control' | 'sticker' | 'genW' | 'genH' | 'tileable' | 'protect'>): string {
+  const base: unknown[] = [j.key, j.kind, j.prompt, j.negative, j.seed, j.w, j.h, j.denoise, j.control, j.sticker, j.genW ?? 0, j.genH ?? 0, !!j.tileable];
+  if (j.protect) base.push(j.protect); // only when set, so existing hashes stay valid
+  return hash53(JSON.stringify(base));
 }
 
 const words = (id: string): string => (id.split('.')[1] ?? id).replace(/([A-Z])/g, ' $1').toLowerCase();
@@ -106,14 +123,19 @@ function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string
   const full = `${subject}, ${viewText(view)}`;
   // Plain body pieces get a face-free "flat vector" template: the cute sticker style invents eyes and limbs on them.
   const plain = workshop === 'dino' && BODYISH_PARTS.has(part);
+  // Dino head parts carry the eye/nostril (the mouth is the separate jaw part): paint only the skin around them.
+  const faceSafe = workshop === 'dino' && part === 'head';
+  const seed = hashStr(spec.key), picked = PICKS[spec.key]?.pick;
   const j: ArtJob = {
     key: spec.key, file: artFile(spec.key), kind: 'shape', workshop, view, part, aspect, subject: full,
     prompt: plain
       ? `flat cartoon vector illustration, ${full}, soft cel shading, thick dark navy outline, plain light grey background, a single smooth abstract shape with no face, no eyes, no mouth`
-      : `${HOUSE_STYLE}, ${full}`,
-    negative: negativeFor(part, workshop), seed: hashStr(spec.key), w, h,
-    denoise: plain ? PAINT_TUNE.bodyDenoise : PAINT_TUNE.denoise, control: PAINT_TUNE.control,
-    sticker: plain ? PAINT_TUNE.bodySticker : PAINT_TUNE.sticker, specHash: '',
+      : `${HOUSE_STYLE}, ${full}${faceSafe ? ', smooth skin, the eye is the only facial feature' : ''}`,
+    negative: negativeFor(part, workshop) + (faceSafe ? `, ${FACE_NEGATIVE}` : ''), seed: typeof picked === 'number' ? picked : seed, defaultSeed: seed, w, h,
+    denoise: plain ? PAINT_TUNE.bodyDenoise : faceSafe ? PAINT_TUNE.faceDenoise : PAINT_TUNE.denoise,
+    control: faceSafe ? PAINT_TUNE.faceControl : PAINT_TUNE.control,
+    sticker: plain ? PAINT_TUNE.bodySticker : faceSafe ? PAINT_TUNE.faceSticker : PAINT_TUNE.sticker, specHash: '',
+    ...(faceSafe ? { protect: 'features' as const } : {}),
   };
   j.specHash = jobSpecHash(j);
   SPECS.set(spec.key, spec);
@@ -236,7 +258,7 @@ function dinoJobs(m: Model, aspect: string, out: Map<string, ArtJob>): void {
 function promptJob(key: string, part: string, subject: string, prompt: string, w: number, h: number, genW: number, genH: number, tileable = false): ArtJob {
   const j: ArtJob = {
     key, file: artFile(key), kind: 'prompt', workshop: 'scene', part, aspect: 'backdrop', subject,
-    prompt, negative: NEGATIVE.replace('background scenery, ', ''), seed: hashStr(key), w, h, denoise: 1, control: 0, sticker: 0, genW, genH, tileable, specHash: '',
+    prompt, negative: NEGATIVE.replace('background scenery, ', ''), seed: hashStr(key), defaultSeed: hashStr(key), w, h, denoise: 1, control: 0, sticker: 0, genW, genH, tileable, specHash: '',
   };
   j.specHash = jobSpecHash(j);
   return j;
