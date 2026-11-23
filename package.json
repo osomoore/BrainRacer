@@ -15,7 +15,9 @@
     "assets": "tsx scripts/build-assets.ts",
     "jbq:data": "tsx scripts/jbqData.ts",
     "audio:render": "tsx scripts/renderAudio.ts",
-    "audio:workshop": "tsx scripts/renderWorkshopAudio.ts"
+    "audio:workshop": "tsx scripts/renderWorkshopAudio.ts",
+    "art:shapes": "tsx scripts/art/exportShapes.ts",
+    "art:paint": "tsx scripts/art/paint.ts"
   },
   "dependencies": {
     "@tonejs/midi": "2.0.28",
