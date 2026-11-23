@@ -1,6 +1,7 @@
 # Codex jobs — Adventure Workshop
 
-A queue of self-contained jobs for Codex. Pick the **first job marked `OPEN`**, do only that job, hand it back,
+A queue of self-contained jobs for Codex. Pick the **first job marked `OPEN` that has no `codex/<job>` branch yet**
+(check `git branch --list "codex/*"`; `<job>` is the lowercase id, e.g. `c1`), do only that job, hand it back,
 and mark it `DONE (<branch>)` in this file on your branch. Each job has a fixed start point, a file scope and a
 "done when" list, so it can be done in one sitting.
 
