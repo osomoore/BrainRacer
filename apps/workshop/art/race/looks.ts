@@ -133,7 +133,7 @@ export interface BumperLook {
   rear: number;
 }
 export const BUMPER: Record<VariantId, BumperLook> = {
-  'bumpers.small': { depth: 12, h: 20, color: '#c3c9d4', dark: '#7a8394', kind: 'bar', rear: 1 },
+  'bumpers.small': { depth: 19, h: 20, color: '#c3c9d4', dark: '#7a8394', kind: 'bar', rear: 1 },
   'bumpers.big': { depth: 24, h: 36, color: '#eef2f8', dark: '#8a93a4', kind: 'chrome', rear: 1 },
   'bumpers.rubber': { depth: 28, h: 34, color: '#2f3140', dark: '#14151f', kind: 'rubber', rear: 1 },
   'bumpers.pusher': { depth: 38, h: 52, color: '#ffb000', dark: '#6b4a00', kind: 'pusher', rear: 0.6 },
@@ -151,3 +151,22 @@ export const EXTRA: Record<VariantId, ExtraLook> = {
 
 export const RACE_WINDOW = '#bfeaff';
 export const RACE_WINDOW_DARK = '#6fb7e0';
+
+export const JEEP_SPARE = { depth: 22, diameter: 50, offset: -9, rubber: '#2c2c3a', tread: '#171824' };
+
+export const ROCKET_SCALE = 0.86;
+export const ROCKET_NOZZLE_X = -104;
+
+/** Both projections use the same positions, widths and colors for the luggage. */
+export function rackLuggage(length: number, count: number) {
+  const colors = [EXTRA['extra.roofRack'].color2, '#4aa8ff', EXTRA['extra.roofRack'].color3];
+  const heights = [32, 40, 24];
+  const span = length * (count === 1 ? 0.67 : 0.88);
+  const gap = 8;
+  const width = (span - gap * (count - 1)) / count;
+  return colors.slice(0, count).map((color, i) => ({
+    color, width, x: -span / 2 + i * (width + gap),
+    height: count === 1 ? 45 : heights[i],
+    depth: count === 1 ? 0.78 : 0.82 - i * 0.10,
+  }));
+}
