@@ -17,6 +17,8 @@ New-Item -ItemType Junction -Path ".worktrees\codex-<job>\node_modules" -Target 
 cd ".worktrees\codex-<job>"; npm run assets
 npx vite --port 5198 --strictPort        # restart after every edit: Vite does not hot-reload inside .worktrees
 ```
+- Port 5198 is the shared art viewer port. If it is busy, stop whatever listens on it first
+  (`Get-NetTCPConnection -LocalPort 5198 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`).
 - Always branch from the **current `feature/workshop`** (never `dev`, never another job's branch).
 - Work only inside your worktree and only in the job's file scope. Never `git stash`. Never delete the
   `node_modules` junction while the worktree exists.
