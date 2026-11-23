@@ -3,6 +3,7 @@
 export type InstrumentKind = 'square' | 'pulse25' | 'triangle' | 'sawtooth' | 'pluck' | 'noise';
 export const INSTRUMENTS: readonly InstrumentKind[] = ['square', 'pulse25', 'triangle', 'sawtooth', 'pluck', 'noise'];
 
+/** Note start (t) and duration (d) are measured in beats. */
 export interface TrackNote { t: number; d: number; p: number; v: number }
 export interface TrackLayer { instrument: InstrumentKind; volume: number; notes: TrackNote[] }
 export interface TrackData {

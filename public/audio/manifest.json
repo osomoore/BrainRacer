@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "50a8500fbf984e98",
+ "sourceHash": "6eba54c1f07016c1",
  "sfx": {
   "moo": {
    "file": "sfx/moo.ogg",
@@ -305,7 +305,7 @@
    "lengthBeats": 64,
    "loopSeconds": 29.53846153846154,
    "meanDb": -17.5,
-   "peakDb": -4.4
+   "peakDb": -4.1
   },
   "race": {
    "file": "music/race.ogg",
@@ -318,7 +318,7 @@
    "lengthBeats": 128,
    "loopSeconds": 49.23076923076923,
    "meanDb": -17.5,
-   "peakDb": -3.8
+   "peakDb": -4.2
   },
   "farm": {
    "file": "music/farm.ogg",
@@ -330,8 +330,8 @@
    "bpm": 132,
    "lengthBeats": 128,
    "loopSeconds": 58.18181818181818,
-   "meanDb": -17.8,
-   "peakDb": -1.7
+   "meanDb": -17.6,
+   "peakDb": -2.1
   },
   "industrial": {
    "file": "music/industrial.ogg",
@@ -343,8 +343,8 @@
    "bpm": 124,
    "lengthBeats": 96,
    "loopSeconds": 46.45161290322581,
-   "meanDb": -17.7,
-   "peakDb": -4
+   "meanDb": -17.6,
+   "peakDb": -3.5
   },
   "harbor": {
    "file": "music/harbor.ogg",
@@ -357,7 +357,7 @@
    "lengthBeats": 112,
    "loopSeconds": 50.90909090909091,
    "meanDb": -17.6,
-   "peakDb": -1.7
+   "peakDb": -1.8
   },
   "dino": {
    "file": "music/dino.ogg",
@@ -370,7 +370,7 @@
    "lengthBeats": 128,
    "loopSeconds": 49.23076923076923,
    "meanDb": -17.5,
-   "peakDb": -5.1
+   "peakDb": -4.4
   },
   "underground": {
    "file": "music/underground.ogg",
@@ -382,8 +382,8 @@
    "bpm": 132,
    "lengthBeats": 96,
    "loopSeconds": 43.63636363636363,
-   "meanDb": -17.8,
-   "peakDb": -1.5
+   "meanDb": -17.6,
+   "peakDb": -2
   },
   "results": {
    "file": "music/results.ogg",
@@ -396,7 +396,7 @@
    "lengthBeats": 16,
    "loopSeconds": 6.857142857142857,
    "meanDb": -17.5,
-   "peakDb": -4.4
+   "peakDb": -3
   },
   "sky": {
    "file": "music/sky.ogg",
@@ -408,8 +408,8 @@
    "bpm": 138,
    "lengthBeats": 96,
    "loopSeconds": 41.73913043478261,
-   "meanDb": -17.7,
-   "peakDb": -3.9
+   "meanDb": -17.6,
+   "peakDb": -3.8
   },
   "forest": {
    "file": "music/forest.ogg",
@@ -421,8 +421,8 @@
    "bpm": 126,
    "lengthBeats": 96,
    "loopSeconds": 45.714285714285715,
-   "meanDb": -17.6,
-   "peakDb": -2.3
+   "meanDb": -17.7,
+   "peakDb": -2.1
   },
   "underwater": {
    "file": "music/underwater.ogg",
@@ -435,7 +435,7 @@
    "lengthBeats": 96,
    "loopSeconds": 49.6551724137931,
    "meanDb": -17.5,
-   "peakDb": -4.7
+   "peakDb": -6.5
   },
   "brickworks": {
    "file": "music/brickworks.ogg",
@@ -448,7 +448,7 @@
    "lengthBeats": 112,
    "loopSeconds": 53.333333333333336,
    "meanDb": -17.5,
-   "peakDb": -3.7
+   "peakDb": -3.8
   },
   "mushroom": {
    "file": "music/mushroom.ogg",
@@ -460,8 +460,8 @@
    "bpm": 140,
    "lengthBeats": 128,
    "loopSeconds": 54.857142857142854,
-   "meanDb": -17.8,
-   "peakDb": -4
+   "meanDb": -17.6,
+   "peakDb": -3.3
   },
   "tundra": {
    "file": "music/tundra.ogg",
@@ -487,7 +487,7 @@
    "lengthBeats": 128,
    "loopSeconds": 51.2,
    "meanDb": -17.5,
-   "peakDb": -4.1
+   "peakDb": -2.3
   },
   "candy": {
    "file": "music/candy.ogg",
@@ -499,7 +499,7 @@
    "bpm": 138,
    "lengthBeats": 112,
    "loopSeconds": 48.69565217391305,
-   "meanDb": -18.6,
+   "meanDb": -17.7,
    "peakDb": -1.8
   },
   "castle": {
@@ -512,8 +512,8 @@
    "bpm": 126,
    "lengthBeats": 108,
    "loopSeconds": 51.42857142857143,
-   "meanDb": -17.8,
-   "peakDb": -5
+   "meanDb": -17.7,
+   "peakDb": -3.8
   },
   "airport": {
    "file": "music/airport.ogg",
@@ -525,8 +525,8 @@
    "bpm": 144,
    "lengthBeats": 128,
    "loopSeconds": 53.333333333333336,
-   "meanDb": -17.8,
-   "peakDb": -4.3
+   "meanDb": -17.6,
+   "peakDb": -4.2
   },
   "house": {
    "file": "music/house.ogg",
@@ -538,8 +538,8 @@
    "bpm": 120,
    "lengthBeats": 120,
    "loopSeconds": 60,
-   "meanDb": -17.5,
-   "peakDb": -2.6
+   "meanDb": -17.6,
+   "peakDb": -2
   }
  }
 }
