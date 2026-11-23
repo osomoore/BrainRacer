@@ -4,29 +4,31 @@ Placeholder shape textures that should become paint jobs in `apps/workshop/art/p
 (see `docs/WORKSHOP_ART_PIPELINE.md`). Model parts (car/dino rigs) are enumerated by the pipeline itself;
 this list covers scenery, props and critters drawn by run scenes and screens.
 
-## Dino Lab run scenes (`run/dino/kit`, keys `ws:dino-run:<name>`; origins noted in `kit/art.ts`)
-- **Props:** `cloud` soft white cloud · `sun` cartoon sun with rays · `bush` round green bush with pink dots ·
-  `flowers` purple flower patch · `trunk` tree trunk · `canopy` leafy tree crown · `palm` palm tree · `cactus` ·
-  `stump` tree stump · `log` log side view · `logEnd` log end with rings · `pebble` small rock · `dirt` dirt mound ·
-  `dune` sand dune · `snowmound` snow pile.
-- **Nest / hole / food:** `dome` grassy hill · `hole` burrow hole · `glow` soft glow spot · `nestBack`/`nestFront` twig
-  nest · `egg` spotted egg · `treat` golden kernel · `nutHalfL`/`nutHalfR` nut shell halves.
-- **Water / misc:** `plank` broken bridge planks · `waveTop` wave crest strip · `water` water tile · `heat` heat
-  shimmer · `windline` wind streak · `shade` soft shadow oval · `arrow` yellow down arrow · `icicle` ·
-  `shades` sunglasses · `bulge` cream belly bulge.
-- **Characters:** `birdWing` · `bigBody`/`bigLeg` big friendly goofy purple dino · `friend:a|b`, `friend2:a|b` small
-  waving dino (pink, blue).
-- **Top view:** `hole:top` · `tuftTop` grass tuft · `rockTop` · `flowerTop`.
-- **Particles (keep simple, maybe never paint):** `p:leaf p:dust p:drop p:snow p:spark p:star p:heart p:puff p:feather
-  p:bubble p:sweat p:ring p:twig p:snore p:question p:exclaim`, `px`.
-- **Families:** `beetle:{happy,giggle,oops,scared,sleep}` ladybug-like beetle · `frog:{happy,giggle,oops,scared}` ·
-  `lizard:{happy,giggle,oops,scared,sleep}` side view · `lizardTop:{happy,sleep,scared}` · `bird:{happy,laugh,peck}`
-  round blue bird · `fish:{happy,scared}` orange fish · `bigHead:{normal,sniff,lick,surprised,sneeze,shrug,laugh}`
-  big goofy dino head · `nut:{1,2,3}` hard nut / hairy coconut / stone-banded giant nut · `fern:{3,5,7}` fern clump ·
-  `grass:{0,1,2}` tall grass · `fruit:{hex}` mango-style fruit · `far:{hills,peaks,mesas,dunes,forest}` far backdrop
-  strips · `wall:{cliff,red,ice,dirt}` rock wall tiles · `rock:{a,b,c,d}` boulders.
-- **Procedural strips (probably stay code):** `sky:{top}:{bottom}`, `edge:{top}:{body}:{0|1}`, `cap:{hex}`,
-  `ramp:{kind}:{w}:{pw}:{h}`.
+## Dino Lab run scenes (`run/dino/kit`, keys `ws:dino-run:<name>`)
+
+| Group | Status | Texture names |
+| --- | --- | --- |
+| Props | job added | `cloud`, `sun`, `bush`, `flowers`, `trunk`, `canopy`, `palm`, `cactus`, `stump`, `log`, `logEnd`, `pebble`, `dirt`, `dune`, `snowmound` |
+| Nest, hole and food | job added | `dome`, `hole`, `glow`, `nestBack`, `nestFront`, `egg`, `treat`, `nutHalfL`, `nutHalfR` |
+| Water and effects | job added | `plank`, `waveTop`, `water`, `heat`, `windline`, `shade`, `arrow`, `icicle`, `shades`, `bulge` |
+| Character parts | job added | `birdWing`, `bigBody`, `bigLeg` |
+| Waving dinos | job added | `friend:a`, `friend:b`, `friend2:a`, `friend2:b` |
+| Top view props | job added | `hole:top`, `tuftTop`, `rockTop`, `flowerTop` |
+| Beetles | job added | `beetle:happy`, `beetle:giggle`, `beetle:oops`, `beetle:scared`, `beetle:sleep` |
+| Frogs | job added | `frog:happy`, `frog:giggle`, `frog:oops`, `frog:scared` |
+| Lizards | job added | `lizard:happy`, `lizard:giggle`, `lizard:oops`, `lizard:scared`, `lizard:sleep`, `lizardTop:happy`, `lizardTop:sleep`, `lizardTop:scared` |
+| Birds | job added | `bird:happy`, `bird:laugh`, `bird:peck` |
+| Fish | job added | `fish:happy`, `fish:scared` |
+| Big dino faces | job added | `bigHead:normal`, `bigHead:sniff`, `bigHead:lick`, `bigHead:surprised`, `bigHead:sneeze`, `bigHead:shrug`, `bigHead:laugh` |
+| Nuts, ferns, grass and fruit | job added | `nut:1`, `nut:2`, `nut:3`, `fern:3`, `fern:5`, `fern:7`, `grass:0`, `grass:1`, `grass:2`, `fruit:ff8a2a` |
+| Far backdrops | job added | `far:hills`, `far:peaks`, `far:mesas`, `far:dunes`, `far:forest` |
+| Wall tiles | job added | `wall:cliff`, `wall:red`, `wall:ice`, `wall:dirt` |
+| Boulders | job added | `rock:a`, `rock:b`, `rock:c`, `rock:d` |
+| Particles and utility pixel | stays code | `p:leaf`, `p:dust`, `p:drop`, `p:snow`, `p:spark`, `p:star`, `p:heart`, `p:puff`, `p:feather`, `p:bubble`, `p:sweat`, `p:ring`, `p:twig`, `p:snore`, `p:question`, `p:exclaim`, `px` |
+| Procedural strips | stays code | `sky:*`, `edge:*`, `cap:*`, `ramp:*` |
+
+The fruit job uses the orange mango key currently registered by Dino Lab. Fixed water, wall and backdrop keys have jobs.
+The procedural strip patterns cover dimensions and colors generated at runtime.
 
 ## Race Shop run scenes (`run/common/props.ts`, ~80 props `P.*`, and `run/common/top.ts` `T.*`)
 - To be listed when the pipeline adds scenery jobs (backdrops, mud/water/snow pools, ducks, frog, hay, bridges, people).

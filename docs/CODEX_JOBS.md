@@ -208,7 +208,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** screenshots (wide + tall) show no overlap and readable dimmed rows; the springs view is framed for all
   variants (shoot them all); the workshop e2e suite passes 3 times in a row with `--workers=1` and once with default workers.
 
-## C14 — Paint jobs for Dino Lab run scenery (no painting) · `OPEN`
+## C14 — Paint jobs for Dino Lab run scenery (no painting) · `DONE (codex/c14)`
 - **Parallel-safe with C13 and C15.** Sets up jobs only. **Do not run ComfyUI** (`--dry-run` only); the user starts painting.
 - **Port:** 5222.
 - **Scope:** new `apps/workshop/art/paint/jobsDinoRun.ts` (+ test), one import line in `apps/workshop/art/paint/jobs.ts`
