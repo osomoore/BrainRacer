@@ -188,6 +188,53 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** every item visibly fixed in the reviewer sheets (side + top).
 - **Hand-back:** The existing painted Jeep body textures still show the old spare. Review the edge-on spare
   with `&art=shapes`. The side and top Jeep body paints need a refresh to pick up the new geometry.
+## C13 — Screen polish and the flaky mobile test · `OPEN`
+- **Parallel-safe with C14 and C15.** No user review needed: every item has an objective check.
+- **Port:** 5221.
+- **Scope:** `apps/workshop/screens/results*`, `apps/workshop/screens/station*`, `apps/workshop/shell/**` (Admin pill only),
+  `apps/workshop/config.ts` (add keys in the screens/shell sections), `tests/e2e/workshop*.spec.ts`.
+- **Do:**
+  - **Admin pill:** in wide Admin Mode the ADMIN MODE pill overlaps the results headline. Move/resize it so it never
+    overlaps any screen's headline in wide (1920×1080) and tall (960×1080) layouts.
+  - **Results contrast:** dimmed rows for stages not reached are too faint. Keep them visibly "not reached" but make the
+    text meet WCAG AA contrast (≥ 4.5:1) against its background; text stays ≥ 40 px.
+  - **Springs station framing:** with Lift Kit (and big wheels / Big or Huge size) the springs close-up crops the top of
+    the car. Frame the springs view so the body edge above the springs and the wheel below are both in frame for every
+    springs variant, size and wheel type. Follow the bumpers framing code already in `stationScreen.ts` (fit from a width
+    measured at creation, not after `setModel`).
+  - **Flaky e2e:** `tests/e2e/workshop.spec.ts` "mobile: tap to play gives one pane; gear opens the grown-up gate" fails
+    under load and passes alone. Find the race (likely a fixed timeout or a tap before the scene is ready) and replace
+    waits with state-based waits. Do not just raise timeouts.
+- **Done when:** screenshots (wide + tall) show no overlap and readable dimmed rows; the springs view is framed for all
+  variants (shoot them all); the workshop e2e suite passes 3 times in a row with `--workers=1` and once with default workers.
+
+## C14 — Paint jobs for Dino Lab run scenery (no painting) · `OPEN`
+- **Parallel-safe with C13 and C15.** Sets up jobs only. **Do not run ComfyUI** (`--dry-run` only); the user starts painting.
+- **Port:** 5222.
+- **Scope:** new `apps/workshop/art/paint/jobsDinoRun.ts` (+ test), one import line in `apps/workshop/art/paint/jobs.ts`
+  (`allArtJobs()` includes them), `scripts/art/**` only if export needs a hook, `apps/workshop/run/dino/kit/art.ts` only to
+  expose the shape drawers for export (no visual change), `docs/WORKSHOP_PAINT_BACKLOG.md`.
+- **Do:** turn the Dino Lab list in `docs/WORKSHOP_PAINT_BACKLOG.md` into `shape` paint jobs (code shape in → paint out,
+  same as rig parts), keyed by the existing texture keys `ws:dino-run:<name>` so painted PNGs replace the placeholders at
+  runtime through the manifest. Skip particles and procedural strips (they stay code). Critters with faces (`frog`,
+  `lizard`, `bird`, `bigHead`, `friend`, `beetle`, `fish`) use the face-safe settings (`FACE_NEGATIVE`, face tune) so paint
+  doesn't invent mouths. Prompts follow `HOUSE_STYLE`; kid-safe; one accent colour per item.
+- **Done when:** `npm run art:shapes` exports a PNG for every new job; `npm run art:paint -- --dry-run --only "ws:dino-run:*"`
+  lists them; a test checks every backlog item has a job or is in an explicit skip list; the game looks unchanged
+  (no manifest entries until painted). Mark the items "job added" in the backlog doc.
+
+## C15 — Paint jobs for Race Shop run scenery (no painting) · `OPEN`
+- **Parallel-safe with C13 and C14.** Same rules as C14: **no ComfyUI**, `--dry-run` only.
+- **Port:** 5223.
+- **Scope:** new `apps/workshop/art/paint/jobsRaceRun.ts` (+ test), one import line in `apps/workshop/art/paint/jobs.ts`,
+  `apps/workshop/run/common/props.ts` and `run/common/top.ts` only to expose shape drawers and stable texture keys
+  (no visual change), `scripts/art/**` only if export needs a hook, `docs/WORKSHOP_PAINT_BACKLOG.md`.
+- **Do:** first fill in the "Race Shop run scenes" section of the backlog (list the ~80 `P.*` props and `T.*` top-view
+  pieces, grouped like the Dino Lab list, with the same skip rules). Then add `shape` jobs for them as in C14 (people and
+  animals with faces use the face-safe settings). Keep the props' existing texture key prefix.
+- **Done when:** same checks as C14 with `--only` set to the race prop key prefix.
+
+
 ---
 
 ## Done
