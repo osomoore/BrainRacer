@@ -21,6 +21,7 @@ ComfyUI render script, whether it starts from a code-drawn shape (car/dino parts
 | Paint | `scripts/art/paint.ts` (wrapper) + `scripts/art/paint.py` | `npm run art:paint [-- flags]`: exports shapes, then paints with ComfyUI. Writes `public/art/workshop/<file>.png` + `manifest.json` (key -> file, size, specHash, srcHash, shapeHash, model, seed). Skips jobs whose spec, shape pixels and model did not change. |
 | Runtime | `art/paint/painted.ts`, hook in `art/bake.ts`, `preloadPaintedArt()` in `shell/BootScene.ts` | Boot fetches the manifest + PNGs (waits at most 4 s). `ensureTexture` uses the painted image when its size matches the texture, else bakes the code shape and upgrades the texture live when the image arrives (so bare `?dev=` scenes work). `?art=shapes` forces code shapes. URLs are relative. `ensurePaintedTexture(scene, key)` serves prompt-only art (backdrops). |
 | Staleness test | `scripts/art/paintManifest.test.ts` | Fails when a manifest entry's `specHash`/size no longer matches its job, its job is gone, or its PNG is missing. Passes with an empty or partial manifest. A changed shape source only warns (Codex edits shapes in parallel). |
+| Candidates + voting | `paint.py --candidates`, `tools/art-pick/`, `apps/workshop/art/paint/picks.json` | Several painted candidates per part, a local vote page, votes feed back into the job seed. See below. |
 | Review | `tools/art-review/` (Codex job C1) | Grades parts; paint problems become prompt/seed/strength edits in `jobs.ts`. |
 
 ## Commands
@@ -35,6 +36,45 @@ python scripts/art/paint.py --help                    # every tuning flag (--ste
 ```
 `--out <dir>` writes PNGs to a scratch folder and leaves the manifest alone (use it to tune; keep the path short on Windows).
 Compare painted vs code: `workshop.html?dev=WorkshopParts` and `...&art=shapes`.
+
+## Face-safe painting (parts with eyes / nostrils)
+The cute-sticker paint pass likes to invent faces: on a dino head it drew a second mouth on the side of the head and a mouth line
+above the real open jaw (the jaw and teeth are separate rig parts, the head has only the eye, nostril and, for the rex, a brow).
+Jobs that carry facial features are marked `protect: 'features'` in `jobs.ts` (all dino `head` / `thead` jobs). For them `paint.py`:
+1. builds a **feature mask** from the exported shape: every pixel that is outline-navy (#1b1b3a, within 55) or near-white (eye white,
+   highlight, pupil ring), then grows it (4 px for the repaint mask);
+2. runs **masked img2img** (`SetLatentNoiseMask`): white = repaint (the skin inside the silhouette), black = the shape's own latent
+   (eyes, nostrils, outline, everything outside the part), so the model never regenerates a feature;
+3. uses a gentler recipe (`PAINT_TUNE.faceDenoise` 0.55, `faceControl` 0.95, `faceSticker` 0.4), a positive "smooth skin, the eye is the
+   only facial feature" and `FACE_NEGATIVE` ("mouth, lips, teeth, tongue, smile, extra eyes, face, nose, nostrils, eyebrows, ...");
+4. **scrubs invented strokes**: any dark, outline-coloured painted pixel that is not next to a real feature (an extra mouth or crease) is
+   replaced by the surrounding skin colour (normalized Gaussian fill);
+5. **copies the feature pixels back** from the shape exactly (grown 2 px, soft edge), so eyes/nostrils are identical to the code shape.
+`python scripts/art/paint.py --no-protect ...` paints without the mask (to compare). Cheeks (translucent pink) and skin patterns are
+deliberately not protected: they are skin. To protect another part, set `protect: 'features'` for it in `shapeJob` (`faceSafe`).
+
+## Candidates and voting
+Instead of trusting one seed, paint several and vote. Nothing here touches the game manifest until you apply the votes.
+```
+npm run art:paint -- --candidates 4 --only "ws:d:head:*:color.orange:*" --part head   # 4 seeds per job -> art-candidates/<file>/<seed>.png
+npm run art:pick                                                                       # vote page: http://localhost:5203/ (ART_PICK_PORT to change)
+npm run art:paint -- --apply-picks                                                     # install the votes into public/art/workshop + manifest
+```
+- `--candidates N` accepts the same `--only/--aspect/--part/--limit` filters. It writes `art-candidates/<file>/<seed>.png`, a copy of
+  the code shape (`shape.png`) and `art-candidates/index.json` (key, seeds, prompt, shape file, size). `art-candidates/` is gitignored.
+  A job that already has N candidates is skipped; with fewer it is topped up. Seeds are derived from the job's default seed
+  (`defaultSeed + k * 2654435761`), so they are reproducible and never collide.
+- **Vote page** (`tools/art-pick/`, no dependencies, port 5203): the code shape and the N candidates side by side on a checkerboard or the
+  game's sky blue (`B`), zoom (`Z` or the selector), filters (workshop / aspect / part / view / voted-or-not), progress counter, comment box.
+  Keys: `1`..`9` pick that candidate, `0` keep the code shape (reject all), `M` need more candidates, `U` clear, `Left`/`Right` move, `C` comment.
+  Every vote is saved at once to `apps/workshop/art/paint/picks.json` (committed): `key -> { pick: <seed> | "shape" | "more", comment? }`.
+- **`--apply-picks`** (no ComfyUI needed; it re-exports the shapes first): numeric pick -> the candidate PNG is copied to
+  `public/art/workshop/<file>.png` and the manifest entry is written with that seed; `shape` -> the manifest entry and PNG are removed
+  and normal `art:paint` runs skip the job (the game shows the code shape); `more` jobs are listed.
+- **How picks feed back**: `jobs.ts` reads `picks.json`, so a picked job's `seed` is the picked seed (it is part of `specHash`). A normal
+  `npm run art:paint` therefore reproduces the chosen image, and the staleness test stays green after `--apply-picks`.
+- **More candidates**: vote `M`, then run `npm run art:paint -- --candidates 4 --only "<same glob>"`. Jobs voted `more` get 4 fresh seeds
+  added to the existing ones (the `more` vote is cleared, a comment is kept); reload the vote page.
 
 ## Settings that worked (ComfyUI, RTX 3060 Laptop 6 GB, 16 GB RAM)
 - Checkpoint `realcartoonXL_v6` ONLY (never load two SDXL checkpoints: the server crashed out of RAM). `paint.py` calls `POST /free` first,
