@@ -20,6 +20,7 @@ import { raceGeom, raceLooks } from '../race/geometry';
 import { SPRING } from '../race/looks';
 import * as RS from '../race/drawSide';
 import * as RT from '../race/drawTop';
+import { dinoRunJobs } from './jobsDinoRun';
 import picksData from './picks.json';
 
 export type ArtGroup = 'race' | 'dino' | 'scene';
@@ -290,6 +291,7 @@ export function allArtJobs(): ArtJob[] {
       }
     }
   }
+  for (const job of dinoRunJobs(SPECS)) out.set(job.key, job);
   for (const j of PROMPT_JOBS) out.set(j.key, j);
   return [...out.values()];
 }

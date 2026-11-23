@@ -7,9 +7,23 @@
  *
  * Groups: sky/background, ground and walls, plants, rocks and props, water, particles, critters.
  */
+import type { PartSpec } from '../../../art/bake';
 import {
-  INK, blob, bakeRng, darken, def, eye, arcEye, lighten, oval, poly, rrect, smile, star, stroke, vgrad, type G,
+  INK, blob, bakeRng, darken, def as register, eye, arcEye, lighten, oval, poly, rrect, smile, star, stroke, vgrad, type G,
 } from './paint';
+
+const exportSpecs = new Map<string, PartSpec>();
+
+function def(key: string, w: number, h: number, ox: number, oy: number, draw: (g: G) => void): void {
+  register(key, w, h, ox, oy, draw);
+  // The exporter draws in box coordinates. The runtime registry still owns the sprite origin.
+  exportSpecs.set(key, { key: `ws:dino-run:${key}`, w, h, ox: 0, oy: 0, draw });
+}
+
+/** Get the original canvas drawing for a Dino Lab scenery paint job. */
+export function dinoRunArtSpec(name: string): PartSpec | undefined {
+  return exportSpecs.get(name);
+}
 
 // ================================================================== sky / background
 def('px', 4, 4, 0, 0, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 4, 4); });
@@ -17,7 +31,7 @@ def('px', 4, 4, 0, 0, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 4, 4); });
 /** Vertical gradient strip, stretch it over the sky. Key: `sky:<top>:<bottom>` (hex without #). */
 export function skyKey(top: string, bottom: string): string {
   const k = `sky:${top}:${bottom}`;
-  def(k, 8, 256, 0, 0, (g) => { g.fillStyle = vgrad(g, 0, 256, `#${top}`, `#${bottom}`); g.fillRect(0, 0, 8, 256); });
+  register(k, 8, 256, 0, 0, (g) => { g.fillStyle = vgrad(g, 0, 256, `#${top}`, `#${bottom}`); g.fillRect(0, 0, 8, 256); });
   return k;
 }
 
@@ -71,7 +85,7 @@ farStrip('forest', '#4c9b57', '#3b8248');
 /** Ground edge strip: tile it horizontally (tileSprite, 512 wide). Origin = top-left; the grass lip sits on the ground line. */
 export function edgeKey(top: string, body: string, tuft = true): string {
   const k = `edge:${top}:${body}:${tuft ? 1 : 0}`;
-  def(k, 512, 64, 0, 0, (g) => {
+  register(k, 512, 64, 0, 0, (g) => {
     g.fillStyle = `#${body}`; g.fillRect(0, 16, 512, 48);
     g.fillStyle = `#${top}`; g.fillRect(0, 0, 512, 22);
     if (tuft) for (let x = 0; x < 512; x += 32) { g.beginPath(); g.arc(x + 16, 18, 18, 0, Math.PI); g.fill(); }
@@ -101,7 +115,7 @@ wallTile('dirt', '#a8744a', '#97653e', '#6e4426');
 /** Thick ground cap for cliffs / ledges (tile 256 x 64). */
 export function capKey(top: string): string {
   const k = `cap:${top}`;
-  def(k, 256, 64, 0, 0, (g) => {
+  register(k, 256, 64, 0, 0, (g) => {
     g.fillStyle = `#${top}`; g.fillRect(0, 0, 256, 30);
     for (let x = 0; x < 256; x += 32) { g.beginPath(); g.arc(x + 16, 28, 16, 0, Math.PI); g.fill(); }
     g.strokeStyle = INK; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 2); g.lineTo(256, 2); g.stroke();
