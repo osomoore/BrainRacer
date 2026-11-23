@@ -1,60 +1,99 @@
 /** Dinosaur, SIDE view parts (faces +x). One drawing function per aspect; numbers come from ./looks. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, rrectPath } from '../bake';
-import { type Pt, deg, quad } from '../geom';
-import { type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
-import { type SkinSpec, skinFill, tubeShapes } from './skin';
+import { type Pt, deg, mix, quad, rotPt } from '../geom';
+import { BEAK_LOOKS, type BeakLook, type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
+import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, type SkinSpec, skinFill, tubeShapes } from './skin';
 import type { BodyLook } from './looks';
+import type { Skeleton } from './skeleton';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
 
 // ---------------------------------------------------------------- claws / hands
 
-/** Fan of claws (or a grabby hand) at (x, y) pointing along `dir` (radians). */
+/** Claws in profile, with the farther toes receding behind the visible one. */
 export function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, dir: number, forFoot: boolean): void {
   const kind = forFoot && c.kind === 'grabby' ? 'small' : c.kind;
+  g.save();
+  g.translate(x, y);
+  g.rotate(dir);
   if (kind === 'grabby') {
-    const sh: Shape[] = [];
-    for (let i = 0; i < 4; i++) {
-      const a = dir + (i - 1.5) * 0.42, bx = x + Math.cos(dir) * 8, by = y + Math.sin(dir) * 8;
-      sh.push({ path: (g2) => ellipsePath(g2, bx + Math.cos(a) * 14, by + Math.sin(a) * 14, 13, 6.5, a), fill: skin.look.belly });
+    drawShapes(g, [{
+      path: (cx) => {
+        cx.moveTo(-8, -8);
+        cx.quadraticCurveTo(4, -17, 14, -14);
+        cx.quadraticCurveTo(23, -13, 20, -6);
+        cx.quadraticCurveTo(31, -3, 25, 3);
+        cx.quadraticCurveTo(27, 10, 18, 11);
+        cx.quadraticCurveTo(5, 16, -8, 8);
+        cx.closePath();
+      },
+      fill: skin.look.belly,
+      detail: (cx) => {
+        cx.strokeStyle = skin.look.dark;
+        cx.lineWidth = 2.4;
+        cx.beginPath();
+        cx.moveTo(13, -6);
+        cx.quadraticCurveTo(18, -4, 21, -5);
+        cx.moveTo(16, 3);
+        cx.quadraticCurveTo(21, 5, 24, 3);
+        cx.stroke();
+      },
+    }], 3.2);
+  } else {
+    const count = kind === 'tiny' ? 2 : 3;
+    const length = forFoot ? Math.min(c.claw, 20) : c.claw;
+    const width = kind === 'digging' ? 6 : kind === 'hooks' ? 4.8 : 3.6;
+    for (let i = count - 1; i >= 0; i--) {
+      const dx = i * 3.5, dy = -i * 4;
+      const tip = dx + length * (1 - i * 0.14);
+      drawShapes(g, [{
+        path: (cx) => {
+          cx.moveTo(dx - 2, dy - width);
+          if (kind === 'digging') {
+            cx.quadraticCurveTo(tip - 8, dy - width * 1.4, tip + 1, dy - width * 0.7);
+            cx.quadraticCurveTo(tip + 4, dy, tip, dy + width * 0.7);
+          } else {
+            const curve = kind === 'hooks' ? width * 1.35 : width * 0.75;
+            cx.quadraticCurveTo(tip - 4, dy - width, tip, dy + curve);
+            cx.quadraticCurveTo(tip - 6, dy + width * 0.12, dx + length * 0.42, dy + width * 0.73);
+          }
+          cx.quadraticCurveTo(dx + 3, dy + width * 1.18, dx - 2, dy + width * 0.88);
+          cx.closePath();
+        },
+        fill: i === 0 ? c.color : mix(c.color, '#35233e', 0.17 + i * 0.06),
+      }], 2.5);
     }
-    sh.push({ path: (g2) => circle(g2, x, y, 15), fill: skin.look.belly });
-    drawShapes(g, sh, 4);
-    return;
   }
-  const n = kind === 'tiny' ? 2 : 3;
-  const len = forFoot ? Math.min(c.claw, 20) : c.claw;
-  const sh: Shape[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = dir + (i - (n - 1) / 2) * 0.5;
-    const bx = x + Math.cos(a) * 3, by = y + Math.sin(a) * 3;
-    const px = -Math.sin(a), py = Math.cos(a);
-    const wd = kind === 'digging' ? 9 : kind === 'hooks' ? 6 : 5.5;
-    const tx = bx + Math.cos(a) * len, ty = by + Math.sin(a) * len;
-    if (kind === 'hooks') {
-      sh.push({ path: (g2) => { g2.moveTo(bx + px * wd, by + py * wd); g2.quadraticCurveTo(bx + Math.cos(a) * len * 0.6 + px * 4, by + Math.sin(a) * len * 0.6 + py * 4, tx + px * len * 0.45, ty + py * len * 0.45); g2.quadraticCurveTo(bx + Math.cos(a) * len * 0.7 - px * 2, by + Math.sin(a) * len * 0.7 - py * 2, bx - px * wd, by - py * wd); g2.closePath(); }, fill: c.color });
-    } else if (kind === 'digging') {
-      sh.push({ path: (g2) => polyPath(g2, [{ x: bx + px * wd * 0.7, y: by + py * wd * 0.7 }, { x: tx + px * wd * 1.1, y: ty + py * wd * 1.1 }, { x: tx - px * wd * 1.1, y: ty - py * wd * 1.1 }, { x: bx - px * wd * 0.7, y: by - py * wd * 0.7 }]), fill: c.color });
-    } else {
-      sh.push({ path: (g2) => polyPath(g2, [{ x: bx + px * wd, y: by + py * wd }, { x: tx, y: ty }, { x: bx - px * wd, y: by - py * wd }]), fill: c.color });
-    }
-  }
-  drawShapes(g, sh, forFoot ? 3.5 : 4);
+  g.restore();
 }
 
 // ---------------------------------------------------------------- torso & body extras
 
-export function torsoSide(b: BodyLook, sk: SkinSpec, bodyId: string): PartSpec {
-  const W = b.rx * 2 + 60, H = b.ry * 2 + 60;
+export function torsoSide(b: BodyLook, h: HeadLook, pose: Skeleton, sk: SkinSpec, bodyId: string, headId: string): PartSpec {
+  const { rx, ry, rot } = pose.torso;
+  const angle = pose.neckAng - rot;
+  const joint = rotPt({ x: pose.neckBase.x - pose.torso.x, y: pose.neckBase.y - pose.torso.y }, -rot);
+  const baseWidth = h.neckLen > 120 ? 30 : 38;
+  const tipWidth = h.neckLen > 120 ? 16 : 22;
+  const underCheek = rotPt({ x: -5, y: -h.top * 0.11 }, pose.headRot - pose.neckAng);
+  const neck = quad({ x: -24, y: 0 }, { x: h.neckLen * 0.45, y: 6 }, { x: h.neckLen + underCheek.x, y: underCheek.y }, 14)
+    .map((p) => rotPt(p, angle))
+    .map((p) => ({ x: p.x + joint.x, y: p.y + joint.y }));
+  const widths = neck.map((_, i) => baseWidth + (tipWidth - baseWidth) * (i / (neck.length - 1)));
+  const edge = neck[neck.length - 1];
+  const x0 = -rx, y0 = Math.min(-ry, edge.y - tipWidth), x1 = Math.max(rx, edge.x + tipWidth), y1 = Math.max(ry, edge.y + tipWidth);
+  const pad = baseWidth + OL;
   return {
-    key: `ws:d:torso:${bodyId}:${sk.key}`, w: W, h: H, ox: W / 2, oy: H / 2,
+    key: `ws:d:torso:${bodyId}:${headId}:${pose.pose}:${sk.key}`,
+    w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2, ox: pad - x0, oy: pad - y0,
     draw: (g) => {
-      const box = { x0: -b.rx, y0: -b.ry, x1: b.rx, y1: b.ry };
-      const sh: Shape[] = [{ path: (c) => ellipsePath(c, 0, 0, b.rx, b.ry), fill: skinFill(sk, box, 1), detail: (c) => {
-        c.fillStyle = sk.look.belly; c.globalAlpha = 0.95; c.beginPath(); c.ellipse(b.rx * 0.08, b.ry * (b.kind === 'belly' ? 0.45 : 0.78), b.rx * 0.86, b.ry * (b.kind === 'belly' ? 0.75 : 0.5), 0, 0, 6.3); c.fill(); c.globalAlpha = 1;
-        if (b.kind === 'belly') { c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; c.beginPath(); c.arc(b.rx * 0.08, b.ry * 0.5, b.ry * 0.2, 0.3, 2.8); c.stroke(); }
-      } }];
+      const fill = skinFill(sk, { x0, y0, x1, y1 }, 1);
+      const sh = tubeShapes(neck, widths, fill);
+      sh.push({ path: (c) => ellipsePath(c, 0, 0, rx, ry), fill, detail: (c) => {
+        c.fillStyle = sk.look.belly; c.globalAlpha = 0.95; c.beginPath(); c.ellipse(rx * 0.08, ry * (b.kind === 'belly' ? 0.45 : 0.78), rx * 0.86, ry * (b.kind === 'belly' ? 0.75 : 0.5), 0, 0, 6.3); c.fill(); c.globalAlpha = 1;
+        if (b.kind === 'belly') { c.strokeStyle = mix(sk.look.dark, sk.look.belly, 0.20); c.lineWidth = 3.5; c.beginPath(); c.ellipse(rx * 0.08, ry * 0.60, rx * 0.31, ry * 0.27, 0, 0.24, 2.90); c.stroke(); }
+      } });
       drawShapes(g, sh, OL);
     },
   };
@@ -67,9 +106,9 @@ export function platesSide(b: BodyLook): PartSpec {
     draw: (g) => {
       const sh: Shape[] = [];
       for (let i = 0; i < 7; i++) {
-        const t = i / 6, a = deg(-160 + t * 140);
+        const t = i / 6, a = deg(-160 + t * 82);
         const px = Math.cos(a) * b.rx * 0.98, py = Math.sin(a) * b.ry * 0.98;
-        const s = 20 + 11 * Math.sin(t * Math.PI);
+        const s = 14 + 15 * Math.sin(t * Math.PI);
         const nx = Math.cos(a), ny = Math.sin(a);
         sh.push({ path: (c) => polyPath(c, [{ x: px - ny * s * 0.7, y: py + nx * s * 0.7 }, { x: px + nx * s * 1.3, y: py + ny * s * 1.3 }, { x: px + ny * s * 0.7, y: py - nx * s * 0.7 }, { x: px - nx * 4, y: py - ny * 4 }]), fill: i % 2 ? '#a7b0be' : '#c6ced9' });
       }
@@ -98,38 +137,24 @@ export function sailSide(b: BodyLook): PartSpec {
 
 // ---------------------------------------------------------------- neck, head, jaw, teeth
 
-export function neckSide(h: HeadLook, sk: SkinSpec, headId: string): PartSpec {
-  const len = h.neckLen, tb = h.neckLen > 120 ? 26 : 34, te = h.neckLen > 120 ? 18 : 30;
-  const W = len + 120, H = len + 140;
-  return {
-    key: `ws:d:neck:${headId}:${sk.key}`, w: W, h: H, ox: 60, oy: H / 2,
-    draw: (g) => {
-      const pts = quad({ x: 0, y: 0 }, { x: len * 0.5, y: len > 120 ? 12 : 4 }, { x: len, y: 0 }, 14);
-      const hw = pts.map((_, i) => tb + (te - tb) * (i / 14));
-      const box = { x0: 0, y0: -tb, x1: len, y1: tb };
-      drawShapes(g, tubeShapes(pts, hw, skinFill(sk, box, 2, true)), OL);
-    },
-  };
-}
-
 function skullPath(g: G, h: HeadLook): void {
   const { len, top, snout } = h;
   const fy = -top * (h.brow ? 0.38 : 0.68 - snout * 0.9);
-  g.moveTo(-14, 6);
-  g.quadraticCurveTo(-34, -top * 0.5, -8, -top * 0.96);
+  g.moveTo(-8, 5);
+  g.bezierCurveTo(-22, -1, -27, -top * 0.54, -8, -top * 0.96);
   g.quadraticCurveTo(len * 0.12, -top * 1.16, len * 0.52, -top * (h.brow ? 1.0 : 1.02));
   g.quadraticCurveTo(len * 0.86, -top * (h.brow ? 0.9 : 0.95), len * 0.97, fy);
   g.quadraticCurveTo(len + 14, -top * 0.12, len, 0);
-  g.lineTo(-14, 6);
+  g.quadraticCurveTo(len * 0.4, 6, -8, 5);
   g.closePath();
 }
 
-export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: string): PartSpec {
+export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: string, beakLook: BeakLook = BEAK_LOOKS[0]): PartSpec {
   const extra = h.horns + h.crest + (sk.ex?.kind === 'feathers' ? 70 : 0);
-  const W = h.len + 130, H = h.top + extra + 90;
   const beak = teethId === 'teeth.beak';
+  const W = h.len * (beak ? beakLook.reach : 1) + 130, H = h.top + extra + 90;
   return {
-    key: `ws:d:head:${headId}:${sk.key}:${beak ? 'b' : 'n'}`, w: W, h: H, ox: 70, oy: H - 30,
+    key: `ws:d:head:${headId}:${sk.key}:${beak ? beakLook.name : 'n'}`, w: W, h: H, ox: 70, oy: H - 30,
     draw: (g) => {
       const { len, top } = h;
       const box = { x0: -34, y0: -top * 1.1, x1: len + 10, y1: 6 };
@@ -142,11 +167,11 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
       }
       if (h.noseHorn) sh.push({ path: (c) => polyPath(c, [{ x: len * 0.8, y: -top * 0.62 }, { x: len * 0.9 + 10, y: -top * 0.62 - 34 }, { x: len * 0.97, y: -top * 0.5 }]), fill: '#fff3d0' });
       if (h.crest) {
-        const cr = h.crest, c1 = EXTRA['extra.frill'].c1;
-        sh.push({ path: (c) => { c.moveTo(len * 0.62, -top * 0.98); c.quadraticCurveTo(len * 0.55, -top - cr, len * 0.12, -top - cr * 0.95); c.quadraticCurveTo(-4, -top - cr * 0.3, -12, -top * 0.7); c.closePath(); }, fill: c1, detail: (c) => { c.strokeStyle = '#ffd21f'; c.lineWidth = 5; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(len * 0.5 - i * 22, -top); c.lineTo(len * 0.3 - i * 20, -top - cr * 0.8); c.stroke(); } } });
+        const cr = h.crest;
+        sh.push({ path: (c) => { c.moveTo(len * 0.62, -top * 0.98); c.quadraticCurveTo(len * 0.55, -top - cr, len * 0.12, -top - cr * 0.95); c.quadraticCurveTo(-4, -top - cr * 0.3, -12, -top * 0.7); c.closePath(); }, fill: crestFill(sk, -top - cr, -top * 0.76) });
       }
-      sh.push({ path: (c) => skullPath(c, h), fill: skinFill(sk, box, 3) });
       drawShapes(g, sh, OL);
+      drawHeadJoint(g, (c) => skullPath(c, h), skinFill(sk, box, 3), sk.look.main, -12, -1, h.neckLen > 120 ? 20 : 25, true);
       // cheek + nostril + eye
       g.fillStyle = 'rgba(255,110,140,0.4)'; g.beginPath(); circle(g, len * 0.4, -top * 0.22, h.eye * 1.1); g.fill();
       g.fillStyle = OUTLINE; g.beginPath(); ellipsePath(g, len * (h.brow ? 0.9 : 0.88), -top * 0.42, 4.5, 3); g.fill();
@@ -157,7 +182,32 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
       if (h.brow) { g.strokeStyle = sk.look.dark; g.lineWidth = 9; g.beginPath(); g.moveTo(ex - 20, ey - h.eye * 1.9); g.quadraticCurveTo(ex, ey - h.eye * 2.6, ex + 20, ey - h.eye * 1.9); g.stroke(); }
       if (beak) {
         const t = TEETH[teethId];
-        const bs: Shape[] = [{ path: (c) => { c.moveTo(len * 0.55, -top * 0.78); c.quadraticCurveTo(len + 20, -top * 0.7, len + 24, -top * 0.1); c.quadraticCurveTo(len + 14, 8, len * 0.58, 4); c.closePath(); }, fill: t.color }];
+        const { base, reach, rise, hook } = beakLook;
+        const x0 = len * base, tip = len * reach, span = tip - x0;
+        const peak = top * rise, drop = top * hook;
+        const bs: Shape[] = [{
+          path: (c) => {
+            c.moveTo(x0, -peak * 0.67);
+            c.bezierCurveTo(x0 + span * 0.22, -peak, tip - span * 0.16, -peak * 1.02, tip, drop * 0.33);
+            c.quadraticCurveTo(tip + 2, drop + 3, tip - span * (0.06 + hook * 0.54), drop * 0.45 + 1);
+            c.quadraticCurveTo(x0 + span * 0.57, 1, x0, 5);
+            c.quadraticCurveTo(x0 - span * 0.15, -3, x0, -peak * 0.67);
+            c.closePath();
+          },
+          fill: '#ffc44f',
+          detail: (c) => {
+            const surface = c.createLinearGradient(0, -peak, 0, drop + 6);
+            surface.addColorStop(0, '#ffe49a');
+            surface.addColorStop(0.58, t.color);
+            surface.addColorStop(1, '#e79932');
+            c.fillStyle = surface;
+            c.fillRect(x0 - 8, -peak - 8, span + 18, peak + drop + 20);
+            c.fillStyle = '#a5672a';
+            c.beginPath();
+            ellipsePath(c, x0 + span * 0.28, -peak * 0.49, 4.2, 2.9, -0.14);
+            c.fill();
+          },
+        }];
         drawShapes(g, bs, 4.5);
       }
     },
@@ -165,50 +215,118 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
 }
 
 function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 | -1): void {
-  const sh: Shape[] = [];
   const n = t.n;
   for (let i = 0; i < n; i++) {
-    const cx = x0 + ((i + 0.5) / n) * (x1 - x0), w = Math.min(t.w, (x1 - x0) / n * 1.05);
-    const tall = t.kind === 'mega' && i % 2 ? t.h * 0.7 : t.h;
-    sh.push({
+    const pitch = (x1 - x0) / n;
+    const cx = x0 + (i + 0.5) * pitch, w = Math.min(t.w, pitch * 0.78);
+    const tall = t.h * (t.kind === 'mega' && i % 2 ? 0.66 : t.kind === 'sharp' && i < 3 ? 0.52 + i * 0.14 : 1);
+    drawShapes(g, [{
       path: (c) => {
         if (t.kind === 'flat') rrectPath(c, cx - w / 2, dir === 1 ? y - 2 : y - tall + 2, w, tall, 3);
         else if (t.kind === 'big') rrectPath(c, cx - w / 2, dir === 1 ? y - 2 : y - tall + 2, w, tall, 7);
-        else polyPath(c, [{ x: cx - w / 2, y: y - dir * 2 }, { x: cx + w * 0.2, y: y + dir * tall }, { x: cx + w / 2, y: y - dir * 2 }]);
+        else {
+          c.moveTo(cx - w / 2, y - dir * 2);
+          c.quadraticCurveTo(cx - w * 0.23, y + dir * tall * 0.64, cx + w * 0.11, y + dir * tall);
+          c.quadraticCurveTo(cx + w * 0.32, y + dir * tall * 0.58, cx + w / 2, y - dir * 2);
+          c.closePath();
+        }
       },
       fill: t.color,
-    });
+    }], Math.min(2.1, pitch * 0.18));
   }
-  drawShapes(g, sh, 3.2);
 }
 
 /** Upper teeth (hang from the mouth line) or the beak cap is part of the head texture. Origin = hinge. */
 export function teethSide(h: HeadLook, teethId: string): PartSpec | null {
-  const t = TEETH[teethId] ?? TEETH['teeth.flat'];
+  const teeth = TEETH[teethId] ?? TEETH['teeth.flat'];
+  const t = teeth.kind === 'flat' ? { ...teeth, h: teeth.h + 3 } : teeth;
   if (t.kind === 'beak') return null;
   const W = h.len + 80, H = t.h + 50;
   return {
     key: `ws:d:teeth:${teethId}:${h.len}`, w: W, h: H, ox: 40, oy: 20,
-    draw: (g) => teethRow(g, t, h.len * 0.32, h.len * 0.97, 0, 1),
+    draw: (g) => teethRow(g, t, h.len * (t.kind === 'sharp' ? 0.23 : 0.38), h.len * 0.96, 4, 1),
+  };
+}
+
+/** The back of the mouth, with clear space in front of it when the jaw opens. */
+export function throatSide(h: HeadLook): PartSpec {
+  const len = h.len * 0.35;
+  return {
+    key: `ws:d:throat:${h.len}`, w: len + 8, h: len * 2 + 8, ox: 4, oy: len + 4,
+    draw: (g) => {
+      g.fillStyle = '#572c4b';
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(len, -len);
+      g.bezierCurveTo(len * 0.42, -len * 0.35, len * 0.37, len * 0.37, len, len);
+      g.closePath();
+      g.fill();
+    },
   };
 }
 
 /** Lower jaw. Origin = hinge; the top edge is the mouth line. */
-export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: string): PartSpec {
+export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: string, beakLook: BeakLook = BEAK_LOOKS[0]): PartSpec {
   const t = TEETH[teethId] ?? TEETH['teeth.flat'];
-  const W = h.len + 100, H = h.jaw + t.h + 80;
+  const beak = t.kind === 'beak';
+  const W = h.len * (beak ? beakLook.reach : 1) + 100, H = h.jaw + t.h + 80;
   return {
-    key: `ws:d:jaw:${headId}:${teethId}:${sk.key}`, w: W, h: H, ox: 60, oy: t.h + 40,
+    key: `ws:d:jaw:${headId}:${teethId}:${sk.key}:${beak ? beakLook.name : ''}`, w: W, h: H, ox: 60, oy: t.h + 40,
     draw: (g) => {
       const { len, jaw } = h;
-      const sh: Shape[] = [{
-        path: (c) => { c.moveTo(-12, -3); c.lineTo(len * 0.97, -3); c.quadraticCurveTo(len * 0.99, jaw * 0.85, len * 0.7, jaw); c.quadraticCurveTo(len * 0.2, jaw * 1.1, -14, jaw * 0.4); c.closePath(); },
-        fill: sk.look.belly,
-        detail: (c) => { c.fillStyle = '#a3203f'; c.fillRect(-14, -4, len + 10, 8); c.fillStyle = '#ff7f9f'; c.beginPath(); c.ellipse(len * 0.4, 2, len * 0.22, 5, 0, 0, 6.3); c.fill(); },
-      }];
-      if (t.kind === 'beak') sh.push({ path: (c) => { c.moveTo(len * 0.5, -3); c.lineTo(len + 14, -3); c.quadraticCurveTo(len + 16, jaw * 0.7, len * 0.7, jaw * 0.9); c.lineTo(len * 0.5, jaw * 0.5); c.closePath(); }, fill: t.color });
-      drawShapes(g, sh, OL);
-      if (t.kind !== 'beak') teethRow(g, { ...t, n: Math.max(2, t.n - 1), h: t.h * 0.7 }, len * 0.4, len * 0.9, -3, -1);
+      const hinge = len * 0.08;
+      const chin = beak ? len * beakLook.reach * (0.97 - beakLook.hook * 0.24) : len * 0.97;
+      const depth = beak ? jaw * 0.38 + h.top * beakLook.lower * 0.48 : jaw * 0.68;
+      const lip: Shape['path'] = (c) => {
+        c.moveTo(hinge, -3);
+        c.quadraticCurveTo(len * 0.54, 2, chin, -1);
+        c.quadraticCurveTo(chin + 1, depth * 0.64, chin * 0.74, depth);
+        c.quadraticCurveTo(len * 0.28, jaw * 0.59, hinge, jaw * 0.28);
+        c.quadraticCurveTo(hinge - 7, jaw * 0.06, hinge, -3);
+        c.closePath();
+      };
+      if (!beak) {
+        drawShapes(g, [{
+          path: (c) => {
+            c.moveTo(len * 0.14, 2);
+            c.bezierCurveTo(len * 0.32, -4, len * 0.48, -jaw * 0.49, len * 0.65, -jaw * 0.42);
+            c.quadraticCurveTo(len * 0.81, -jaw * 0.30, len * 0.73, -1);
+            c.quadraticCurveTo(len * 0.47, 5, len * 0.14, 2);
+            c.closePath();
+          },
+          fill: '#ec7893',
+        }], 2.4, '#8c4166');
+        const lower = { ...t, n: t.kind === 'big' ? 3 : Math.max(2, t.n - 2), h: Math.max(7, t.h * (t.kind === 'mega' ? 0.38 : 0.44)) };
+        const lowerStart = t.kind === 'sharp' ? 0.35 : t.kind === 'mega' ? 0.52 : 0.47;
+        const lowerEnd = t.kind === 'mega' ? 0.97 : 0.91;
+        teethRow(g, lower, len * lowerStart, len * lowerEnd, -4, -1);
+      }
+      drawHeadJoint(g, lip, (c) => {
+        const underside = c.createLinearGradient(hinge, 0, len * 0.75, jaw * 0.65);
+        underside.addColorStop(0, sk.look.main);
+        underside.addColorStop(0.44, sk.look.light);
+        underside.addColorStop(1, sk.look.belly);
+        c.fillStyle = underside;
+        c.fillRect(-12, -10, len + 30, jaw + 20);
+      }, sk.look.main, hinge, 1, Math.min(27, len * 0.22));
+      if (beak) {
+        g.save();
+        g.beginPath();
+        lip(g);
+        g.clip();
+        const gold = g.createLinearGradient(0, -4, 0, depth);
+        gold.addColorStop(0, '#e49c37');
+        gold.addColorStop(1, '#ffd173');
+        g.fillStyle = gold;
+        g.beginPath();
+        g.moveTo(len * beakLook.base, -8);
+        g.quadraticCurveTo(len * (beakLook.base - 0.03), depth * 0.42, len * (beakLook.base + 0.05), depth + 7);
+        g.lineTo(chin + 12, depth + 7);
+        g.lineTo(chin + 12, -8);
+        g.closePath();
+        g.fill();
+        g.restore();
+      }
     },
   };
 }
@@ -224,53 +342,89 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       const pts = quad({ x: 10, y: 0 }, { x: -len * 0.5, y: -t.droop * 0.3 }, { x: -len, y: t.droop }, N);
       const hw = pts.map((_, i) => {
         const u = i / N;
-        if (t.kind === 'club') return u < 0.6 ? t.base / 2 + (t.base * 0.22 - t.base / 2) * (u / 0.6) : t.base * 0.22 + (t.tip - t.base * 0.22) * ((u - 0.6) / 0.4);
+        if (t.kind === 'club') return t.base * (0.5 - 0.28 * Math.min(1, u / 0.72));
         return t.base / 2 + (t.tip / 2 - t.base / 2) * Math.pow(u, 0.8);
       });
-      const box = { x0: -len, y0: -t.base, x1: 10, y1: t.base };
+      const box = { x0: -len - Math.max(t.tip, 45), y0: -t.base, x1: 10 + t.base / 2, y1: t.base + t.droop };
+      const fill = skinFill(sk, box, 4);
       const sh: Shape[] = [];
       const end = pts[N];
       if (t.kind === 'spiked') {
-        for (let i = 8; i <= N; i += 2) {
-          const p = pts[i], s = 20 - (i - 8) * 0.8;
-          for (const sgn of [-1, 1]) sh.push({ path: (c) => polyPath(c, [{ x: p.x - 9, y: p.y + sgn * hw[i] * 0.5 }, { x: p.x - 2, y: p.y + sgn * (hw[i] + s) }, { x: p.x + 9, y: p.y + sgn * hw[i] * 0.5 }]), fill: '#fff3d0' });
+        for (let i = 5; i <= N; i += 3) {
+          const p = pts[i], s = 24 - i * 0.65;
+          sh.push({ path: (c) => {
+            c.moveTo(p.x + 9, p.y - hw[i] * 0.48);
+            c.quadraticCurveTo(p.x - 3, p.y - hw[i] - s, p.x - 14, p.y - hw[i] - s + 1);
+            c.quadraticCurveTo(p.x - 9, p.y - hw[i] * 0.65, p.x - 10, p.y - hw[i] * 0.43);
+            c.closePath();
+          }, fill: '#fff3d0' });
         }
-        sh.push({ path: (c) => polyPath(c, [{ x: end.x + 4, y: end.y - 14 }, { x: end.x - 38, y: end.y }, { x: end.x + 4, y: end.y + 14 }]), fill: '#fff3d0' });
+        sh.push({ path: (c) => ellipsePath(c, end.x + 4, end.y, 19, 13, 0.05), fill: mix(sk.look.main, sk.look.accent, 0.50) });
+        sh.push({ path: (c) => polyPath(c, [{ x: end.x + 1, y: end.y - 8 }, { x: end.x - 36, y: end.y - 5 }, { x: end.x + 1, y: end.y + 7 }]), fill: '#fff3d0' });
       }
-      if (t.kind === 'paddle') sh.push({ path: (c) => ellipsePath(c, end.x - 20, end.y, 46, 22, 0.1), fill: sk.look.light, detail: (c) => { c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(end.x + 10, end.y + i * 4); c.lineTo(end.x - 60, end.y + i * 14); c.stroke(); } } });
+      if (t.kind === 'paddle') sh.push(flipperBlade(sk, { x: end.x + 14, y: end.y, angle: Math.PI - 0.10, length: 66, width: 25 }));
       if (sk.ex?.kind === 'feathers') {
         const cols = [sk.ex.c1, sk.ex.c2, sk.ex.c3];
-        cols.forEach((col, i) => { const a = Math.PI + (i - 1) * 0.5; sh.push({ path: (c) => ellipsePath(c, end.x + Math.cos(a) * 34, end.y + Math.sin(a) * 34, 34, 11, a), fill: col }); });
+        const compact = t.kind === 'paddle' || t.kind === 'spiked';
+        const reach = compact ? 18 : 34;
+        const x = end.x + (compact ? 24 : t.kind === 'club' ? -16 : 0);
+        cols.forEach((col, i) => { const a = Math.PI + (i - 1) * 0.5; sh.push({ path: (c) => ellipsePath(c, x + Math.cos(a) * reach, end.y + Math.sin(a) * reach, reach, reach * 0.32, a), fill: col }); });
       }
-      sh.push(...tubeShapes(pts, hw, skinFill(sk, box, 4, false)));
+      sh.push(...tubeShapes(pts, hw, fill));
+      if (t.kind === 'club') sh.push({
+        path: (c) => {
+          c.moveTo(end.x + 29, end.y - 10);
+          c.bezierCurveTo(end.x + 7, end.y - 21, end.x - 24, end.y - 40, end.x - 30, end.y - 9);
+          c.bezierCurveTo(end.x - 39, end.y + 23, end.x - 13, end.y + 46, end.x + 7, end.y + 29);
+          c.quadraticCurveTo(end.x + 19, end.y + 17, end.x + 29, end.y + 8);
+          c.closePath();
+        },
+        fill,
+        detail: (c) => {
+          c.strokeStyle = mix(sk.look.dark, sk.look.accent, 0.28);
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(end.x - 15, end.y - 14);
+          c.quadraticCurveTo(end.x - 25, end.y + 2, end.x - 14, end.y + 13);
+          c.stroke();
+        },
+      });
       drawShapes(g, sh, OL);
     },
   };
 }
 
-export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook, clawId: string, len: number, far: boolean, hand: boolean): PartSpec {
-  const th = l.thick, foot = l.foot;
+export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook, clawId: string, len: number, far: boolean, hand: boolean, swimming: boolean): PartSpec {
+  const foreleg = hand && l.kind === 'powerful';
+  const th = l.thick * (foreleg ? 0.64 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
   const W = th * 2 + foot + 90, H = len + th + 70;
   return {
-    key: `ws:d:leg:${legId}:${sk.key}:${clawId}:${Math.round(len)}:${far ? 'f' : 'n'}${hand ? 'h' : ''}`, w: W, h: H, ox: th + 40, oy: th + 20,
+    key: `ws:d:leg:${legId}:${sk.key}:${clawId}:${Math.round(len)}:${far ? 'f' : 'n'}${hand ? 'h' : ''}${swimming ? 's' : ''}`, w: W, h: H, ox: th + 40, oy: th + 20,
     draw: (g) => {
       const N = 12;
       let pts: Pt[];
       if (l.kind === 'hoppy') pts = [...quad({ x: 0, y: 0 }, { x: -26, y: len * 0.5 }, { x: 8, y: len * 0.72 }, 8), ...quad({ x: 8, y: len * 0.72 }, { x: 14, y: len * 0.9 }, { x: 6, y: len - 14 }, 5).slice(1)];
-      else pts = quad({ x: 0, y: 0 }, { x: -5, y: len * 0.5 }, { x: 3, y: len - 14 }, N);
+      else pts = quad({ x: 0, y: 0 }, { x: -5, y: len * 0.5 }, { x: 3, y: len - 14 - OL }, N);
       const n = pts.length;
       const hw = pts.map((_, i) => { const u = i / (n - 1); return l.kind === 'powerful' ? th * 0.5 * (1 - u * 0.5) : th * 0.5 * (1 - u * 0.3); });
-      const box = { x0: -th, y0: 0, x1: foot, y1: len };
+      const box = { x0: -th, y0: l.kind === 'powerful' ? -th * 0.65 : -th * 0.5, x1: foot, y1: len + (swimming ? foot * 0.24 : 0) };
       const fill = skinFill(sk, box, 5);
       const darkOverlay = (c: G) => { if (far) { c.fillStyle = 'rgba(30,0,40,0.28)'; c.fillRect(-th * 2, -th * 2, W * 2, H * 2); } };
       const sh: Shape[] = [];
-      if (l.kind === 'powerful') sh.push({ path: (c) => ellipsePath(c, -2, th * 0.45, th * 0.9, th * 1.05), fill, detail: darkOverlay });
-      if (l.kind === 'flipper') sh.push({ path: (c) => ellipsePath(c, foot * 0.28, len - 8, foot * 0.58, 17, 0.12), fill: sk.look.light, detail: (c) => { darkOverlay(c); c.strokeStyle = sk.look.dark; c.lineWidth = 3.5; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(0, len - 8 + i * 3); c.lineTo(foot * 0.8, len - 8 + i * 9); c.stroke(); } } });
-      else sh.push({ path: (c) => rrectPath(c, -foot * 0.28, len - 18, foot, 18, 9), fill, detail: darkOverlay });
+      if (l.kind === 'powerful') sh.push({ path: (c) => ellipsePath(c, -2, th * 0.45, th * (foreleg ? 0.65 : 0.9), th * (foreleg ? 0.81 : 1.05)), fill, detail: darkOverlay });
+      const sole = len - OL;
+      if (l.kind === 'flipper') {
+        sh.push(flipperBlade(sk, swimming
+          ? { x: 4, y: len - 24, angle: Math.PI / 2 - 0.12, length: foot * 0.82, width: 31, far }
+          : { x: -9, y: sole - 14, angle: 0.02, length: foot * 0.96, width: 25, far }));
+      } else if (swimming) {
+        sh.push({ path: (c) => ellipsePath(c, 3, len - 8, th * 0.28, foot * 0.3, -0.14), fill, detail: darkOverlay });
+      } else sh.push({ path: (c) => rrectPath(c, -foot * 0.28, sole - 18, foot, 18, 9), fill, detail: darkOverlay });
       sh.push(...tubeShapes(pts, hw, (c) => { fill(c); darkOverlay(c); }));
       drawShapes(g, sh, OL);
       if (l.kind === 'flipper') return;
-      drawClawSet(g, claw, sk, foot * 0.7, len - 9, 0.15, !hand);
+      if (swimming) drawClawSet(g, claw, sk, 4, len + foot * 0.14, 1.45, true);
+      else drawClawSet(g, claw, sk, foot * 0.7, sole - 9, 0.1, !hand);
     },
   };
 }
@@ -282,7 +436,7 @@ export function armSide(c: ClawLook, sk: SkinSpec, clawId: string, far: boolean)
     draw: (g) => {
       const pts = quad({ x: 0, y: 0 }, { x: 4, y: c.arm * 0.5 }, { x: 10, y: c.arm }, 8);
       const hw = pts.map((_, i) => c.thick * 0.5 * (1 - (i / 8) * 0.25));
-      const fill = skinFill(sk, { x0: -c.thick, y0: 0, x1: c.thick, y1: c.arm }, 6);
+      const fill = skinFill(sk, { x0: -c.thick, y0: -c.thick * 0.5, x1: c.thick, y1: c.arm + c.thick * 0.5 }, 6);
       drawShapes(g, tubeShapes(pts, hw, (cx) => { fill(cx); if (far) { cx.fillStyle = 'rgba(30,0,40,0.28)'; cx.fillRect(-100, -100, 400, 400); } }), OL);
       drawClawSet(g, c, sk, 10, c.arm + 2, deg(80), false);
     },
@@ -311,27 +465,18 @@ export function wingSide(sk: SkinSpec, far: boolean): PartSpec {
 
 export function frillSide(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.frill'];
-  const R = h.top * 0.95 + 24, W = R * 2 + 80;
+  const W = h.top * 2.4 + 34;
   return {
-    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2 + 14, oy: W / 2 + h.top * 0.35,
-    draw: (g) => {
-      const sh: Shape[] = [];
-      for (let i = 0; i < 11; i++) { const a = deg(100 + i * 16.5); sh.push({ path: (c) => circle(c, Math.cos(a) * R, Math.sin(a) * R, 15), fill: ex.c1 }); }
-      sh.push({ path: (c) => circle(c, 0, 0, R), fill: ex.c1, detail: (c) => { const rg = c.createRadialGradient(0, 0, 4, 0, 0, R); rg.addColorStop(0, ex.c2); rg.addColorStop(0.7, ex.c1); rg.addColorStop(1, ex.c3); c.fillStyle = rg; c.fillRect(-R, -R, R * 2, R * 2); c.strokeStyle = 'rgba(70,0,60,0.4)'; c.lineWidth = 4; for (let i = 0; i < 9; i++) { const a = deg(100 + i * 20); c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * R, Math.sin(a) * R); c.stroke(); } } });
-      drawShapes(g, sh, OL);
-    },
+    key: `ws:d:frill:${h.top}`, w: W, h: W, ox: W / 2, oy: W / 2 + h.top * 0.47,
+    draw: (g) => drawFrill(g, -h.top * 0.20, 0, h.top * 0.79, h.top * 0.79, ex),
   };
 }
 
 export function featherHeadSide(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.feathers'];
   return {
-    key: `ws:d:fhead:${h.len}:${h.top}`, w: 200, h: h.top + 140, ox: 100, oy: h.top + 120,
-    draw: (g) => {
-      const sh: Shape[] = [];
-      [ex.c3, ex.c2, ex.c1].forEach((col, i) => { const a = deg(-110 - i * 22); const bx = h.len * 0.2 - i * 8, by = -h.top * 0.95; sh.push({ path: (c) => ellipsePath(c, bx + Math.cos(a) * 36, by + Math.sin(a) * 36, 38, 11, a), fill: col }); });
-      drawShapes(g, sh, 4);
-    },
+    key: `ws:d:fhead:${h.len}:${h.top}:${sk.look.accent}`, w: 210, h: h.top + 140, ox: 120, oy: h.top + 120,
+    draw: (g) => drawHeadFeathers(g, ex, h.crest ? -18 : 1, -h.top * (h.crest ? 0.74 : 0.93), deg(-132), deg(22), 34, 9),
   };
 }
 

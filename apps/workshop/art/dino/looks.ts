@@ -5,14 +5,14 @@
  */
 import type { VariantId } from '../../core/types';
 
-export interface SkinLook { main: string; dark: string; belly: string; light: string; spots?: string }
+export interface SkinLook { main: string; dark: string; belly: string; light: string; accent: string; spots?: boolean }
 export const SKIN: Record<VariantId, SkinLook> = {
-  'color.orange': { main: '#ff9a2e', dark: '#d9610f', belly: '#ffe0a3', light: '#ffc46b' },
-  'color.green': { main: '#4cc65a', dark: '#2a9141', belly: '#d8f5a8', light: '#92e888' },
-  'color.sandy': { main: '#d9ae6c', dark: '#a8763a', belly: '#f6e2b4', light: '#ecc98c' },
-  'color.blue': { main: '#4aa8ff', dark: '#2569c9', belly: '#cfeaff', light: '#8ccaff' },
-  'color.purple': { main: '#a55be0', dark: '#6d2fa8', belly: '#e8cdfb', light: '#c996f2' },
-  'color.spotted': { main: '#f6c453', dark: '#d08a1c', belly: '#fff0c4', light: '#ffe08a', spots: '#b3541c' },
+  'color.orange': { main: '#ff7f0e', dark: '#ca4908', belly: '#ffe0a3', light: '#ffb842', accent: '#ff4d6d' },
+  'color.green': { main: '#287548', dark: '#154730', belly: '#c0dd87', light: '#6bac65', accent: '#e8ad4a' },
+  'color.sandy': { main: '#d9ae6c', dark: '#a8763a', belly: '#f6e2b4', light: '#ecc98c', accent: '#bb5763' },
+  'color.blue': { main: '#4aa8ff', dark: '#2569c9', belly: '#cfeaff', light: '#8ccaff', accent: '#ff8261' },
+  'color.purple': { main: '#a55be0', dark: '#6d2fa8', belly: '#e8cdfb', light: '#c996f2', accent: '#65ddba' },
+  'color.spotted': { main: '#f6c453', dark: '#d08a1c', belly: '#fff0c4', light: '#ffe08a', accent: '#b3541c', spots: true },
 };
 
 export interface HeadLook {
@@ -32,11 +32,29 @@ export const HEAD: Record<VariantId, HeadLook> = {
 export interface TeethLook { kind: 'flat' | 'big' | 'sharp' | 'beak' | 'mega'; n: number; h: number; w: number; color: string }
 export const TEETH: Record<VariantId, TeethLook> = {
   'teeth.flat': { kind: 'flat', n: 5, h: 9, w: 12, color: '#ffffff' },
-  'teeth.big': { kind: 'big', n: 4, h: 20, w: 17, color: '#fffbe8' },
+  'teeth.big': { kind: 'big', n: 3, h: 20, w: 17, color: '#fffbe8' },
   'teeth.sharp': { kind: 'sharp', n: 8, h: 18, w: 11, color: '#ffffff' },
   'teeth.beak': { kind: 'beak', n: 0, h: 0, w: 0, color: '#ffc83a' },
   'teeth.mega': { kind: 'mega', n: 6, h: 34, w: 17, color: '#fffbe8' },
 };
+
+export interface BeakLook {
+  name: string;
+  base: number;
+  reach: number;
+  rise: number;
+  hook: number;
+  width: number;
+  lower: number;
+}
+
+/** Proportions shared by the side and top drawings. Only the first profile ships on the model. */
+export const BEAK_LOOKS = [
+  { name: 'Short and curved', base: 0.58, reach: 1.14, rise: 0.53, hook: 0.20, width: 0.54, lower: 0.27 },
+  { name: 'Wide duckbill', base: 0.61, reach: 1.27, rise: 0.24, hook: 0.04, width: 0.77, lower: 0.21 },
+  { name: 'Long and pointed', base: 0.67, reach: 1.40, rise: 0.21, hook: 0.02, width: 0.42, lower: 0.13 },
+  { name: 'Tall parrot beak', base: 0.65, reach: 1.25, rise: 0.73, hook: 0.42, width: 0.59, lower: 0.28 },
+] as const satisfies readonly BeakLook[];
 
 export interface ClawLook { kind: 'small' | 'hooks' | 'digging' | 'grabby' | 'tiny'; arm: number; thick: number; claw: number; color: string }
 export const CLAWS: Record<VariantId, ClawLook> = {
@@ -63,7 +81,7 @@ export interface TailLook { len: number; base: number; tip: number; kind: 'plain
 export const TAIL: Record<VariantId, TailLook> = {
   'tail.short': { len: 92, base: 36, tip: 8, kind: 'plain', droop: 10 },
   'tail.long': { len: 240, base: 32, tip: 5, kind: 'plain', droop: 26 },
-  'tail.heavy': { len: 160, base: 56, tip: 34, kind: 'club', droop: 8 },
+  'tail.heavy': { len: 160, base: 56, tip: 34, kind: 'club', droop: 20 },
   'tail.spiked': { len: 150, base: 34, tip: 18, kind: 'spiked', droop: 12 },
   'tail.paddle': { len: 140, base: 28, tip: 8, kind: 'paddle', droop: 4 },
 };
@@ -82,7 +100,7 @@ export const SIZE_SCALE: Record<VariantId, number> = { 'size.small': 0.7, 'size.
 export interface ExtraLook { kind: 'feathers' | 'frill' | 'glow' | 'camo' | 'stripes'; c1: string; c2: string; c3: string }
 export const EXTRA: Record<VariantId, ExtraLook> = {
   'extra.feathers': { kind: 'feathers', c1: '#ff4d6d', c2: '#ffd21f', c3: '#3ac7ff' },
-  'extra.frill': { kind: 'frill', c1: '#ff5a7a', c2: '#ffd21f', c3: '#8a2be2' },
+  'extra.frill': { kind: 'frill', c1: '#f4777a', c2: '#ffd09a', c3: '#bd4e65' },
   'extra.glow': { kind: 'glow', c1: '#f3ff7a', c2: '#c4ff3a', c3: '#ffffff' },
   'extra.camo': { kind: 'camo', c1: '#2f7a2a', c2: '#6bbf45', c3: '#1f5a1f' },
   'extra.stripes': { kind: 'stripes', c1: '#2a1a14', c2: '#2a1a14', c3: '#2a1a14' },

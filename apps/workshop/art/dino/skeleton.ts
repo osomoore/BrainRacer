@@ -33,12 +33,13 @@ export function skeleton(l: DinoLooks, armLen: number): Skeleton {
   let neckAng = h.neckAngCrawl, headRot = 0;
   let tailBase: Pt, neckBase: Pt, wing: Pt;
   if (pose === 'stand') {
-    rot = -0.52;
-    const hip = { x: -6, y: -lg.len };
-    const off = rotPt({ x: rx * 0.34, y: -ry * 0.5 }, rot);
+    rot = -0.64;
+    const extension = Math.max(8, 40 - lg.len * 0.32);
+    const hip = { x: -6, y: -lg.len - extension };
+    const off = rotPt({ x: rx * 0.31, y: -ry * 0.52 }, rot);
     cx = hip.x + off.x; cy = hip.y + off.y;
-    legs.push({ x: hip.x, y: hip.y - 4, len: lg.len + 4, far: false, front: false, rot: 0 });
-    legs.push({ x: hip.x + 22, y: hip.y - 4, len: lg.len + 4, far: true, front: false, rot: 0 });
+    legs.push({ x: hip.x, y: hip.y, len: -hip.y, far: false, front: false, rot: 0 });
+    legs.push({ x: hip.x + 26, y: hip.y, len: -hip.y, far: true, front: false, rot: 0 });
     neckAng = h.neckAngStand; headRot = h.neckLen > 120 ? 0.2 : 0.08;
     const ap = rotPt({ x: rx * 0.62, y: ry * 0.5 }, rot);
     arms.push({ x: cx + ap.x, y: cy + ap.y, far: false, rot: -0.3 }, { x: cx + ap.x + 6, y: cy + ap.y - 4, far: true, rot: -0.1 });
@@ -52,10 +53,14 @@ export function skeleton(l: DinoLooks, armLen: number): Skeleton {
   } else if (pose === 'swim') {
     rot = -0.04;
     cx = 0; cy = -(ry + 10);
-    for (const [x, far] of [[-rx * 0.45, false], [-rx * 0.45 + 20, true]] as const) legs.push({ x, y: cy + ry * 0.55, len: lg.len * 0.75 + 20, far, front: false, rot: 0.95 });
+    const kickLength = lg.len * 0.56 + 18;
+    legs.push(
+      { x: -rx * 0.62, y: cy + ry * 0.36, len: kickLength, far: false, front: false, rot: 1.58 },
+      { x: -rx * 0.48, y: cy + ry * 0.28, len: kickLength, far: true, front: false, rot: 1.2 },
+    );
     neckAng = h.neckAngCrawl * 0.5 - 0.05; headRot = 0.1;
-    const ap = rotPt({ x: rx * 0.55, y: ry * 0.55 }, rot);
-    arms.push({ x: cx + ap.x, y: cy + ap.y, far: false, rot: 0.6 }, { x: cx + ap.x + 6, y: cy + ap.y - 3, far: true, rot: 0.8 });
+    const ap = rotPt({ x: rx * 0.55, y: ry * 0.39 }, rot);
+    arms.push({ x: cx + ap.x, y: cy + ap.y, far: false, rot: 1.06 }, { x: cx + ap.x + 6, y: cy + ap.y - 3, far: true, rot: 0.75 });
   } else {
     rot = -0.03;
     cx = 0; cy = -(lg.len + ry - 6);
