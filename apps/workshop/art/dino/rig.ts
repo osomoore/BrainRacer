@@ -111,9 +111,9 @@ export class DinoRig extends BaseRig {
     const beak = teeth.kind === 'beak';
     this.jawRest = beak ? 0.11 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
     this.mouthInterior = this.img(this.headC, S.mouthInterior(h, beak), []);
+    this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.jaw = this.mk(this.headC, 0, 0);
     this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth), ['teeth']);
-    this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.img(this.headC, S.headSide(h, sk, m.head, m.teeth), ['head', 'color']);
     if (beak) P.teeth.push(this.headC);
     for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
