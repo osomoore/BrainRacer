@@ -235,6 +235,38 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** same checks as C14 with `--only` set to the race prop key prefix.
 
 
+## C16 — Title screen fixes for the live beta · `OPEN`
+- **Parallel-safe with C17.** No user review needed. The beta is live on GitHub Pages, so keep it small and safe.
+- **Port:** 5221.
+- **Scope:** `apps/workshop/shell/TitleScene.ts`, `apps/workshop/config.ts` (shell/UI section, add or change keys only),
+  `tests/e2e/workshop*.spec.ts`.
+- **Do:**
+  - **Player 2 slot:** "(optional)" overlaps the second line of "Player 2: press A, Space or Enter". Lay the slot text out so
+    nothing overlaps in wide (1920×1080) and tall/phone layouts, text ≥ 40 px.
+  - **Beta notice on phones:** at a phone viewport (390×844 and 844×390) the "Under construction — progress may be lost."
+    card is too small to read. Make it readable there (the stage letterboxes; scale the card/text for the tall layout or
+    reflow it) without crowding PLAY or "Back to games". Desktop look stays as it is.
+  - Add an e2e check that the title screen's text objects don't overlap (bounds intersection) in wide and tall layouts.
+- **Done when:** screenshots at 1920×1080, 390×844 and 844×390 show no overlaps and a readable notice; workshop e2e passes.
+
+## C17 — Painted scenery actually shows in runs · `OPEN`
+- **Parallel-safe with C16.** No ComfyUI, no user review needed.
+- **Port:** 5222.
+- **Why:** C14/C15 added paint jobs for run scenery (`ws:dino-run:*` and the Race Shop prop keys), but nothing proves a
+  painted PNG in `public/art/workshop/manifest.json` replaces the placeholder at runtime. The run kits register textures
+  under their own names (`run/dino/kit/paint.ts` `def`, `run/common/props.ts`, `run/common/top.ts`) while the jobs use
+  prefixed keys, and `bake.ts` looks painted images up by key (`art/paint/painted.ts`).
+- **Scope:** `apps/workshop/art/paint/painted.ts`, `apps/workshop/art/bake.ts`, `apps/workshop/run/dino/kit/paint.ts`,
+  `apps/workshop/run/common/props.ts`, `apps/workshop/run/common/top.ts` (lookup wiring only, no visual change),
+  tests next to them, and one e2e spec if needed.
+- **Do:** make scenery textures check the painted manifest under the same key their paint job uses (including sprite
+  origin/size handling: painted PNGs must keep the placeholder's anchor and display size), and upgrade when the image
+  arrives, like rig parts do. `?art=shapes` must still force code shapes.
+- **Done when:** a unit test (fake manifest + fake image) proves one dino scenery texture and one race prop are replaced;
+  an e2e/dev check with a temporary test manifest entry (a tinted copy of the exported shape PNG, NOT committed) shows the
+  painted version in a run with the same position and size; with the real manifest the game looks unchanged; tests pass.
+
+
 ---
 
 ## Done
