@@ -19,12 +19,14 @@ export function jawRestAngle(h: HeadLook, t: TeethLook): number {
 // ---------------------------------------------------------------- claws / hands
 
 /** The near digit sets the silhouette; the other digits peek over it in profile. */
-function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, dir: number, forFoot: boolean): void {
+function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, dir: number, forFoot: boolean, grounded = false): void {
   const kind = forFoot && c.kind === 'grabby' ? 'small' : c.kind;
   const length = kind === 'grabby' ? 23 : forFoot ? Math.min(c.claw || 11, 21) : c.claw;
   const count = kind === 'tiny' ? 2 : 3;
+  const tipY = kind === 'hooks' ? 10 : kind === 'grabby' ? 7 : kind === 'digging' ? 6 : 5;
+  const outline = 2.3;
   g.save();
-  g.translate(x, y);
+  g.translate(x, grounded ? y - tipY - outline : y);
   g.rotate(dir);
   for (let i = count - 1; i >= 0; i--) {
     const reach = length * (1 - i * 0.15);
@@ -35,12 +37,12 @@ function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, di
         p.moveTo(-5, -4);
         p.quadraticCurveTo(reach * 0.72, -8, reach, -3);
         if (kind === 'grabby') {
-          p.quadraticCurveTo(reach + 4, 5, reach - 4, 7);
+          p.quadraticCurveTo(reach + 4, 5, reach - 4, tipY);
           p.quadraticCurveTo(reach * 0.64, 6, reach * 0.72, 1);
         } else if (kind === 'digging') {
-          p.quadraticCurveTo(reach + 3, 3, reach - 3, 6);
+          p.quadraticCurveTo(reach + 3, 3, reach - 3, tipY);
         } else {
-          p.quadraticCurveTo(reach + 1, 1, reach - (kind === 'hooks' ? 4 : 1), kind === 'hooks' ? 10 : 5);
+          p.quadraticCurveTo(reach + 1, 1, reach - (kind === 'hooks' ? 4 : 1), tipY);
           p.quadraticCurveTo(reach * 0.71, 3, reach * 0.47, 3);
         }
         p.quadraticCurveTo(2, 6, -5, 4);
@@ -49,12 +51,12 @@ function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, di
       fill: kind === 'grabby'
         ? (i === 0 ? skin.look.belly : skin.look.dark)
         : mix(c.color, skin.look.dark, i * 0.16),
-    }], 2.3);
+    }], outline);
     g.restore();
   }
   if (kind === 'grabby') drawShapes(g, [{
-    path: (p) => ellipsePath(p, 2, 3, 8, 5, -0.4), fill: skin.look.belly,
-  }], 2.3);
+    path: (p) => ellipsePath(p, 2, 3, 8, grounded ? 3.5 : 5, -0.4), fill: skin.look.belly,
+  }], outline);
   g.restore();
 }
 
@@ -108,7 +110,7 @@ export function platesSide(b: BodyLook): PartSpec {
     draw: (g) => {
       const sh: Shape[] = [];
       for (let i = 0; i < 6; i++) {
-        const t = i / 5, a = deg(-160 + t * 72);
+        const t = i / 5, a = deg(-155 + t * 103);
         const px = Math.cos(a) * b.rx * 0.98, py = Math.sin(a) * b.ry * 0.98;
         const s = 14 + 15 * Math.sin(t * Math.PI);
         const nx = Math.cos(a), ny = Math.sin(a);
@@ -355,17 +357,13 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       const tipY = t.droop;
       const bend = t.kind === 'paddle' ? 22 : -tipY * 0.65;
       const pts = quad({ x: 10, y: 0 }, { x: -len * 0.56, y: bend }, { x: -len, y: tipY }, N);
-      const hw = pts.map((_, i) => {
-        const u = i / N;
-        if (t.kind === 'club') return t.base * (0.5 - 0.28 * Math.min(1, u / 0.72));
-        return t.base / 2 + (t.tip / 2 - t.base / 2) * Math.pow(u, 0.8);
-      });
+      const hw = pts.map((_, i) => t.base / 2 + (t.tip / 2 - t.base / 2) * Math.pow(i / N, 0.8));
       const box = { x0: -len - Math.max(t.tip, 45), y0: -t.base, x1: 10 + t.base / 2, y1: t.base + t.droop };
       const fill = skinFill(sk, box, 4);
       const sh: Shape[] = [];
       const end = pts[N];
       if (t.kind === 'spiked') {
-        for (let i = 5; i <= N; i += 3) {
+        for (let i = 5; i < N - 1; i += 3) {
           const p = pts[i], s = 24 - i * 0.65;
           sh.push({ path: (c) => {
             c.moveTo(p.x + 9, p.y - hw[i] * 0.48);
@@ -374,24 +372,31 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
             c.closePath();
           }, fill: '#fff3d0' });
         }
-        sh.push({ path: (c) => ellipsePath(c, end.x + 4, end.y, 19, 13, 0.05), fill: mix(sk.look.main, sk.look.accent, 0.50) });
-        sh.push({ path: (c) => polyPath(c, [{ x: end.x + 1, y: end.y - 8 }, { x: end.x - 36, y: end.y - 5 }, { x: end.x + 1, y: end.y + 7 }]), fill: '#fff3d0' });
+        const spikes = [
+          [[5, -10], [-14, -30], [-12, -8]],
+          [[-8, -10], [-33, -24], [-19, 1]],
+          [[-13, -3], [-40, 0], [-14, 9]],
+        ];
+        for (const spike of spikes) {
+          sh.push({ path: (c) => polyPath(c, spike.map(([x, y]) => ({ x: end.x + x, y: end.y + y }))), fill: '#fff3d0' });
+        }
+        sh.push({ path: (c) => ellipsePath(c, end.x + 1, end.y - 1, 20, 14, 0.05), fill: mix(sk.look.main, sk.look.accent, 0.50) });
       }
       if (t.kind === 'paddle') sh.push(...paddleFins(sk, end, false));
       if (sk.ex?.kind === 'feathers') {
         const cols = [sk.ex.c1, sk.ex.c2, sk.ex.c3];
         const compact = t.kind === 'paddle' || t.kind === 'spiked';
         const reach = compact ? 18 : 34;
-        const x = end.x + (compact ? 24 : t.kind === 'club' ? -16 : 0);
+        const x = end.x + (t.kind === 'spiked' ? 36 : compact ? 24 : t.kind === 'club' ? -16 : 0);
         cols.forEach((col, i) => { const a = Math.PI + (i - 1) * 0.5; sh.push({ path: (c) => ellipsePath(c, x + Math.cos(a) * reach, end.y + Math.sin(a) * reach, reach, reach * 0.32, a), fill: col }); });
       }
-      sh.push(...tubeShapes(pts, hw, fill));
       if (t.kind === 'club') sh.push({
         path: (c) => {
-          c.moveTo(end.x + 29, end.y - 10);
-          c.bezierCurveTo(end.x + 6, end.y - 11, end.x - 26, end.y - 33, end.x - 32, end.y - 5);
-          c.bezierCurveTo(end.x - 41, end.y + 30, end.x - 10, end.y + 46, end.x + 9, end.y + 31);
-          c.quadraticCurveTo(end.x + 19, end.y + 17, end.x + 29, end.y + 8);
+          c.moveTo(10, -t.base / 2);
+          c.bezierCurveTo(-len * 0.35, -t.base * 0.47, end.x + 61, end.y - 9, end.x + 29, end.y - 12);
+          c.bezierCurveTo(end.x + 4, end.y - 14, end.x - 26, end.y - 33, end.x - 32, end.y - 5);
+          c.bezierCurveTo(end.x - 41, end.y + 30, end.x - 14, end.y + 46, end.x + 9, end.y + 31);
+          c.bezierCurveTo(end.x + 34, end.y + 15, -len * 0.35, t.base * 0.36, 10, t.base / 2);
           c.closePath();
         },
         fill,
@@ -404,6 +409,7 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
           c.stroke();
         },
       });
+      else sh.push(...tubeShapes(pts, hw, fill));
       drawShapes(g, sh, OL);
     },
   };
@@ -439,7 +445,7 @@ export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook,
       drawShapes(g, sh, OL);
       if (l.kind === 'flipper') return;
       if (swimming) drawClawSet(g, claw, sk, 4, len + foot * 0.14, 1.45, true);
-      else drawClawSet(g, claw, sk, foot * 0.7, sole - 9, 0.1, !hand);
+      else drawClawSet(g, claw, sk, foot * 0.62, len, 0, !hand, true);
     },
   };
 }

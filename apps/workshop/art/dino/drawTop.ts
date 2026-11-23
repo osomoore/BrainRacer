@@ -36,7 +36,7 @@ export function platesTop(b: BodyLook, pose: string): PartSpec {
     draw: (g) => {
       const sh: Shape[] = [];
       for (let i = 0; i < 6; i++) {
-        const x = -b.rx * 0.74 + (i / 5) * b.rx * 0.89, s = 12 + 12 * Math.sin((i / 5) * Math.PI);
+        const x = -b.rx * 0.74 + (i / 5) * b.rx * 1.36, s = 12 + 12 * Math.sin((i / 5) * Math.PI);
         sh.push({ path: (c) => polyPath(c, [{ x: x - s * 0.8, y: 0 }, { x, y: -s }, { x: x + s * 0.8, y: 0 }, { x, y: s }]), fill: i % 2 ? '#a7b0be' : '#c6ced9' });
       }
       drawShapes(g, sh, 4);
