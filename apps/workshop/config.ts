@@ -98,6 +98,9 @@ export const WS_ROOM = {
   stationZoomMs: 550,
   stationConfirmMs: 650,
   stationMaxScale: 4.2,
+  /** Bumpers station: empty world px kept beyond both bumpers, and the screen-side margin (px), so front AND rear show. */
+  stationBumperPadPx: 70,
+  stationBumperMarginPx: 90,
   /** Station screen swatches: visible count per layout, swatch size (px). */
   swatchVisible: { wide: 5, tall: 3 },
   swatchSize: { wide: 250, tall: 220 },
@@ -132,6 +135,8 @@ export const WS_ART = {
   reviewSpringsBodyAlpha: 0.35,
   /** Art reviewer: wheel opacity on the springs sheet so springs behind the wheels show. */
   reviewSpringsWheelAlpha: 0.4,
+  /** Extra ride height of the race car body over its wheels (side view), px; springs lengthen to match. */
+  raceRideRaise: 9,
 } as const;
 
 // ---------------------------------------------------------------- audio (apps/workshop/audio)

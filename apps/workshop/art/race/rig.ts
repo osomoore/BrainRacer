@@ -1,5 +1,6 @@
 /** Race car rig (side + top). Parts are baked textures; animations drive the state in BaseRig. */
 import type Phaser from 'phaser';
+import { WS_ART } from '../../config';
 import type { RigAnim } from '../../core/runtime';
 import type { Model, View } from '../../core/types';
 import { partImage } from '../bake';
@@ -131,7 +132,7 @@ export class RaceRig extends BaseRig {
       P.wheels.push(wi);
     }
     const sp = SPRING[m.springs] ?? SPRING['springs.soft'];
-    const H = sp.lift + 26 + (m.springs === 'springs.bouncy' ? 6 : 0);
+    const H = sp.lift + WS_ART.raceRideRaise + 26 + (m.springs === 'springs.bouncy' ? 6 : 0);
     for (const ax of [geo.frontAxle, geo.rearAxle]) {
       const img = partImage(sc, S.springSide(m.springs, H), ax, geo.hubY);
       this.springG.add(img);
@@ -211,9 +212,13 @@ export class RaceRig extends BaseRig {
     this.world.x = S0.shakeX;
     this.pivot.y = (side ? -this.cy : 0) - (side ? S0.lift : 0);
     this.pivot.rotation = S0.roll;
-    this.bodyG.y = side ? -S0.bob : S0.bob * 0.3;
+    // Side view: the body rides raiseY higher on its (longer) springs. Done here rather than in raceGeom() so the
+    // painted body PNGs (keyed by geometry) stay valid.
+    const raiseY = side ? WS_ART.raceRideRaise : 0;
+    this.bodyG.y = (side ? -S0.bob : S0.bob * 0.3) - raiseY;
     this.bodyG.rotation = S0.tilt;
-    this.springG.y = this.bodyG.y;
+    this.bumperG.y = -raiseY;
+    this.springG.y = this.bodyG.y + raiseY;
     if (side) {
       this.wheelF.rotation = S0.spin; this.wheelR.rotation = S0.spin;
       for (const sp of this.springs) sp.img.setScale(sp.img.scaleX, (1 + S0.bob / sp.h) / 1.5);
