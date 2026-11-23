@@ -5,6 +5,22 @@ The player reads a challenge, builds a car (Race Shop) or a dinosaur (Dino Lab),
 failure, and tries again. The product spec is the user's "Adventure Workshop — Game Specification"; this file records
 the decisions made on top of it and how the code is split.
 
+## Current state (2026-11-22, branch `feature/workshop`, not merged into `dev` yet)
+
+- **Playable end to end**: title/join (1–2 players, pads or two keyboard layouts; tap on mobile) → profile pick/create
+  (letter grid + reading level) → Race Shop / Dino Lab → workshop room (character walks to 10 stations) → station
+  (camera zooms to the part, live preview) → board (read-only part labels + 3 challenges at the reading level; 10 in
+  Admin Mode) → test run (15 Race Shop and 15 Dino Lab scenes, pass + funny fail per requirement) → results (✓/✗ per
+  requirement, unlocks, hint after 3 fails). Admin: F9 / LT+RT+Start / mobile gear + multiplication gate.
+- **Art**: code-drawn first pass (Codex polished the dinos once). Final art comes from the ComfyUI pipeline
+  (`docs/WORKSHOP_ART_PIPELINE.md`); shape fixes are queued for Codex (`docs/CODEX_JOBS.md`); scenery still to paint is
+  in `docs/WORKSHOP_PAINT_BACKLOG.md`; new part ideas in `docs/WORKSHOP_FUTURE_VARIANTS.md`.
+- **How to play locally**: from `.worktrees/workshop`, `npx vite --port 5190` → `http://localhost:5190/workshop.html`
+  (Space joins/confirms, WASD moves, Esc back, F9 admin). Restart the server after edits (no hot reload in `.worktrees`).
+- **Dev scenes**: `?dev=WorkshopParts` (every part, side + top), `?dev=RigAnims`, `?dev=RunPreview` (Race Shop scenes),
+  `?dev=DinoStages` (Dino Lab scenes), `?dev=WorkshopSounds` (audio), `?dev=RigPreview`.
+- **Not yet checked**: real controllers, phones, the TV box, audio by ear, projector legibility.
+
 ## Decisions (agreed with the user, 2026-11-22)
 
 - **Phaser 3.90**, one game at 1920×1080. Arcade physics only for cosmetic motion (bounces, tumbles, debris);
