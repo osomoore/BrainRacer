@@ -1,0 +1,21 @@
+{
+  "race":        { "durationUnit": "seconds" },
+  "underwater":  { "durationUnit": "seconds" },
+  "dino":        { "durationUnit": "seconds" },
+  "candy":       { "durationUnit": "seconds" },
+  "house":       { "durationUnit": "seconds" },
+  "title":       { "durationUnit": "seconds" },
+  "airport":     { "durationUnit": "beats" },
+  "castle":      { "durationUnit": "beats" },
+  "farm":        { "durationUnit": "beats" },
+  "underground": { "durationUnit": "beats" },
+  "forest":      { "durationUnit": "beats", "sustain": true },
+  "harbor":      { "durationUnit": "beats", "sustain": true },
+  "industrial":  { "durationUnit": "beats", "sustain": true },
+  "mushroom":    { "durationUnit": "beats", "sustain": true },
+  "results":     { "durationUnit": "beats", "sustain": true },
+  "sky":         { "durationUnit": "beats", "sustain": true },
+  "tundra":      { "durationUnit": "beats", "sustain": true },
+  "volcano":     { "durationUnit": "beats", "sustain": true },
+  "brickworks":  { "durationUnit": "beats", "lowpassHz": 5600 }
+}

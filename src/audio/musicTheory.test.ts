@@ -9,11 +9,63 @@ import sky from './music/tracks/sky.json';
 import forest from './music/tracks/forest.json';
 import underwater from './music/tracks/underwater.json';
 import { QUEUED_TRACKS } from './music/queuedTracks';
+import { TRACK_STYLES } from './music/trackStyles';
 import results from './music/tracks/results.json';
 import {
-  beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
-  type MidiLike,
+  beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, prepareLayerNotes, secondsToBeats, validateTrack,
+  type MidiLike, type TrackStyle,
 } from './musicTheory';
+
+describe('per-track note style', () => {
+  const notes = [
+    { t: 1, d: 0.8, p: 65, v: 1 },
+    { t: 0, d: 0.5, p: 60, v: 1 },
+    { t: 0, d: 0.9, p: 64, v: 1 },
+  ];
+  it('defaults to seconds: d is played as seconds, untouched', () => {
+    const out = prepareLayerNotes({ instrument: 'triangle', volume: 1, notes }, 120, 2);
+    expect(out.map((n) => n.durationSec)).toEqual([0.5, 0.9, 0.8]);
+    expect(out.map(({ p }) => p).sort()).toEqual([60, 64, 65]);
+  });
+  it('beats mode converts d at the track tempo', () => {
+    const out = prepareLayerNotes({ instrument: 'triangle', volume: 1, notes }, 120, 2, { durationUnit: 'beats' });
+    expect(out[0].durationSec).toBeCloseTo(0.25);
+    expect(out[1].durationSec).toBeCloseTo(0.45);
+    expect(out[2].durationSec).toBeCloseTo(0.4);
+    const slow = prepareLayerNotes({ instrument: 'triangle', volume: 1, notes }, 60, 2, { durationUnit: 'beats' });
+    expect(slow[0].durationSec).toBeCloseTo(0.5);
+  });
+  it('sustain extends pitched notes within their available time and leaves percussion alone', () => {
+    const style = { durationUnit: 'beats', sustain: true } as const;
+    const pitched = prepareLayerNotes({ instrument: 'triangle', volume: 1, notes }, 120, 2, style);
+    expect(pitched[0].durationSec).toBeCloseTo(0.35); // 0.25 * 1.4
+    expect(pitched[1].durationSec).toBeCloseTo(0.5); // capped at the next onset
+    expect(pitched[2].durationSec).toBeCloseTo(0.5);
+    const percussion = prepareLayerNotes({ instrument: 'noise', volume: 1, notes }, 120, 2, style);
+    expect(percussion[0].durationSec).toBeCloseTo(0.25);
+    expect(notes[1].d).toBe(0.5);
+  });
+});
+
+describe('track styles', () => {
+  const ids = ['title', 'race', 'industrial', 'harbor', 'farm', 'underground', 'sky', 'forest', 'underwater', 'dino', 'results', ...Object.keys(QUEUED_TRACKS)];
+  it('every track id has a valid style', () => {
+    for (const id of ids) {
+      const st = (TRACK_STYLES as Record<string, TrackStyle | undefined>)[id];
+      expect(st, id).toBeDefined();
+      expect(['beats', 'seconds']).toContain(st!.durationUnit);
+      if (st!.sustain !== undefined) expect(typeof st!.sustain).toBe('boolean');
+      if (st!.lowpassHz !== undefined) expect(st!.lowpassHz).toBeGreaterThan(200);
+    }
+    expect(Object.keys(TRACK_STYLES).sort()).toEqual([...ids].sort());
+  });
+  it('matches the chosen picks', () => {
+    expect(TRACK_STYLES.brickworks).toMatchObject({ durationUnit: 'beats', lowpassHz: 5600 });
+    expect(TRACK_STYLES.race?.durationUnit).toBe('seconds');
+    expect(TRACK_STYLES.farm?.sustain).toBeFalsy();
+    expect(TRACK_STYLES.volcano?.sustain).toBe(true);
+  });
+});
 
 describe('units', () => {
   it('beats <-> seconds', () => {

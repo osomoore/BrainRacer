@@ -5,12 +5,13 @@ import { QUEUED_MAPS } from '../config/queuedMaps';
 import { QUEUED_TRACKS } from './music/queuedTracks';
 import type { Mixer } from './mixer';
 import { foldTail, loopOffsetSec, planChunks, renderQueue } from './bufferUtils';
-import { applyMusicGain, musicNormalizationGain } from './musicLoudness';
+import { applyMusicGain, limitMusicPeak, musicNormalizationGain } from './musicLoudness';
 import musicGains from './musicGains.json';
 import {
-  beatsToSeconds, drumKind, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
-  type TrackData, type TrackLayer,
+  beatsToSeconds, drumKind, looksLikeMidi, midiToFreq, midiToTrack, MUSIC_SUSTAIN_FACTOR,
+  maxNoteSeconds, prepareLayerNotes, secondsToBeats, validateTrack, type RuntimeNote, type TrackData, type TrackLayer,
 } from './musicTheory';
+import { TRACK_STYLES } from './music/trackStyles';
 import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
 import industrial from './music/tracks/industrial.json';
@@ -58,20 +59,28 @@ export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial'
 const TICK_SEC = 0.1;
 const LIVE_GAINS: Partial<Record<MusicTrack, number>> = musicGains;
 
-type NoteFn = (note: { p: number; d: number; v: number }, time: number) => void;
+type NoteFn = (note: RuntimeNote, time: number) => void;
 
 interface LayerRuntime {
-  notes: { t: number; d: number; p: number; v: number }[]; // sorted by t
+  notes: RuntimeNote[]; // sorted by t
   play: NoteFn;
 }
 
 /** Builds every layer's instruments into `dest` (shared by live playback and offline rendering). */
 function buildLayers(data: TrackData, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime[] {
-  return data.tracks.map((layer) => buildLayer(layer, dest, nodes));
+  let out = dest;
+  const cutoff = data.style?.lowpassHz;
+  if (cutoff) {
+    const lp = new Tone.Filter({ type: 'lowpass', frequency: cutoff, Q: 0.707, rolloff: -12 }).connect(dest);
+    nodes.push(lp);
+    out = lp;
+  }
+  return data.tracks.map((layer) => buildLayer(layer, data, out, nodes));
 }
 
-function buildLayer(layer: TrackLayer, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime {
-  const notes = [...layer.notes].sort((a, b) => a.t - b.t);
+function buildLayer(layer: TrackLayer, data: TrackData, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime {
+  const notes = prepareLayerNotes(layer, data.bpm, data.lengthBeats, data.style);
+  const pluckCap = 0.35 * (data.style?.sustain ? MUSIC_SUSTAIN_FACTOR : 1);
   const lvl = new Tone.Gain(Math.max(0, layer.volume) * 0.32).connect(dest);
   nodes.push(lvl);
   const env = { attack: 0.005, decay: 0.06, sustain: 0.6, release: 0.06 };
@@ -91,7 +100,7 @@ function buildLayer(layer: TrackLayer, dest: Tone.InputNode, nodes: Tone.ToneAud
       nodes.push(lp, synth);
       return {
         notes,
-        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.min(0.35, Math.max(0.03, n.d)), time, n.v),
+        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.min(pluckCap, Math.max(0.03, n.durationSec)), time, n.v),
       };
     }
     case 'pulse25':
@@ -112,7 +121,7 @@ function buildLayer(layer: TrackLayer, dest: Tone.InputNode, nodes: Tone.ToneAud
       nodes.push(synth);
       return {
         notes,
-        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.max(0.03, n.d), time, n.v),
+        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.max(0.03, n.durationSec), time, n.v),
       };
     }
   }
@@ -165,10 +174,12 @@ class Playback implements Running {
   private disposed = false;
 
   constructor(readonly data: TrackData, mixer: Mixer, startPhaseBeats: number, fadeInSec: number, level: number) {
-    this.gain = new Tone.Gain(fadeInSec > 0 ? 0 : level).connect(mixer.musicBus);
-    this.nodes.push(this.gain);
-    if (fadeInSec > 0) this.gain.gain.rampTo(level, fadeInSec);
-    this.layers.push(...buildLayers(data, this.gain, this.nodes));
+    this.gain = new Tone.Gain(fadeInSec > 0 ? 0 : 1).connect(mixer.musicBus);
+    const limiter = new Tone.WaveShaper(limitMusicPeak, 4096).connect(this.gain);
+    const normalization = new Tone.Gain(level).connect(limiter);
+    this.nodes.push(this.gain, limiter, normalization);
+    if (fadeInSec > 0) this.gain.gain.rampTo(1, fadeInSec);
+    this.layers.push(...buildLayers(data, normalization, this.nodes));
     this.startAudio = Tone.now() + 0.08;
     this.startBeat = startPhaseBeats;
     this.cursor = startPhaseBeats;
@@ -243,9 +254,7 @@ class Playback implements Running {
 
 /** Longest sound a note can make (its duration plus a generous release), in seconds. */
 function maxNoteSec(data: TrackData): number {
-  let m = 0;
-  for (const layer of data.tracks) for (const n of layer.notes) m = Math.max(m, n.d);
-  return m + 0.5;
+  return maxNoteSeconds(data) + 0.5;
 }
 
 /**
@@ -353,6 +362,11 @@ class BufferPlayback implements Running {
 
 const overrideCache = new Map<MusicTrack, Promise<TrackData | null>>();
 
+/** Attaches the per-track playback style (from `music/trackStyles.json`) so live and offline playback agree. */
+function withStyle(data: TrackData, name: MusicTrack): TrackData {
+  return { ...data, style: TRACK_STYLES[name] };
+}
+
 /** The track's data: `src/audio/music/midi/<track>.mid` override when present, else the built-in JSON. */
 export function resolveTrack(name: MusicTrack): Promise<TrackData> {
   let p = overrideCache.get(name);
@@ -360,7 +374,7 @@ export function resolveTrack(name: MusicTrack): Promise<TrackData> {
     p = fetchMidi(name);
     overrideCache.set(name, p);
   }
-  return p.then((d) => d ?? BUILTIN[name]);
+  return p.then((d) => withStyle(d ?? BUILTIN[name], name));
 }
 
 /** Optional MIDI override (fetched once; 404 / non-MIDI tolerated). */
