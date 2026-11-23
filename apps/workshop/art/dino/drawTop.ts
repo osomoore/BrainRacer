@@ -65,20 +65,48 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
     key: `ws:d:thead:${headId}:${sk.key}:${beak ? beakLook.name : 'n'}`, w: W, h: H, ox: 50, oy: H / 2,
     draw: (g) => {
       const len = h.len;
-      const sh: Shape[] = [];
-      if (h.horns) for (const sgn of [-1, 1]) sh.push({ path: (c) => polyPath(c, [{ x: len * 0.22, y: sgn * hw * 0.8 }, { x: len * 0.5 + h.horns * 0.5, y: sgn * (hw + 34) }, { x: len * 0.52, y: sgn * hw * 0.7 }]), fill: '#fff3d0' });
-      if (h.noseHorn) sh.push({ path: (c) => ellipsePath(c, len * 0.88, 0, 12, 7), fill: '#fff3d0' });
-      drawShapes(g, sh, OL);
       const skull: Shape['path'] = (c) => {
+        const snout = hw * (0.6 - h.snout * 0.5);
+        if (h.brow) {
+          // Start within the neck cap and keep both sides tangent through the flare.
+          c.moveTo(-25, -17);
+          c.bezierCurveTo(4, -17, len * 0.13, -hw, len * 0.38, -hw);
+          c.quadraticCurveTo(len * 0.66, -hw, len * 0.88, -snout);
+          c.quadraticCurveTo(len + 10, 0, len * 0.88, snout);
+          c.quadraticCurveTo(len * 0.66, hw, len * 0.38, hw);
+          c.bezierCurveTo(len * 0.13, hw, 4, 17, -25, 17);
+          c.quadraticCurveTo(-34, 0, -25, -17);
+          c.closePath();
+          return;
+        }
         c.moveTo(-4, -hw * 0.81);
-        c.quadraticCurveTo(len * 0.4, -hw * 1.25, len * 0.88, -hw * (0.6 - h.snout * 0.5));
-        c.quadraticCurveTo(len + 10, 0, len * 0.88, hw * (0.6 - h.snout * 0.5));
+        c.quadraticCurveTo(len * 0.4, -hw * 1.25, len * 0.88, -snout);
+        c.quadraticCurveTo(len + 10, 0, len * 0.88, snout);
         c.quadraticCurveTo(len * 0.4, hw * 1.25, -4, hw * 0.81);
         c.quadraticCurveTo(-16, 0, -4, -hw * 0.81);
         c.closePath();
       };
-      drawHeadJoint(g, skull, skinFill(sk, { x0: -16, y0: -hw, x1: len, y1: hw }, 3), sk.look.main, -8, 0, h.neckLen > 120 ? 19 : 29, true);
+      const rear = h.brow ? -34 : -16;
+      drawHeadJoint(g, skull, skinFill(sk, { x0: rear, y0: -hw, x1: len, y1: hw }, 3), sk.look.main,
+        h.brow ? -25 : -8, 0, h.neckLen > 120 ? 19 : 29, true);
       if (h.crest) drawShapes(g, [{ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: crestFill(sk, len * 0.3 - h.crest * 0.55, len * 0.66, true) }], OL);
+      if (h.horns) {
+        const horns: Shape[] = [-1, 1].map((sgn) => ({
+          path: (c) => {
+            c.moveTo(len * 0.15, sgn * hw * 0.62);
+            c.quadraticCurveTo(len * 0.42, sgn * hw * 1.25, len * 0.22 + h.horns, sgn * (hw + 28));
+            c.quadraticCurveTo(len * 0.46, sgn * hw * 0.57, len * 0.36, sgn * hw * 0.31);
+            c.quadraticCurveTo(len * 0.18, sgn * hw * 0.26, len * 0.15, sgn * hw * 0.62);
+            c.closePath();
+          },
+          fill: '#fff3d0',
+        }));
+        drawShapes(g, horns, 3.5);
+      }
+      if (h.noseHorn) drawShapes(g, [{
+        path: (c) => polyPath(c, [{ x: len * 0.80, y: -6 }, { x: len * 1.02, y: 0 }, { x: len * 0.80, y: 6 }]),
+        fill: '#fff3d0',
+      }], 3.5);
       if (beak) {
         const base = len * beakLook.base, tip = len * beakLook.reach, half = hw * beakLook.width;
         const wide = base + (tip - base) * (0.52 + beakLook.width * 0.46);

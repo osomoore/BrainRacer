@@ -138,7 +138,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** Small / Medium / Big / Huge are obviously different side by side.
 
 
-## C9 — Dino heads, mouths and teeth · `OPEN`
+## C9 — Dino heads, mouths and teeth · `DONE (codex/c9)`
 - **Source:** review 2026-11-23 (`C:\Users\osomo\Projects\BrainRacer\feedback\workshop-art-feedback.json`) and head vote comments in `apps/workshop/art/paint/picks.json`.
 - **Scope:** `apps/workshop/art/dino/**`.
 - **Do:**
@@ -146,7 +146,11 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - **Rex Head:** in top view, taper smoothly into the neck (now a sharp edge where it merges back).
   - **Beaks (all 4 profiles in `BEAK_LOOKS`):** the jawline between top and bottom jaw stops sooner; it should not run so far back toward the neck. The profiles themselves are approved, including the wide duckbill.
   - **Teeth:** Flat, Big and Sharp: at the back of the mouth the top row runs over the bottom lip; keep it inside. Mega Teeth: start the teeth slightly closer to the front lip.
-- **Done when:** each item is visibly fixed in side + top views; the T-Rex combo still reads as a goofy T-Rex. Painted heads already voted in are keyed by shape hash, so expect the changed heads to fall back to code shapes until repainted (fine; list which ones in the hand-back).
+- **Done when:** each item is visibly fixed in side + top views and the T-Rex combo still reads as a goofy T-Rex.
+  List affected painted heads in the hand-back.
+- **Hand-back:** The paint manifest stays as is. The installed overhead Orange Rex Head with Feathers still uses
+  its voted paint because the runtime matches by texture key and dimensions. Use `&art=shapes` to review the
+  new taper. Overhead Horn Head already uses the code shape, and the voted Short and curved beak caps are unchanged.
 
 ## C10 — Dino body, claws and tails · `OPEN`
 - **Scope:** `apps/workshop/art/dino/**`. Run after C9 is merged (same files).
