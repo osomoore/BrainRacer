@@ -1,7 +1,7 @@
 /** Race car, TOP view (nose at +x, centre = origin). Same look tables as the side view. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
 import { darken, lighten } from '../geom';
-import { BUMPER, ENGINE, EXTRA, PAINT, RACE_WINDOW, RACE_WINDOW_DARK, WHEEL } from './looks';
+import { BUMPER, ENGINE, EXTRA, JEEP_SPARE, PAINT, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, WHEEL } from './looks';
 import { rainbowFill } from './drawSide';
 import { bodyHalfWidth, raceGeom, type RaceLooks, topOutline } from './geometry';
 
@@ -27,8 +27,11 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
       const { cabin, cabinTopRange } = raceGeom(l);
       const c0 = cabin[0].x, c1 = cabin[3].x;
       const widthAt = (x: number) => bodyHalfWidth(b, s, (x + b.len / 2) / b.len);
-      const cw = b.hw * ((b.kind === 'sports' ? 0.66 : 0.77) + (s.rc >= 20 ? 0.05 : 0));
-      const cabinWidthAt = (x: number) => Math.max(5, Math.min(cw, widthAt(x) - 5));
+      const curvedGlass = s.rc >= 20;
+      const cw = b.hw * ((b.kind === 'sports' ? 0.66 : 0.77) + (curvedGlass ? 0.05 : 0));
+      const cabinWidthAt = (x: number) => curvedGlass
+        ? Math.max(5, widthAt(x) * (cw / b.hw))
+        : Math.max(5, Math.min(cw, widthAt(x) - 5));
       const sh: Shape[] = [{
         path: (c) => roundedPolyPath(c, out, 3 + s.r * 0.4), fill,
         detail: (c) => {
@@ -51,27 +54,47 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
       const glass = (pts: { x: number; y: number }[]) => {
         const gr = g.createLinearGradient(0, -cw, 0, cw);
         gr.addColorStop(0, RACE_WINDOW); gr.addColorStop(1, RACE_WINDOW_DARK);
-        g.fillStyle = gr; g.beginPath(); polyPath(g, pts); g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.stroke();
+        g.fillStyle = gr; g.beginPath();
+        if (curvedGlass) roundedPolyPath(g, pts, 8);
+        else polyPath(g, pts);
+        g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.stroke();
       };
-      const roofEdge = [c0, roofX0, roofX1, c1].map((x) => ({ x, y: -cabinWidthAt(x) }));
+      const cabinEdge = (a: number, z: number, inset: number) => {
+        const steps = curvedGlass ? Math.max(1, Math.ceil((z - a) / 10)) : 1;
+        return Array.from({ length: steps + 1 }, (_, i) => {
+          const x = a + (z - a) * i / steps;
+          return { x, y: -Math.max(2, cabinWidthAt(x) - inset) };
+        });
+      };
+      const bothEdges = (edge: ReturnType<typeof cabinEdge>) => [...edge, ...edge.map(({ x, y }) => ({ x, y: -y })).reverse()];
+      const roofEdge = curvedGlass
+        ? cabinEdge(c0, c1, 0)
+        : [c0, roofX0, roofX1, c1].map((x) => ({ x, y: -cabinWidthAt(x) }));
       drawShapes(g, [{
-        path: (c) => roundedPolyPath(c, [...roofEdge, ...roofEdge.map(({ x, y }) => ({ x, y: -y })).reverse()], 7 + s.rc * 0.42),
+        path: (c) => roundedPolyPath(c, bothEdges(roofEdge), 7 + s.rc * 0.42),
         fill: bandFill || lighten(paint.main, 0.1),
       }], 4);
-      const windows = (a: number, z: number) => {
-        const aw = Math.max(2, cabinWidthAt(a) - 5), zw = Math.max(2, cabinWidthAt(z) - 5);
-        glass([{ x: a, y: -aw }, { x: z, y: -zw }, { x: z, y: zw }, { x: a, y: aw }]);
-      };
-      if (c1 - roofX1 > 7) windows(roofX1, c1 - 4);
-      if (roofX0 - c0 > 7) windows(c0 + 4, roofX0);
+      if (c1 - roofX1 > 7) glass(bothEdges(cabinEdge(roofX1, c1 - 4, 5)));
+      if (roofX0 - c0 > 7) glass(bothEdges(cabinEdge(c0 + 4, roofX0, 5)));
       // lights
       g.fillStyle = '#fff7b0'; g.strokeStyle = OUTLINE; g.lineWidth = 3;
-      const nose = b.len / 2 - 14, noseY = Math.min(b.hw * 0.55, Math.max(8, widthAt(nose) - 10));
+      const nose = b.len / 2 - 18, noseY = Math.min(b.hw * 0.55, Math.max(8, widthAt(nose + 6) - 12));
       for (const sy of [-1, 1]) { g.beginPath(); ellipsePath(g, nose, sy * noseY, 6, 8); g.fill(); g.stroke(); }
       g.fillStyle = '#ff3b3b';
       const tail = -b.len / 2 + 11, tailY = Math.min(b.hw * 0.55, Math.max(8, widthAt(tail) - 10));
       for (const sy of [-1, 1]) { g.beginPath(); rrectPath(g, tail - 3, sy * tailY - 7, 7, 14, 3); g.fill(); g.stroke(); }
-      if (b.spare) { g.fillStyle = '#2c2c3a'; g.beginPath(); rrectPath(g, -b.len / 2 - 14, -9, 18, 18, 5); g.fill(); g.stroke(); }
+      if (b.spare) {
+        const spare = JEEP_SPARE;
+        const x = -b.len / 2 + spare.offset - spare.depth / 2;
+        drawShapes(g, [{
+          path: (c) => rrectPath(c, x, -spare.diameter / 2, spare.depth, spare.diameter, 6),
+          fill: spare.rubber,
+          detail: (c) => {
+            c.fillStyle = spare.tread;
+            for (let y = -spare.diameter / 2 + 8; y < spare.diameter / 2; y += 9) c.fillRect(x, y, spare.depth, 3);
+          },
+        }], OL);
+      }
     },
   };
 }
@@ -79,10 +102,24 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
 export function wheelTop(id: string): PartSpec {
   const w = WHEEL[id] ?? WHEEL['wheels.road'];
   const L = w.r * 2 + 8, T = w.topW + 8;
+  const padding = w.tread === 'lugs' ? 22 : 14;
   return {
-    key: `ws:r:twheel:${id}`, w: L + 14, h: T + 14, ox: (L + 14) / 2, oy: (T + 14) / 2,
+    key: `ws:r:twheel:${id}`, w: L + padding, h: T + padding, ox: (L + padding) / 2, oy: (T + padding) / 2,
     draw: (g) => {
-      const sh: Shape[] = [{ path: (c) => rrectPath(c, -L / 2, -T / 2, L, T, Math.min(12, T / 2)), fill: w.tire }];
+      const sh: Shape[] = [];
+      if (w.tread === 'lugs') {
+        for (const y of [-T / 2, T / 2]) {
+          for (let x = -L / 2 + 14; x <= L / 2 - 14; x += 12) {
+            sh.push({ path: (c) => rrectPath(c, x - 4, y - 5, 8, 10, 3), fill: w.treadColor });
+          }
+        }
+        for (const x of [-L / 2, L / 2]) {
+          for (const y of [-7, 7]) {
+            sh.push({ path: (c) => rrectPath(c, x - 5, y - 4, 10, 8, 3), fill: w.treadColor });
+          }
+        }
+      }
+      sh.push({ path: (c) => rrectPath(c, -L / 2, -T / 2, L, T, Math.min(12, T / 2)), fill: w.tire });
       drawShapes(g, sh, 4.5);
       g.save(); g.beginPath(); rrectPath(g, -L / 2, -T / 2, L, T, Math.min(12, T / 2)); g.clip();
       g.strokeStyle = w.tread === 'slick' && w.stripe ? w.stripe : w.treadColor; g.lineWidth = 4;
@@ -157,32 +194,27 @@ export function bumperTop(id: string, hw: number): PartSpec {
   };
 }
 
-export function rackTop(len: number, wid: number, compact = false): PartSpec {
+export function rackTop(len: number, wid: number, bagCount = 2): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   return {
-    key: `ws:r:track:${Math.round(len)}:${Math.round(wid)}${compact ? ':compact' : ''}`, w: len + 30, h: wid + 30, ox: (len + 30) / 2, oy: (wid + 30) / 2,
+    key: `ws:r:track:${Math.round(len)}:${Math.round(wid)}:${bagCount}`, w: len + 30, h: wid + 30, ox: (len + 30) / 2, oy: (wid + 30) / 2,
     draw: (g) => {
       const sh: Shape[] = [{ path: (c) => rrectPath(c, -len / 2, -wid / 2, len, wid, 6), fill: '#00000000', noStroke: false }];
       drawShapes(g, sh, 4);
       g.strokeStyle = ex.color; g.lineWidth = 6;
       for (const x of [-len / 2 + 4, len / 2 - 4]) { g.beginPath(); g.moveTo(x, -wid / 2); g.lineTo(x, wid / 2); g.stroke(); }
-      if (compact) {
-        const width = len * 0.67;
-        drawShapes(g, [{
-          path: (c) => rrectPath(c, -width / 2, -wid * 0.39, width, wid * 0.78, 7),
-          fill: ex.color2,
+      drawShapes(g, rackLuggage(len, bagCount).map(({ x, width, depth, color }) => {
+        const h = wid * depth;
+        return {
+          path: (c: G) => rrectPath(c, x, -h / 2, width, h, 5),
+          fill: color,
           detail: (c) => {
-            c.fillStyle = '#f6cea0';
-            c.fillRect(-width * 0.24, -wid, 6, wid * 2);
-            c.fillRect(width * 0.24 - 6, -wid, 6, wid * 2);
+            c.fillStyle = 'rgba(255,255,255,0.45)';
+            c.fillRect(x + width * 0.27, -h / 2, 5, h);
+            c.fillRect(x + width * 0.67, -h / 2, 5, h);
           },
-        }], 4);
-        return;
-      }
-      const bw = len / 3.2;
-      const boxes: [number, string][] = [[-len / 2 + 6, ex.color2], [-len / 2 + 10 + bw, '#4aa8ff'], [-len / 2 + 14 + bw * 2, ex.color3]];
-      const bs: Shape[] = boxes.filter(([x]) => x + bw - 4 <= len / 2 + 2).map(([x, col], i) => ({ path: (c: G) => rrectPath(c, x, -wid / 2 + 6 + i * 3, bw - 6, wid - 12 - i * 6, 5), fill: col, detail: (c: G) => { c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(x + (bw - 6) / 2 - 3, -wid, 6, wid * 2); } }));
-      drawShapes(g, bs, 4);
+        } satisfies Shape;
+      }), 4);
     },
   };
 }
@@ -190,12 +222,12 @@ export function rackTop(len: number, wid: number, compact = false): PartSpec {
 export function rocketTop(): PartSpec {
   const ex = EXTRA['extra.rocket'];
   return {
-    key: 'ws:r:trocket', w: 150, h: 70, ox: 138, oy: 35,
+    key: 'ws:r:trocket', w: 150, h: 82, ox: 138, oy: 41,
     draw: (g) => {
       const sh: Shape[] = [
         { path: (c) => { c.moveTo(-96, -20); c.lineTo(-112, -32); c.lineTo(-70, -18); c.closePath(); }, fill: ex.color2 },
         { path: (c) => { c.moveTo(-96, 20); c.lineTo(-112, 32); c.lineTo(-70, 18); c.closePath(); }, fill: ex.color2 },
-        { path: (c) => rrectPath(c, -104, -12, 14, 24, 4), fill: '#4b4f63' },
+        { path: (c) => rrectPath(c, ROCKET_NOZZLE_X, -12, 14, 24, 4), fill: '#4b4f63' },
         { path: (c) => { c.moveTo(-96, -20); c.lineTo(-34, -22); c.quadraticCurveTo(-4, -18, 4, 0); c.quadraticCurveTo(-4, 18, -34, 22); c.lineTo(-96, 20); c.closePath(); }, fill: '#f2f2f8', detail: (c) => { c.fillStyle = ex.color2; c.fillRect(-60, -24, 14, 48); c.beginPath(); c.moveTo(-26, -24); c.quadraticCurveTo(-4, -18, 6, 0); c.quadraticCurveTo(-4, 18, -26, 24); c.closePath(); c.fill(); } },
       ];
       drawShapes(g, sh, 4.5);

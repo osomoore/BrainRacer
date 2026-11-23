@@ -4,13 +4,13 @@ import { type Pt, lerp, topAt } from '../geom';
 import { BODY, type BodyLook, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, WHEEL, type WheelLook } from './looks';
 
 export interface RaceLooks {
-  body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; compactRack: boolean;
+  body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; rackBags: number;
 }
 
 export function raceLooks(model: Model): RaceLooks {
   const compactRack = model.size === 'size.tiny' || model.size === 'size.small';
   return {
-    compactRack,
+    rackBags: compactRack ? 1 : model.size === 'size.big' ? 3 : 2,
     wheelScale: model.size === 'size.tiny' ? 1.20 : model.size === 'size.small' ? 1.12 : 1,
     body: BODY[model.body] ?? BODY['body.car'],
     shape: SHAPE[model.shape] ?? SHAPE['shape.boxy'],

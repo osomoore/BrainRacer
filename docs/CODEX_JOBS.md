@@ -172,7 +172,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - **Leaf Pattern:** more leaves, each aimed within 15° of straight back along the body.
 - **Done when:** `npm run art:shapes` plus a candidate dry run (no ComfyUI) show clearly different placements per candidate; tests cover seed → placement determinism. **Do not run ComfyUI painting**; the user starts it.
 
-## C12 — Car shapes and layering · `OPEN`
+## C12 — Car shapes and layering · `DONE (codex/c12)`
 - **Scope:** `apps/workshop/art/race/**`. Start only after `pkg/ws-shopview` (ride height, gears view) is merged into `feature/workshop`.
 - **Do:**
   - **Windows:** Round and Sleek shapes: the windows follow the car's own outline (now they don't match).
@@ -184,6 +184,8 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - **Layering:** in top view all wheels draw under the body; in side view the spoiler draws behind the body.
   - **Roof rack:** side and top views agree: Medium shows 2 bags in both, Big shows 3 in both. Remove the stray yellow piece in front of the front bumper.
 - **Done when:** every item visibly fixed in the reviewer sheets (side + top).
+- **Hand-back:** The existing painted Jeep body textures still show the old spare. Review the edge-on spare
+  with `&art=shapes`. The side and top Jeep body paints need a refresh to pick up the new geometry.
 ---
 
 ## Done

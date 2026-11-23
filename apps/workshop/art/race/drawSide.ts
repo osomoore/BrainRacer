@@ -1,7 +1,7 @@
 /** Race car, SIDE view: one drawing function per aspect, all numbers come from ./looks. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
-import { darken, insetPoly, lighten } from '../geom';
-import { BUMPER, ENGINE, EXTRA, GEAR, PAINT, type PaintLook, RACE_WINDOW, RACE_WINDOW_DARK, SPRING, WHEEL } from './looks';
+import { darken, insetPoly, lerp, lighten } from '../geom';
+import { BUMPER, ENGINE, EXTRA, GEAR, JEEP_SPARE, PAINT, type PaintLook, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, SPRING, WHEEL } from './looks';
 import type { RaceGeom, RaceLooks } from './geometry';
 
 type G = CanvasRenderingContext2D;
@@ -45,7 +45,17 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
         ? geo.chassis.map((p) => p.y === geo.bottom ? s.r * 0.75 : s.r + 9)
         : [s.r * 0.8, s.r, s.r, s.r * 0.8];
       if (b.spare) {
-        shapes.push({ path: (c) => circle(c, geo.rear - 6, geo.chassisTop(geo.cabin[0].x) - 14, 25), fill: '#2c2c3a', detail: (c) => { c.fillStyle = '#c3c9d4'; c.beginPath(); circle(c, geo.rear - 6, geo.chassisTop(geo.cabin[0].x) - 14, 11); c.fill(); } });
+        const spare = JEEP_SPARE;
+        const x = geo.rear + spare.offset - spare.depth / 2;
+        const y = geo.chassisTop(geo.rear) - spare.diameter * 0.7;
+        shapes.push({
+          path: (c) => rrectPath(c, x, y, spare.depth, spare.diameter, 6),
+          fill: spare.rubber,
+          detail: (c) => {
+            c.fillStyle = spare.tread;
+            for (let dy = 8; dy < spare.diameter; dy += 9) c.fillRect(x, y + dy, spare.depth, 3);
+          },
+        });
       }
       if (geo.bed) shapes.push({ path: (c) => polyPath(c, geo.bed!), fill, detail: (c) => { c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(geo.rear, geo.bed![0].y, 400, 7); } });
       shapes.push({
@@ -54,10 +64,19 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
         detail: (c) => {
           c.fillStyle = '#14142e';
           for (const ax of [geo.frontAxle, geo.rearAxle]) { c.beginPath(); circle(c, ax, geo.hubY, geo.wheelRadius + 9); c.fill(); }
+          c.save();
+          for (const axle of [geo.frontAxle, geo.rearAxle]) {
+            c.beginPath();
+            c.rect(-w / 2, ty0, w, ty1 - ty0);
+            circle(c, axle, geo.hubY, geo.wheelRadius + 9);
+            c.clip('evenodd');
+          }
           const trimRear = geo.rear + 18, trimFront = geo.front - 18;
+          const trimInset = ids.shape === 'shape.wedge' ? 30 : 10;
           c.strokeStyle = paint.accent; c.lineWidth = 6;
-          c.beginPath(); c.moveTo(trimRear, geo.chassisTop(trimRear) + 10);
-          c.lineTo(trimFront, geo.chassisTop(trimFront) + 10); c.stroke();
+          c.beginPath(); c.moveTo(trimRear, geo.chassisTop(trimRear) + trimInset);
+          c.lineTo(trimFront, geo.chassisTop(trimFront) + trimInset); c.stroke();
+          c.restore();
         },
       });
       const footRadius = Math.min(14, s.rc);
@@ -77,26 +96,39 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       }
       g.restore();
       // windows
-      const largerGlass = s.rc >= 20;
-      const glassBounds = geo.cabin.map((p, i) => i === 0 || i === 3 ? { x: p.x, y: geo.chassisTop(p.x) } : p);
-      const win = insetPoly(glassBounds, largerGlass ? 0.9 : 0.86, largerGlass ? 0.78 : 0.7)
-        .map((p) => ({ x: p.x, y: p.y + b.cabH * s.cabK * (largerGlass ? 0.05 : 0.10) }));
-      g.beginPath(); roundedPolyPath(g, win, Math.max(3, s.rc * 0.4));
+      const curvedGlass = s.rc >= 20;
+      const [rearSill, rearRoof, frontRoof, frontSill] = geo.cabin;
+      const glassSill = (sill: typeof rearSill, roof: typeof rearRoof, inset: number) => {
+        const y = geo.chassisTop(sill.x) - 7;
+        return { x: lerp(sill.x, roof.x, (y - sill.y) / (roof.y - sill.y)) + inset, y };
+      };
+      const win = curvedGlass
+        ? [
+          glassSill(rearSill, rearRoof, 10),
+          { x: rearRoof.x + 5, y: rearRoof.y + 9 },
+          { x: frontRoof.x - 5, y: frontRoof.y + 9 },
+          glassSill(frontSill, frontRoof, -10),
+        ]
+        : insetPoly(geo.cabin, 0.86, 0.7).map(({ x, y }) => ({ x, y: y + b.cabH * s.cabK * 0.10 }));
+      g.save();
+      g.beginPath(); roundedPolyPath(g, win, curvedGlass ? [9, s.rc - 7, s.rc - 7, 9] : Math.max(3, s.rc * 0.4));
       const wg = g.createLinearGradient(0, win[1].y, 0, win[0].y);
       wg.addColorStop(0, RACE_WINDOW); wg.addColorStop(1, RACE_WINDOW_DARK);
       g.fillStyle = wg; g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 4; g.stroke();
-      g.strokeStyle = OUTLINE; g.lineWidth = 4;
+      g.clip();
       const pillars = b.kind === 'van' ? 2 : 1;
       for (let i = 1; i <= pillars; i++) {
         const t = i / (pillars + 1), px = win[0].x + (win[3].x - win[0].x) * t;
-        g.beginPath(); g.moveTo(px, win[1].y - 4); g.lineTo(px, win[0].y + 4); g.stroke();
+        g.beginPath(); g.moveTo(px, y0); g.lineTo(px, y1); g.stroke();
       }
+      g.restore();
       // door handle, lights
       const mid = (geo.cabin[0].x + geo.cabin[3].x) / 2;
       g.fillStyle = paint.accent; g.strokeStyle = OUTLINE; g.lineWidth = 3;
       g.beginPath(); rrectPath(g, mid + 8, geo.chassisTop(mid) + 11, 16, 6, 3); g.fill(); g.stroke();
-      const hy = geo.chassisTop(geo.front) + Math.min(15, b.chH * s.noseK * 0.38);
-      g.fillStyle = '#fff7b0'; g.beginPath(); ellipsePath(g, geo.front - 9, hy, 8, 6.5); g.fill(); g.stroke();
+      const hx = geo.front - 16;
+      const hy = geo.chassisTop(hx) + Math.min(17, b.chH * s.noseK * 0.46);
+      g.fillStyle = '#fff7b0'; g.beginPath(); ellipsePath(g, hx, hy, 8, 6.5); g.fill(); g.stroke();
       g.fillStyle = '#ff3b3b'; g.beginPath(); rrectPath(g, geo.rear + 2, geo.chassisTop(geo.rear) + 8, 8, 14, 3); g.fill(); g.stroke();
     },
   };
@@ -109,8 +141,20 @@ export function wheelSide(id: string): PartSpec {
     key: `ws:r:wheel:${id}`, w: S, h: S, ox: S / 2, oy: S / 2,
     draw: (g) => {
       const shapes: Shape[] = [];
-      if (w.tread === 'lugs' || w.tread === 'monster') {
-        const n = w.tread === 'lugs' ? 16 : 11, rr = w.tread === 'lugs' ? 9 : 17;
+      if (w.tread === 'lugs') {
+        for (let i = 0; i < 16; i++) {
+          shapes.push({
+            path: (c) => {
+              c.save();
+              c.rotate(i * Math.PI / 8);
+              rrectPath(c, R - 9, -5.5, 17, 11, 4);
+              c.restore();
+            },
+            fill: w.treadColor,
+          });
+        }
+      } else if (w.tread === 'monster') {
+        const n = 11, rr = 17;
         for (let i = 0; i < n; i++) {
           const a = (i / n) * Math.PI * 2, d = R - rr * 0.35;
           shapes.push({ path: (c) => circle(c, Math.cos(a) * d, Math.sin(a) * d, rr), fill: w.treadColor });
@@ -327,35 +371,27 @@ export function bumperSide(id: string): PartSpec {
 
 // ---------------------------------------------------------------- extras
 
-export function rackSide(w: number, legH: number, compact = false): PartSpec {
+export function rackSide(w: number, legH: number, bagCount = 2): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   const H = legH + 70, W = w + 30;
   return {
-    key: `ws:r:rack:${Math.round(w)}:${Math.round(legH)}${compact ? ':compact' : ''}`, w: W, h: H, ox: W / 2, oy: H - 6,
+    key: `ws:r:rack:${Math.round(w)}:${Math.round(legH)}:${bagCount}`, w: W, h: H, ox: W / 2, oy: H - 6,
     draw: (g) => {
       const sh: Shape[] = [];
       const top = -legH;
       for (const x of [-w / 2 + 6, w / 2 - 6]) sh.push({ path: (c) => rrectPath(c, x - 4, top, 8, legH + 6, 3), fill: ex.color });
       sh.push({ path: (c) => rrectPath(c, -w / 2, top - 8, w, 9, 4), fill: ex.color });
-      if (compact) {
-        const width = w * 0.67;
+      for (const { x, width, height, color } of rackLuggage(w, bagCount)) {
+        const y = top - 8 - height;
         sh.push({
-          path: (c) => rrectPath(c, -width / 2, top - 52, width, 45, 7),
-          fill: ex.color2,
+          path: (c) => rrectPath(c, x, y, width, height, 5),
+          fill: color,
           detail: (c) => {
-            c.fillStyle = '#f6cea0';
-            c.fillRect(-width * 0.24, top - 53, 6, 48);
-            c.fillRect(width * 0.24 - 6, top - 53, 6, 48);
+            c.fillStyle = 'rgba(255,255,255,0.45)';
+            c.fillRect(x + width * 0.27, y, 5, height);
+            c.fillRect(x + width * 0.67, y, 5, height);
           },
         });
-        drawShapes(g, sh, 4);
-        return;
-      }
-      const bw = w / 3.1;
-      const boxes: [number, number, string][] = [[-w / 2 + 8, 32, ex.color2], [-w / 2 + 12 + bw, 40, '#4aa8ff'], [-w / 2 + 16 + bw * 2, 24, ex.color3]];
-      for (const [x, hh, col] of boxes) {
-        if (x + bw - 4 > w / 2 + 2) continue;
-        sh.push({ path: (c) => rrectPath(c, x, top - 8 - hh, bw - 6, hh, 5), fill: col, detail: (c) => { c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(x + (bw - 6) / 2 - 3, top - 8 - hh, 6, hh); c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(x, top - 8 - 6, bw - 6, 6); } });
       }
       drawShapes(g, sh, 4);
     },
@@ -366,12 +402,12 @@ export function rackSide(w: number, legH: number, compact = false): PartSpec {
 export function rocketSide(): PartSpec {
   const ex = EXTRA['extra.rocket'];
   return {
-    key: 'ws:r:rocket', w: 150, h: 90, ox: 138, oy: 45,
+    key: 'ws:r:rocket', w: 150, h: 120, ox: 138, oy: 60,
     draw: (g) => {
       const sh: Shape[] = [];
       sh.push({ path: (c) => { c.moveTo(-96, -30); c.lineTo(-114, -52); c.lineTo(-70, -26); c.closePath(); }, fill: ex.color2 });
       sh.push({ path: (c) => { c.moveTo(-96, 30); c.lineTo(-114, 52); c.lineTo(-70, 26); c.closePath(); }, fill: ex.color2 });
-      sh.push({ path: (c) => rrectPath(c, -104, -14, 14, 28, 4), fill: '#4b4f63' });
+      sh.push({ path: (c) => rrectPath(c, ROCKET_NOZZLE_X, -14, 14, 28, 4), fill: '#4b4f63' });
       sh.push({ path: (c) => { c.moveTo(-96, -24); c.lineTo(-34, -26); c.quadraticCurveTo(-4, -22, 4, 0); c.quadraticCurveTo(-4, 22, -34, 26); c.lineTo(-96, 24); c.closePath(); }, fill: (c) => { const gr = c.createLinearGradient(0, -26, 0, 26); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#bcc3d2'); c.fillStyle = gr; c.fill(); }, detail: (c) => { c.fillStyle = ex.color2; c.fillRect(-60, -30, 14, 60); c.beginPath(); c.moveTo(-26, -30); c.quadraticCurveTo(-4, -22, 6, 0); c.quadraticCurveTo(-4, 22, -26, 30); c.closePath(); c.fill(); } });
       drawShapes(g, sh, 4.5);
       g.fillStyle = '#7ad7ff'; g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.beginPath(); circle(g, -76, 0, 8); g.fill(); g.stroke();
