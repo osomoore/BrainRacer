@@ -35,8 +35,9 @@ Open:
 - **#10** Listen: loop seams in the title, race, farm and dino music, and in the siren and engine loops.
 - **#12** Next performance work (from the 6x-throttle profile): enable Matter sleeping plus off-screen NPC update skipping (about +10-15%, needs wake-on-contact checks); a render-resolution option (unmeasured, depends on the box GPU); trim the display list per camera. Matter iteration counts gave no gain.
 
-### Music (see [MUSIC_TODO.md](MUSIC_TODO.md))
-- **#66** Music loudness differs by up to 11 dB between worlds, the eight newest worlds get a muffling low-pass mix (only them), their songs are 12–18 s template loops, and City's song is 2–4× denser than the rest. Measurements and fixes are in `docs/MUSIC_TODO.md`.
+### Music
+
+- **#66** Loudness normalization, the race music mix, and the new arrangements are shipped. See [current music measurements](STATUS.md#race-music-2026-11-22). The earlier measurements are in [MUSIC_TODO.md](MUSIC_TODO.md).
 
 ### Admin (hidden settings) menu rework (not started)
 - **#63** Too many items on screen; columns overwrite each other's screen space. Re-layout or paginate so nothing overlaps.
