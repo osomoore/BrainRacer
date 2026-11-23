@@ -11,6 +11,7 @@ import { ParticlePool } from '../fx/ParticlePool';
 import { NpcVehicle } from '../entities/NpcVehicle';
 import { undergroundPlayerSpec } from '../entities/undergroundVehicles';
 import { STEP_HZ } from '../entities/Vehicle';
+import { keyboardTransferLabel } from '../input/buttonPrompts';
 
 const T = VEHICLE_CONDITION;
 
@@ -25,10 +26,14 @@ interface Condition {
   ride: { own: NpcVehicle | null; ownInNpcs: boolean } | null;
   marker: Phaser.GameObjects.Rectangle;
   rider: Phaser.GameObjects.Arc;
+  /** Keyboard players only: key-cap shown over the car while a car / the tamed boss is in reach. */
+  keyHint: Phaser.GameObjects.Image | null;
+  hintAt: number;
   question: boolean;
   recoverAt: number;
   emitAt: number;
   lastResetTap: number;
+  hintNear?: boolean;
 }
 
 interface BoardingTarget {
@@ -74,9 +79,17 @@ export class VehicleConditionSystem implements GameSystem {
         .setStrokeStyle(3, 0xffffff).setDepth(DEPTH.worldUi).setVisible(false)
         .setName(`boarding-rider-${car.player}`);
       ctx.camera.showOnlyTo(marker, car.player);
+      const device = ctx.settings?.players?.[car.player]?.device;
+      let keyHint: Phaser.GameObjects.Image | null = null;
+      if (device?.type === 'keyboard') {
+        const label = keyboardTransferLabel(device.layout);
+        keyHint = ctx.scene.add.image(0, 0, this.keyCapTexture(label)).setDepth(DEPTH.worldUi + 1).setVisible(false)
+          .setName(`transfer-key-${car.player}`);
+        ctx.camera.showOnlyTo(keyHint, car.player);
+      }
       return {
         starter: { spec: car.spec, texture: car.chassis.texture.key, angle: car.angle },
-        damage: 0, lastHit: -Infinity, aim: null, hop: null, ride: null, marker, rider,
+        damage: 0, lastHit: -Infinity, aim: null, hop: null, ride: null, marker, rider, keyHint, hintAt: 0,
         question: false, recoverAt: Infinity, emitAt: 0, lastResetTap: -Infinity,
       };
     });
@@ -117,12 +130,13 @@ export class VehicleConditionSystem implements GameSystem {
     if (!this.active || ctx.questionBreak) return;
     for (const car of ctx.players) {
       const state = this.states[car.player];
-      if (state.hop) { this.updateHop(car, state); continue; }
-      if (state.ride) continue; // riding the dino: no taps, damage or recovery until the ride ends
+      if (state.hop) { state.keyHint?.setVisible(false); this.updateHop(car, state); continue; }
+      if (state.ride) { state.keyHint?.setVisible(false); continue; } // riding the dino: no taps, damage or recovery until the ride ends
       const input = services.input.get(car.player);
       if (!state.question && input.resetCar) this.resetTap(car, state);
       if (!state.question && input.transfer) this.tap(car, state);
       if (state.hop) continue;
+      if (state.keyHint) this.updateKeyHint(car, state);
       if (state.aim) this.updateAim(car, state);
       if (ctx.elapsedSec >= state.recoverAt) this.recover(car, state);
       if (state.damage >= T.smokeDamage && ctx.elapsedSec >= state.emitAt) {
@@ -130,6 +144,43 @@ export class VehicleConditionSystem implements GameSystem {
         this.exhaust(car, state.damage >= T.fireDamage && !car.disabled);
       }
     }
+  }
+
+  /** Bake the key-cap once per label (rule 15: no live Graphics). Text is drawn big; the image is scaled to the on-screen size. */
+  private keyCapTexture(label: string): string {
+    const key = `hud:keycap:${label}`;
+    const textures = this.ctx.scene.textures;
+    if (textures.exists(key)) return key;
+    const size = 128;
+    const tex = textures.createCanvas(key, size, size);
+    const c = tex!.getContext();
+    c.fillStyle = '#ffffff'; c.strokeStyle = '#1b2440'; c.lineWidth = 10;
+    c.beginPath(); c.roundRect(8, 8, size - 16, size - 16, 24); c.fill(); c.stroke();
+    c.fillStyle = '#1b2440'; c.font = 'bold 84px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(label, size / 2, size / 2 + 6);
+    tex!.refresh();
+    return key;
+  }
+
+  /** Keyboard players: show the transfer key over the car while a car or the tamed boss is within reach (throttled scan). */
+  private updateKeyHint(car: IPlayerCar, state: Condition): void {
+    const hint = state.keyHint!;
+    const now = this.ctx.elapsedSec;
+    if (state.question || car.airborne) { hint.setVisible(false); return; }
+    if (now >= state.hintAt) {
+      state.hintAt = now + T.keyHintScanSec;
+      state.hintNear = this.nearestTarget(car) !== null;
+    }
+    if (!state.hintNear) { hint.setVisible(false); return; }
+    const cam = this.ctx.camera, p = car.player;
+    const a = cam.worldToScreen(p, car.x, car.y), b = cam.worldToScreen(p, car.x + 100, car.y);
+    const pxPerWorld = Math.max(0.05, Math.hypot(b.x - a.x, b.y - a.y) / 100);
+    const rot = cam.viewRotation(p);
+    const lift = T.keyHintLiftPx / pxPerWorld;
+    hint.setPosition(car.x - Math.sin(rot) * lift, car.y - Math.cos(rot) * lift)
+      .setRotation(-rot)
+      .setScale(T.keyHintSizePx / pxPerWorld / 128 * (1 + 0.08 * Math.sin(now * Math.PI * 2 * T.transferFlashHz * 0.5)))
+      .setVisible(true);
   }
 
   private damage(player: PlayerId, impact: number): void {
