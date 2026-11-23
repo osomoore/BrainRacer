@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adventure Workshop Art Review</title>
+<style>
+  :root { color-scheme: dark; font: 16px system-ui,sans-serif; color:#f1f4ff; background:#171c28; }
+  * { box-sizing:border-box; }
+  body { margin:0 auto; max-width:1240px; padding:clamp(16px,3vw,36px); }
+  h1 { margin:0 0 8px; font-size:clamp(26px,4vw,40px); }
+  h2 { margin:0; font-size:1.6rem; }
+  p { line-height:1.5; }
+  a { color:#9fd8ff; text-underline-offset:3px; }
+  button,select,textarea { font:inherit; color:inherit; }
+  button,select { min-height:42px; padding:8px 12px; border:1px solid #545f78; border-radius:8px; background:#282f42; }
+  button { cursor:pointer; }
+  button:hover { background:#3b4763; }
+  :focus-visible { outline:3px solid #ffd47c; outline-offset:3px; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:24px 0 16px; }
+  .bar .field { display:grid; gap:4px; }
+  .bar output { margin-left:auto; color:#cad4ea; }
+  .layout { display:grid; grid-template-columns:minmax(185px,230px) minmax(0,1fr); gap:16px; }
+  nav { display:grid; align-content:start; gap:6px; }
+  nav button { text-align:left; display:flex; justify-content:space-between; gap:6px; }
+  nav button[aria-current="true"] { background:#273e59; border-color:#9fd8ff; }
+  main { background:#222938; border:1px solid #424d63; border-radius:12px; padding:clamp(12px,2vw,24px); }
+  .variant-head { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline; justify-content:space-between; }
+  .views { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:10px; margin:14px 0 20px; }
+  figure { margin:0; }
+  figcaption { margin-bottom:5px; color:#dce7fb; }
+  .crop { position:relative; display:block; overflow:hidden; background:#4bbfee; border-radius:8px; }
+  .crop img { display:block; position:absolute; max-width:none; height:auto; }
+  fieldset { margin:0 0 16px; padding:0; border:0; }
+  legend { font-weight:650; margin-bottom:8px; }
+  .ratings { display:flex; flex-wrap:wrap; gap:6px; }
+  .ratings label { display:flex; align-items:center; gap:4px; background:#30394e; border:1px solid #525f7c; border-radius:8px; padding:8px 10px; cursor:pointer; }
+  .ratings label:has(:checked) { border-color:#ffd47c; color:#ffdfa1; }
+  textarea { display:block; background:#151a26; border:1px solid #626f8b; border-radius:8px; padding:12px; width:100%; resize:vertical; }
+  .actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .hint { color:#c2cde4; font-size:.92rem; }
+  #message { min-height:1.5em; }
+  [hidden] { display:none !important; }
+  @media (max-width:670px) { .layout { grid-template-columns:1fr; } nav { display:flex; overflow:auto; padding:4px; } nav button { flex:none; } .bar output { margin:0; } }
+</style>
+<script src="shots/review-catalog.js" defer></script>
+<script src="grade.js" defer></script>
+</head>
+<body>
+<h1>Adventure Workshop Art Review</h1>
+<p>Grade individual dino and car parts, or leave a note. Feedback saves in this browser and can be copied back into chat.</p>
+<div class="bar">
+  <div class="field"><label for="workshop">Workshop</label><select id="workshop"></select></div>
+  <div class="field"><label for="aspect">Part</label><select id="aspect"></select></div>
+  <output id="progress"></output>
+</div>
+<div class="layout">
+  <nav id="variants" aria-label="Part variants"></nav>
+  <main id="editor" hidden>
+    <div class="variant-head"><h2 id="title"></h2><a id="sheet" target="_blank" rel="noopener">Open full parts sheet</a></div>
+    <div id="views" class="views"></div>
+    <fieldset>
+      <legend>Grade</legend>
+      <div class="ratings">
+        <label><input type="radio" name="grade" value="1">1 · Redo</label>
+        <label><input type="radio" name="grade" value="2">2 · Needs work</label>
+        <label><input type="radio" name="grade" value="3">3 · Almost</label>
+        <label><input type="radio" name="grade" value="4">4 · Good</label>
+        <label><input type="radio" name="grade" value="5">5 · Keep</label>
+      </div>
+    </fieldset>
+    <label for="comment"><strong>Comment</strong></label>
+    <textarea id="comment" rows="3"></textarea>
+    <div class="actions">
+      <button id="next" type="button">Next unreviewed</button>
+      <button id="clear" type="button">Clear this review</button>
+      <button id="copy" type="button">Copy all feedback</button>
+      <button id="download" type="button">Download JSON</button>
+    </div>
+    <p id="message" class="hint" role="status"></p>
+    <textarea id="manual-copy" aria-label="Feedback to copy" rows="6" readonly hidden></textarea>
+  </main>
+</div>
+</body>
+</html>
+
+

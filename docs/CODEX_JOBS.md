@@ -49,7 +49,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 
 ---
 
-## C1 — Rescue and commit the art reviewer · `OPEN`
+## C1 — Rescue and commit the art reviewer · `DONE (codex/c1)`
 - **Why:** the grading tool lives in `.worktrees/ws-artpolish/test-results/workshop-review/` (gitignored; Playwright
   wipes `test-results/` on every e2e run). Backup copy: `C:\Users\osomo\AppData\Local\Temp\claude\art-review-backup\`.
 - **Scope:** new `tools/art-review/**`, one npm script `"art:review"` in `package.json`.
@@ -140,4 +140,4 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 ---
 
 ## Done
-- (none yet)
+- C1 · `DONE (codex/c1)`
