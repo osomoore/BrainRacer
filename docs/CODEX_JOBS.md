@@ -89,7 +89,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - Pickup Truck: rear bed edge lower.
 - **Done when:** every item above is visibly fixed in `WorkshopParts` side + top; no part covers lights/windows wrongly.
 
-## C4 — Car shapes · `OPEN`
+## C4 — Car shapes · `DONE (codex/c3-c4)`
 - **Scope:** `apps/workshop/art/race/**`.
 - **Do:** Sports Car: brand-new low, long-hood supercar profile (think Porsche / Ferrari silhouettes, cartoon-ified).
   Round and Sleek shapes: the cabin/greenhouse is far too small — make it larger and blend smoothly into the lower

@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
 import { darken, lighten } from '../geom';
 import { BUMPER, ENGINE, EXTRA, PAINT, RACE_WINDOW, RACE_WINDOW_DARK, WHEEL } from './looks';
-import { type RaceLooks, topOutline } from './geometry';
+import { bodyHalfWidth, raceGeom, type RaceLooks, topOutline } from './geometry';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -29,28 +29,39 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
         }
         c.fill();
       };
-      const [c0, c1] = b.cab;
-      const cw = b.hw * (b.kind === 'sports' ? 0.62 : 0.76);
+      const { cabin, cabinTopRange } = raceGeom(l);
+      const c0 = cabin[0].x, c1 = cabin[3].x;
+      const widthAt = (x: number) => bodyHalfWidth(b, s, (x + b.len / 2) / b.len);
+      const cw = b.hw * ((b.kind === 'sports' ? 0.66 : 0.77) + (s.rc >= 20 ? 0.05 : 0));
+      const cabinWidthAt = (x: number) => Math.max(5, Math.min(cw, widthAt(x) - 5));
       const sh: Shape[] = [{ path: (c) => roundedPolyPath(c, out, 3 + s.r * 0.4), fill }];
       if (b.bedH > 0) sh.push({ path: (c) => rrectPath(c, -b.len / 2 + 8, -b.hw * 0.78, c0 + b.len / 2 - 14, b.hw * 1.56, 6), fill: '#2f3140', noStroke: true, detail: (c) => { c.fillStyle = '#c98a4b'; c.fillRect(-b.len / 2 + 30, -22, 40, 44); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(-b.len / 2 + 48, -22, 5, 44); } });
       drawShapes(g, sh, OL);
       // cabin: rear window, roof, windshield
-      const fs = s.slantF * b.slantF * b.cabH * 0.8, rs = s.slantR * b.slantR * b.cabH * 0.8;
-      const roofX0 = c0 + rs, roofX1 = c1 - fs;
+      const [roofX0, roofX1] = cabinTopRange;
       const glass = (pts: { x: number; y: number }[]) => {
         const gr = g.createLinearGradient(0, -cw, 0, cw);
         gr.addColorStop(0, RACE_WINDOW); gr.addColorStop(1, RACE_WINDOW_DARK);
         g.fillStyle = gr; g.beginPath(); polyPath(g, pts); g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.stroke();
       };
-      const cab: Shape[] = [{ path: (c) => rrectPath(c, c0, -cw, c1 - c0, cw * 2, 8 + s.rc * 0.3), fill: lighten(paint.bands ? '#ffd21f' : paint.main, 0.1) }];
-      drawShapes(g, cab, 4);
-      glass([{ x: roofX1, y: -cw + 4 }, { x: c1 - 3, y: -cw * 0.82 }, { x: c1 - 3, y: cw * 0.82 }, { x: roofX1, y: cw - 4 }]);
-      if (rs > 2 || b.kind !== 'pickup') glass([{ x: c0 + 3, y: -cw * 0.8 }, { x: roofX0, y: -cw + 4 }, { x: roofX0, y: cw - 4 }, { x: c0 + 3, y: cw * 0.8 }]);
+      const roofEdge = [c0, roofX0, roofX1, c1].map((x) => ({ x, y: -cabinWidthAt(x) }));
+      drawShapes(g, [{
+        path: (c) => roundedPolyPath(c, [...roofEdge, ...roofEdge.map(({ x, y }) => ({ x, y: -y })).reverse()], 7 + s.rc * 0.42),
+        fill: lighten(paint.bands ? '#ffd21f' : paint.main, 0.1),
+      }], 4);
+      const windows = (a: number, z: number) => {
+        const aw = Math.max(2, cabinWidthAt(a) - 5), zw = Math.max(2, cabinWidthAt(z) - 5);
+        glass([{ x: a, y: -aw }, { x: z, y: -zw }, { x: z, y: zw }, { x: a, y: aw }]);
+      };
+      if (c1 - roofX1 > 7) windows(roofX1, c1 - 4);
+      if (roofX0 - c0 > 7) windows(c0 + 4, roofX0);
       // lights
       g.fillStyle = '#fff7b0'; g.strokeStyle = OUTLINE; g.lineWidth = 3;
-      for (const sy of [-1, 1]) { g.beginPath(); ellipsePath(g, b.len / 2 - 10, sy * b.hw * 0.55, 6, 8); g.fill(); g.stroke(); }
+      const nose = b.len / 2 - 14, noseY = Math.min(b.hw * 0.55, Math.max(8, widthAt(nose) - 10));
+      for (const sy of [-1, 1]) { g.beginPath(); ellipsePath(g, nose, sy * noseY, 6, 8); g.fill(); g.stroke(); }
       g.fillStyle = '#ff3b3b';
-      for (const sy of [-1, 1]) { g.beginPath(); rrectPath(g, -b.len / 2 + 2, sy * b.hw * 0.55 - 7, 7, 14, 3); g.fill(); g.stroke(); }
+      const tail = -b.len / 2 + 11, tailY = Math.min(b.hw * 0.55, Math.max(8, widthAt(tail) - 10));
+      for (const sy of [-1, 1]) { g.beginPath(); rrectPath(g, tail - 3, sy * tailY - 7, 7, 14, 3); g.fill(); g.stroke(); }
       if (b.spare) { g.fillStyle = '#2c2c3a'; g.beginPath(); rrectPath(g, -b.len / 2 - 14, -9, 18, 18, 5); g.fill(); g.stroke(); }
     },
   };
@@ -180,14 +191,21 @@ export function floatTop(len: number): PartSpec {
   };
 }
 
-export function spoilerTop(hw: number): PartSpec {
-  const ex = EXTRA['extra.spoiler'];
+export function spoilerTop(hw: number, paintId = 'paint.blue'): PartSpec {
+  const paint = PAINT[paintId] ?? PAINT['paint.blue'];
   const span = hw * 2 + 10;
   return {
-    key: `ws:r:tspoiler:${hw}`, w: 70, h: span + 30, ox: 35, oy: (span + 30) / 2,
+    key: `ws:r:tspoiler:${hw}:${paintId}`, w: 70, h: span + 30, ox: 35, oy: (span + 30) / 2,
     draw: (g) => {
-      const sh: Shape[] = [{ path: (c) => rrectPath(c, -14, -span / 2, 28, span, 8), fill: ex.color }];
-      for (const y of [-span / 2, span / 2 - 8]) sh.push({ path: (c) => rrectPath(c, -22, y, 44, 8, 3), fill: ex.color2 });
+      const edge = span / 2;
+      const sh: Shape[] = [{
+        path: (c) => roundedPolyPath(c, [
+          { x: -22, y: -edge }, { x: 16, y: -edge + 2 }, { x: 13, y: 0 },
+          { x: 16, y: edge - 2 }, { x: -22, y: edge }, { x: -18, y: 0 },
+        ], 6),
+        fill: paint.main,
+      }];
+      for (const y of [-edge + 1, edge - 10]) sh.push({ path: (c) => rrectPath(c, -23, y, 37, 9, 3), fill: paint.light });
       drawShapes(g, sh, 4.5);
     },
   };
