@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, quad } from '../geom';
 import { EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { drawFrill, drawHeadFeathers, drawHeadJoint, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, type SkinSpec, skinFill, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -77,7 +77,7 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
         c.quadraticCurveTo(-16, 0, -4, -hw * 0.81);
         c.closePath();
       };
-      drawHeadJoint(g, skull, skinFill(sk, { x0: -16, y0: -hw, x1: len, y1: hw }, 3), sk.look.main, -8, 0, h.neckLen > 120 ? 19 : 29);
+      drawHeadJoint(g, skull, skinFill(sk, { x0: -16, y0: -hw, x1: len, y1: hw }, 3), sk.look.main, -8, 0, h.neckLen > 120 ? 19 : 29, true);
       if (h.crest) drawShapes(g, [{ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: EXTRA['extra.frill'].c1 }], OL);
       if (beak) drawShapes(g, [{
         path: (c) => {
@@ -115,7 +115,7 @@ export function legTop(l: LegLook, claw: ClawLook, sk: SkinSpec, legId: string, 
     draw: (g) => {
       const fill = skinFill(sk, { x0: -foot / 2, y0: -th, x1: foot, y1: th }, 7);
       const sh: Shape[] = [];
-      if (l.kind === 'flipper') sh.push({ path: (c) => ellipsePath(c, -4, 0, foot * 0.55, th * 0.5, 0.2), fill: sk.look.light });
+      if (l.kind === 'flipper') sh.push(flipperBlade(sk, { x: -29, y: 0, angle: 0.14, length: foot * 0.96, width: 38 }));
       else sh.push({ path: (c) => ellipsePath(c, foot * 0.12, 0, foot * 0.5, th * 0.55), fill });
       drawShapes(g, sh, 4.5);
       if (l.kind !== 'flipper') {

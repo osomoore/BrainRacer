@@ -59,7 +59,7 @@ export function skeleton(l: DinoLooks, armLen: number): Skeleton {
       { x: -rx * 0.48, y: cy + ry * 0.28, len: kickLength, far: true, front: false, rot: 1.2 },
     );
     neckAng = h.neckAngCrawl * 0.5 - 0.05; headRot = 0.1;
-    const ap = rotPt({ x: rx * 0.55, y: ry * 0.55 }, rot);
+    const ap = rotPt({ x: rx * 0.55, y: ry * 0.39 }, rot);
     arms.push({ x: cx + ap.x, y: cy + ap.y, far: false, rot: 1.06 }, { x: cx + ap.x + 6, y: cy + ap.y - 3, far: true, rot: 0.75 });
   } else {
     rot = -0.03;

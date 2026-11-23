@@ -19,7 +19,7 @@ interface LimbRef { c: C; slot: { y: number; far: boolean; front: boolean; rot: 
 
 export class DinoRig extends BaseRig {
   private bodyG!: C; private torsoC!: C; private tailC!: C; private headC!: C; private jaw!: C;
-  private mouthInterior: Img | null = null;
+  private throat: Img | null = null;
   private jawRest = 0;
   private legs: LimbRef[] = [];
   private arms: LimbRef[] = [];
@@ -110,7 +110,7 @@ export class DinoRig extends BaseRig {
     const teeth = TEETH[m.teeth] ?? TEETH['teeth.flat'];
     const beak = teeth.kind === 'beak';
     this.jawRest = beak ? 0.11 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
-    this.mouthInterior = this.img(this.headC, S.mouthInterior(h, beak), []);
+    this.throat = this.img(this.headC, S.throatSide(h), []);
     this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.jaw = this.mk(this.headC, 0, 0);
     this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth), ['teeth']);
@@ -244,10 +244,10 @@ export class DinoRig extends BaseRig {
     if (!side) this.tailC.rotation = S0.wag * 0.35 + Math.sin(S0.gait) * 0.15 * amp;
     const headPose = side ? k.headRot - this.torsoC.rotation : 0;
     this.headC.rotation = headPose + S0.sway * 0.02 + S0.nod + S0.tilt * 1.3 - S0.crouch * 0.1 + Math.sin(S0.gait * 2) * 0.06 * amp;
-    if (side && this.mouthInterior) {
-      const angle = Math.min(0.88, this.jawRest + S0.jaw);
+    if (side && this.throat) {
+      const angle = Math.min(0.57, this.jawRest + S0.jaw * 0.29);
       this.jaw.rotation = angle;
-      this.mouthInterior.setRotation(angle / 2).setScale(Math.cos(angle / 2) / Q, Math.sin(angle / 2) / Q);
+      this.throat.setRotation(angle / 2).setScale(Math.cos(angle / 2) / Q, Math.sin(angle / 2) / Q);
     }
   }
 }

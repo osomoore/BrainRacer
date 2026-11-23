@@ -17,7 +17,7 @@ export function skinSpec(m: Model): SkinSpec {
 }
 
 /** Keep the head's silhouette outside the neck and soften the line where the two overlap. */
-export function drawHeadJoint(g: G, path: Shape['path'], fill: (g: G) => void, color: string, x: number, y: number, radius: number): void {
+export function drawHeadJoint(g: G, path: Shape['path'], fill: (g: G) => void, color: string, x: number, y: number, radius: number, blendNeck = false): void {
   const seam = g.createRadialGradient(x, y, radius * 0.25, x, y, radius);
   seam.addColorStop(0, `${color}00`);
   seam.addColorStop(0.68, `${color}55`);
@@ -35,6 +35,17 @@ export function drawHeadJoint(g: G, path: Shape['path'], fill: (g: G) => void, c
   shade.addColorStop(1, `${color}00`);
   g.fillStyle = shade;
   g.fillRect(x - radius * 1.3, y - radius * 1.3, radius * 2.6, radius * 2.6);
+  if (blendNeck) {
+    // The neck cap already fills this area. Let its color show through at the cheek.
+    const overlap = radius * 0.82;
+    const feather = g.createRadialGradient(x, y, 0, x, y, overlap);
+    feather.addColorStop(0, '#000c');
+    feather.addColorStop(0.42, '#0008');
+    feather.addColorStop(1, '#0000');
+    g.globalCompositeOperation = 'destination-out';
+    g.fillStyle = feather;
+    g.fillRect(x - overlap, y - overlap, overlap * 2, overlap * 2);
+  }
   g.restore();
 }
 
@@ -48,6 +59,58 @@ export function drawHeadFeathers(g: G, look: ExtraLook, x: number, y: number, an
       fill,
     };
   }), 4);
+}
+
+/** A tapered paddle with the same leading edge and webbing in both projections. */
+export function flipperBlade(sk: SkinSpec, blade: { x: number; y: number; angle: number; length: number; width: number; far?: boolean }): Shape {
+  const { x, y, angle, length, width, far } = blade;
+  const orient = (g: G) => {
+    g.translate(x, y);
+    g.rotate(angle);
+    g.scale(length, width);
+  };
+  return {
+    path: (g) => {
+      g.save();
+      orient(g);
+      g.moveTo(0, -0.24);
+      g.bezierCurveTo(0.33, -0.56, 0.8, -0.53, 0.97, -0.23);
+      g.bezierCurveTo(1.1, 0, 0.88, 0.46, 0.67, 0.52);
+      g.bezierCurveTo(0.42, 0.61, 0.24, 0.33, 0, 0.23);
+      g.quadraticCurveTo(-0.11, 0, 0, -0.24);
+      g.closePath();
+      g.restore();
+    },
+    fill: (g) => {
+      g.save();
+      orient(g);
+      const wash = g.createLinearGradient(0, 0.3, 0.78, -0.39);
+      wash.addColorStop(0, sk.look.dark);
+      wash.addColorStop(0.55, sk.look.main);
+      wash.addColorStop(1, sk.look.light);
+      g.fillStyle = wash;
+      g.fillRect(-0.2, -0.65, 1.4, 1.3);
+      if (far) {
+        g.fillStyle = 'rgba(30,0,40,0.22)';
+        g.fillRect(-0.2, -0.65, 1.4, 1.3);
+      }
+      g.restore();
+    },
+    detail: (g) => {
+      g.save();
+      orient(g);
+      g.strokeStyle = sk.look.dark;
+      g.globalAlpha = 0.58;
+      g.lineWidth = 0.041;
+      g.beginPath();
+      g.moveTo(0.15, 0.01);
+      g.quadraticCurveTo(0.53, 0.22, 0.78, 0.13);
+      g.moveTo(0.42, 0.14);
+      g.quadraticCurveTo(0.61, 0.29, 0.72, 0.33);
+      g.stroke();
+      g.restore();
+    },
+  };
 }
 
 /** The fan's scalloped rim and softer inner membrane in either view. */
