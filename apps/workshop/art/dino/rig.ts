@@ -113,10 +113,11 @@ export class DinoRig extends BaseRig {
     if (sk.ex?.kind === 'feathers') this.img(this.headC, S.featherHeadSide(h, sk), ['extra']);
     const teeth = TEETH[m.teeth] ?? TEETH['teeth.flat'];
     const beak = teeth.kind === 'beak';
-    this.jawRest = beak ? 0.11 : teeth.kind === 'mega' ? S.MEGA_JAW_REST : Math.min(0.36, 0.18 + teeth.h / h.len);
-    this.throat = this.img(this.headC, S.throatSide(h), []);
-    this.jaw = this.mk(this.headC, 0, 0);
-    this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth, this.beakLook), ['teeth']);
+    const jawPivot = beak ? h.len * this.beakLook.base : 0;
+    this.jawRest = S.jawRestAngle(h, teeth);
+    this.throat = this.img(this.headC, S.throatSide(h, beak ? this.beakLook : undefined), [], jawPivot);
+    this.jaw = this.mk(this.headC, jawPivot, 0);
+    this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth, this.beakLook), ['teeth'], -jawPivot);
     this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.img(this.headC, S.headSide(h, sk, m.head, m.teeth, this.beakLook), ['head', 'color']);
     if (beak) P.teeth.push(this.headC);

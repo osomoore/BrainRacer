@@ -8,9 +8,13 @@ import type { Skeleton } from './skeleton';
 
 type G = CanvasRenderingContext2D;
 const TEETH_FRONT = 0.96;
-const MEGA_TEETH_BACK = 0.35;
-export const MEGA_JAW_REST = 0.34;
+const MEGA_TEETH_BACK = 0.41;
+const MEGA_JAW_REST = 0.34;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
+
+export function jawRestAngle(h: HeadLook, t: TeethLook): number {
+  return t.kind === 'beak' ? 0.11 : t.kind === 'mega' ? MEGA_JAW_REST : Math.min(0.36, 0.18 + t.h / h.len);
+}
 
 // ---------------------------------------------------------------- claws / hands
 
@@ -212,14 +216,16 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
   };
 }
 
-function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 | -1): void {
+function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 | -1, lipSlope?: number): void {
   const pitch = (x1 - x0) / t.n;
   for (let i = 0; i < t.n; i++) {
     const cx = x0 + (i + 0.5) * pitch;
     const w = Math.min(t.w, pitch * (t.kind === 'mega' ? 0.64 : 0.78));
-    const tall = t.kind === 'mega'
+    const height = t.kind === 'mega'
       ? Math.min(t.h, cx * (dir === 1 ? 0.33 : 0.22)) * (dir === 1 && i % 2 ? 0.78 : 1)
       : t.h * (t.kind === 'sharp' && i < 3 ? 0.48 + i * 0.18 : 1);
+    // The resting lower lip rises toward the hinge. Leave room for both outlines.
+    const tall = lipSlope === undefined ? height : Math.min(height, Math.max(3, (cx - w / 2) * lipSlope - y - 4));
     drawShapes(g, [{
       path: (c) => {
         if (t.kind === 'flat') rrectPath(c, cx - w / 2, dir === 1 ? y - 2 : y - tall + 2, w, tall, 3);
@@ -241,15 +247,17 @@ export function teethSide(h: HeadLook, teethId: string): PartSpec | null {
   const t = TEETH[teethId] ?? TEETH['teeth.flat'];
   if (t.kind === 'beak') return null;
   const W = h.len + 80, H = t.h + 50;
+  const back = t.kind === 'mega' ? MEGA_TEETH_BACK : t.kind === 'sharp' ? 0.31 : 0.36;
+  const lipSlope = t.kind === 'mega' ? undefined : Math.tan(jawRestAngle(h, t));
   return {
     key: `ws:d:teeth:${teethId}:${h.len}`, w: W, h: H, ox: 40, oy: 20,
-    draw: (g) => teethRow(g, t, h.len * (t.kind === 'sharp' ? 0.18 : MEGA_TEETH_BACK), h.len * TEETH_FRONT, 2, 1),
+    draw: (g) => teethRow(g, t, h.len * back, h.len * TEETH_FRONT, 2, 1, lipSlope),
   };
 }
 
 /** The back of the mouth, with clear space in front of it when the jaw opens. */
-export function throatSide(h: HeadLook): PartSpec {
-  const len = h.len * 0.35;
+export function throatSide(h: HeadLook, beakLook?: BeakLook): PartSpec {
+  const len = h.len * (beakLook ? (beakLook.reach - beakLook.base) * 0.55 : 0.35);
   return {
     key: `ws:d:throat:${h.len}`, w: len + 8, h: len * 2 + 8, ox: 4, oy: len + 4,
     draw: (g) => {
@@ -273,14 +281,14 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
     key: `ws:d:jaw:${headId}:${teethId}:${sk.key}:${beak ? beakLook.name : ''}`, w: W, h: H, ox: 60, oy: t.h + 40,
     draw: (g) => {
       const { len, jaw } = h;
-      const hinge = len * 0.08;
+      const hinge = len * (beak ? beakLook.base : 0.08);
       const chin = beak ? len * beakLook.reach * (0.97 - beakLook.hook * 0.24) : len * 0.97;
       const depth = beak ? jaw * 0.38 + h.top * beakLook.lower * 0.48 : jaw * 0.68;
       const lip: Shape['path'] = (c) => {
         c.moveTo(hinge, -3);
-        c.quadraticCurveTo(len * 0.58, 1, chin, -1);
+        c.quadraticCurveTo(beak ? (hinge + chin) / 2 : len * 0.58, 1, chin, -1);
         c.quadraticCurveTo(chin + 1, depth * 0.64, chin * 0.74, depth);
-        c.quadraticCurveTo(len * 0.28, jaw * 0.59, hinge, jaw * 0.28);
+        c.quadraticCurveTo(beak ? hinge + (chin - hinge) * 0.20 : len * 0.28, jaw * 0.59, hinge, jaw * 0.28);
         c.quadraticCurveTo(hinge - 7, jaw * 0.06, hinge, -3);
         c.closePath();
       };
@@ -312,7 +320,7 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
         underside.addColorStop(0.44, sk.look.light);
         underside.addColorStop(1, sk.look.belly);
         c.fillStyle = underside;
-        c.fillRect(-12, -10, len + 30, jaw + 20);
+        c.fillRect(-12, -10, W, jaw + 20);
       }, sk.look.main, hinge, 1, Math.min(27, len * 0.22));
       if (beak) {
         g.save();
