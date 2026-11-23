@@ -4,6 +4,7 @@
  */
 import type Phaser from 'phaser';
 import { type Pt, darken } from './geom';
+import { applyPainted, paintedImage, watchPainted } from './paint/painted';
 
 export const Q = 1.5;
 export const OUTLINE = '#1b1b3a';
@@ -26,6 +27,8 @@ export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   if (scene.textures.exists(spec.key)) return;
   const tex = scene.textures.createCanvas(spec.key, Math.ceil(spec.w * Q), Math.ceil(spec.h * Q));
   if (!tex) return;
+  const painted = paintedImage(spec.key);
+  if (painted && applyPainted(tex, painted)) return; // ComfyUI-painted art for this key (art/paint)
   const g = tex.getContext();
   g.save();
   g.scale(Q, Q);
@@ -35,6 +38,7 @@ export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   spec.draw(g);
   g.restore();
   tex.refresh();
+  watchPainted(spec.key, tex);
 }
 
 /** Bake (if needed) and add an Image whose origin is the part origin, at design scale. */

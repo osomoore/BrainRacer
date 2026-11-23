@@ -9,3 +9,6 @@ test-results/
 playwright-report/
 .worktrees/
 .vite-cache/
+
+# ComfyUI art pipeline: exported shape PNGs (regenerate with npm run art:shapes)
+art-src/
