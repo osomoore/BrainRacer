@@ -72,8 +72,6 @@ export class RaceRig extends BaseRig {
     const { body: b, shape: s } = L;
     void s;
     const P = this.parts;
-    // drive shaft (4x4)
-    if (m.gears === 'gears.fourByFour') add('gears', partImage(sc, S.shaftSide(geo.frontAxle - geo.rearAxle)), 0, geo.hubY);
     // rocket (behind body)
     if (m.extra === 'extra.rocket') {
       const y = geo.bottom - L.body.chH * 0.45;
@@ -92,7 +90,6 @@ export class RaceRig extends BaseRig {
     P.paint.push(...P.body); P.shape.push(...P.body);
     const ex = S.exhaustSide(m.engine);
     if (ex) { const pipe = partImage(sc, ex).setPosition(geo.rear + 4, geo.bottom + 3); this.bumperG.add(pipe); P.engine.push(pipe); }
-    add('gears', partImage(sc, S.gearSide(m.gears)), 0, midY + 2, false, 0.8);
     // extras on top
     const [r0, r1] = geo.cabinTopRange;
     const rearDeckX = geo.rear + 28;
@@ -101,7 +98,7 @@ export class RaceRig extends BaseRig {
       case 'extra.roofRack': {
         const w = Math.max(70, (r1 - r0) * 0.9), cx = (r0 + r1) / 2;
         const legH = Math.round(Math.max(10, geo.topY(cx - w / 2) - geo.roofTop + 6));
-        add('extra', partImage(sc, S.rackSide(w, legH)), cx, geo.roofTop + 2);
+        add('extra', partImage(sc, S.rackSide(w, legH, L.compactRack)), cx, geo.roofTop + 2);
         break;
       }
       case 'extra.spoiler': add('extra', partImage(sc, S.spoilerSide(m.paint)), rearDeckX, rearDeckY); break;
@@ -130,7 +127,7 @@ export class RaceRig extends BaseRig {
     for (const [wc, ax] of [[this.wheelF, geo.frontAxle], [this.wheelR, geo.rearAxle]] as const) {
       const wi = partImage(sc, S.wheelSide(wheelId));
       wc.add(wi);
-      wc.setPosition(ax, geo.hubY);
+      wc.setPosition(ax, geo.hubY).setScale(geo.wheelRadius / L.wheel.r);
       P.wheels.push(wi);
     }
     const sp = SPRING[m.springs] ?? SPRING['springs.soft'];
@@ -177,7 +174,7 @@ export class RaceRig extends BaseRig {
     const ex = T.exhaustTop(m.engine, hw);
     if (ex) { const pipe = partImage(sc, ex).setPosition(geo.rear + 4, 0); this.bumperG.add(pipe); P.engine.push(pipe); }
     switch (m.extra) {
-      case 'extra.roofRack': add('extra', partImage(sc, T.rackTop((c1 - c0) * 0.8, cw * 1.5)), (c0 + c1) / 2, 0); break;
+      case 'extra.roofRack': add('extra', partImage(sc, T.rackTop((c1 - c0) * 0.8, cw * 1.5, L.compactRack)), (c0 + c1) / 2, 0); break;
       case 'extra.spoiler': add('extra', partImage(sc, T.spoilerTop(hw, m.paint)), geo.rear + 28, 0); break;
       case 'extra.snorkel': add('extra', partImage(sc, T.snorkelTop()), c1 - 4, -cw); break;
       case 'extra.winch': add('extra', partImage(sc, T.winchTop()), geo.front + 12, 0, false, 0.65); break;
@@ -188,10 +185,16 @@ export class RaceRig extends BaseRig {
     const rearBumper = partImage(sc, T.bumperTop(m.bumpers, hw));
     rearBumper.setPosition(geo.rear + 10, 0).setScale(-rearBumper.scaleX * rearScale, rearBumper.scaleY * rearScale);
     this.bumperG.add([frontBumper, rearBumper]); P.bumpers.push(frontBumper, rearBumper);
-    const wl = L.wheel, wy = hw - 4 + wl.topW * 0.25 + Math.max(0, wl.r - 55) * 0.34;
+    const wheelScale = geo.wheelRadius / L.wheel.r;
+    const wy = hw - 4 + L.wheel.topW * wheelScale * 0.25 + Math.max(0, geo.wheelRadius - 55) * 0.34;
     for (const [wc, ax] of [[this.wheelF, geo.frontAxle], [this.wheelR, geo.rearAxle]] as const) {
       wc.setPosition(ax, 0);
-      for (const sy of [-1, 1]) { const wi = partImage(sc, T.wheelTop(wheelId), 0, sy * wy); wc.add(wi); P.wheels.push(wi); }
+      for (const sy of [-1, 1]) {
+        const wi = partImage(sc, T.wheelTop(wheelId), 0, sy * wy);
+        wi.setScale(wi.scaleX * wheelScale);
+        wc.add(wi);
+        P.wheels.push(wi);
+      }
     }
     P.size.push(this.bodyG);
     this.anchors = {

@@ -157,15 +157,28 @@ export function bumperTop(id: string, hw: number): PartSpec {
   };
 }
 
-export function rackTop(len: number, wid: number): PartSpec {
+export function rackTop(len: number, wid: number, compact = false): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   return {
-    key: `ws:r:track:${Math.round(len)}:${Math.round(wid)}`, w: len + 30, h: wid + 30, ox: (len + 30) / 2, oy: (wid + 30) / 2,
+    key: `ws:r:track:${Math.round(len)}:${Math.round(wid)}${compact ? ':compact' : ''}`, w: len + 30, h: wid + 30, ox: (len + 30) / 2, oy: (wid + 30) / 2,
     draw: (g) => {
       const sh: Shape[] = [{ path: (c) => rrectPath(c, -len / 2, -wid / 2, len, wid, 6), fill: '#00000000', noStroke: false }];
       drawShapes(g, sh, 4);
       g.strokeStyle = ex.color; g.lineWidth = 6;
       for (const x of [-len / 2 + 4, len / 2 - 4]) { g.beginPath(); g.moveTo(x, -wid / 2); g.lineTo(x, wid / 2); g.stroke(); }
+      if (compact) {
+        const width = len * 0.67;
+        drawShapes(g, [{
+          path: (c) => rrectPath(c, -width / 2, -wid * 0.39, width, wid * 0.78, 7),
+          fill: ex.color2,
+          detail: (c) => {
+            c.fillStyle = '#f6cea0';
+            c.fillRect(-width * 0.24, -wid, 6, wid * 2);
+            c.fillRect(width * 0.24 - 6, -wid, 6, wid * 2);
+          },
+        }], 4);
+        return;
+      }
       const bw = len / 3.2;
       const boxes: [number, string][] = [[-len / 2 + 6, ex.color2], [-len / 2 + 10 + bw, '#4aa8ff'], [-len / 2 + 14 + bw * 2, ex.color3]];
       const bs: Shape[] = boxes.filter(([x]) => x + bw - 4 <= len / 2 + 2).map(([x, col], i) => ({ path: (c: G) => rrectPath(c, x, -wid / 2 + 6 + i * 3, bw - 6, wid - 12 - i * 6, 5), fill: col, detail: (c: G) => { c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(x + (bw - 6) / 2 - 3, -wid, 6, wid * 2); } }));

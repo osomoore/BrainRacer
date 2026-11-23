@@ -35,7 +35,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
   const ty0 = geo.roofTop - PAD - 4, ty1 = 8;
   const w = b.len + padX * 2;
   return {
-    key: `ws:r:body:${ids.body}:${ids.shape}:${paintId}:${l.wheel.r}:${l.lift}`,
+    key: `ws:r:body:${ids.body}:${ids.shape}:${paintId}:${geo.wheelRadius}:${l.lift}`,
     w, h: ty1 - ty0, ox: w / 2, oy: -ty0,
     draw: (g) => {
       const y0 = geo.roofTop, y1 = geo.bottom;
@@ -53,7 +53,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
         fill,
         detail: (c) => {
           c.fillStyle = '#14142e';
-          for (const ax of [geo.frontAxle, geo.rearAxle]) { c.beginPath(); circle(c, ax, geo.hubY, l.wheel.r + 9); c.fill(); }
+          for (const ax of [geo.frontAxle, geo.rearAxle]) { c.beginPath(); circle(c, ax, geo.hubY, geo.wheelRadius + 9); c.fill(); }
           const trimRear = geo.rear + 18, trimFront = geo.front - 18;
           c.strokeStyle = paint.accent; c.lineWidth = 6;
           c.beginPath(); c.moveTo(trimRear, geo.chassisTop(trimRear) + 10);
@@ -72,7 +72,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       g.globalCompositeOperation = 'destination-out';
       for (const axle of [geo.frontAxle, geo.rearAxle]) {
         g.beginPath();
-        circle(g, axle, geo.hubY, l.wheel.r + 4);
+        circle(g, axle, geo.hubY, geo.wheelRadius + 4);
         g.fill();
       }
       g.restore();
@@ -327,16 +327,30 @@ export function bumperSide(id: string): PartSpec {
 
 // ---------------------------------------------------------------- extras
 
-export function rackSide(w: number, legH: number): PartSpec {
+export function rackSide(w: number, legH: number, compact = false): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   const H = legH + 70, W = w + 30;
   return {
-    key: `ws:r:rack:${Math.round(w)}:${Math.round(legH)}`, w: W, h: H, ox: W / 2, oy: H - 6,
+    key: `ws:r:rack:${Math.round(w)}:${Math.round(legH)}${compact ? ':compact' : ''}`, w: W, h: H, ox: W / 2, oy: H - 6,
     draw: (g) => {
       const sh: Shape[] = [];
       const top = -legH;
       for (const x of [-w / 2 + 6, w / 2 - 6]) sh.push({ path: (c) => rrectPath(c, x - 4, top, 8, legH + 6, 3), fill: ex.color });
       sh.push({ path: (c) => rrectPath(c, -w / 2, top - 8, w, 9, 4), fill: ex.color });
+      if (compact) {
+        const width = w * 0.67;
+        sh.push({
+          path: (c) => rrectPath(c, -width / 2, top - 52, width, 45, 7),
+          fill: ex.color2,
+          detail: (c) => {
+            c.fillStyle = '#f6cea0';
+            c.fillRect(-width * 0.24, top - 53, 6, 48);
+            c.fillRect(width * 0.24 - 6, top - 53, 6, 48);
+          },
+        });
+        drawShapes(g, sh, 4);
+        return;
+      }
       const bw = w / 3.1;
       const boxes: [number, number, string][] = [[-w / 2 + 8, 32, ex.color2], [-w / 2 + 12 + bw, 40, '#4aa8ff'], [-w / 2 + 16 + bw * 2, 24, ex.color3]];
       for (const [x, hh, col] of boxes) {
