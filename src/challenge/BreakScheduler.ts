@@ -26,6 +26,7 @@ export interface BreakOptions {
   wrongRevealSec: number | ((c: Challenge) => number);
   placeCooldownSec: number;
   make: (player: PlayerId, placeWord: string | null) => Challenge;
+  onWrong?: (challenge: Challenge) => void;
 }
 
 export class BreakScheduler {
@@ -96,6 +97,7 @@ export class BreakScheduler {
       }
     } else {
       this.st[p] = 'retry';
+      this.o.onWrong?.(c);
       const reveal = typeof this.o.wrongRevealSec === 'function' ? this.o.wrongRevealSec(c) : this.o.wrongRevealSec;
       this.retryLeft[p] = this.o.wrongRetrySec + reveal;
       ev.push({ type: 'resolved', challenge: c, result: 'wrong', chosen: slot });
@@ -112,9 +114,9 @@ export class BreakScheduler {
       if (word) {
         const last = this.lastPlaceAt[p].get(word);
         if (last !== undefined && now - last < this.o.placeCooldownSec) word = null;
-        else this.lastPlaceAt[p].set(word, now);
       }
       this.ask(p as PlayerId, word, ev);
+      if (word && this.cur[p]?.placeWord === word) this.lastPlaceAt[p].set(word, now);
     }
   }
 

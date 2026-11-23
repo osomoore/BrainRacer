@@ -19,6 +19,8 @@ export interface JbqGenerateOpts {
   optionCount?: 3 | 4;
   /** Question ids already asked this race (avoided until the pool is used up; cleared by the generator when exhausted). */
   recent?: Set<number>;
+  /** Question ids reserved for scheduled reviews. */
+  excluded?: ReadonlySet<number>;
 }
 
 export interface GeneratedJbq {
@@ -57,7 +59,9 @@ export class JbqGenerator {
 
   private pickQuestion(o: JbqGenerateOpts): JbqQuestion {
     const all = jbqPool(o.points, o.scope, o.date, o.correctCount).flatMap((id) => this.byId.get(id) ?? []);
-    const pool = all.length > 0 ? all : this.questions.filter((q) => q.points === jbqPointsOf(o.points));
+    const scoped = all.length > 0 ? all : this.questions.filter((q) => q.points === jbqPointsOf(o.points));
+    const eligible = scoped.filter((q) => !o.excluded?.has(q.id));
+    const pool = eligible.length > 0 ? eligible : scoped;
     let fresh = o.recent ? pool.filter((q) => !o.recent!.has(q.id)) : pool;
     if (fresh.length === 0) {
       pool.forEach((q) => o.recent?.delete(q.id));   // pool used up: start over

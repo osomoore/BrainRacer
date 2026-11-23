@@ -78,6 +78,7 @@ export class ChallengeSystem implements GameSystem {
         wrongRevealSec: (c) => wrongRevealSecFor(c.kind),
         placeCooldownSec: CHALLENGE.placeCooldownSec,
         make: (p, place) => factories[p].make(place),
+        onWrong: (challenge) => factories[challenge.player].recordWrong(challenge),
       });
     } else {
       this.schedulers = players.map((p, i) => new ChallengeScheduler({

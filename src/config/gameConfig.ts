@@ -172,6 +172,7 @@ export const CHALLENGE = {
   wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
   wrongRevealSec: 2.0,         // after a wrong answer: the correct answer is highlighted and enlarged for this long (added after wrongRetrySec) before the next question
   jbqWrongRevealSec: 5.0,      // the same for JBQ questions (longer answers to read and learn)
+  jbqReviewGap: 2,             // other questions for the same player before a missed JBQ question returns
   breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
   breakMaxScale: 2.0,          // cap on the centered question panel scale
   rewardDelayAfterBreakSec: 0.7, // game-time wait after the question panel has fully faded, before turbo/jump/bonus
