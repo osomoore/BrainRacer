@@ -223,7 +223,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   lists them; a test checks every backlog item has a job or is in an explicit skip list; the game looks unchanged
   (no manifest entries until painted). Mark the items "job added" in the backlog doc.
 
-## C15 — Paint jobs for Race Shop run scenery (no painting) · `OPEN`
+## C15 — Paint jobs for Race Shop run scenery (no painting) · `DONE (codex/c15)`
 - **Parallel-safe with C13 and C14.** Same rules as C14: **no ComfyUI**, `--dry-run` only.
 - **Port:** 5223.
 - **Scope:** new `apps/workshop/art/paint/jobsRaceRun.ts` (+ test), one import line in `apps/workshop/art/paint/jobs.ts`,
