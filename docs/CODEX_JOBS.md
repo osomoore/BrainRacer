@@ -152,7 +152,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   its voted paint because the runtime matches by texture key and dimensions. Use `&art=shapes` to review the
   new taper. Overhead Horn Head already uses the code shape, and the voted Short and curved beak caps are unchanged.
 
-## C10 — Dino body, claws and tails · `OPEN`
+## C10 — Dino body, claws and tails · `DONE (codex/c10)`
 - **Scope:** `apps/workshop/art/dino/**`. Run after C9 is merged (same files).
 - **Do:**
   - **Claws (all variants):** in side view, lower them so they touch the ground at the ends of the feet; now they float above it.
