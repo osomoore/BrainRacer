@@ -27,6 +27,9 @@ export const VEHICLE_CONDITION = {
   damageCooldownSec: 0.23,
   transferTapSec: 0.5,
   transferReach: 135,
+  keyHintSizePx: 96,      // keyboard players: on-screen size of the transfer key-cap hint (px, 1920x1080 space)
+  keyHintLiftPx: 110,     // how far above the car it floats on screen
+  keyHintScanSec: 0.15,   // how often to look for a car / the tamed boss in reach
   transferHopSec: 0.32,
   transferHopHeight: 34,
   transferFlashHz: 5,
