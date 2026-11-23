@@ -459,3 +459,23 @@ for (const [layout, players] of [['wide', 1], ['tall', 2]] as const) {
     await page.evaluate(() => (window as any).__ws.shell.setAdminMode(false));
   });
 }
+
+test('Dino Lab: aborting runs early leaves no orphaned tweens behind', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 1, ws: 'dino' });
+  const id = (await pickChallenge(page, 0, 'dino', false))!;
+  const tweenCount = () => page.evaluate(() => (window as any).__ws.panes[0].tweens.getTweens().length as number);
+  const abort = async (): Promise<void> => {
+    await goRun(page, 0, id);
+    await expectScreens(page, 'run');
+    await page.waitForTimeout(1500); // let the scenario start its loops (clouds, sun, gait...)
+    await skipToResults(page);
+    await page.evaluate(() => (window as any).__ws.contexts()[0].go('board'));
+    await expectScreens(page, 'board');
+    await page.waitForTimeout(300);
+  };
+  await abort(); // warm-up: lazily created screens may add a few persistent tweens
+  const base = await tweenCount();
+  for (let i = 0; i < 5; i++) await abort();
+  expect(await tweenCount()).toBeLessThanOrEqual(base);
+});

@@ -35,6 +35,9 @@ export abstract class BaseRig implements ModelRig {
   protected lastLoop: RigAnim = 'idle';
   protected model: Model;
   private dead = false;
+  /** Anim state changed by a tween this frame; re-posed once at the scene's postupdate (not once per tween). */
+  private dirty = false;
+  private readonly flush = (): void => { if (this.dirty) { this.dirty = false; if (this.alive()) this.render(); } };
 
   constructor(protected scene: Phaser.Scene, protected workshop: WorkshopId, model: Model, view: View) {
     this.view = view;
@@ -46,6 +49,7 @@ export abstract class BaseRig implements ModelRig {
     this.root.add(this.scaler);
     this.scaler.add(this.pivot);
     this.pivot.add(this.world);
+    scene.events.on('postupdate', this.flush);
   }
 
   /** Subclass: fill `world`, `parts`, `anchors`, `foci`, `cy`, `scale`. */
@@ -73,6 +77,7 @@ export abstract class BaseRig implements ModelRig {
     const b = this.scaler.getBounds();
     this.width = Math.round(b.width);
     this.height = Math.round(b.height);
+    this.dirty = false;
     this.render();
   }
 
@@ -94,8 +99,10 @@ export abstract class BaseRig implements ModelRig {
   }
 
   protected tw(props: Partial<Record<keyof AnimState, number>>, duration: number, extra: Record<string, unknown> = {}): void {
-    this.scene.tweens.add({ targets: this.S, ...props, duration, ease: 'Sine.easeInOut', onUpdate: () => this.alive() && this.render(), ...extra });
+    this.scene.tweens.add({ targets: this.S, ...props, duration, ease: 'Sine.easeInOut', onUpdate: this.markDirty, ...extra });
   }
+
+  private readonly markDirty = (): void => { this.dirty = true; };
 
   private alive(): boolean { return !this.dead && this.root.scene !== undefined && this.root.active; }
 
@@ -112,7 +119,7 @@ export abstract class BaseRig implements ModelRig {
     const isLoop = !['jump', 'tumble', 'chomp', 'crouch', 'stand'].includes(a);
     if (isLoop) this.lastLoop = a;
     const ch = (steps: Record<string, unknown>[], onDone?: () => void) => this.scene.tweens.chain({
-      targets: S, tweens: steps.map((s) => ({ ease: 'Sine.easeInOut', onUpdate: () => this.alive() && this.render(), ...s })),
+      targets: S, tweens: steps.map((s) => ({ ease: 'Sine.easeInOut', onUpdate: this.markDirty, ...s })),
       onComplete: () => { if (this.alive()) { onDone?.(); } },
     });
     switch (a) {
@@ -136,11 +143,13 @@ export abstract class BaseRig implements ModelRig {
       case 'flap': this.tw({ flap: 1 }, 170, loop); this.tw({ lift: 10 }, 340, loop); break;
       case 'wag': this.tw({ wag: 1 }, 200, loop); break;
     }
+    this.dirty = false;
     this.render();
   }
 
   destroy(): void {
     this.dead = true;
+    this.scene.events.off('postupdate', this.flush);
     this.scene.tweens.killTweensOf(this.S);
     this.root.destroy();
   }

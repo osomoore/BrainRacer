@@ -75,17 +75,57 @@ export function bakeKey(scene: Phaser.Scene, key: string, w: number, h: number, 
   return k;
 }
 
+/** Cache of big per-run backgrounds: key -> texture key, with a use count; at most `TEMP_KEEP` idle entries stay. */
+const TEMP_KEEP = 6;
+interface TempEntry { tex: string; users: number }
+const tempCaches = new WeakMap<object, Map<string, TempEntry>>();
+
+/** Small stable string hash (FNV-1a) for cache keys built from big strings. */
+export function hashKey(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+}
+
 /**
- * A texture that lives only as long as `owner` (used for big one-off backgrounds such as the top-view track).
- * Returns its key; removed when `owner` is destroyed.
+ * A texture that lives as long as `owner`, or (with `cacheKey`) is kept in a small LRU so the next run of the same
+ * scenario skips the bake stall. Entries still used by a live owner are never evicted. Returns the texture key.
+ * `cacheKey` must capture everything the drawing depends on (scenario, size, params, colours, drawing code).
  */
 let tmpId = 0;
-export function bakeTemp(scene: Phaser.Scene, owner: Phaser.GameObjects.GameObject, w: number, h: number, draw: (g: Ctx2D) => void): string {
-  const k = `wsr:tmp:${tmpId++}`;
-  const t = scene.textures.createCanvas(k, Math.ceil(w), Math.ceil(h));
-  if (t) { const g = t.getContext(); g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); t.refresh(); }
-  owner.once('destroy', () => { if (scene.textures.exists(k)) scene.textures.remove(k); });
-  return k;
+export function bakeTemp(scene: Phaser.Scene, owner: Phaser.GameObjects.GameObject, w: number, h: number, draw: (g: Ctx2D) => void, cacheKey?: string): string {
+  const paint = (k: string): void => {
+    const t = scene.textures.createCanvas(k, Math.ceil(w), Math.ceil(h));
+    if (t) { const g = t.getContext(); g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); t.refresh(); }
+  };
+  if (!cacheKey) {
+    const k = `wsr:tmp:${tmpId++}`;
+    paint(k);
+    owner.once('destroy', () => { if (scene.textures.exists(k)) scene.textures.remove(k); });
+    return k;
+  }
+  let cache = tempCaches.get(scene.textures);
+  if (!cache) { cache = new Map(); tempCaches.set(scene.textures, cache); }
+  const id = `${Math.ceil(w)}x${Math.ceil(h)}:${cacheKey}`;
+  let e = cache.get(id);
+  if (e && !scene.textures.exists(e.tex)) { cache.delete(id); e = undefined; }
+  if (e) { cache.delete(id); cache.set(id, e); } // most recently used goes last
+  else {
+    const tex = `wsr:tmp:${tmpId++}`;
+    paint(tex);
+    e = { tex, users: 0 };
+    cache.set(id, e);
+  }
+  const entry = e;
+  entry.users++;
+  owner.once('destroy', () => { entry.users--; });
+  for (const [id2, old] of [...cache]) {
+    if (cache.size <= TEMP_KEEP) break;
+    if (old.users > 0 || old === entry) continue;
+    cache.delete(id2);
+    if (scene.textures.exists(old.tex)) scene.textures.remove(old.tex);
+  }
+  return entry.tex;
 }
 
 export function vGradient(g: Ctx2D, h: number, a: string, b: string, mid?: [number, string]): CanvasGradient {
