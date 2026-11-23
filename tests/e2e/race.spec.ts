@@ -115,18 +115,4 @@ test('stop-and-answer questions stay on screen after time expires and both answe
   expect(warns).toEqual([]);
 });
 
-test('a while-driving question can be answered past its original deadline when the round ends', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('brainracer.settings.v1', JSON.stringify({ questionStyle: 'drive' })));
-  await page.goto('/?race=1&seed=5&round=30&questions=math');
-  const question = () => page.evaluate(() => (window as any).__challenge.current(0));
-  await page.waitForFunction(() => (window as any).__challenge?.current(0));
-  const final = await question();
-  await page.evaluate(() => {
-    window.__race.elapsedSec = window.__race.roundLengthSec;
-  });
-  await page.waitForFunction(() => window.__race?.timeExpired);
-  await page.waitForTimeout(4400);
-  expect(await question()).toEqual(final);
-  await page.keyboard.press(['Digit1', 'Digit2', 'Digit3'][final.correct]);
-  await page.waitForFunction(() => window.__game?.scene.isActive('Results'));
-});
+// The While Driving style is deprecated (questions are always Stop & Answer), so its end-of-round spec was removed.

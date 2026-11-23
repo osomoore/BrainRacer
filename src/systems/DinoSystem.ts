@@ -1,5 +1,6 @@
 import { DINO, DINO_LASER, MAX_PLAYERS, DINO_RIDE, DINO_SMASH, PLAYER_COLORS } from '../config/gameConfig';
 import { MAP_BOSSES } from '../art/boss';
+import { debugActionFor, debugKeysEnabled } from '../input/debugKeys';
 import { isQueuedMap } from '../config/queuedMaps';
 import { BossCrystal } from '../entities/BossCrystal';
 import { Dino } from '../entities/Dino';
@@ -83,6 +84,8 @@ export class DinoSystem implements GameSystem {
   private obstacleProbe?: { spine: MatterJS.BodyType; front: MatterJS.BodyType; back: MatterJS.BodyType };
   private laser: LaserState = newLaser(DINO_LASER.firstDelaySec);
   private laserDev = false;
+  private laserForce = false; // debug hotkey: next shot ignores range / facing
+  private debugKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private laserHitCd: number[] = new Array(MAX_PLAYERS).fill(0);
   private readonly laserTm: LaserTiming = { chargeSec: DINO_LASER.chargeSec, fireSec: DINO_LASER.fireSec, arc: DINO_LASER.arc };
 
@@ -102,6 +105,21 @@ export class DinoSystem implements GameSystem {
       const d = this.dino;
       if (d && (this.mode === 'guard' || this.mode === 'drop' || this.mode === 'leaving')) { this.hitBy.add(0); this.tame(ctx, d); }
     };
+    // ?debug=1 hotkeys: boss spawn/defeat and laser eyes (car cycling lives in RaceScene)
+    if (debugKeysEnabled(location.search)) {
+      this.debugKeyHandler = (e) => {
+        const act = debugActionFor(e.code);
+        if (act === 'boss') {
+          e.preventDefault();
+          if (!this.dino && ctx.goal) { this.halfSpawned = true; this.spawn(ctx, ctx.goal, 0); }
+          else (window as DevWindow).__dinoDefeat?.();
+        } else if (act === 'laser') {
+          e.preventDefault();
+          if (this.dino && this.mode === 'guard') { this.laser.cooldown = 0; this.laserForce = true; }
+        }
+      };
+      window.addEventListener('keydown', this.debugKeyHandler);
+    }
     this.offs.push(
       ctx.bus.on('goal:arrived', ({ goal, player, waitSec }) => {
         if (ctx.players.length < 2 || waitSec <= 0) return;
@@ -239,6 +257,7 @@ export class DinoSystem implements GameSystem {
     this.offs = [];
     const w = window as DevWindow;
     if (w.__dinoDefeat) delete w.__dinoDefeat;
+    if (this.debugKeyHandler) { window.removeEventListener('keydown', this.debugKeyHandler); this.debugKeyHandler = null; }
     for (const r of [...this.rides.values(), ...this.ended]) r.dino.destroy();
     this.rides.clear();
     this.ended = [];
@@ -370,8 +389,10 @@ export class DinoSystem implements GameSystem {
     }
     if (L.phase === 'idle') {
       const target = this.nearestPlayer(ctx);
-      const canFire = this.faceT <= 0 && !d.roaring && !!target && dist(target, this.walk) <= DINO_LASER.rangeMax;
+      const canFire = this.laserForce ? !!target
+        : this.faceT <= 0 && !d.roaring && !!target && dist(target, this.walk) <= DINO_LASER.rangeMax;
       if (target && laserReady(L, canFire)) {
+        this.laserForce = false;
         const base = Math.atan2(target.y - this.walk.y, target.x - this.walk.x) + ctx.rng.range(-DINO_LASER.aimRandom, DINO_LASER.aimRandom);
         startLaser(L, base, ctx.rng.next() < 0.5 ? 1 : -1);
         services.audio.sfx('turbo', { pan: this.panFor(ctx), volume: 0.6, rate: 1.4 });

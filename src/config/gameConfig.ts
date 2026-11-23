@@ -4,7 +4,7 @@
  * never rename/remove existing keys.
  */
 import { PROFILE_NAME } from '../../shared/profiles';
-import type { ChallengeKind, Difficulty, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
+import type { ChallengeKind, Difficulty, JbqSettings, QuestionTypes, RacerProfile, Settings, StarterCar, VehicleSpec } from '../core/types';
 
 export const GAME_WIDTH = 1920;
 export const GAME_HEIGHT = 1080;
@@ -27,6 +27,9 @@ export const VEHICLE_CONDITION = {
   damageCooldownSec: 0.23,
   transferTapSec: 0.5,
   transferReach: 135,
+  keyHintSizePx: 96,      // keyboard players: on-screen size of the transfer key-cap hint (px, 1920x1080 space)
+  keyHintLiftPx: 110,     // how far above the car it floats on screen
+  keyHintScanSec: 0.15,   // how often to look for a car / the tamed boss in reach
   transferHopSec: 0.32,
   transferHopHeight: 34,
   transferFlashHz: 5,
@@ -96,7 +99,8 @@ export const NEW_RACER = {
   roundSecUnder10: 300,
   roundSecOver10: 180,
   defaultDifficulty: 'easy' as Difficulty,
-  defaultQuestionTypes: { addition: true, multiplication: false, spelling: true } as QuestionTypes,
+  defaultQuestionTypes: { math: true, reading: true, jbq: false } as QuestionTypes,
+  defaultJbq: { points: 10, scope: 'week' } as JbqSettings,
   maxCustomRacers: 12,
 };
 /** Settings of a brand-new profile, and the fallback when saved data is missing or invalid. */
@@ -104,6 +108,7 @@ export const NEW_RACER_DEFAULTS: RacerProfile = {
   difficulty: NEW_RACER.defaultDifficulty,
   questionTypes: { ...NEW_RACER.defaultQuestionTypes },
   roundSec: NEW_RACER.roundSecUnder10,
+  jbq: { ...NEW_RACER.defaultJbq },
 };
 
 // ───────────────────────── challenges (package B) ─────────────────────────
@@ -128,7 +133,7 @@ export interface DifficultyProfile {
 export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   easy: {
     periodMultiplier: 1.5,
-    typeWeights: { picToWord: 30, math: 30, wordToPic: 40, multiplication: 30 },
+    typeWeights: { picToWord: 30, math: 30, wordToPic: 40, multiplication: 30, jbq: 33 },
     multiplication: { maxFactor: 3 },
     math: { minA: 1, maxA: 9, minB: 1, maxB: 9, maxSum: 10, requireCarry: false },
     words: { simpleOnly: true, allowMultiWord: false, sameCategoryDistractors: false },
@@ -136,21 +141,21 @@ export const DIFFICULTY: Record<Difficulty, DifficultyProfile> = {
   // Easy+: sums 2..19 (about half are teen sums); mostly simple single words, some harder ones.
   easyPlus: {
     periodMultiplier: 1.25,
-    typeWeights: { picToWord: 32, math: 32, wordToPic: 36, multiplication: 32 },
+    typeWeights: { picToWord: 32, math: 32, wordToPic: 36, multiplication: 32, jbq: 33 },
     multiplication: { maxFactor: 5 },
     math: { minA: 1, maxA: 12, minB: 1, maxB: 9, maxSum: 19, requireCarry: false, teenChance: 0.5, offByOneFirst: true },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: false, simpleTargetChance: 0.65 },
   },
   normal: {
     periodMultiplier: 1.0,
-    typeWeights: { picToWord: 34, math: 33, wordToPic: 33, multiplication: 33 },
+    typeWeights: { picToWord: 34, math: 33, wordToPic: 33, multiplication: 33, jbq: 33 },
     multiplication: { maxFactor: 9 },
     math: { minA: 10, maxA: 25, minB: 1, maxB: 9, maxSum: 30, requireCarry: false },
     words: { simpleOnly: false, allowMultiWord: false, sameCategoryDistractors: true },
   },
   hard: {
     periodMultiplier: 0.7,
-    typeWeights: { picToWord: 40, math: 35, wordToPic: 25, multiplication: 35 },
+    typeWeights: { picToWord: 40, math: 35, wordToPic: 25, multiplication: 35, jbq: 33 },
     multiplication: { maxFactor: 12 },
     math: { minA: 12, maxA: 89, minB: 12, maxB: 89, maxSum: 150, requireCarry: true },
     words: { simpleOnly: false, allowMultiWord: true, sameCategoryDistractors: true },
@@ -168,12 +173,19 @@ export const CHALLENGE = {
   firstBreakSec: 5,            // driving seconds after GO until the first break
   breakGoSec: 0.6,             // GO beat after everyone answered correctly
   wrongRetrySec: 0.5,          // beat to show the wrong-answer shake before the new question
+  wrongRevealSec: 2.0,         // after a wrong answer: the correct answer is highlighted and enlarged for this long (added after wrongRetrySec) before the next question
+  jbqWrongRevealSec: 5.0,      // the same for JBQ questions (longer answers to read and learn)
+  jbqReviewGap: 2,             // other questions for the same player before a missed JBQ question returns
   breakDimAlpha: 0.6,          // world dim during a break (HUD overlay)
   breakMaxScale: 2.0,          // cap on the centered question panel scale
   rewardDelayAfterBreakSec: 0.7, // game-time wait after the question panel has fully faded, before turbo/jump/bonus
   rewardPanelClearSec: 1.05,   // answer -> HUD panel fully gone (hudConfig panel.resultHoldSec 0.7 + fadeSec 0.35); keep in sync
   answerGuardSec: 0.25,        // ignore answers this long after a break question appears
   pauseOptions: 4,             // answers per question in pause style (drive = 3)
+  // JBQ (Junior Bible Quiz) — package jbq-logic may ADD keys here
+  jbqMasteredCorrect: 2,       // a question counts as learned after this many correct answers (per racer); when the whole pool is learned, the previous week's chunk is added
+  jbqUnmasteredWeight: 4,      // pick weight of a not-yet-learned question (learned ones weigh 1)
+  jbqLengthRatio: 2,           // wrong answers preferably within this length ratio of the correct one (longest/shortest)
   // package B additions
   placeWordToPicChance: 0.5,       // place challenge: word->pictures (else picture->words)
   hardForgotCarryChance: 0.7,      // hard math: chance the "forgot to carry" distractor is included
@@ -628,6 +640,13 @@ export const DINO_RIDE = {
   laserFireSec: 1.5,
   laserCooldownSec: 4,
   laserArc: 0.5,               // rad swept, centred straight ahead
+};
+
+// debug hotkeys (KeyboardEvent.code); only active with ?debug=1, none collide with keyboardMap.ts
+export const DEBUG_KEYS = {
+  cycleCar: 'F6',  // next car for P1 (restarts the race with that car; turns on developer-mode loadouts)
+  boss: 'F7',      // spawn the boss at the goal; press again to beat it into a crystal
+  laser: 'F8',     // boss fires its laser eyes now
 };
 
 // dino laser eyes (package dino-laser)
@@ -1133,15 +1152,18 @@ export const QUEUED_SCENERY = {
   ambientLimit: 54,
 } as const;
 
+export const ENGINE_AUDIO = { rumbleCutoffHz: 120, rumbleGainDb: -4, levelFadeSec: 0.08 } as const;
+
 export const WORLD_MUSIC = {
   finalSeconds: 30,
   finalFraction: .25,
   mixFadeSec: .3,
+  quietCutoffHz: 3000,
   mix: {
-    normal: { gain: 1, cutoffHz: 20000 },
-    driving: { gain: .9, cutoffHz: 5600 },
-    rush: { gain: 1, cutoffHz: 18000 },
-    quiet: { gain: .52, cutoffHz: 1300 },
+    normal: { gain: 1, lowpass: false },
+    driving: { gain: 1, lowpass: false },
+    rush: { gain: 1, lowpass: false },
+    quiet: { gain: .7, lowpass: true },
   },
 } as const;
 
@@ -1162,7 +1184,7 @@ export const QUEUED_ATMOSPHERE = {
   },
 } as const;
 
-/** Mobile admin gate (setup-screen gear -> multiplication question -> hidden admin menu). */
+/** Admin gate (Join screen gear -> multiplication question -> Admin Settings). */
 export const ADMIN_GATE = {
   factorMin: 6,
   factorMax: 12,
@@ -1170,4 +1192,12 @@ export const ADMIN_GATE = {
   /** Deliberately small and faint (grown-ups know it's there); `hit` is a larger invisible tap square around it. `tex` = baked texture size. */
   gear: { x: GAME_WIDTH - 44, y: 40, size: 48, alpha: 0.28, hit: 120, tex: 110 },
   key: { w: 200, h: 112, gap: 16, firstY: 440 },
+} as const;
+
+// ── Package jbq-setup: Join screen question rows ──
+export const JBQ_SETUP = {
+  /** Width of the Math / Reading / JBQ chips (together = one panel row, with `chipGap` between). */
+  chipWidths: [108, 190, 108] as readonly number[],
+  chipGap: 7,
+  chipHeight: 56,
 } as const;

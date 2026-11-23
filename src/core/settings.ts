@@ -18,6 +18,8 @@ export function loadSettings(): Settings {
       const saved = JSON.parse(raw) as Partial<Settings> | null;
       const settings: Settings = { ...structuredClone(DEFAULT_SETTINGS), ...saved };
       if (!isRaceMap(settings.map)) settings.map = 'city';
+      // While Driving is retired: an old saved 'drive' loads as Stop & Answer.
+      if (settings.questionStyle === 'drive') settings.questionStyle = 'pause';
       if (settings.developerMode === true && saved?.roundLengthSec === undefined) {
         settings.roundLengthSec = defaultRoundLength(true);
       }

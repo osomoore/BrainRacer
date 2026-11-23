@@ -14,6 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer, type ViteDevServer } from 'vite';
 import { repeatSamples, type AudioFileEntry, type AudioManifest, type MusicFileEntry } from '../src/audio/audioManifest';
+import { applyMusicGain, musicNormalizationGain } from '../src/audio/musicLoudness';
 import type { AudioRenderApi, RenderJob, RenderResult } from '../src/scenes/dev/AudioRender';
 import { audioSourceHash } from './audioSourceHash';
 
@@ -51,6 +52,14 @@ function dirSize(dir: string): number {
   return t;
 }
 
+function measureEncodedMusic(file: string): Pick<MusicFileEntry, 'meanDb' | 'peakDb'> {
+  const ff = spawnSync('ffmpeg', ['-hide_banner', '-i', file, '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' });
+  const mean = ff.stderr?.match(/mean_volume:\s+(-?[\d.]+) dB/);
+  const peak = ff.stderr?.match(/max_volume:\s+(-?[\d.]+) dB/);
+  if (ff.status !== 0 || !mean || !peak) throw new Error(`Could not measure ${file}: ${ff.stderr ?? ff.error}`);
+  return { meanDb: Number(mean[1]), peakDb: Number(peak[1]) };
+}
+
 async function main(): Promise<void> {
   const t0 = Date.now();
   const sourceHash = audioSourceHash();
@@ -75,6 +84,7 @@ async function main(): Promise<void> {
     mkdirSync(join(rendered, 'sfx'), { recursive: true });
     mkdirSync(join(rendered, 'music'), { recursive: true });
     const manifest: AudioManifest = { version: 1, sourceHash, sfx: {}, loops: {}, engine: null as unknown as AudioFileEntry, music: {} };
+    const musicGains: Record<string, number> = {};
 
     for (const job of jobs as RenderJob[]) {
       const tj = Date.now();
@@ -92,6 +102,11 @@ async function main(): Promise<void> {
       }
       await page.evaluate((id) => (window as unknown as { __audioRender: Api }).__audioRender.release(id), r.id);
 
+      if (r.kind === 'music') {
+        const gain = musicNormalizationGain(chans);
+        applyMusicGain(chans, gain);
+        musicGains[r.id] = gain;
+      }
       const isLoopFile = r.kind === 'loop' || r.kind === 'engine';
       const copies = isLoopFile ? LOOP_COPIES : 1;
       const encoded = copies > 1 ? chans.map((c) => repeatSamples(c, copies)) : chans;
@@ -104,7 +119,12 @@ async function main(): Promise<void> {
       rmSync(wav);
 
       const entry: AudioFileEntry = { file: rel, sampleRate: r.sampleRate, length: r.length, channels: r.channels as 1 | 2, copies, loop: r.loop };
-      if (r.kind === 'music') manifest.music[r.id] = { ...entry, bpm: r.bpm!, lengthBeats: r.lengthBeats!, loopSeconds: r.loopSeconds! } satisfies MusicFileEntry;
+      if (r.kind === 'music') {
+        manifest.music[r.id] = {
+          ...entry, bpm: r.bpm!, lengthBeats: r.lengthBeats!, loopSeconds: r.loopSeconds!,
+          ...measureEncodedMusic(join(rendered, rel)),
+        };
+      }
       else if (r.kind === 'sfx') manifest.sfx[r.id] = entry;
       else if (r.kind === 'engine') manifest.engine = entry;
       else manifest.loops[r.id] = entry;
@@ -113,6 +133,7 @@ async function main(): Promise<void> {
     if (audioSourceHash() !== sourceHash) throw new Error('Audio sources changed during render. Run audio:render again.');
     cpSync(rendered, outDir, { recursive: true });
     writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');
+    writeFileSync(join(root, 'src', 'audio', 'musicGains.json'), JSON.stringify(musicGains, null, 2) + '\n');
     console.log(`audio: ${jobs.length} files, ${(dirSize(outDir) / 1024 / 1024).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s, hash ${sourceHash}`);
   } finally {
     await browser?.close().catch(() => {});

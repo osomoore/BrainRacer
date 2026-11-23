@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerSettings } from '../core/types';
-import { normalizeQuestionTypes, resolveChallengeMode as r, resolveRaceQuestions } from './questionsPolicy';
+import { normalizeJbq, normalizeQuestionTypes, resolveChallengeMode as r, resolveRaceQuestions } from './questionsPolicy';
 
 describe('resolveChallengeMode', () => {
   it('keeps the saved mode with no overrides', () => expect(r('math', null, undefined, false)).toBe('math'));
@@ -23,15 +23,29 @@ describe('per-player question settings', () => {
     difficulty: 'easy',
     car: 'dino',
   };
-  const multiplication = { addition: false, multiplication: true, spelling: false };
-  const spelling = { addition: false, multiplication: false, spelling: true };
-  const addition = { addition: true, multiplication: false, spelling: false };
+  const jbq = { math: false, reading: false, jbq: true };
+  const spelling = { math: false, reading: true, jbq: false };
+  const addition = { math: true, reading: false, jbq: false };
+  const multiplication = jbq;   // any distinct non-default selection
 
   it('migrates the old presets when player choices are missing or invalid', () => {
     expect(normalizeQuestionTypes(undefined, 'words')).toEqual(spelling);
     expect(normalizeQuestionTypes(undefined, 'math')).toEqual(addition);
-    expect(normalizeQuestionTypes({ spelling: 'true' }, 'mixed')).toEqual({ ...addition, spelling: true });
-    expect(normalizeQuestionTypes({ addition: false, multiplication: false, spelling: false })).toEqual(spelling);
+    expect(normalizeQuestionTypes({ reading: 'true' }, 'mixed')).toEqual({ ...addition, reading: true });
+    expect(normalizeQuestionTypes({ math: false, reading: false, jbq: false })).toEqual(spelling);
+  });
+
+  it('maps the old addition/multiplication/spelling shape onto math/reading', () => {
+    expect(normalizeQuestionTypes({ addition: false, multiplication: true, spelling: false })).toEqual(addition);
+    expect(normalizeQuestionTypes({ addition: true, multiplication: false, spelling: true })).toEqual({ math: true, reading: true, jbq: false });
+    expect(normalizeQuestionTypes({ addition: false, multiplication: false, spelling: true })).toEqual(spelling);
+  });
+
+  it('normalizes JBQ settings', () => {
+    const fb = { points: 10, scope: 'week' } as const;
+    expect(normalizeJbq({ points: 30, scope: 'all' }, fb)).toEqual({ points: 30, scope: 'all' });
+    expect(normalizeJbq({ points: 15, scope: 'year' }, fb)).toEqual(fb);
+    expect(normalizeJbq(undefined, fb)).toEqual(fb);
   });
 
   it('keeps each player’s selection when there is no launch override', () => {

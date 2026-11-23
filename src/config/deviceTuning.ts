@@ -3,6 +3,7 @@
  * Pure: no Phaser, no Tone. Persisted in localStorage (failure-tolerant). Defaults == original behaviour.
  */
 export type EngineSoundMode = 'full' | 'lite' | 'sample' | 'off';
+export const ENGINE_LEVELS = [25, 50, 75, 100] as const;
 /** live: every sound is synthesised in real time; prerendered: rendered once into AudioBuffers and replayed; files: decoded from the Ogg files shipped in public/audio. */
 export type AudioMode = 'live' | 'prerendered' | 'files';
 export type AudioLatency = 'interactive' | 'balanced' | 'playback';
@@ -15,6 +16,7 @@ const GAS_MODES: readonly GasMode[] = ['a', 'trigger', 'auto'];
 
 export interface DeviceTuning {
   engineSound: EngineSoundMode;
+  engineLevel: typeof ENGINE_LEVELS[number];
   audioMode: AudioMode;
   /** Applies after reload. */
   audioLatency: AudioLatency;
@@ -35,6 +37,7 @@ export const TUNING_KEY = 'brainracer.tuning.v1';
 
 export const DEFAULT_TUNING: Readonly<DeviceTuning> = Object.freeze({
   engineSound: 'sample',
+  engineLevel: 75,
   audioMode: 'files',
   audioLatency: 'interactive',
   lookAheadSec: 0.1,
@@ -56,6 +59,7 @@ export function sanitizeTuning(raw: unknown): DeviceTuning {
   const gasArr: unknown[] = Array.isArray(r.gas) ? r.gas : [];
   return {
     engineSound: pick(r.engineSound, ['full', 'lite', 'sample', 'off'] as const, d.engineSound),
+    engineLevel: pick(r.engineLevel, ENGINE_LEVELS, d.engineLevel),
     audioMode: pick(r.audioMode, ['live', 'prerendered', 'files'] as const, d.audioMode),
     audioLatency: pick(r.audioLatency, ['interactive', 'balanced', 'playback'] as const, d.audioLatency),
     lookAheadSec: pick(r.lookAheadSec, [0.1, 0.2, 0.3] as const, d.lookAheadSec),

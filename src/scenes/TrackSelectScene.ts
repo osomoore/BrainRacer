@@ -6,6 +6,8 @@ import { loadAllProgress, racerProgressOf, teamMaps, teamPlayableMap } from '../
 import { services } from '../core/services';
 import { loadSettings, saveSettings } from '../core/settings';
 import type { PlayerId, RaceMap, Settings } from '../core/types';
+import type { MusicTrack } from '../core/types';
+import { isQueuedMap } from '../config/queuedMaps';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { stepMap } from '../ui/menu/trackLogic';
 import { MenuButton } from '../ui/menu/MenuButton';
@@ -43,6 +45,8 @@ export class TrackSelectScene extends Phaser.Scene {
     const team = this.settings.players.map((p, i) => racerProgressOf(all, playerRacer(p, i, this.settings)));
     this.maps = team.length ? teamMaps(team, admin) : ['city'];
     this.map = team.length ? teamPlayableMap(this.settings.map, team, admin) : 'city';
+    this.playPreview();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => services.audio.music('title', 0.5));
 
     const g = this.add.graphics();
     g.fillGradientStyle(0x1a2a6c, 0x1a2a6c, 0x2b8cff, 0x2b8cff, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -114,7 +118,7 @@ export class TrackSelectScene extends Phaser.Scene {
     const inp = services.input.get(0);   // only Player 1 drives this screen
     const step = (dx: number, dy: number) => {
       const next = stepMap(RACE_MAPS, this.maps, this.map, dx, dy, COLS);
-      if (next !== this.map) { this.map = next; services.audio.sfx('menuMove'); this.refresh(); }
+      if (next !== this.map) { this.map = next; services.audio.sfx('menuMove'); this.refresh(); this.playPreview(); }
     };
     if (inp.navX) step(inp.navX, 0);
     if (inp.navY) step(0, inp.navY);
@@ -135,6 +139,15 @@ export class TrackSelectScene extends Phaser.Scene {
     this.map = map;
     services.audio.sfx('menuMove');
     this.refresh();
+    this.playPreview();
+  }
+
+  private playPreview(): void {
+    const music = isQueuedMap(this.map) ? this.map : ({
+      city: 'race', industrial: 'industrial', farm: 'farm', harbor: 'harbor',
+      underground: 'underground', sky: 'sky', forest: 'forest', underwater: 'underwater',
+    } as const)[this.map] satisfies MusicTrack;
+    services.audio.music(music, 0.5);
   }
 
   private start() {

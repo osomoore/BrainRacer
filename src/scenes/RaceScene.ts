@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD, WORLD_MUSIC } from '../config/gameConfig';
 import { getTuning } from '../config/deviceTuning';
+import { UNLOCK_VEHICLE_IDS } from '../config/collectibles';
+import { debugActionFor, debugKeysEnabled, nextCar } from '../input/debugKeys';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
@@ -35,7 +37,7 @@ const RACE_WORLDS: Record<Exclude<RaceMap, QueuedMap>, { generate: (seed: number
   city: { generate: cityGen, music: 'race' },
   industrial: { generate: generateIndustrial, music: 'industrial' },
   farm: { generate: generateFarm, music: 'farm' },
-  harbor: { generate: generateHarbor, music: 'race' },
+  harbor: { generate: generateHarbor, music: 'harbor' },
   underground: { generate: generateUnderground, music: 'underground' },
   sky: { generate: generateSky, music: 'sky' },
   forest: { generate: generateForest, music: 'forest' },
@@ -175,6 +177,22 @@ export class RaceScene extends Phaser.Scene {
     this.inBreak = false;
     services.audio.music(null, 0.5);
 
+    // ?debug=1: cycle P1's car (restarts the race; developer-mode loadouts unlock every car).
+    if (debugKeysEnabled(location.search)) {
+      const onKey = (e: KeyboardEvent) => {
+        if (debugActionFor(e.code) !== 'cycleCar') return;
+        e.preventDefault();
+        const reg: Settings = this.registry.get(REG.settings);
+        const p0 = reg.players[0];
+        if (!p0) return;
+        reg.developerMode = true;
+        p0.devCar = nextCar(this.players[0].kind, ['dino', 'kart', ...UNLOCK_VEHICLE_IDS]);
+        this.scene.restart(data);
+      };
+      window.addEventListener('keydown', onKey);
+      this.offs.push(() => window.removeEventListener('keydown', onKey));
+    }
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
     (window as unknown as { __race?: RaceContext }).__race = this.ctx;
   }
@@ -240,8 +258,7 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private updateMusicMix(): void {
-    const { settings, paused, elapsedSec, roundLengthSec } = this.ctx;
-    if (!isQueuedMap(settings.map)) return;
+    const { paused, elapsedSec, roundLengthSec } = this.ctx;
     const finalStretch = roundLengthSec - elapsedSec <= Math.min(WORLD_MUSIC.finalSeconds, roundLengthSec * WORLD_MUSIC.finalFraction);
     const rushing = finalStretch || this.players.some(car => car.turbo);
     services.audio.setMusicMix(paused || this.inBreak ? 'quiet' : rushing ? 'rush' : 'driving');

@@ -36,3 +36,9 @@ export function keyboardAnswerLabel(layout: KeyLayout, slot: AnswerSlot): string
   const code = KEY_TABLES[layout].answers[slot];
   return KEY_SYMBOLS[code] ?? code.replace(/^(?:Digit|Key)/, '');
 }
+
+/** Key-cap label of the vehicle-switch / ride-the-boss key (same action as pad B and the touch action button). */
+export function keyboardTransferLabel(layout: KeyLayout): string {
+  const code = KEY_TABLES[layout].transfer;
+  return KEY_SYMBOLS[code] ?? code.replace(/^(?:Digit|Key)/, '');
+}

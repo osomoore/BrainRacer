@@ -57,7 +57,7 @@ export interface WordMeta {
 export type WordMetaTable = Record<string, WordMeta>;
 
 // ───────────────────────── challenges ─────────────────────────
-export type ChallengeKind = 'picToWord' | 'math' | 'multiplication' | 'wordToPic';
+export type ChallengeKind = 'picToWord' | 'math' | 'multiplication' | 'wordToPic' | 'jbq';
 
 export type ChallengePrompt =
   | { kind: 'image'; sceneId: string }
@@ -65,7 +65,9 @@ export type ChallengePrompt =
 
 export type ChallengeOption =
   | { kind: 'text'; text: string }
-  | { kind: 'image'; sceneId: string };
+  | { kind: 'image'; sceneId: string }
+  /** JBQ quotation answer: the reference (e.g. "Acts 2:4") shown large, then as much of the verse text as fits. */
+  | { kind: 'verse'; ref: string; text: string };
 
 export interface Challenge {
   id: number;
@@ -80,6 +82,8 @@ export interface Challenge {
   /** 'place' when triggered by driving near a place building. */
   source: 'random' | 'place';
   placeWord?: string;
+  /** JBQ questions: which question was asked (for per-racer progress). */
+  jbq?: { id: number; points: JbqPoints };
 }
 
 export type ChallengeResult = 'correct' | 'wrong' | 'timeout';
@@ -121,6 +125,7 @@ export interface PlayerSettings {
   device: InputDevice;
   difficulty: Difficulty;          // effective value for the race (copied from the racer profile)
   questionTypes?: QuestionTypes;   // effective value for the race (copied from the racer profile)
+  jbq?: JbqSettings;               // effective value for the race (copied from the racer profile)
   profile?: RacerProfileId;        // shared profile picked in Setup
   car: CarKind;
   guide?: GuideKind;
@@ -128,20 +133,29 @@ export interface PlayerSettings {
   devGuide?: GuideKind;
 }
 
-export type QuestionType = 'addition' | 'multiplication' | 'spelling';
+/** math = addition (Easy..Normal) or multiplication (Hard); reading = picture/word spelling; jbq = Junior Bible Quiz. */
+export type QuestionType = 'math' | 'reading' | 'jbq';
 export type QuestionTypes = Record<QuestionType, boolean>;
+
+/** Junior Bible Quiz point level: 10s = Q1-288, 20s = Q289-480, 30s = Q481-576. */
+export type JbqPoints = 10 | 20 | 30;
+/** week = this week's study chunk, month = the range of the next review/meet, all = the whole point level. */
+export type JbqScope = 'week' | 'month' | 'all';
+/** What a racer studies: a point level, or 'basics' = the 10-point questions Q1-144 (fixed set, scope does not apply). */
+export type JbqLevel = 'basics' | JbqPoints;
+export interface JbqSettings { points: JbqLevel; scope: JbqScope }
 
 /** A shared player profile id (see shared/profiles.ts): opaque, e.g. 'p1'. */
 export type RacerProfileId = string;
 /** Brain Racer's per-profile settings, stored in Settings.racerProfiles keyed by the shared profile id. Names live in the shared profile. */
 export interface RacerProfile {
-  difficulty: Difficulty; questionTypes: QuestionTypes; roundSec: number;
+  difficulty: Difficulty; questionTypes: QuestionTypes; roundSec: number; jbq: JbqSettings;
 }
 
 /** Legacy question presets, also accepted as launch overrides. */
 export type ChallengeMode = 'words' | 'math' | 'mixed';
 
-/** pause = world freezes for questions until answered right (default); drive = answer while driving. */
+/** pause = world freezes for questions until answered right (default); drive = answer while driving (deprecated: hidden in menus, saved 'drive' loads as 'pause'). */
 export type QuestionStyle = 'pause' | 'drive';
 
 export interface Settings {
@@ -336,7 +350,7 @@ export type SfxName =
   | 'menuMove' | 'menuSelect' | 'join' | 'crossing'
   | 'moo' | 'baa' | 'oink' | 'neigh' | 'cluck' | 'quack' | 'cornRustle' | 'mudSplash';
 
-export type MusicTrack = 'title' | 'race' | 'industrial' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
+export type MusicTrack = 'title' | 'race' | 'industrial' | 'harbor' | 'farm' | 'underground' | 'sky' | 'forest' | 'underwater' | 'dino' | 'results' | QueuedMap;
 
 // ───────────────────────── camera layout (published to HUD) ─────────────────────────
 /** quad = 3-4 players, fixed 2x2 quadrants (P1 top-left, P2 top-right, P3 bottom-left, P4 bottom-right). */

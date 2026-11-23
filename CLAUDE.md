@@ -9,6 +9,9 @@ Codex or another agent driving instead of Claude? Read `AGENTS.md` too (driver-s
 
 Start each task on its own branch, usually from `dev`. Test and commit in the assigned checkout. Give each parallel writer a separate worktree, an agreed file scope, and separate server ports. Get explicit user approval before merging. Push only with separate authorization. See `AGENTS.md` and `docs/NEXT.md` for the checkout procedure.
 
+**Clean up after merging.** Once a branch is merged into `dev` and checked (`git merge-base --is-ancestor <branch> dev`), remove its worktree and delete its branch in the same session: unlink the `node_modules` junction first (`cmd /c rmdir <worktree>
+ode_modules`), then `git worktree remove --force <worktree>`, then `git branch -D <branch>` (`-d` compares against the checked-out branch, so it can refuse a merged branch). Don't leave finished `pkg/*`, `feature/*`, `fix/*` or `docs/*` branches or worktrees behind. Also stop any dev server you started. Leave other agents' branches and worktrees alone (e.g. Adventure Workshop's `feature/workshop` and `pkg/ws-*`). Branches deleted by mistake can be recovered from the reflog or the tip SHA you noted.
+
 ## Stack
 TypeScript (strict) · Vite · Phaser 3.90 (Matter physics) · Tone.js · Vitest · Playwright. Node 24, Windows.
 

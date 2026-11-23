@@ -28,6 +28,23 @@ export const HUD = {
   popupSec: 1.4,
   /** 2x2 quadrant layout (3-4 players): views are 960x540, so per-view elements use these tighter values. */
   quad: { bannerSize: 100, alertSize: 84, centerClear: 240, maxViewH: 600, margin: 10, hintY: 56, popupMinY: 90, popupBottom: 100, bannerY: 250, bannerSeamGap: 160 },
+  /** JBQ (Junior Bible Quiz) panel: long question + four full-width answer rows. Font sizes are in panel px (panel scale is ~1). */
+  jbq: {
+    pad: 14, dividerGap: 40, rowGap: 10, rowPadY: 12, rowPadX: 18, qPadY: 16, qSideInset: 56,
+    badge: 100, quadBadge: 66,   // mini button-diamond icon side (px) at the left of each answer row
+    /** Tighter paddings for the 960x540 quadrant views (3-4 players). */
+    quadPad: { pad: 10, dividerGap: 26, rowGap: 6, rowPadY: 6, rowPadX: 14, qPadY: 8 },
+    maxW: 1700,               // widest the panel gets in a wide (1-player) view
+    questionShare: 0.3,       // share of spare height the question card takes (rest goes to the answer rows)
+    refScale: 1.25,           // verse reference size vs. verse text size
+    font: { answerMax: 60, answerMin: 40, answerHard: 30, questionMax: 76, questionMin: 40, questionHard: 30 },
+    fontQuad: { answerMax: 44, answerMin: 30, answerHard: 26, questionMax: 50, questionMin: 30, questionHard: 26 },
+    quoteAnswerHard: 20,      // complete verse ranges can need smaller text in the four answer rows
+    growSec: 0.3,             // wrong-answer reveal: correct answer grows to fill the answer area
+    revealPad: 22,
+    revealFadeGraceSec: 0.3,  // keep the reveal this long past wrongRevealSec before fading (the next question normally replaces it first)
+    revealMaxFont: 120,
+  },
   /** Perf overlay corner (top-left of the screen). */
   perf: { x: 12, y: 12, size: 38, intervalSec: 1, rows: 6, rowsWithWorst: 3 },
   playerLight: ['#7dff8a', '#ff8a80', '#7fc3ff', '#ffd666'],

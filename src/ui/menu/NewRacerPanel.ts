@@ -2,17 +2,16 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, NEW_RACER } from '../../config/gameConfig';
 import { validRacerName, type NewRacerInput } from '../../core/racerProfiles';
 import { services } from '../../core/services';
-import type { Difficulty, QuestionTypes } from '../../core/types';
+import { AGE_BANDS, bandDifficulty, difficultyBand, type AgeBand } from '../../core/ageBands';
+import type { JbqSettings, QuestionTypes } from '../../core/types';
 import { LetterPicker, type PickerResult } from './LetterPicker';
 import { MenuButton } from './MenuButton';
-import { cycleChoice, DIFFICULTIES, DIFF_EXAMPLE, DIFF_LABEL, nameTaken, QUESTION_LABEL, toggleQuestionType } from './newRacerLogic';
-import { OptionRow } from './OptionRow';
+import { bandChoiceLabel, nameTaken } from './newRacerLogic';
 import { bigText, FONT_HEAD, MENU } from './style';
 
-type Step = 'name' | 'age' | 'options';
+type Step = 'name' | 'age';
 type Nav = { navX: number; navY: number; confirm: boolean; back: boolean };
-const TYPE_KEYS = ['addition', 'multiplication', 'spelling'] as const;
-const ROW_LEVEL = 3, ROW_GO = 4;
+/** Question types and JBQ choices are picked on the Join screen; this panel only asks name and age (the age band sets level and race time). */
 
 /** Full-screen "make a new racer" flow driven by one player's input. Call handle() every frame. */
 export class NewRacerPanel extends Phaser.GameObjects.Container {
@@ -22,22 +21,23 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
   private picker?: LetterPicker;
   private msg: Phaser.GameObjects.Text;
   private racerNameText = '';
-  private under10 = true;
-  private difficulty: Difficulty = NEW_RACER.defaultDifficulty;
+  private band: AgeBand = difficultyBand(NEW_RACER.defaultDifficulty);
   private types: QuestionTypes = { ...NEW_RACER.defaultQuestionTypes };
+  private jbq: JbqSettings = { ...NEW_RACER.defaultJbq };
   private sel = 0;
   private ageBtns: MenuButton[] = [];
-  private rows: OptionRow[] = [];
-  private go?: MenuButton;
-  private exampleText?: Phaser.GameObjects.Text;
   /** Taps waiting for the next handle(): an optional row/button to select, plus the nav edge to apply. Same logic path as the controller. */
   private taps: { sel?: number; nav: Partial<Nav> }[] = [];
   private cancelTap = false;
 
   constructor(scene: Phaser.Scene, private readonly color: number, private readonly colorHex: string, private readonly playerNum: number,
-    private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean) {
+    private readonly takenNames: readonly string[], private readonly keyboardTyping: boolean,
+    initialTypes?: QuestionTypes, initialJbq?: JbqSettings) {
     super(scene, 0, 0);
     this.setDepth(1000);
+    // Start from what the player already picked on the Join screen.
+    if (initialTypes) this.types = { ...initialTypes };
+    if (initialJbq) this.jbq = { ...initialJbq };
     const g = scene.add.graphics();
     g.fillGradientStyle(0x1a2a6c, 0x1a2a6c, 0x2b8cff, 0x2b8cff, 1).fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     g.lineStyle(14, color, 1).strokeRect(7, 7, GAME_WIDTH - 14, GAME_HEIGHT - 14);
@@ -63,29 +63,13 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
     if (step === 'name') {
       this.picker = new LetterPicker(this.scene, cx, 70, { title: 'WHAT\'S YOUR NAME?', initial: this.racerNameText, maxLen: NEW_RACER.nameMaxLen, color: this.color, keyboardTyping: this.keyboardTyping });
       this.add(this.picker);
-    } else if (step === 'age') {
-      page.add(bigText(this.scene, cx, 280, 'ARE YOU UNDER 10 YEARS OLD?', 84, MENU.yellow, { font: FONT_HEAD, wrap: 1700 }));
-      this.ageBtns = [
-        new MenuButton(this.scene, cx - 330, 620, 520, 220, 'YES', this.color, 110),
-        new MenuButton(this.scene, cx + 330, 620, 520, 220, 'NO', this.color, 110),
-      ];
+    } else {
+      page.add(bigText(this.scene, cx, 200, 'HOW OLD ARE YOU?', 84, MENU.yellow, { font: FONT_HEAD, wrap: 1700 }));
+      this.ageBtns = AGE_BANDS.map((b, i) => new MenuButton(this.scene, cx, 380 + i * 170, 1100, 140, bandChoiceLabel(b, bandDifficulty(b)), this.color, 76));
       this.ageBtns.forEach((b, i) => this.tappable(b, () => this.taps.push({ sel: i, nav: { confirm: true } })));
       page.add(this.ageBtns);
-      this.sel = this.under10 ? 0 : 1;
+      this.sel = AGE_BANDS.indexOf(this.band);
       this.paintAge();
-    } else {
-      page.add(bigText(this.scene, cx, 90, 'WHAT DO YOU WANT TO PLAY?', 72, MENU.yellow, { font: FONT_HEAD }));
-      const opts = { width: 1200, height: 76, fontSize: 56, valueX: 330, arrowSpan: 230 };
-      this.rows = [];
-      TYPE_KEYS.forEach((k, i) => this.rows.push(new OptionRow(this.scene, cx, 230 + i * 100, QUESTION_LABEL[k], opts)));
-      this.rows.push(new OptionRow(this.scene, cx, 570, 'Level', opts));
-      this.exampleText = bigText(this.scene, cx, 665, '', 48, MENU.dim, { bold: false });
-      this.go = new MenuButton(this.scene, cx, 850, 700, 150, 'GO!', this.color, 100);
-      this.rows.forEach((r, i) => r.makeTappable((z) => this.taps.push({ sel: i, nav: { navX: z === 'left' ? -1 : 1 } }), 96));
-      this.tappable(this.go, () => this.taps.push({ sel: ROW_GO, nav: { confirm: true } }));
-      page.add([...this.rows, this.exampleText, this.go]);
-      this.sel = 0;
-      this.paintOptions();
     }
   }
 
@@ -99,13 +83,6 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
 
   private paintAge() {
     this.ageBtns.forEach((b, i) => b.setSelected(i === this.sel, this.color));
-  }
-
-  private paintOptions() {
-    TYPE_KEYS.forEach((k, i) => this.rows[i].setValue(this.types[k] ? 'ON' : 'OFF').setSelected(this.sel === i, this.color));
-    this.rows[ROW_LEVEL].setValue(DIFF_LABEL[this.difficulty]).setSelected(this.sel === ROW_LEVEL, this.color);
-    this.exampleText?.setText(this.types.addition ? `Sums like ${DIFF_EXAMPLE[this.difficulty]}` : '');
-    this.go?.setSelected(this.sel === ROW_GO, this.color);
   }
 
   /** 'done' once the player finished (see `result`), 'cancel' to abandon the whole flow. */
@@ -129,31 +106,14 @@ export class NewRacerPanel extends Phaser.GameObjects.Container {
       }
       return 'none';
     }
-    if (this.step === 'age') {
-      if (inp.back) { services.audio.sfx('menuMove'); this.show('name'); return 'none'; }
-      if (inp.navX || inp.navY) { this.sel = 1 - this.sel; services.audio.sfx('menuMove'); this.paintAge(); }
-      if (inp.confirm) { this.under10 = this.sel === 0; services.audio.sfx('menuSelect'); this.show('options'); }
-      return 'none';
-    }
-    if (inp.back) { services.audio.sfx('menuMove'); this.show('age'); return 'none'; }
-    if (inp.navY) {
-      this.sel = Phaser.Math.Wrap(this.sel + inp.navY, 0, ROW_GO + 1);
-      services.audio.sfx('menuMove'); this.paintOptions();
-    }
-    if ((inp.navX || inp.confirm) && this.sel < ROW_LEVEL) {
-      this.types = toggleQuestionType(this.types, TYPE_KEYS[this.sel]);
-      services.audio.sfx('menuMove'); this.paintOptions();
-    } else if (inp.navX && this.sel === ROW_LEVEL) {
-      this.difficulty = cycleChoice(DIFFICULTIES, this.difficulty, inp.navX > 0 ? 1 : -1);
-      services.audio.sfx('menuMove'); this.paintOptions();
-      this.rows[ROW_LEVEL].bump(inp.navX);
-    } else if (inp.confirm) {
-      if (this.sel === ROW_GO) {
-        this.result = { name: this.racerNameText, under10: this.under10, difficulty: this.difficulty, questionTypes: { ...this.types } };
-        services.audio.sfx('menuSelect');
-        return 'done';
-      }
-      this.sel = Math.min(this.sel + 1, ROW_GO); this.paintOptions();
+    if (inp.back) { services.audio.sfx('menuMove'); this.show('name'); return 'none'; }
+    const dir = inp.navY || inp.navX;
+    if (dir) { this.sel = Phaser.Math.Wrap(this.sel + (dir > 0 ? 1 : -1), 0, AGE_BANDS.length); services.audio.sfx('menuMove'); this.paintAge(); }
+    if (inp.confirm) {
+      this.band = AGE_BANDS[this.sel];
+      this.result = { name: this.racerNameText, ageBand: this.band, questionTypes: { ...this.types }, jbq: { ...this.jbq } };
+      services.audio.sfx('menuSelect');
+      return 'done';
     }
     return 'none';
   }

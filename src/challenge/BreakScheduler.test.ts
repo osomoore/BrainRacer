@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Challenge, PlayerId } from '../core/types';
+import { Rng } from '../core/rng';
 import { BreakScheduler, type BreakEvent } from './BreakScheduler';
+import { ChallengeFactory } from './ChallengeFactory';
+import { ChallengeGenerator } from './ChallengeGenerator';
 
 let n = 0;
 const make = (p: PlayerId, place: string | null): Challenge => ({
@@ -9,7 +12,7 @@ const make = (p: PlayerId, place: string | null): Challenge => ({
   correct: 0, durationSec: 0, source: place ? 'place' : 'random', ...(place ? { placeWord: place } : {}),
 });
 const sched = (players = 2) => new BreakScheduler({
-  players, firstAtSec: 5, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, placeCooldownSec: 60, make,
+  players, firstAtSec: 5, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, wrongRevealSec: 2, placeCooldownSec: 60, make,
 });
 const types = (ev: BreakEvent[]) => ev.map((e) => e.type);
 
@@ -24,7 +27,7 @@ describe('BreakScheduler', () => {
     expect(s.current(1)).not.toBeNull();
   });
 
-  it('wrong answer gives a new question after the retry beat; no resume', () => {
+  it('wrong answer gives a new question after the retry beat plus the reveal time; no resume', () => {
     const s = sched();
     s.update(5, 0.1);
     const first = s.current(0)!;
@@ -33,7 +36,9 @@ describe('BreakScheduler', () => {
     expect(s.playerState(0)).toBe('retry');
     expect(s.answer(0, 0)).toEqual([]);      // ignored during the beat
     expect(s.update(5, 0.3)).toEqual([]);
-    const next = s.update(5, 0.3);
+    expect(s.update(5, 2.1)).toEqual([]);    // 2.4 s in: still showing the correct answer (0.5 + 2.0 = 2.5 s)
+    expect(s.playerState(0)).toBe('retry');
+    const next = s.update(5, 0.2);
     expect(types(next)).toEqual(['shown']);
     expect(s.current(0)!.id).not.toBe(first.id);
     expect(s.playerState(0)).toBe('asking');
@@ -79,5 +84,83 @@ describe('BreakScheduler', () => {
     s.notifyPlace(0, 'school');
     s.update(15, 0.1);
     expect(s.current(0)!.placeWord).toBeUndefined();
+  });
+});
+
+describe('per-kind wrong reveal', () => {
+  it('waits the reveal time returned for the wrong question before asking again', () => {
+    let n = 0;
+    const kinds = ['jbq', 'math'] as const;
+    const br = new BreakScheduler({
+      players: 1, firstAtSec: 0, intervalSec: 10, goSec: 0.6, wrongRetrySec: 0.5, placeCooldownSec: 60,
+      wrongRevealSec: (c) => (c.kind === 'jbq' ? 5 : 2),
+      make: (player) => ({ id: n, player, kind: kinds[n++ % 2], prompt: { kind: 'text', text: 'q' }, options: [], correct: 0, durationSec: 0, source: 'random' }),
+    });
+    br.update(0, 0);
+    br.answer(0, 1);                       // wrong on a JBQ question
+    expect(br.update(0, 5.4).some((e) => e.type === 'shown')).toBe(false);
+    expect(br.update(0, 0.2).some((e) => e.type === 'shown')).toBe(true);   // 5.6 s > 0.5 + 5
+  });
+});
+
+describe('missed JBQ questions', () => {
+  const factory = (player: PlayerId, math = false) => new ChallengeFactory({
+    player, difficulty: 'normal', generator: new ChallengeGenerator(new Rng(1)),
+    rng: new Rng(math ? 6 : player + 2), questionTypes: { jbq: true, math, reading: false },
+  });
+  const reviewBreak = (factories: ChallengeFactory[]) => new BreakScheduler({
+    players: factories.length, firstAtSec: 0, intervalSec: 10, goSec: 1,
+    wrongRetrySec: 0.5, wrongRevealSec: 5, placeCooldownSec: 60,
+    make: (p, place) => factories[p].make(place),
+    onWrong: (challenge) => factories[challenge.player].recordWrong(challenge),
+  });
+  const miss = (br: BreakScheduler, p: PlayerId, now: number) => {
+    const correct = br.current(p)!.correct;
+    br.answer(p, correct === 0 ? 1 : 0);
+    br.update(now, 6);
+  };
+
+  it('cycles the first three misses until each is answered correctly', () => {
+    const br = reviewBreak([factory(0)]);
+    br.update(0, 0);
+    const original = Array.from({ length: 3 }, () => {
+      const c = br.current(0)!;
+      miss(br, 0, 0);
+      return c;
+    });
+    const ids = original.map((c) => c.jbq!.id);
+    expect(new Set(ids).size).toBe(3);
+
+    for (const c of original) {
+      const review = br.current(0)!;
+      expect(review.jbq?.id).toBe(c.jbq!.id);
+      expect(review.id).not.toBe(c.id);
+      expect(review.prompt).toEqual(c.prompt);
+      expect(review.options[review.correct]).toEqual(c.options[c.correct]);
+      miss(br, 0, 0);
+    }
+    expect(br.current(0)?.jbq?.id).toBe(ids[0]);
+    br.answer(0, br.current(0)!.correct);
+    br.update(0, 1);
+    br.update(10, 0);
+    expect(br.current(0)?.jbq?.id).toBe(ids[1]);
+    miss(br, 0, 10);
+    expect(br.current(0)?.jbq?.id).toBe(ids[2]);
+    miss(br, 0, 10);
+    expect(ids).not.toContain(br.current(0)?.jbq?.id);
+  });
+
+  it('counts only that player’s own questions, including other kinds', () => {
+    const br = reviewBreak([factory(0, true), factory(1)]);
+    br.update(0, 0);
+    const first = br.current(0)!.jbq!.id;
+    for (let i = 0; i < 4; i++) miss(br, 1, 0);
+    miss(br, 0, 0);
+    expect(br.current(0)?.kind).toBe('jbq');
+    expect(br.current(0)!.jbq!.id).not.toBe(first);
+    miss(br, 0, 0);
+    expect(br.current(0)?.kind).toBe('math');
+    miss(br, 0, 0);
+    expect(br.current(0)?.jbq?.id).toBe(first);
   });
 });

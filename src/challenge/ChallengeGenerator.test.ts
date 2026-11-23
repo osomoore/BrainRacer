@@ -12,7 +12,7 @@ const KINDS: ChallengeKind[] = ['picToWord', 'wordToPic', 'math'];
 const LEVELS: Difficulty[] = ['easy', 'normal', 'hard'];
 
 const wordOf = (o: ChallengeOption): string =>
-  o.kind === 'text' ? o.text : sceneById(o.sceneId)!.word;
+  o.kind === 'text' ? o.text : o.kind === 'verse' ? o.ref : sceneById(o.sceneId)!.word;
 
 function validateMath(c: GeneratedChallenge, d: Difficulty, n = 3): void {
   const m = /^(\d+) \+ (\d+)$/.exec((c.prompt as { text: string }).text);

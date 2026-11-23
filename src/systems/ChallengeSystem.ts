@@ -1,20 +1,25 @@
 /**
  * Challenges for both question styles; forwards events to the bus and plays sfx. No scoring here.
- *  - 'drive': one ChallengeScheduler per player (continuous, timer bar, answered while driving).
+ *  - 'drive' (DEPRECATED, unused: questions are always Stop & Answer; kept compiling): one ChallengeScheduler per player (continuous, timer bar, answered while driving).
  *  - 'pause': one shared BreakScheduler; a break freezes the world (RaceScene runs only this system
  *    while ctx.questionBreak is true) until every player has answered correctly.
  */
-import { CHALLENGE } from '../config/gameConfig';
+import { CHALLENGE, NEW_RACER } from '../config/gameConfig';
 import type { Rng } from '../core/rng';
 import type { GameSystem, RaceContext } from '../core/race';
 import { services } from '../core/services';
 import type { Challenge, PlayerId } from '../core/types';
 import { BreakScheduler, type BreakEvent } from '../challenge/BreakScheduler';
 import { ChallengeFactory } from '../challenge/ChallengeFactory';
+import { wrongRevealSecFor } from '../challenge/reveal';
 import { ChallengeGenerator } from '../challenge/ChallengeGenerator';
 import { ChallengeScheduler, type SchedulerEvent } from '../challenge/ChallengeScheduler';
+import { JbqProgressStore } from '../challenge/jbqProgress';
+import { jbqToday } from '../challenge/jbqScope';
+import { raceQuestionTypes } from '../challenge/jbqRules';
 
 const RNG_SALT = 0xb1;
+
 
 export class ChallengeSystem implements GameSystem {
   readonly name = 'challenge';
@@ -28,6 +33,10 @@ export class ChallengeSystem implements GameSystem {
   /** Results have been finalized. */
   private ended = false;
   private offRoundEnd: (() => void) | null = null;
+  private offResolved: (() => void) | null = null;
+  /** One progress store per player (quick-race players without a profile keep theirs in memory only). */
+  private jbqStores: JbqProgressStore[] = [];
+  private profiles: (string | undefined)[] = [];
 
   init(ctx: RaceContext): void {
     ctx.questionBreak = false;
@@ -39,17 +48,26 @@ export class ChallengeSystem implements GameSystem {
       phase: () => this.breaks?.phase ?? 'drive',
       state: (p: number) => this.breaks?.playerState(p as PlayerId) ?? null,
     };
+    this.offResolved?.();
+    this.offResolved = ctx.bus.on('challenge:resolved', (e) => {
+      const id = e.challenge.jbq?.id;
+      if (e.result === 'correct' && id !== undefined) this.jbqStores[e.challenge.player]?.recordCorrect(this.profiles[e.challenge.player], id);
+    });
     const mode = ctx.settings.challengeMode ?? 'words';
     if (mode === 'off') return;
 
     const rng: Rng = ctx.rng.fork(RNG_SALT);
-    this.pause = (ctx.settings.questionStyle ?? 'pause') === 'pause';
+    this.pause = true;   // JBQ is Stop & Answer; While Driving is deprecated (ctx.settings.questionStyle is ignored)
     const players = ctx.settings.players;
+    const today = jbqToday();
+    this.profiles = players.map((p) => p.profile);
+    this.jbqStores = players.map(() => new JbqProgressStore());
     this.nPlayers = players.length;
     if (this.pause) {
       const factories = players.map((p, i) => new ChallengeFactory({
         player: i as PlayerId, difficulty: p.difficulty, generator: new ChallengeGenerator(rng.fork(i * 2 + 1)),
-        rng: rng.fork(i * 2 + 2), mode, questionTypes: p.questionTypes, optionCount: CHALLENGE.pauseOptions as 3 | 4,
+        rng: rng.fork(i * 2 + 2), mode, questionTypes: p.questionTypes && raceQuestionTypes(p.questionTypes, p.jbq ?? NEW_RACER.defaultJbq, players.length), optionCount: CHALLENGE.pauseOptions as 3 | 4,
+        jbq: p.jbq ?? NEW_RACER.defaultJbq, today, jbqCount: (id) => this.jbqStores[i].count(p.profile, id),
       }));
       this.breaks = new BreakScheduler({
         players: players.length,
@@ -57,8 +75,10 @@ export class ChallengeSystem implements GameSystem {
         intervalSec: ctx.settings.challengeIntervalSec,
         goSec: CHALLENGE.breakGoSec,
         wrongRetrySec: CHALLENGE.wrongRetrySec,
+        wrongRevealSec: (c) => wrongRevealSecFor(c.kind),
         placeCooldownSec: CHALLENGE.placeCooldownSec,
         make: (p, place) => factories[p].make(place),
+        onWrong: (challenge) => factories[challenge.player].recordWrong(challenge),
       });
     } else {
       this.schedulers = players.map((p, i) => new ChallengeScheduler({
@@ -100,6 +120,10 @@ export class ChallengeSystem implements GameSystem {
   destroy(): void {
     this.offRoundEnd?.();
     this.offRoundEnd = null;
+    this.offResolved?.();
+    this.offResolved = null;
+    this.jbqStores = [];
+    this.profiles = [];
     this.schedulers = [];
     this.breaks = null;
     this.near = [];

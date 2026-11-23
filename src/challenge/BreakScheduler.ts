@@ -1,7 +1,7 @@
 /**
  * Pause-style question breaks (pure; time injected). One shared team timer: after `intervalSec` of
  * driving a break starts for ALL players at once. Each player answers until correct (a wrong answer
- * gives a fresh question after a short beat). When everyone is correct a short "GO" beat runs, then
+ * gives a fresh question after a short beat plus the answer-reveal time). When everyone is correct a short "GO" beat runs, then
  * the break ends and the timer restarts.
  */
 import type { AnswerSlot, Challenge, PlayerId } from '../core/types';
@@ -22,8 +22,11 @@ export interface BreakOptions {
   intervalSec: number;
   goSec: number;
   wrongRetrySec: number;
+  /** After a wrong answer the HUD shows the correct answer for this long (per question kind); the next question waits for wrongRetrySec + this. */
+  wrongRevealSec: number | ((c: Challenge) => number);
   placeCooldownSec: number;
   make: (player: PlayerId, placeWord: string | null) => Challenge;
+  onWrong?: (challenge: Challenge) => void;
 }
 
 export class BreakScheduler {
@@ -94,7 +97,9 @@ export class BreakScheduler {
       }
     } else {
       this.st[p] = 'retry';
-      this.retryLeft[p] = this.o.wrongRetrySec;
+      this.o.onWrong?.(c);
+      const reveal = typeof this.o.wrongRevealSec === 'function' ? this.o.wrongRevealSec(c) : this.o.wrongRevealSec;
+      this.retryLeft[p] = this.o.wrongRetrySec + reveal;
       ev.push({ type: 'resolved', challenge: c, result: 'wrong', chosen: slot });
     }
     return ev;
@@ -109,9 +114,9 @@ export class BreakScheduler {
       if (word) {
         const last = this.lastPlaceAt[p].get(word);
         if (last !== undefined && now - last < this.o.placeCooldownSec) word = null;
-        else this.lastPlaceAt[p].set(word, now);
       }
       this.ask(p as PlayerId, word, ev);
+      if (word && this.cur[p]?.placeWord === word) this.lastPlaceAt[p].set(word, now);
     }
   }
 
