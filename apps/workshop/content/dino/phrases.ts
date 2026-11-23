@@ -320,14 +320,14 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
   ], ['wide', 'efficient', 'navigate', 'heavy']),
   fp('river.fish', [
     [
-      ['Your dino needs blue skin.', 'Hide in the water from the fish.', 'Pick a color like the water.'],
-      ['Make a dino that blends into the water so fish swim close.', 'Build a dino the fish cannot see in the river.', 'Your dino must hide in the river so the fish come near.'],
-      ['Design a dinosaur camouflaged to vanish in the rippling water.', 'Your dinosaur must blend into the river so curious fish approach.', 'Create a dinosaur whose skin conceals it in the water.'],
+      ['Your dino needs blue skin.', 'Blend in with the water to catch a fish.', 'Pick a color like the water.'],
+      ['Make a dino that blends into the water to sneak up on a fish.', 'Build a dino a fish cannot spot in the river, so it can catch it.', 'Your dino must look like the water to catch a fish.'],
+      ['Design a dinosaur camouflaged in the rippling water so it can ambush a fish.', 'Your dinosaur must blend into the river to creep up on a fish unseen.', 'Create a dinosaur whose skin conceals it in the water while it stalks a fish.'],
     ],
   ], [
     ['Try a different color.', 'What color is the water?'],
-    ['Think about the color of the river.', 'Fish can see a bright dino.'],
-    ["Consider whether your dinosaur's color matches the water.", 'Bright skin is conspicuous in a river.'],
+    ['Think about the color of the river.', 'A fish swims away from a bright dino.'],
+    ["Consider whether your dinosaur's color matches the water.", 'Bright skin is conspicuous to a fish in a river.'],
   ], ['conceal', 'camouflage']),
   // ------------------------------------------------------------------ canyon
   fp('canyon.fly', [
