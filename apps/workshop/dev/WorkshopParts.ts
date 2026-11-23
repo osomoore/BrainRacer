@@ -128,7 +128,10 @@ export default class WorkshopParts extends Phaser.Scene {
       };
       // Gears: the game's hood-open view in both cells. Springs: fade the body so they show.
       if (gears) { item.sideDetail = buildDetail(this, this.workshop, m, 'gears'); item.topDetail = buildDetail(this, this.workshop, m, 'gears'); }
-      if (springs) item.side.parts.size.forEach((o) => (o as Phaser.GameObjects.Container).setAlpha(WS_ART.reviewSpringsBodyAlpha));
+      if (springs) {
+        item.side.parts.size.forEach((o) => (o as Phaser.GameObjects.Container).setAlpha(WS_ART.reviewSpringsBodyAlpha));
+        item.side.parts.wheels.forEach((o) => (o as Phaser.GameObjects.Image).setAlpha(WS_ART.reviewSpringsWheelAlpha));
+      }
       return item;
     }), compareSizes, compareSizes);
   }
