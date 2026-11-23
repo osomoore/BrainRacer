@@ -115,7 +115,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   shafts to all four wheels). The preview swaps as the player scrolls.
 - **Done when:** the Gears station shows the open-hood view for all four variants; side view has no gear badge.
 
-## C7 — Dino structure fixes · `OPEN`
+## C7 — Dino structure fixes · `DONE (codex/c7-c8)`
 - **Scope:** `apps/workshop/art/dino/**`.
 - **Do (from review):**
   - **Claws:** redraw every claw variant as seen from the **side** in side view (they currently look top-down).
@@ -131,7 +131,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - **Crest Head:** smooth the color bands (fewer, softer transitions; ComfyUI adds the final shading).
 - **Done when:** every item visibly fixed in side + top; T-Rex combo still reads as a goofy T-Rex.
 
-## C8 — Dino sizes · `OPEN`
+## C8 — Dino sizes · `DONE (codex/c7-c8)`
 - **Scope:** `apps/workshop/art/dino/**`, `apps/workshop/dev/WorkshopParts.ts`.
 - **Do:** the size page must show sizes clearly different against a fixed reference (same as C5). Consider per-part
   scaling (e.g. small dinos: bigger head and eyes relative to body; huge: thicker legs).

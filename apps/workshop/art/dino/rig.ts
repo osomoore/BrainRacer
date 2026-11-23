@@ -28,6 +28,9 @@ export class DinoRig extends BaseRig {
   private sk!: Skeleton;
   private tailRot = 0;
 
+  private get headScale(): number { return this.model.size === 'size.small' ? 1.15 : 1; }
+  private get legWidth(): number { return this.model.size === 'size.huge' ? 1.17 : 1; }
+
   constructor(scene: Phaser.Scene, model: Model, view: View, private readonly beakLook: BeakLook = BEAK_LOOKS[0]) {
     super(scene, 'dino', model, view);
     this.init();
@@ -90,6 +93,7 @@ export class DinoRig extends BaseRig {
     if (k.pose === 'fly') { const w = this.mk(B, k.wing.x + 10, k.wing.y + 4); this.img(w, S.wingSide(sk, true), ['move']); this.wings.push({ c: w, far: true }); }
     const legImg = (slot: Skeleton['legs'][number], parent: C) => {
       const c = this.mk(parent, slot.x, slot.y, slot.rot);
+      c.setScale(this.legWidth, 1);
       const hand = k.pose === 'crawl' && slot.front;
       this.img(c, S.legSide(l.legs, sk, m.legs, claw, m.claws, slot.len, slot.far, hand, k.pose === 'swim'), hand ? ['legs', 'claws'] : ['legs']);
       this.legs.push({ c, slot });
@@ -104,16 +108,16 @@ export class DinoRig extends BaseRig {
     this.img(this.torsoC, S.torsoSide(l.body, h, k, sk, m.body, m.head), ['color', 'body']);
     if (l.body.kind === 'armor') this.img(this.torsoC, S.platesSide(l.body), ['body']);
     const joint = rotPt({ x: hinge.x - k.torso.x, y: hinge.y - k.torso.y }, -k.torso.rot);
-    this.headC = this.mk(this.torsoC, joint.x, joint.y, k.headRot - k.torso.rot);
+    this.headC = this.mk(this.torsoC, joint.x, joint.y, k.headRot - k.torso.rot).setScale(this.headScale);
     if (sk.ex?.kind === 'frill') this.img(this.headC, S.frillSide(h, sk), ['extra']);
     if (sk.ex?.kind === 'feathers') this.img(this.headC, S.featherHeadSide(h, sk), ['extra']);
     const teeth = TEETH[m.teeth] ?? TEETH['teeth.flat'];
     const beak = teeth.kind === 'beak';
-    this.jawRest = beak ? 0.11 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
+    this.jawRest = beak ? 0.11 : teeth.kind === 'mega' ? S.MEGA_JAW_REST : Math.min(0.36, 0.18 + teeth.h / h.len);
     this.throat = this.img(this.headC, S.throatSide(h), []);
-    this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.jaw = this.mk(this.headC, 0, 0);
     this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth, this.beakLook), ['teeth']);
+    this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.img(this.headC, S.headSide(h, sk, m.head, m.teeth, this.beakLook), ['head', 'color']);
     if (beak) P.teeth.push(this.headC);
     for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
@@ -127,16 +131,16 @@ export class DinoRig extends BaseRig {
     this.cy = Math.max(60, -k.torso.y);
     // anchors / foci (design px, ground = 0)
     const hr = k.headRot;
-    const front = h.len * (beak ? this.beakLook.reach : 1);
-    const mouth = rotPt({ x: front * 0.95, y: Math.sin(this.jawRest) * h.len * 0.4 }, hr);
-    const headTop = rotPt({ x: h.len * 0.4, y: -h.top }, hr);
+    const front = h.len * (beak ? this.beakLook.reach : 1) * this.headScale;
+    const mouth = rotPt({ x: front * 0.95, y: Math.sin(this.jawRest) * h.len * this.headScale * 0.4 }, hr);
+    const headTop = rotPt({ x: h.len * 0.4 * this.headScale, y: -h.top * this.headScale }, hr);
     const tailTip = { x: k.tailBase.x - l.tail.len, y: k.tailBase.y + l.tail.droop };
     const tc = { x: k.torso.x, y: k.torso.y };
     const feetX = k.legs.length ? k.legs.reduce((s, q) => s + q.x, 0) / k.legs.length : 0;
     this.anchors = {
       mouth: { x: hinge.x + mouth.x, y: hinge.y + mouth.y }, headTop: { x: hinge.x + headTop.x, y: hinge.y + headTop.y },
       tail: tailTip, feet: { x: feetX, y: 0 }, belly: { x: tc.x, y: tc.y + k.torso.ry * 0.7 },
-      front: { x: hinge.x + front, y: hinge.y - h.top * 0.3 }, back: { x: tailTip.x, y: tailTip.y },
+      front: { x: hinge.x + front, y: hinge.y - h.top * this.headScale * 0.3 }, back: { x: tailTip.x, y: tailTip.y },
     };
     const A = this.anchors;
     const armPos = k.arms[1] ?? k.legs.find((q) => q.front) ?? k.legs[0];
@@ -172,7 +176,7 @@ export class DinoRig extends BaseRig {
     else if (k.pose === 'fly') for (const sy of [-1, 1]) pos.push({ x: -rx * 0.3, y: sy * hw * 0.5, far: sy < 0, front: false, rot: 0 });
     else for (const sy of [-1, 1]) pos.push({ x: -rx * 0.6, y: sy * hw * 0.92, far: sy < 0, front: false, rot: sy * 2.3 });
     for (const p of pos) {
-      const c = this.mk(B, p.x, p.y, p.rot);
+      const c = this.mk(B, p.x, p.y, p.rot).setScale(1, this.legWidth);
       const hand = k.pose === 'crawl' && p.front;
       const im = this.img(c, T.legTop(l.legs, claw, sk, m.legs, m.claws, hand), hand ? ['legs', 'claws'] : ['legs']);
       if (im && p.y < 0) im.setScale(im.scaleX, -im.scaleY);
@@ -196,7 +200,7 @@ export class DinoRig extends BaseRig {
     this.img(this.torsoC, T.torsoTop(l.body, h, k.pose, sk, m.body, m.head), ['color', 'body']);
     if (l.body.kind === 'armor') this.img(this.torsoC, T.platesTop(l.body, k.pose), ['body']);
     if (l.body.kind === 'sail') this.img(this.torsoC, T.sailTop(l.body, k.pose), ['body']);
-    this.headC = this.mk(this.torsoC, hx, 0);
+    this.headC = this.mk(this.torsoC, hx, 0).setScale(this.headScale);
     if (sk.ex?.kind === 'frill') this.img(this.headC, T.frillTop(h, sk), ['extra']);
     if (sk.ex?.kind === 'feathers') this.img(this.headC, T.featherHeadTop(h, sk), ['extra']);
     this.img(this.headC, T.headTop(h, sk, m.head, m.teeth, this.beakLook), ['head', 'color']);
@@ -204,9 +208,9 @@ export class DinoRig extends BaseRig {
     if (sk.ex && !['feathers', 'frill'].includes(sk.ex.kind)) P.extra.push(this.torsoC);
     this.cy = 0;
     const tip = { x: -rx * 0.88 - l.tail.len, y: 0 };
-    const front = hx + h.len * (m.teeth === 'teeth.beak' ? this.beakLook.reach : 1);
+    const front = hx + h.len * (m.teeth === 'teeth.beak' ? this.beakLook.reach : 1) * this.headScale;
     this.anchors = {
-      mouth: { x: front, y: 0 }, headTop: { x: hx + h.len * 0.4, y: 0 }, tail: tip, feet: { x: 0, y: 0 }, belly: { x: 0, y: 0 },
+      mouth: { x: front, y: 0 }, headTop: { x: hx + h.len * 0.4 * this.headScale, y: 0 }, tail: tip, feet: { x: 0, y: 0 }, belly: { x: 0, y: 0 },
       front: { x: front, y: 0 }, back: tip,
     };
   }

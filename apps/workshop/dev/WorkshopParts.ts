@@ -107,7 +107,7 @@ export default class WorkshopParts extends Phaser.Scene {
     const vars = cat.variants.filter((v) => v.aspect === aspect.id);
     const compareSizes = this.workshop === 'dino' && aspect.id === 'size';
     this.label(960, 10, compareSizes
-      ? `${cat.title} / Size · same scale · Medium is the reference`
+      ? `${cat.title} / Size · same scale`
       : `${cat.title} / ${aspect.label}   (arrows = aspect, 1/2 = workshop, R = random)`, 40);
     this.drawRow(vars.map((v) => {
       const m = { ...base, [aspect.id]: v.id };
@@ -119,18 +119,40 @@ export default class WorkshopParts extends Phaser.Scene {
     }), compareSizes, compareSizes);
   }
 
-  private drawRow(items: { name: string; side: ModelRig; top: ModelRig }[], sharedScale: boolean, baseline = false): void {
+  private drawRow(items: { name: string; side: ModelRig; top: ModelRig }[], sharedScale: boolean, sizes = false): void {
     const cw = 1920 / Math.max(items.length, 3);
+    const modelW = cw - (sizes ? 56 : 0);
     const scale = sharedScale
-      ? Math.min(...items.flatMap(({ side, top }) => [this.fit(side, cw, 440), this.fit(top, cw, 400)]))
+      ? Math.min(...items.flatMap(({ side, top }) => [this.fit(side, modelW, 440), this.fit(top, modelW, 400)]))
       : undefined;
-    if (baseline) this.annotations.push(this.add.rectangle(960, 506, 1920, 2, 0x1b1b3a, 0.38).setDepth(-1));
+    if (sizes) this.annotations.push(this.add.rectangle(960, 506, 1920, 2, 0x1b1b3a, 0.38).setDepth(-1));
     items.forEach(({ name, side, top }, i) => {
       const cx = cw * i + cw / 2;
-      this.place(side, cx, 70, cw, 440, scale);
-      this.place(top, cx, 580, cw, 400, scale);
+      const comparisonScale = sizes ? (scale ?? 1) : 0;
+      const modelX = cx - (sizes ? 28 : 0);
+      this.place(side, modelX - side.root.getBounds().centerX * comparisonScale, 70, modelW, 440, scale);
+      this.place(top, modelX - top.root.getBounds().centerX * comparisonScale, 580, modelW, 400, scale);
+      if (sizes) this.drawCone(cx + cw / 2 - 32, comparisonScale * 1.35);
       this.rigs.push(side, top);
       this.label(cx, 520, name, 36);
     });
+  }
+
+  /** The same traffic cone sits beside every model, at the same design scale. */
+  private drawCone(x: number, scale: number): void {
+    const ink = 0x1b1b3a, orange = 0xff9130, white = 0xfff3dc;
+    const side = this.add.container(x, 506).setScale(scale);
+    side.add([
+      this.add.triangle(0, -38, 0, 65, 18, 0, 36, 65, orange).setStrokeStyle(3, ink),
+      this.add.rectangle(0, -34, 17, 9, white),
+      this.add.rectangle(0, -4, 48, 8, orange).setStrokeStyle(3, ink),
+    ]);
+    const top = this.add.container(x, 780).setScale(scale);
+    top.add([
+      this.add.rectangle(0, 0, 48, 48, orange).setStrokeStyle(3, ink),
+      this.add.circle(0, 0, 16, white).setStrokeStyle(2, ink),
+      this.add.circle(0, 0, 8, orange),
+    ]);
+    this.annotations.push(side, top);
   }
 }

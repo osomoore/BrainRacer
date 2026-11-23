@@ -33,7 +33,7 @@ export interface TeethLook { kind: 'flat' | 'big' | 'sharp' | 'beak' | 'mega'; n
 export const TEETH: Record<VariantId, TeethLook> = {
   'teeth.flat': { kind: 'flat', n: 5, h: 9, w: 12, color: '#ffffff' },
   'teeth.big': { kind: 'big', n: 3, h: 20, w: 17, color: '#fffbe8' },
-  'teeth.sharp': { kind: 'sharp', n: 8, h: 18, w: 11, color: '#ffffff' },
+  'teeth.sharp': { kind: 'sharp', n: 9, h: 18, w: 11, color: '#ffffff' },
   'teeth.beak': { kind: 'beak', n: 0, h: 0, w: 0, color: '#ffc83a' },
   'teeth.mega': { kind: 'mega', n: 6, h: 34, w: 17, color: '#fffbe8' },
 };

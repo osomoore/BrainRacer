@@ -24,8 +24,7 @@ export function skinSpec(m: Model): SkinSpec {
 export function crestFill(sk: SkinSpec, start: number, end: number, topView = false): (g: G) => void {
   return (g) => {
     const color = g.createLinearGradient(topView ? start : 0, topView ? 0 : start, topView ? end : 0, topView ? 0 : end);
-    color.addColorStop(0, mix(sk.look.accent, sk.look.belly, 0.45));
-    color.addColorStop(0.46, sk.look.accent);
+    color.addColorStop(0, mix(sk.look.accent, sk.look.belly, 0.32));
     color.addColorStop(1, sk.look.main);
     g.fillStyle = color;
     g.fillRect(-300, -300, 600, 600);
@@ -127,6 +126,21 @@ export function flipperBlade(sk: SkinSpec, blade: { x: number; y: number; angle:
       g.restore();
     },
   };
+}
+
+/** The paddle tail ends in paired lobes, with the far lobe foreshortened in profile. */
+export function paddleFins(sk: SkinSpec, end: Pt, top: boolean): Shape[] {
+  return [-1, 1].map((sign) => ({
+    path: (g) => {
+      const x = end.x + 16;
+      const span = top ? 40 : sign < 0 ? 11 : 23;
+      g.moveTo(x, end.y);
+      g.quadraticCurveTo(x - 22, end.y + sign * span * 0.85, x - 54, end.y + sign * span);
+      g.bezierCurveTo(x - 69, end.y + sign * span, x - 52, end.y + sign * span * 0.34, x - 43, end.y);
+      g.closePath();
+    },
+    fill: sign < 0 && !top ? sk.look.dark : mix(sk.look.main, sk.look.accent, 0.42),
+  }));
 }
 
 /** The fan's scalloped rim and softer inner membrane in either view. */
