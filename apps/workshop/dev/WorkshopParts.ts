@@ -4,13 +4,21 @@
  * Every variant of the aspect is drawn on the default model, side view on top and top view below.
  */
 import Phaser from 'phaser';
-import { buildRig } from '../art';
+import { buildDetail, buildRig } from '../art';
+import { WS_ART } from '../config';
 import { BEAK_LOOKS } from '../art/dino/looks';
 import { DinoRig } from '../art/dino/rig';
 import { CATALOGS } from '../content';
 import type { ModelRig } from '../core/runtime';
 import { Rng } from '../core/rng';
 import type { Model, WorkshopId } from '../core/types';
+
+interface RowItem {
+  name: string; side: ModelRig; top: ModelRig;
+  /** Replaces the rig drawing in that cell (the rig is still built, but hidden). */
+  sideDetail?: Phaser.GameObjects.Container | null;
+  topDetail?: Phaser.GameObjects.Container | null;
+}
 
 export default class WorkshopParts extends Phaser.Scene {
   private workshop: WorkshopId = 'race';
@@ -109,24 +117,30 @@ export default class WorkshopParts extends Phaser.Scene {
     this.label(960, 10, compareSizes
       ? `${cat.title} / Size · same scale`
       : `${cat.title} / ${aspect.label}   (arrows = aspect, 1/2 = workshop, R = random)`, 40);
+    const gears = this.workshop === 'race' && aspect.id === 'gears';
+    const springs = this.workshop === 'race' && aspect.id === 'springs';
     this.drawRow(vars.map((v) => {
       const m = { ...base, [aspect.id]: v.id };
-      return {
+      const item: RowItem = {
         name: v.name,
         side: buildRig(this, this.workshop, m, 'side'),
         top: buildRig(this, this.workshop, m, 'top'),
       };
+      // Gears: the game's hood-open view in both cells. Springs: fade the body so they show.
+      if (gears) { item.sideDetail = buildDetail(this, this.workshop, m, 'gears'); item.topDetail = buildDetail(this, this.workshop, m, 'gears'); }
+      if (springs) item.side.parts.size.forEach((o) => (o as Phaser.GameObjects.Container).setAlpha(WS_ART.reviewSpringsBodyAlpha));
+      return item;
     }), compareSizes, compareSizes);
   }
 
-  private drawRow(items: { name: string; side: ModelRig; top: ModelRig }[], sharedScale: boolean, sizes = false): void {
+  private drawRow(items: RowItem[], sharedScale: boolean, sizes = false): void {
     const cw = 1920 / Math.max(items.length, 3);
     const modelW = cw - (sizes ? 56 : 0);
     const scale = sharedScale
       ? Math.min(...items.flatMap(({ side, top }) => [this.fit(side, modelW, 440), this.fit(top, modelW, 400)]))
       : undefined;
     if (sizes) this.annotations.push(this.add.rectangle(960, 506, 1920, 2, 0x1b1b3a, 0.38).setDepth(-1));
-    items.forEach(({ name, side, top }, i) => {
+    items.forEach(({ name, side, top, sideDetail, topDetail }, i) => {
       const cx = cw * i + cw / 2;
       const comparisonScale = sizes ? (scale ?? 1) : 0;
       const modelX = cx - (sizes ? 28 : 0);
@@ -134,6 +148,14 @@ export default class WorkshopParts extends Phaser.Scene {
       this.place(top, modelX - top.root.getBounds().centerX * comparisonScale, 580, modelW, 400, scale);
       if (sizes) this.drawCone(cx + cw / 2 - 32, comparisonScale * 1.35);
       this.rigs.push(side, top);
+      for (const [rig, detail, cy, h] of [[side, sideDetail, 70, 440], [top, topDetail, 580, 400]] as const) {
+        if (!detail) continue;
+        rig.root.setVisible(false);
+        const b = detail.getBounds();
+        const s = Math.min(2, (modelW - 24) / b.width, (h - 8) / b.height);
+        detail.setScale(s).setPosition(cx - (b.centerX - detail.x) * s, cy + h / 2 - (b.centerY - detail.y) * s);
+        this.annotations.push(detail);
+      }
       this.label(cx, 520, name, 36);
     });
   }
