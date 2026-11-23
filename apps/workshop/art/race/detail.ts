@@ -1,11 +1,11 @@
-/** Baked overhead cutaway for the Gears station. The driving rig never uses this view. */
+/** Baked overhead cutaway for the Gears station (nose to the right like every profile view). The driving rig never uses this view. */
 import type Phaser from 'phaser';
 import type { Model } from '../../core/types';
 import { drawShapes, ellipsePath, partImage, polyPath, roundedPolyPath, rrectPath, type PartSpec, type Shape } from '../bake';
 import { rainbowFill } from './drawSide';
 import { engineTop, wheelTop } from './drawTop';
 import { raceLooks, topOutline } from './geometry';
-import { GEAR, PAINT, RACE_WINDOW, type GearLook } from './looks';
+import { GEAR, PAINT, type GearLook } from './looks';
 
 const AXLE = 124;
 const TRACK = 76;
@@ -79,7 +79,6 @@ function cutaway(model: Model): PartSpec {
         fill: paint.bands ? rainbowFill(paint.bands, SHELL_LENGTH, -100, 100) : paint.main,
       }], 5);
       drawShapes(g, [
-        box(-151, -49, 53, 98, 15, RACE_WINDOW),
         box(-77, -56, 237, 112, 21, paint.accent),
       ], 3);
       drawShapes(g, [box(-70, -49, 223, 98, 17, '#32354b')], 3);
@@ -97,23 +96,14 @@ function cutaway(model: Model): PartSpec {
       }
 
       drawShapes(g, TRAINS[gear.cue].map((cog, i) => cogShape(cog, gear, i % 2 !== 0)), 2.4);
-      // Forward-hinged hood, shown foreshortened with the underside and hinges facing up.
+      // Direction cues (nose = +x like every profile view): yellow headlights up front, red tail lights behind.
+      // The old open-hood flap and rear window read as a windscreen + spoiler (a car pointing left), so they are gone.
       drawShapes(g, [
-        box(153, -41, 36, 12, 4, '#d2d8e3'),
-        box(153, 29, 36, 12, 4, '#d2d8e3'),
-        { path: (c) => roundedPolyPath(c, [
-          { x: 176, y: -56 }, { x: 233, y: -46 }, { x: 245, y: -32 },
-          { x: 245, y: 32 }, { x: 233, y: 46 }, { x: 176, y: 56 },
-        ], 13), fill: paint.main },
-      ], 4);
-      drawShapes(g, [box(186, -33, 42, 66, 10, paint.dark)], 2);
-      g.strokeStyle = paint.accent;
-      g.lineWidth = 5;
-      g.beginPath();
-      g.moveTo(188, -31);
-      g.lineTo(224, 0);
-      g.lineTo(188, 31);
-      g.stroke();
+        { path: (c) => ellipsePath(c, 176, -33, 9, 12), fill: '#ffe45e' },
+        { path: (c) => ellipsePath(c, 176, 33, 9, 12), fill: '#ffe45e' },
+        box(-189, -44, 10, 24, 4, '#ff5252'),
+        box(-189, 20, 10, 24, 4, '#ff5252'),
+      ], 3);
     },
   };
 }

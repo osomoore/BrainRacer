@@ -69,12 +69,6 @@ const stationScreen: ScreenFactory = (): Screen => {
         fitDetail(preview, L.stage.cx, L.stage.cy, Math.min(1100, L.size.w - 120), L.strip.bandY - L.topBandH - 36);
         preview.setDepth(-300);
       };
-      const setStationPreviewAlpha = () => {
-        if (ws !== 'race' || aspect !== 'springs') return;
-        for (const part of rig?.parts.wheels ?? []) {
-          if ('setAlpha' in part && typeof part.setAlpha === 'function') part.setAlpha(0.4);
-        }
-      };
 
       let zoomTo = (_ms: number) => {};
       detail = buildDetail(scene, ws, candidate(), aspect);
@@ -82,12 +76,17 @@ const stationScreen: ScreenFactory = (): Screen => {
         placeDetail(detail);
       } else {
         const modelRig = rig = ctx.buildRig(scene, ws, progress.model, 'side');
-        setStationPreviewAlpha();
+        const baseW = modelRig.width; // measured before the root is scaled (setModel re-measures including the scale)
         const s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, modelRig.width), RL.model.maxH / Math.max(1, modelRig.height));
         modelRig.root.setPosition(RL.model.x, RL.model.groundY).setScale(s0);
         world.add(modelRig.root);
         zoomTo = (ms) => {
-          const f = modelRig.focus(aspect);
+          const f = { ...modelRig.focus(aspect) };
+          if (ws === 'race' && aspect === 'bumpers') {
+            // Both bumpers must be visible: centre on the car and zoom just enough to fit its whole length.
+            f.x = 0;
+            f.zoom = (L.size.w - 2 * WS_ROOM.stationBumperMarginPx) / ((baseW + 2 * WS_ROOM.stationBumperPadPx) * s0);
+          }
           const focus = { x: RL.model.x + f.x * s0, y: RL.model.groundY + f.y * s0 };
           const t = cameraTarget(focus, f.zoom, L.stage, WS_ROOM.stationMaxScale / s0);
           scene.tweens.killTweensOf(world);
@@ -176,8 +175,7 @@ const stationScreen: ScreenFactory = (): Screen => {
           placeDetail(detail);
         } else {
           rig?.setModel(model);
-          setStationPreviewAlpha();
-          zoomTo(260);
+            zoomTo(260);
         }
       };
       const select = (i: number) => {
