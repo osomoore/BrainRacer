@@ -28,8 +28,31 @@ this list covers scenery, props and critters drawn by run scenes and screens.
 - **Procedural strips (probably stay code):** `sky:{top}:{bottom}`, `edge:{top}:{body}:{0|1}`, `cap:{hex}`,
   `ramp:{kind}:{w}:{pw}:{h}`.
 
-## Race Shop run scenes (`run/common/props.ts`, ~80 props `P.*`, and `run/common/top.ts` `T.*`)
-- To be listed when the pipeline adds scenery jobs (backdrops, mud/water/snow pools, ducks, frog, hay, bridges, people).
+## Race Shop run scenes (`run/common/props.ts` and `run/common/top.ts`, keys `wsr:<name>`)
+
+Entries use drawer names (`P.*` for side view, `T.*` for overhead). Paint jobs use the original texture keys,
+including the existing arguments for each listed variant. Jobs added in C15 for the seven groups below.
+
+- **Sky props:** `cloud`, `moon`, `sun`.
+- **Plants and farm:** `tree` (green, muted green and forest green), `pine` (bare and snowy), `bush` (green,
+  grass green and night green), `flower`, `fence`, `reeds`, `barn`, `tractor`, `hay`, `haystack`, `hayTop`, `melon`.
+- **Buildings and roadside:** `house` (daytime wall colors and night lighting), `store`, `gasPump`, `signpost`
+  (blue and yellow arrows, blank yellow sign), `window` (lit and dark), `mileSign` (one through six dots), `flag`
+  (four course colors), `flagPole`, `checker`, `cone`, `crate`, `box` (delivery colors).
+- **Beach:** `umbrella`, `sandcastle`, `bucket`, `shovel`, `towel`, `beachBall`.
+- **Obstacles and loose props:** `rock` (forest trail and river variants), `boulder`, `log`, `logRound`, `lily`,
+  `plank` (wood, rope and stick bridge decks), `postTall`, `ice` (three lengths), `snowbank`, `hat`, `hook`,
+  `hubcap`, `bandage`, `stroller`, `balloon`, `bunting`, `floatWagon` (parade colors).
+- **Characters (face-safe):** `sheep`, `duck` (side-view sizes), `frog`, `pigeon`, `squirrel`, `fish`, `turtle`,
+  `crab`, `gull`, `puppy` (awake and asleep), `snowman`, `person` (the scene-specific outfits and poses),
+  `grandpa`, `band`.
+- **Overhead:** `T.hayTop`, `T.cone`, `T.treeTop` (fixed trees in Fog and Narrow Path),
+  `T.squirrelTop` and `T.duckTop` (both face-safe), `T.puddle` (wide and split-pane sizes).
+- **Particles and UI (code):** `dust`, `leaf`, `bubble`, `zzz`, `note`, `heart`, `exclaim`, `star`,
+  `fuel`, `card`, `marshalCard`. The parade marshal card is a color cue.
+- **Procedural scenery (code):** `sky`, `hills`, `stars`, `ground`, `ramp`, `arch`, `rope`, `T.wall` and the
+  seed-sized `T.treeTop` decorations. These cover repeated strips, star fields, or dimensions chosen by scene logic.
+  The `hash` helper does not draw a texture. Side-view mud, water and snow pools are drawn to fit the terrain in `run/common/side.ts`.
 
 ## Screens
 - Workshop room backdrops (`screens/room/backdrop.ts`: garage, lab), station icons and kid character

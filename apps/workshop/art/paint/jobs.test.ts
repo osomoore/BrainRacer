@@ -26,14 +26,15 @@ describe('art jobs', () => {
   it('is stable between runs', () => {
     expect(allArtJobs().map((j) => j.specHash)).toEqual(jobs.map((j) => j.specHash));
   });
-  it('dino head parts are face-safe (feature mask + face negatives), nothing else is', () => {
+  it('only dino heads use face protection among rig parts', () => {
     const heads = jobs.filter((j) => j.workshop === 'dino' && j.part === 'head');
     expect(heads.length).toBeGreaterThan(10);
     for (const j of heads) {
       expect(j.protect, j.key).toBe('features');
       expect(j.negative).toContain(FACE_NEGATIVE);
     }
-    expect(jobs.filter((j) => j.protect && !heads.includes(j))).toEqual([]);
+    const rigs = jobs.filter((j) => j.key.startsWith('ws:d:') || j.key.startsWith('ws:r:'));
+    expect(rigs.filter((j) => j.protect)).toEqual(heads);
   });
   it('picks.json only votes on real jobs with a seed, shape or more, and a picked seed becomes the job seed', () => {
     const byKey = new Map(jobs.map((j) => [j.key, j]));

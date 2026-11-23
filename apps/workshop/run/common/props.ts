@@ -264,3 +264,17 @@ export const P = {
 } as const;
 
 export const palette = PAL;
+
+/** Top-view props (origin centre), shared by the stage kit and shape export. */
+export const T = {
+  hayTop: () => spec('t:hay', 130, 84, (g) => { ol(g, PAL.hay, rr(6, 6, 118, 72, 16)); line(g, 44, 8, 44, 76, 4, PAL.hayDark); line(g, 86, 8, 86, 76, 4, PAL.hayDark); fl(g, 'rgba(255,255,255,0.35)', rr(14, 12, 40, 8, 4)); }, 65, 42),
+  cone: () => spec('t:cone', 56, 56, (g) => { ol(g, PAL.orange, circ(28, 28, 22), 4); fl(g, '#fff', circ(28, 28, 13)); ol(g, PAL.orange, circ(28, 28, 7), 3); }, 28, 28),
+  treeTop: (d: number, c: string = '#3fae4a') => spec(`t:tree:${d}:${c}`, d + 30, d + 30, (g) => {
+    fl(g, 'rgba(0,0,0,0.18)', circ(d / 2 + 22, d / 2 + 22, d / 2));
+    ol(g, c, circ(d / 2 + 12, d / 2 + 12, d / 2)); fl(g, darken(c, 0.15), circ(d / 2 + 24, d / 2 + 26, d * 0.3)); fl(g, '#6ed46c', circ(d * 0.36, d * 0.34, d * 0.14)); fl(g, '#8fe48a', circ(d * 0.62, d * 0.3, d * 0.07));
+  }, (d + 30) / 2 - 4, (d + 30) / 2 - 4),
+  wall: (len: number, th: number) => spec(`t:wall:${len}:${th}`, len + 16, th + 16, (g) => { ol(g, '#c97b5a', rr(8, 8, len, th, 8)); for (let i = 1; i < len / 50; i++) line(g, 8 + i * 50, 10, 8 + i * 50, th + 6, 2, '#a85c40'); }, (len + 16) / 2, (th + 16) / 2),
+  squirrelTop: () => spec('t:squirrel', 60, 60, (g) => { ol(g, '#c0703a', circ(30, 30, 14), 3); ol(g, '#c0703a', circ(44, 30, 9), 3); ol(g, '#c0703a', (c) => c.ellipse(14, 34, 14, 8, 0.4, 0, 7), 3); }, 30, 30),
+  duckTop: (s = 1) => spec(`t:duck:${s}`, 60 * s, 60 * s, (g) => { g.scale(s, s); ol(g, PAL.yellow, (c) => c.ellipse(28, 30, 20, 14, 0, 0, 7), 3); ol(g, PAL.yellow, circ(46, 30, 10), 3); fl(g, PAL.orange, poly([[54, 27], [62, 30], [54, 33]])); fl(g, PAL.ink, circ(48, 26, 2)); fl(g, PAL.ink, circ(48, 34, 2)); }, 30 * s, 30 * s),
+  puddle: (w: number, h: number) => spec(`t:pond:${w}:${h}`, w + 16, h + 16, (g) => { ol(g, '#5fc8ff', (c) => c.ellipse((w + 16) / 2, (h + 16) / 2, w / 2, h / 2, 0, 0, 7), 4); fl(g, 'rgba(255,255,255,0.4)', (c) => c.ellipse((w + 16) / 2 - w * 0.2, (h + 16) / 2 - h * 0.15, w * 0.15, h * 0.06, -0.3, 0, 7)); }, (w + 16) / 2, (h + 16) / 2),
+};

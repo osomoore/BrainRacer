@@ -21,6 +21,7 @@ import { SPRING } from '../race/looks';
 import * as RS from '../race/drawSide';
 import * as RT from '../race/drawTop';
 import picksData from './picks.json';
+import { addRaceRunShapes } from './jobsRaceRun';
 
 export type ArtGroup = 'race' | 'dino' | 'scene';
 
@@ -121,19 +122,22 @@ function negativeFor(part: string, workshop: WorkshopId): string {
   return n;
 }
 
-function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string, spec: PatternedPartSpec, subject: string): ArtJob {
+function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string, spec: PatternedPartSpec, subject: string,
+  faceSafe = workshop === 'dino' && part === 'head',
+): ArtJob {
   const w = Math.ceil(spec.w * Q), h = Math.ceil(spec.h * Q);
   const full = `${subject}, ${viewText(view)}`;
   // Plain body pieces get a face-free "flat vector" template: the cute sticker style invents eyes and limbs on them.
   const plain = workshop === 'dino' && BODYISH_PARTS.has(part);
-  // Dino head parts carry the eye/nostril (the mouth is the separate jaw part): paint only the skin around them.
-  const faceSafe = workshop === 'dino' && part === 'head';
+  const facePrompt = workshop === 'dino'
+    ? ', smooth skin, the eye is the only facial feature'
+    : ', preserve the existing facial features and expression';
   const seed = hashStr(spec.key), picked = PICKS[spec.key]?.pick;
   const j: ArtJob = {
     key: spec.key, file: artFile(spec.key), kind: 'shape', workshop, view, part, aspect, subject: full,
     prompt: plain
       ? `flat cartoon vector illustration, ${full}, soft cel shading, thick dark navy outline, plain light grey background, a single smooth abstract shape with no face, no eyes, no mouth`
-      : `${HOUSE_STYLE}, ${full}${faceSafe ? ', smooth skin, the eye is the only facial feature' : ''}`,
+      : `${HOUSE_STYLE}, ${full}${faceSafe ? facePrompt : ''}`,
     negative: negativeFor(part, workshop) + (faceSafe ? `, ${FACE_NEGATIVE}` : ''), seed: typeof picked === 'number' ? picked : seed, defaultSeed: seed, w, h,
     denoise: plain ? PAINT_TUNE.bodyDenoise : faceSafe ? PAINT_TUNE.faceDenoise : PAINT_TUNE.denoise,
     control: faceSafe ? PAINT_TUNE.faceControl : PAINT_TUNE.control,
@@ -290,6 +294,9 @@ export function allArtJobs(): ArtJob[] {
       }
     }
   }
+  addRaceRunShapes((view, part, [spec, subject, faceSafe]) => {
+    out.set(spec.key, shapeJob('race', view, part, 'run', spec, subject, faceSafe));
+  });
   for (const j of PROMPT_JOBS) out.set(j.key, j);
   return [...out.values()];
 }
