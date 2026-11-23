@@ -96,7 +96,6 @@ export class DinoRig extends BaseRig {
     };
     for (const s of k.legs.filter((q) => q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => q.far)) this.armImg(s, B, sk, claw, m.claws);
-    if (k.pose === 'crawl') for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
     const h = l.head;
     const hinge = hingePos(k, h);
     // A single silhouette keeps the neck rooted at the shoulder through the poses.
@@ -107,17 +106,17 @@ export class DinoRig extends BaseRig {
     const joint = rotPt({ x: hinge.x - k.torso.x, y: hinge.y - k.torso.y }, -k.torso.rot);
     this.headC = this.mk(this.torsoC, joint.x, joint.y, k.headRot - k.torso.rot);
     if (sk.ex?.kind === 'frill') this.img(this.headC, S.frillSide(h, sk), ['extra']);
+    if (sk.ex?.kind === 'feathers') this.img(this.headC, S.featherHeadSide(h, sk), ['extra']);
     const teeth = TEETH[m.teeth] ?? TEETH['teeth.flat'];
-    this.jawRest = teeth.kind === 'beak' ? 0.06 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
-    this.mouthInterior = this.img(this.headC, S.mouthInterior(h), []);
+    const beak = teeth.kind === 'beak';
+    this.jawRest = beak ? 0.11 : Math.min(0.4, 0.17 + 1.3 * teeth.h / h.len);
+    this.mouthInterior = this.img(this.headC, S.mouthInterior(h, beak), []);
     this.jaw = this.mk(this.headC, 0, 0);
     this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth), ['teeth']);
+    this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.img(this.headC, S.headSide(h, sk, m.head, m.teeth), ['head', 'color']);
-    const up = S.teethSide(h, m.teeth);
-    this.img(this.headC, up, ['teeth']);
-    if (TEETH[m.teeth]?.kind === 'beak') P.teeth.push(this.headC);
-    if (sk.ex?.kind === 'feathers') this.img(this.headC, S.featherHeadSide(h, sk), ['extra']);
-    if (k.pose !== 'crawl') for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
+    if (beak) P.teeth.push(this.headC);
+    for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => !q.far)) this.armImg(s, B, sk, claw, m.claws);
     // far wing drawn before; near wing on top
     if (k.pose === 'fly') { const w = this.mk(B, k.wing.x, k.wing.y); this.img(w, S.wingSide(sk, false), ['move']); this.wings.push({ c: w, far: false }); }
@@ -198,6 +197,7 @@ export class DinoRig extends BaseRig {
     if (l.body.kind === 'sail') this.img(this.torsoC, T.sailTop(l.body, k.pose), ['body']);
     this.headC = this.mk(this.torsoC, hx, 0);
     if (sk.ex?.kind === 'frill') this.img(this.headC, T.frillTop(h, sk), ['extra']);
+    if (sk.ex?.kind === 'feathers') this.img(this.headC, T.featherHeadTop(h, sk), ['extra']);
     this.img(this.headC, T.headTop(h, sk, m.head, m.teeth), ['head', 'color']);
     P.size.push(this.bodyG);
     if (sk.ex && !['feathers', 'frill'].includes(sk.ex.kind)) P.extra.push(this.torsoC);

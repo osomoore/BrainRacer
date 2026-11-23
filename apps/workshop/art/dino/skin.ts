@@ -1,6 +1,6 @@
 /** Dino skin: base colour + patterns (spots, tiger stripes, leaf camo, glow). Shared by side and top parts. */
 import type { Model } from '../../core/types';
-import { drawShapes, OL, type Shape } from '../bake';
+import { drawShapes, ellipsePath, OL, OUTLINE, type Shape } from '../bake';
 import { type Pt, artRng, hashStr, tubeOutline } from '../geom';
 import { EXTRA, type ExtraLook, SKIN, type SkinLook } from './looks';
 
@@ -14,6 +14,40 @@ export function skinSpec(m: Model): SkinSpec {
   const ex = EXTRA[m.extra] ?? null;
   const pattern: PatternKind = ex && (ex.kind === 'camo' || ex.kind === 'stripes' || ex.kind === 'glow') ? ex.kind : 'none';
   return { look, pattern, ex, key: `${m.color}:${m.extra}` };
+}
+
+/** Keep the head's silhouette outside the neck and soften the line where the two overlap. */
+export function drawHeadJoint(g: G, path: Shape['path'], fill: (g: G) => void, color: string, x: number, y: number, radius: number): void {
+  const seam = g.createRadialGradient(x, y, radius * 0.25, x, y, radius);
+  seam.addColorStop(0, `${color}00`);
+  seam.addColorStop(0.68, `${color}55`);
+  seam.addColorStop(1, OUTLINE);
+  g.save();
+  g.beginPath();
+  path(g);
+  g.strokeStyle = seam;
+  g.lineWidth = OL * 2;
+  g.stroke();
+  g.clip();
+  fill(g);
+  const shade = g.createRadialGradient(x, y, 0, x, y, radius * 1.3);
+  shade.addColorStop(0, `${color}88`);
+  shade.addColorStop(1, `${color}00`);
+  g.fillStyle = shade;
+  g.fillRect(x - radius * 1.3, y - radius * 1.3, radius * 2.6, radius * 2.6);
+  g.restore();
+}
+
+export function drawHeadFeathers(g: G, look: ExtraLook, x: number, y: number, angle: number, spread: number, length: number, width: number): void {
+  const colors = [look.c3, look.c2, look.c1];
+  drawShapes(g, colors.map((fill, i) => {
+    const a = angle + (1 - i) * spread;
+    const reach = length * (1 - i * 0.09);
+    return {
+      path: (c) => ellipsePath(c, x + Math.cos(a) * reach * 0.85, y + Math.sin(a) * reach * 0.85, reach, width, a),
+      fill,
+    };
+  }), 4);
 }
 
 /** The fan's scalloped rim and softer inner membrane in either view. */

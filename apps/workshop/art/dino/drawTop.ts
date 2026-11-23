@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, quad } from '../geom';
 import { EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { drawFrill, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { drawFrill, drawHeadFeathers, drawHeadJoint, type SkinSpec, skinFill, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -68,17 +68,42 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
       const sh: Shape[] = [];
       if (h.horns) for (const sgn of [-1, 1]) sh.push({ path: (c) => polyPath(c, [{ x: len * 0.22, y: sgn * hw * 0.8 }, { x: len * 0.5 + h.horns * 0.5, y: sgn * (hw + 34) }, { x: len * 0.52, y: sgn * hw * 0.7 }]), fill: '#fff3d0' });
       if (h.noseHorn) sh.push({ path: (c) => ellipsePath(c, len * 0.88, 0, 12, 7), fill: '#fff3d0' });
-      sh.push({ path: (c) => { c.moveTo(-6, -hw * 0.8); c.quadraticCurveTo(len * 0.4, -hw * 1.25, len * 0.88, -hw * (0.6 - h.snout * 0.5)); c.quadraticCurveTo(len + 10, 0, len * 0.88, hw * (0.6 - h.snout * 0.5)); c.quadraticCurveTo(len * 0.4, hw * 1.25, -6, hw * 0.8); c.closePath(); }, fill: skinFill(sk, { x0: 0, y0: -hw, x1: len, y1: hw }, 3) });
-      if (h.crest) sh.push({ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: EXTRA['extra.frill'].c1, noStroke: false });
-      if (beak) sh.push({ path: (c) => { c.moveTo(len * 0.7, -hw * 0.55); c.quadraticCurveTo(len + 24, 0, len * 0.7, hw * 0.55); c.closePath(); }, fill: TEETH[teethId].color });
       drawShapes(g, sh, OL);
+      const skull: Shape['path'] = (c) => {
+        c.moveTo(-4, -hw * 0.81);
+        c.quadraticCurveTo(len * 0.4, -hw * 1.25, len * 0.88, -hw * (0.6 - h.snout * 0.5));
+        c.quadraticCurveTo(len + 10, 0, len * 0.88, hw * (0.6 - h.snout * 0.5));
+        c.quadraticCurveTo(len * 0.4, hw * 1.25, -4, hw * 0.81);
+        c.quadraticCurveTo(-16, 0, -4, -hw * 0.81);
+        c.closePath();
+      };
+      drawHeadJoint(g, skull, skinFill(sk, { x0: -16, y0: -hw, x1: len, y1: hw }, 3), sk.look.main, -8, 0, h.neckLen > 120 ? 19 : 29);
+      if (h.crest) drawShapes(g, [{ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: EXTRA['extra.frill'].c1 }], OL);
+      if (beak) drawShapes(g, [{
+        path: (c) => {
+          c.moveTo(len * 0.68, -hw * 0.47);
+          c.quadraticCurveTo(len * 0.96, -hw * 0.57, len * 1.1, 0);
+          c.quadraticCurveTo(len * 0.96, hw * 0.57, len * 0.68, hw * 0.47);
+          c.quadraticCurveTo(len * 0.61, 0, len * 0.68, -hw * 0.47);
+          c.closePath();
+        },
+        fill: TEETH[teethId].color,
+      }], 4.5);
       g.strokeStyle = OUTLINE; g.lineWidth = 3.5;
       for (const sgn of [-1, 1]) {
         g.fillStyle = '#fff'; g.beginPath(); circle(g, len * 0.45, sgn * hw * 0.62, h.eye * 0.95); g.fill(); g.stroke();
         g.fillStyle = OUTLINE; g.beginPath(); circle(g, len * 0.45 + 2, sgn * hw * 0.62, h.eye * 0.5); g.fill();
-        g.beginPath(); circle(g, len * 0.88, sgn * hw * 0.22, 3); g.fill();
+        if (!beak) { g.beginPath(); circle(g, len * 0.88, sgn * hw * 0.22, 3); g.fill(); }
       }
     },
+  };
+}
+
+export function featherHeadTop(h: HeadLook, sk: SkinSpec): PartSpec {
+  const ex = sk.ex ?? EXTRA['extra.feathers'];
+  return {
+    key: `ws:d:tfhead:${h.len}:${h.top}`, w: 145, h: 100, ox: 100, oy: 50,
+    draw: (g) => drawHeadFeathers(g, ex, h.crest ? -18 : 4, 0, Math.PI, 0.58, 30, 8.5),
   };
 }
 

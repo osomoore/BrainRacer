@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, rrectPath } from '../bake';
 import { type Pt, deg, quad, rotPt } from '../geom';
 import { type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
-import { drawFrill, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { drawFrill, drawHeadFeathers, drawHeadJoint, type SkinSpec, skinFill, tubeShapes } from './skin';
 import type { BodyLook } from './looks';
 import type { Skeleton } from './skeleton';
 
@@ -115,12 +115,12 @@ export function sailSide(b: BodyLook): PartSpec {
 function skullPath(g: G, h: HeadLook): void {
   const { len, top, snout } = h;
   const fy = -top * (h.brow ? 0.38 : 0.68 - snout * 0.9);
-  g.moveTo(-14, 6);
-  g.quadraticCurveTo(-34, -top * 0.5, -8, -top * 0.96);
+  g.moveTo(-8, 5);
+  g.bezierCurveTo(-22, -1, -27, -top * 0.54, -8, -top * 0.96);
   g.quadraticCurveTo(len * 0.12, -top * 1.16, len * 0.52, -top * (h.brow ? 1.0 : 1.02));
   g.quadraticCurveTo(len * 0.86, -top * (h.brow ? 0.9 : 0.95), len * 0.97, fy);
   g.quadraticCurveTo(len + 14, -top * 0.12, len, 0);
-  g.lineTo(-14, 6);
+  g.quadraticCurveTo(len * 0.4, 6, -8, 5);
   g.closePath();
 }
 
@@ -145,8 +145,8 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
         const cr = h.crest, c1 = EXTRA['extra.frill'].c1;
         sh.push({ path: (c) => { c.moveTo(len * 0.62, -top * 0.98); c.quadraticCurveTo(len * 0.55, -top - cr, len * 0.12, -top - cr * 0.95); c.quadraticCurveTo(-4, -top - cr * 0.3, -12, -top * 0.7); c.closePath(); }, fill: c1, detail: (c) => { c.strokeStyle = '#ffd21f'; c.lineWidth = 5; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(len * 0.5 - i * 22, -top); c.lineTo(len * 0.3 - i * 20, -top - cr * 0.8); c.stroke(); } } });
       }
-      sh.push({ path: (c) => skullPath(c, h), fill: skinFill(sk, box, 3) });
       drawShapes(g, sh, OL);
+      drawHeadJoint(g, (c) => skullPath(c, h), skinFill(sk, box, 3), sk.look.main, -12, -1, h.neckLen > 120 ? 20 : 25);
       // cheek + nostril + eye
       g.fillStyle = 'rgba(255,110,140,0.4)'; g.beginPath(); circle(g, len * 0.4, -top * 0.22, h.eye * 1.1); g.fill();
       g.fillStyle = OUTLINE; g.beginPath(); ellipsePath(g, len * (h.brow ? 0.9 : 0.88), -top * 0.42, 4.5, 3); g.fill();
@@ -157,7 +157,23 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
       if (h.brow) { g.strokeStyle = sk.look.dark; g.lineWidth = 9; g.beginPath(); g.moveTo(ex - 20, ey - h.eye * 1.9); g.quadraticCurveTo(ex, ey - h.eye * 2.6, ex + 20, ey - h.eye * 1.9); g.stroke(); }
       if (beak) {
         const t = TEETH[teethId];
-        const bs: Shape[] = [{ path: (c) => { c.moveTo(len * 0.55, -top * 0.78); c.quadraticCurveTo(len + 20, -top * 0.7, len + 24, -top * 0.1); c.quadraticCurveTo(len + 14, 8, len * 0.58, 4); c.closePath(); }, fill: t.color }];
+        const bs: Shape[] = [{
+          path: (c) => {
+            c.moveTo(len * 0.66, -top * 0.35);
+            c.quadraticCurveTo(len * 0.99, -top * 0.45, len * 1.1, -top * 0.06);
+            c.quadraticCurveTo(len * 1.1, 5, len * 1.01, 4);
+            c.quadraticCurveTo(len * 0.83, 1, len * 0.67, 5);
+            c.quadraticCurveTo(len * 0.61, -4, len * 0.66, -top * 0.35);
+            c.closePath();
+          },
+          fill: t.color,
+          detail: (c) => {
+            c.fillStyle = '#ffe28a';
+            c.beginPath();
+            ellipsePath(c, len * 0.83, -top * 0.25, len * 0.12, 3, -0.05);
+            c.fill();
+          },
+        }];
         drawShapes(g, bs, 4.5);
       }
     },
@@ -184,20 +200,21 @@ function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 
 
 /** Upper teeth (hang from the mouth line) or the beak cap is part of the head texture. Origin = hinge. */
 export function teethSide(h: HeadLook, teethId: string): PartSpec | null {
-  const t = TEETH[teethId] ?? TEETH['teeth.flat'];
+  const teeth = TEETH[teethId] ?? TEETH['teeth.flat'];
+  const t = teeth.kind === 'flat' ? { ...teeth, h: teeth.h + 3 } : teeth;
   if (t.kind === 'beak') return null;
   const W = h.len + 80, H = t.h + 50;
   return {
     key: `ws:d:teeth:${teethId}:${h.len}`, w: W, h: H, ox: 40, oy: 20,
-    draw: (g) => teethRow(g, t, h.len * 0.39, h.len * 0.96, 1, 1),
+    draw: (g) => teethRow(g, t, h.len * 0.40, h.len * 0.95, 4, 1),
   };
 }
 
 /** A baked triangle that scales and rotates with the two edges of the opening jaw. */
-export function mouthInterior(h: HeadLook): PartSpec {
-  const len = h.len * 0.96;
+export function mouthInterior(h: HeadLook, beak: boolean): PartSpec {
+  const len = h.len * (beak ? 1.06 : 0.96);
   return {
-    key: `ws:d:mouth:${h.len}`, w: h.len + 8, h: h.len * 2 + 8, ox: 4, oy: h.len + 4,
+    key: `ws:d:mouth:${h.len}:${beak}`, w: len + 8, h: len * 2 + 8, ox: 4, oy: len + 4,
     draw: (g) => {
       g.fillStyle = '#562339';
       g.beginPath();
@@ -215,14 +232,35 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
     key: `ws:d:jaw:${headId}:${teethId}:${sk.key}`, w: W, h: H, ox: 60, oy: t.h + 40,
     draw: (g) => {
       const { len, jaw } = h;
-      const sh: Shape[] = [{
-        path: (c) => { c.moveTo(-12, -3); c.lineTo(len * 0.97, -3); c.quadraticCurveTo(len * 0.99, jaw * 0.85, len * 0.7, jaw); c.quadraticCurveTo(len * 0.2, jaw * 1.1, -14, jaw * 0.4); c.closePath(); },
-        fill: sk.look.belly,
-        detail: (c) => { c.fillStyle = '#a3203f'; c.fillRect(-14, -4, len + 10, 8); c.fillStyle = '#ff7f9f'; c.beginPath(); c.ellipse(len * 0.4, 2, len * 0.22, 5, 0, 0, 6.3); c.fill(); },
-      }];
-      if (t.kind === 'beak') sh.push({ path: (c) => { c.moveTo(len * 0.5, -3); c.lineTo(len + 14, -3); c.quadraticCurveTo(len + 16, jaw * 0.7, len * 0.7, jaw * 0.9); c.lineTo(len * 0.5, jaw * 0.5); c.closePath(); }, fill: t.color });
-      drawShapes(g, sh, OL);
-      if (t.kind !== 'beak') teethRow(g, { ...t, n: Math.max(2, t.n - 2), h: t.h * 0.43 }, len * 0.51, len * 0.91, -2, -1);
+      const beak = t.kind === 'beak';
+      const lip: Shape['path'] = (c) => {
+        c.moveTo(0, -5);
+        c.quadraticCurveTo(len * 0.48, 1, len * (beak ? 1.02 : 0.97), -1);
+        c.quadraticCurveTo(len * (beak ? 1.02 : 0.98), jaw * 0.75, len * 0.72, jaw);
+        c.quadraticCurveTo(len * 0.21, jaw * 0.9, 0, jaw * 0.36);
+        c.quadraticCurveTo(-8, jaw * 0.16, 0, -5);
+        c.closePath();
+      };
+      if (!beak) teethRow(g, { ...t, n: Math.max(2, t.n - 2), h: Math.max(7, t.h * 0.44) }, len * 0.51, len * 0.91, -4, -1);
+      drawHeadJoint(g, lip, (c) => {
+        c.fillStyle = sk.look.belly;
+        c.fillRect(-12, -10, len + 30, jaw + 20);
+      }, sk.look.dark, 0, 1, Math.min(31, len * 0.25));
+      if (beak) {
+        g.save();
+        g.beginPath();
+        lip(g);
+        g.clip();
+        g.fillStyle = '#e9a92e';
+        g.beginPath();
+        g.moveTo(len * 0.69, -8);
+        g.quadraticCurveTo(len * 0.66, jaw * 0.42, len * 0.74, jaw + 5);
+        g.lineTo(len * 1.1, jaw + 5);
+        g.lineTo(len * 1.1, -8);
+        g.closePath();
+        g.fill();
+        g.restore();
+      }
     },
   };
 }
@@ -357,12 +395,8 @@ export function frillSide(h: HeadLook, sk: SkinSpec): PartSpec {
 export function featherHeadSide(h: HeadLook, sk: SkinSpec): PartSpec {
   const ex = sk.ex ?? EXTRA['extra.feathers'];
   return {
-    key: `ws:d:fhead:${h.len}:${h.top}`, w: 200, h: h.top + 140, ox: 100, oy: h.top + 120,
-    draw: (g) => {
-      const sh: Shape[] = [];
-      [ex.c3, ex.c2, ex.c1].forEach((col, i) => { const a = deg(-110 - i * 22); const bx = h.len * 0.2 - i * 8, by = -h.top * 0.95; sh.push({ path: (c) => ellipsePath(c, bx + Math.cos(a) * 36, by + Math.sin(a) * 36, 38, 11, a), fill: col }); });
-      drawShapes(g, sh, 4);
-    },
+    key: `ws:d:fhead:${h.len}:${h.top}`, w: 210, h: h.top + 140, ox: 120, oy: h.top + 120,
+    draw: (g) => drawHeadFeathers(g, ex, h.crest ? -18 : 1, -h.top * (h.crest ? 0.74 : 0.93), deg(-132), deg(22), 34, 9),
   };
 }
 
