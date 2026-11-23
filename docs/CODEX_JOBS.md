@@ -98,14 +98,14 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** each shape reads instantly at half size, and every body × shape combo still looks right
   (`&page=random`, several seeds).
 
-## C5 — Car sizes · `OPEN`
+## C5 — Car sizes · `DONE (codex/c5-c6)`
 - **Scope:** `apps/workshop/art/race/**`, `apps/workshop/dev/WorkshopParts.ts`.
 - **Do:** size comparison page shows a fixed reference (e.g. a kid figure or a cone) and all sizes at the same scale.
   Per-part scaling so small cars look cute: tires a bit larger relative to the body on Small/Tiny; roof-rack luggage
   relatively larger and only one bag on Small/Tiny. (A "Giant" size is a future variant: not in this job.)
 - **Done when:** sizes are clearly different next to the reference; small cars look intentionally chunky.
 
-## C6 — Gears close-up (hood open) · `OPEN`
+## C6 — Gears close-up (hood open) · `DONE (codex/c5-c6)`
 - **Scope:** `apps/workshop/art/race/**` (new `art/race/detail.ts`), `apps/workshop/art/index.ts` (new export
   `buildDetail(scene, workshop, model, aspect): Phaser.GameObjects.Container | null`), `screens/stationScreen.ts`
   (use `buildDetail` when it returns a container).

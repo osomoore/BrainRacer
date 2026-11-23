@@ -4,11 +4,14 @@ import { type Pt, lerp, topAt } from '../geom';
 import { BODY, type BodyLook, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, WHEEL, type WheelLook } from './looks';
 
 export interface RaceLooks {
-  body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number;
+  body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; compactRack: boolean;
 }
 
 export function raceLooks(model: Model): RaceLooks {
+  const compactRack = model.size === 'size.tiny' || model.size === 'size.small';
   return {
+    compactRack,
+    wheelScale: model.size === 'size.tiny' ? 1.20 : model.size === 'size.small' ? 1.12 : 1,
     body: BODY[model.body] ?? BODY['body.car'],
     shape: SHAPE[model.shape] ?? SHAPE['shape.boxy'],
     wheel: WHEEL[model.wheels] ?? WHEEL['wheels.road'],
@@ -21,6 +24,7 @@ export interface RaceGeom {
   /** y of the underside of the body. */
   bottom: number;
   hubY: number;
+  wheelRadius: number;
   front: number; rear: number;
   frontAxle: number; rearAxle: number;
   chassis: Pt[]; cabin: Pt[]; bed: Pt[] | null;
@@ -36,9 +40,10 @@ export interface RaceGeom {
 
 export function raceGeom(l: RaceLooks): RaceGeom {
   const { body: b, shape: s, wheel: w } = l;
+  const wheelRadius = Math.round(w.r * l.wheelScale);
   const sports = b.kind === 'sports';
-  const tireClearance = sports || s.noseK < 0.85 ? Math.max(0, w.r - 55) * 0.9 : 0;
-  const bottom = -(w.r - 4 + l.lift + tireClearance);
+  const tireClearance = sports || s.noseK < 0.85 ? Math.max(0, wheelRadius - 55) * 0.9 : 0;
+  const bottom = -(wheelRadius - 4 + l.lift + tireClearance);
   const x0 = -b.len / 2, x1 = b.len / 2;
   const chRear = b.chH * s.tailK, chFront = b.chH * s.noseK;
   const deck = sports
@@ -85,10 +90,10 @@ export function raceGeom(l: RaceLooks): RaceGeom {
   let roofTop = Infinity;
   for (const p of cabin) roofTop = Math.min(roofTop, p.y);
   return {
-    bottom, hubY: -w.r, front: x1, rear: x0, frontAxle: b.wheelX, rearAxle: -b.wheelX,
+    bottom, hubY: -wheelRadius, wheelRadius, front: x1, rear: x0, frontAxle: b.wheelX, rearAxle: -b.wheelX,
     chassis, cabin, bed, topY, chassisTop, roofTop,
     cabinTopRange: [cabin[1].x, cabin[2].x],
-    height: Math.max(-roofTop, -topY(x0), w.r * 2),
+    height: Math.max(-roofTop, -topY(x0), wheelRadius * 2),
   };
 }
 

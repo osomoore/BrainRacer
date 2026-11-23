@@ -4,6 +4,7 @@
  * "Use it!" button) installs it, saves, sparkles and returns to the room; B returns without changing anything.
  */
 import type Phaser from 'phaser';
+import { buildDetail } from '../art';
 import { WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
@@ -20,12 +21,19 @@ import { swatchTexture } from './station/swatch';
 
 const BAND = 0x232a66;
 
+function fitDetail(detail: Phaser.GameObjects.Container, x: number, y: number, w: number, h: number): void {
+  const bounds = detail.getBounds();
+  const scale = Math.min(w / bounds.width, h / bounds.height);
+  detail.setScale(scale).setPosition(x - bounds.centerX * scale, y - bounds.centerY * scale);
+}
+
 const stationScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
   const objs: Phaser.GameObjects.GameObject[] = [];
   const tweens: Phaser.Tweens.Tween[] = [];
   let timer: Phaser.Time.TimerEvent | undefined;
   let rig: ModelRig | undefined;
+  let detail: Phaser.GameObjects.Container | null = null;
   let busy = false;
   let moveBy: (d: number) => void = () => {};
   let doApply: () => void = () => {};
@@ -53,34 +61,40 @@ const stationScreen: ScreenFactory = (): Screen => {
       objs.push(world);
       const bg = roomBackdrop(scene, ws, ctx.layout, RL.floorY);
       world.add(scene.add.image(0, 0, bg.key).setOrigin(0));
-      rig = ctx.buildRig(scene, ws, progress.model, 'side');
-      const setStationPreviewAlpha = () => {
-        if (ws !== 'race' || aspect !== 'springs') return;
-        for (const part of rig!.parts.wheels ?? []) {
-          if ('setAlpha' in part && typeof part.setAlpha === 'function') part.setAlpha(aspect === 'springs' ? 0.4 : 1);
-        }
-      };
-      setStationPreviewAlpha();
-      const s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, rig.width), RL.model.maxH / Math.max(1, rig.height));
-      rig.root.setPosition(RL.model.x, RL.model.groundY).setScale(s0);
-      world.add(rig.root);
       const shade = scene.add.rectangle(0, 0, L.size.w, L.size.h, 0xffffff, 0.28).setOrigin(0).setDepth(-400);
       objs.push(shade);
 
-      const focusWorld = () => {
-        const f = rig!.focus(aspect);
-        return { x: RL.model.x + f.x * s0, y: RL.model.groundY + f.y * s0, zoom: f.zoom };
+      const candidate = () => withVariant(progress.model, aspect, options[index]);
+      const placeDetail = (preview: Phaser.GameObjects.Container) => {
+        fitDetail(preview, L.stage.cx, L.stage.cy, Math.min(1100, L.size.w - 120), L.strip.bandY - L.topBandH - 36);
+        preview.setDepth(-300);
       };
-      const target = () => {
-        const f = focusWorld();
-        return cameraTarget(f, f.zoom, L.stage, WS_ROOM.stationMaxScale / s0);
+      const setStationPreviewAlpha = () => {
+        if (ws !== 'race' || aspect !== 'springs') return;
+        for (const part of rig?.parts.wheels ?? []) {
+          if ('setAlpha' in part && typeof part.setAlpha === 'function') part.setAlpha(0.4);
+        }
       };
-      const zoomTo = (ms: number) => {
-        const t = target();
-        scene.tweens.killTweensOf(world);
-        tweens.push(scene.tweens.add({ targets: world, x: t.x, y: t.y, scaleX: t.scale, scaleY: t.scale, duration: ms, ease: 'Cubic.easeInOut' }));
-      };
-      zoomTo(WS_ROOM.stationZoomMs);
+
+      let zoomTo = (_ms: number) => {};
+      detail = buildDetail(scene, ws, candidate(), aspect);
+      if (detail) {
+        placeDetail(detail);
+      } else {
+        const modelRig = rig = ctx.buildRig(scene, ws, progress.model, 'side');
+        setStationPreviewAlpha();
+        const s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, modelRig.width), RL.model.maxH / Math.max(1, modelRig.height));
+        modelRig.root.setPosition(RL.model.x, RL.model.groundY).setScale(s0);
+        world.add(modelRig.root);
+        zoomTo = (ms) => {
+          const f = modelRig.focus(aspect);
+          const focus = { x: RL.model.x + f.x * s0, y: RL.model.groundY + f.y * s0 };
+          const t = cameraTarget(focus, f.zoom, L.stage, WS_ROOM.stationMaxScale / s0);
+          scene.tweens.killTweensOf(world);
+          tweens.push(scene.tweens.add({ targets: world, x: t.x, y: t.y, scaleX: t.scale, scaleY: t.scale, duration: ms, ease: 'Cubic.easeInOut' }));
+        };
+        zoomTo(WS_ROOM.stationZoomMs);
+      }
 
       // ---- bands
       const topH = L.topBandH;
@@ -102,7 +116,14 @@ const stationScreen: ScreenFactory = (): Screen => {
           if (busy) return;
           if (i === index) apply(); else select(i);
         } });
-        b.add(scene.add.image(0, 0, swatchTexture(ctx, ws, progress.model, aspect, v, L.strip.swatch - 24)));
+        const swatchSize = L.strip.swatch - 24;
+        const detailSwatch = buildDetail(scene, ws, withVariant(progress.model, aspect, v), aspect);
+        if (detailSwatch) {
+          fitDetail(detailSwatch, 0, 0, swatchSize, swatchSize);
+          b.add(detailSwatch);
+        } else {
+          b.add(scene.add.image(0, 0, swatchTexture(ctx, ws, progress.model, aspect, v, swatchSize)));
+        }
         if (v === installed) {
           const chip = scene.add.image(0, L.strip.swatch / 2 - 30, roundedTexture(scene, 150, 56, COLORS.green, { radius: 28, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(56, 0));
           b.add([chip, makeText(scene, 0, L.strip.swatch / 2 - 30, '✓ Now', { size: 40, color: COLORS.paper })]);
@@ -147,9 +168,17 @@ const stationScreen: ScreenFactory = (): Screen => {
       };
 
       const preview = () => {
-        rig!.setModel(withVariant(progress.model, aspect, options[index]));
-        setStationPreviewAlpha();
-        zoomTo(260);
+        const model = candidate();
+        const nextDetail = buildDetail(scene, ws, model, aspect);
+        if (nextDetail) {
+          detail?.destroy();
+          detail = nextDetail;
+          placeDetail(detail);
+        } else {
+          rig?.setModel(model);
+          setStationPreviewAlpha();
+          zoomTo(260);
+        }
       };
       const select = (i: number) => {
         const n = clampIndex(i, options.length);
@@ -175,7 +204,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         ctx.commit({ ...cur, workshops: { ...cur.workshops, [ws]: next } });
         ctx.audio.sfx('pop');
         ctx.audio.sfx('sparkle');
-        rig!.play('happy');
+        rig?.play('happy');
         const star = starTexture(scene, 56);
         for (let i = 0; i < 12; i++) {
           const a = (i / 12) * Math.PI * 2;
@@ -207,6 +236,8 @@ const stationScreen: ScreenFactory = (): Screen => {
       tweens.length = 0;
       rig?.destroy();
       rig = undefined;
+      detail?.destroy();
+      detail = null;
       objs.forEach((o) => { if (o.scene) o.destroy(); });
       objs.length = 0;
     },

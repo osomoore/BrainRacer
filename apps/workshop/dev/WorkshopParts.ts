@@ -105,7 +105,7 @@ export default class WorkshopParts extends Phaser.Scene {
     }
     const aspect = cat.aspects[this.aspectIdx];
     const vars = cat.variants.filter((v) => v.aspect === aspect.id);
-    const compareSizes = this.workshop === 'dino' && aspect.id === 'size';
+    const compareSizes = aspect.id === 'size';
     this.label(960, 10, compareSizes
       ? `${cat.title} / Size · same scale`
       : `${cat.title} / ${aspect.label}   (arrows = aspect, 1/2 = workshop, R = random)`, 40);
