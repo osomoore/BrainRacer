@@ -189,14 +189,17 @@ test('mobile: tap a station sign, the character walks there and the station open
     c.setProfile('p1'); c.setWorkshop('race'); c.go('room');
   });
   await expectScreens(page, 'room');
-  await page.waitForTimeout(400);
-  const k = 1600 / 1920;
-  await page.mouse.click(760 * k, 110 * k); // Wheels sign (wide layout, top row)
+  const tap = async (label: string, x: number, y: number) => {
+    // The next screen can be mounted one frame before its hit targets enter Phaser's input list.
+    await page.waitForFunction((label) => (window as any).__ws.panes[0].input._list.some((obj: any) =>
+      obj.input?.enabled && obj.visible && obj.list?.some((child: any) => child.text === label)), label);
+    await page.mouse.click(x * (1600 / 1920), y * (900 / 1080));
+  };
+  await tap('Wheels', 760, 110);
   await expectScreens(page, 'station');
-  await page.waitForTimeout(900);
-  await page.mouse.click(175 * k, 115 * k); // Back
+  await tap('Back', 175, 115);
   await expectScreens(page, 'room');
-  await page.mouse.click(960 * k, 950 * k); // Challenges
+  await tap('Challenges', 960, 950);
   await expectScreens(page, 'board');
   await ctx.close();
 });

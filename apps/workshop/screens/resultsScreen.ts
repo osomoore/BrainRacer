@@ -11,7 +11,7 @@ import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
 import type { ModelRig } from '../core/runtime';
 import type { Challenge, Model, Requirement, RunResult, WorkshopId } from '../core/types';
-import { WS_UI } from '../config';
+import { WS_RESULTS, WS_UI } from '../config';
 import { engine } from '../logic';
 import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -190,15 +190,16 @@ const resultsScreen: ScreenFactory = (): Screen => {
         for (const i of plan.pages[page] ?? []) {
           const row = rows[i];
           if (multi && row.first && y > top) y += stageGap;
-          const dim = row.reached ? 1 : 0.62;
           if (multi && row.first) {
             const bx = badgeX, by = y + 34;
-            const disc = s.add.image(bx, by, circleTexture(s, 64, row.reached ? COLORS.yellow : 0xdddddd)).setAlpha(dim);
-            const num = makeText(s, bx, by, String(row.stage + 1), { size: min, color: COLORS.ink }).setAlpha(dim);
+            const disc = s.add.image(bx, by, circleTexture(s, 64, row.reached ? COLORS.yellow : WS_RESULTS.unreachedBadge));
+            const num = makeText(s, bx, by, String(row.stage + 1), { size: min, color: COLORS.ink });
             pageObjs.push(disc, num);
           }
-          const mark = makeText(s, markX, y, row.ok ? '✓' : '✗', { size: font + 8, color: row.ok ? COLORS.green : COLORS.red, stroke: COLORS.paper, strokeW: 8, origin: [0, 0] }).setAlpha(dim);
-          const line = makeText(s, textX, y + 6, row.req.text[reading], { size: font, color: COLORS.ink, wrap: textW, origin: [0, 0], bold: false, align: 'left' }).setAlpha(dim);
+          const mark = row.reached
+            ? makeText(s, markX, y, row.ok ? '✓' : '✗', { size: font + 8, color: row.ok ? COLORS.green : COLORS.red, stroke: COLORS.paper, strokeW: 8, origin: [0, 0] })
+            : makeText(s, markX, y, '–', { size: font + 8, color: WS_RESULTS.unreachedText, origin: [0, 0] });
+          const line = makeText(s, textX, y + 6, row.req.text[reading], { size: font, color: row.reached ? COLORS.ink : WS_RESULTS.unreachedText, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
           pageObjs.push(mark, line);
           y += rowHeights[i] - (multi && row.first && i > 0 ? stageGap : 0);
         }

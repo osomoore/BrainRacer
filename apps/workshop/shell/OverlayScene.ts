@@ -1,4 +1,4 @@
-/** Always-on top layer: the 2P divider, the Admin Mode ribbon and (mobile) the faint admin gear. */
+/** Always-on top layer: the 2P divider, the Admin Mode pill and (mobile) the faint admin gear. */
 import Phaser from 'phaser';
 import { STAGE, WS_ADMIN, WS_UI } from '../config';
 import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
@@ -29,7 +29,7 @@ function gearTexture(scene: Phaser.Scene): string {
 
 export class OverlayScene extends Phaser.Scene {
   private divider?: Phaser.GameObjects.Rectangle;
-  private ribbon?: Phaser.GameObjects.Container;
+  private adminPill?: Phaser.GameObjects.Container;
   private gear?: Phaser.GameObjects.Image;
   private zone?: Phaser.GameObjects.Zone;
 
@@ -41,12 +41,13 @@ export class OverlayScene extends Phaser.Scene {
     this.divider = this.add.rectangle(STAGE.w / 2, STAGE.h / 2, dw, STAGE.h, COLORS.ink).setVisible(false);
     this.add.rectangle(STAGE.w / 2, STAGE.h / 2, 3, STAGE.h, 0xffffff).setVisible(false).setName('dividerLine');
 
-    const t = makeText(this, 0, 0, 'ADMIN MODE', { size: 36, color: COLORS.ink, small: true });
-    const w = Math.ceil(t.width) + 60, h = 64;
-    this.ribbon = this.add.container(STAGE.w / 2, 36, [
-      this.add.image(0, 0, roundedTexture(this, w, h, COLORS.yellow, { radius: 32, shadow: 0, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0)),
+    const { inset, h, padX, font } = WS_UI.adminPill;
+    const t = makeText(this, 0, 0, 'ADMIN MODE', { size: font, color: COLORS.ink, small: true });
+    const w = Math.ceil(t.width) + 2 * padX;
+    this.adminPill = this.add.container(STAGE.w - inset - w / 2, inset + h / 2, [
+      this.add.image(0, 0, roundedTexture(this, w, h, COLORS.yellow, { radius: h / 2, shadow: 0, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0)),
       t,
-    ]).setVisible(false);
+    ]).setSize(w, h).setVisible(false);
 
     if (shell.mobile) {
       const sz = WS_ADMIN.gearSize;
@@ -62,7 +63,13 @@ export class OverlayScene extends Phaser.Scene {
     const two = shell.count === 2;
     this.divider?.setVisible(two);
     this.children.getByName('dividerLine') && (this.children.getByName('dividerLine') as Phaser.GameObjects.Rectangle).setVisible(two);
-    this.ribbon?.setVisible(shell.adminMode() && !shell.adminOpen);
+    if (this.adminPill) {
+      const edge = WS_UI.adminPill.inset + this.adminPill.width / 2;
+      // The tall board puts its part labels in the upper right. Its model side has room above it.
+      const rightBoard = two && shell.panes[1]?.screenId === 'board';
+      const x = rightBoard ? STAGE.w / 2 + WS_UI.dividerW / 2 + edge : STAGE.w - edge;
+      this.adminPill.setX(x).setVisible(shell.adminMode() && !shell.adminOpen);
+    }
     if (this.gear && this.zone) {
       const show = !shell.adminOpen && (shell.count === 0 || (shell.count === 1 && shell.panes[0]?.screenId === 'profile'));
       this.gear.setVisible(show);

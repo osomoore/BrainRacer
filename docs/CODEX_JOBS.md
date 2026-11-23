@@ -188,7 +188,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** every item visibly fixed in the reviewer sheets (side + top).
 - **Hand-back:** The existing painted Jeep body textures still show the old spare. Review the edge-on spare
   with `&art=shapes`. The side and top Jeep body paints need a refresh to pick up the new geometry.
-## C13 — Screen polish and the flaky mobile test · `OPEN`
+## C13 — Screen polish and the flaky mobile test · `DONE (codex/c13)`
 - **Parallel-safe with C14 and C15.** No user review needed: every item has an objective check.
 - **Port:** 5221.
 - **Scope:** `apps/workshop/screens/results*`, `apps/workshop/screens/station*`, `apps/workshop/shell/**` (Admin pill only),

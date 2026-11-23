@@ -90,20 +90,41 @@ test('keyboard 2P: both layouts join, panes split and work independently', async
 
 test('mobile: tap to play gives one pane; gear opens the grown-up gate', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, hasTouch: true });
-  const page = await ctx.newPage();
-  await boot(page, '/workshop.html?mobile=1');
-  await page.mouse.click(800, 450); // anywhere: tap to play
-  await screens(page).toBe('profile');
-  expect((await ws(page)).count).toBe(1);
-  const pane = await page.evaluate(() => { const c = (window as any).__ws.contexts()[0]; return { touch: c.input.touch, prompts: c.input.prompts, w: c.size.w }; });
-  expect(pane).toEqual({ touch: true, prompts: 'none', w: 1920 });
-  await page.mouse.click(330 * (1600 / 1920), 330 * (900 / 1080)); // "+ New"
-  await screens(page).toBe('newProfile');
-  await page.mouse.click(150 * (1600 / 1920), 210 * (900 / 1080)); // Back
-  await screens(page).toBe('profile');
-  await page.mouse.click((1920 - 75) * (1600 / 1920), 75 * (900 / 1080)); // faint gear
-  await expect.poll(async () => (await ws(page)).adminOpen).toBe(true);
-  await ctx.close();
+  try {
+    const page = await ctx.newPage();
+    await page.goto('/workshop.html?mobile=1');
+    const tap = async (sceneKey: string, label?: string) => {
+      // A scene can report its screen ID before Phaser adds its buttons to the hit-test list.
+      const ready = await page.waitForFunction(({ sceneKey, label }) => {
+        const game = (window as any).__ws?.game;
+        if (!game?.scene.isActive(sceneKey)) return;
+        const scene = game.scene.getScene(sceneKey);
+        const target = scene.input._list.find((obj: any) => obj.input?.enabled && obj.visible
+          && (label ? obj.list?.some((child: any) => child.text === label) : obj === scene.zone));
+        if (!target) return;
+        const rect = game.canvas.getBoundingClientRect();
+        return { x: rect.left + target.x * rect.width / game.scale.gameSize.width, y: rect.top + target.y * rect.height / game.scale.gameSize.height };
+      }, { sceneKey, label });
+      const point = await ready.jsonValue();
+      if (!point) throw new Error(`Tap target missing in ${sceneKey}`);
+      await page.touchscreen.tap(point.x, point.y);
+    };
+    await tap('title', 'Tap to play');
+    await screens(page).toBe('profile');
+    expect((await ws(page)).count).toBe(1);
+    await tap('pane0', '+ New');
+    const pane = await page.evaluate(() => { const c = (window as any).__ws.contexts()[0]; return { touch: c.input.touch, prompts: c.input.prompts, w: c.size.w }; });
+    expect(pane).toEqual({ touch: true, prompts: 'none', w: 1920 });
+    await screens(page).toBe('newProfile');
+    await tap('pane0', 'Back');
+    await screens(page).toBe('profile');
+    await tap('overlay');
+    await expect.poll(async () => (await ws(page)).adminOpen).toBe(true);
+    await page.waitForFunction(() => (window as any).__ws.game.scene.getScene('admin').children.list
+      .some((child: any) => child.text === 'Grown-ups only!'));
+  } finally {
+    await ctx.close();
+  }
 });
 
 test('F9 opens the admin from any screen; Admin Mode persists in workshop.device.v1', async ({ page }) => {
