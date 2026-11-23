@@ -1,49 +1,59 @@
-# Adventure Workshop — handoff for the next session (2026-11-23)
+# Adventure Workshop — handoff for the next session (2026-11-23, updated)
 
 Read this first, then `docs/WORKSHOP.md` (design, decisions, code map, engine rules). This page holds only what a fresh
 session needs on top of that: where things are, what is waiting, and the rules the user set.
 
-## Where things are
-- **Integration branch:** `feature/workshop` (from `dev`), worktree `C:\Users\osomo\Projects\BrainRacer\.worktrees\workshop`.
-  Tip `a4c40b9` at handoff. Not merged into `dev` and never pushed.
-- **The app:** `apps/workshop/` (its own Phaser app, page `workshop.html`). Shared code only via `shared/`; it never imports from `src/`.
-- **Green at handoff:** typecheck clean; 942 unit tests; workshop e2e 23/24. The one failure is the mobile "gear opens the
-  grown-up gate" test, a known flake under load that passes when run alone.
-- **Everything is merged in:** all `pkg/ws-*` packages, art voting (`pkg/ws-artvote`) and Codex jobs C1–C8
-  (`docs/CODEX_JOBS.md`, all DONE).
+## Where things are (updated 2026-11-23, second session)
+- **Integration branch:** `feature/workshop`, worktree `C:\Users\osomo\Projects\BrainRacer\.worktrees\workshop`.
+- **BETA IS LIVE:** `feature/workshop` tip `6b4c815` was pushed to `origin/dev` (GitHub Pages) with user approval: launcher
+  tile has a BETA ribbon, workshop title shows "Under construction — progress may be lost." The main checkout's local `dev`
+  is behind `origin/dev` until someone runs `git pull --ff-only` there (Codex/user; we never touch the main checkout).
+  Further pushes to `dev` still need explicit user approval each time.
+- **The app:** `apps/workshop/` (page `workshop.html`). Shared code only via `shared/`; it never imports from `src/`.
+- **Green at `6b4c815`:** typecheck clean; 950 unit tests; full `npm run e2e` 137/137.
+- **Merged this session:** 18 voted head paints; shop fixes (ride height `WS_ART.raceRideRaise`, bumper framing, gears
+  overhead view, no wheel fade); reviewer gears/springs sheets; reviewer "Only changed since I graded" mode (per-variant
+  pixel fingerprints, `--no-open`, `--port`, `--shapes`); Codex C9–C12 (dino heads/mouths/teeth, body/claws/tails,
+  seeded patterns, car shapes/layering); beta marking.
+- **Codex in flight:** C13 (screen polish + flaky mobile e2e), C14 (Dino run scenery paint jobs), C15 (Race run scenery
+  paint jobs). Review and merge each when it is marked DONE; C14/C15 both add one import line to `art/paint/jobs.ts`.
+- **User preference:** Claude quota is scarce, Codex resets. Write work as Codex jobs first; Claude sub-agents only when
+  the user asks or something blocks.
 
 ## Servers and tools (start from `.worktrees\workshop`)
 | What | Command | URL |
 |---|---|---|
-| Play | `npx vite --port 5190` (restart after edits: no hot reload inside `.worktrees`) | http://localhost:5190/workshop.html |
+| Play | `npx vite --port 5191` (restart after edits: no hot reload inside `.worktrees`) | http://localhost:5191/workshop.html |
 | Vote on painted candidates | `npm run art:pick` | http://localhost:5203/ |
-| Grade parts (reviewer) | `npm run art:review` (captures sheets, then serves) | http://localhost:5198/tools/art-review/grade.html |
+| Grade parts (reviewer) | `npm run art:review -- --port 5199 --shapes --no-open` | http://localhost:5199/tools/art-review/grade.html |
 | ComfyUI (paint) | `C:\Users\osomo\ComfyUI\.venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8188` | http://127.0.0.1:8188 |
+
+Always run the reviewer on **5199**: grades live in localStorage per origin, so another port starts empty. The old 5190/5198
+servers (from the first session) still run old code; the user owns them, don't kill them. Codex jobs use 5221–5223.
 
 Keys in game: Space joins/confirms, WASD moves, Esc goes back, F9 opens admin. Dev scenes: `?dev=WorkshopParts`
 (add `&art=shapes` for code shapes only), `RigAnims`, `RunPreview`, `DinoStages`, `WorkshopSounds`, `RigPreview`.
 
 ## Waiting on the user (do not decide these alone)
-1. **Head vote.** 100 face-safe dino head candidates (25 jobs × 4) are in `art-candidates/` (gitignored) and wait for the
-   vote at http://localhost:5203. Then: `npm run art:paint -- --apply-picks`, `npm run typecheck && npm test`, and commit
-   `apps/workshop/art/paint/picks.json` plus `public/art/workshop/`.
-2. **Paint pass.** How strong the paint should be (it is subtle now: `PAINT_TUNE` in `art/paint/jobs.ts`), and when to
-   run the full `npm run art:paint` (about 1.5–2 h; ~400 jobs). Never start a full paint or new ComfyUI painting without the user.
-3. **Texture resolution.** Whether to lower the bake `Q` (1.5 in `art/bake.ts`) for the TV box; see `docs/WORKSHOP_PERF.md`.
-4. **Painted backdrops** (garage and lab) in game: the jobs exist, but they are not switched on yet.
-5. **New art feedback.** If the user grades again in the reviewer, turn paint problems into `jobs.ts` edits and shape
-   problems into new Codex jobs (C9+) in `docs/CODEX_JOBS.md`, with a fixed start and end, branch `codex/<job>` from `feature/workshop`.
-6. **Merge `feature/workshop` into `dev`:** only on explicit approval.
-7. **Hand testing** nobody has done yet: real controllers, phone, audio by ear, TV box (admin menu APK), projector legibility.
+1. **Grade in the reviewer** (5199, shapes only): first full pass after C9–C12, then "Only changed since I graded" later.
+   Export to `C:\Users\osomo\Projects\BrainRacer\feedback\`. Shape problems → new Codex jobs; paint problems → `jobs.ts`.
+2. **Small paint batch (asked, no answer yet):** fresh candidates for the 5 heads voted "more" (now with per-candidate
+   pattern seeds, C11) plus thead rex and thead horned (shapes changed in C9; voted paint for thead rex hides the new
+   taper). `npm run art:paint -- --candidates 4 --only ...`. Also Jeep body paints are stale after C12.
+3. **Paint strength:** review says "bodies need scale/texture, not flat" → raise `PAINT_TUNE` and test on a small batch.
+   Never start a full paint or new ComfyUI painting without the user.
+4. **Texture resolution** for the TV box (bake `Q`), **painted backdrops** switch-on, **racing-stripe paints** idea (to
+   `WORKSHOP_FUTURE_VARIANTS.md`; each stripe = its own skin).
+5. **Hand testing:** controllers, phone, audio, TV box, projector — now also of the live beta.
 
 ## Known small issues
-- In wide Admin Mode the ADMIN MODE pill overlaps the results headline.
-- Dimmed rows for stages not reached have low contrast on the results screen.
+- Title screen: "(optional)" overlaps the Player 2 join text.
+- Beta notice text is small on phones (the stage letterboxes).
+- Springs station close-up crops the car on Lift Kit (C13 fixes it). Admin pill overlap and dim results rows: C13.
 - The 2P room is the heaviest screen (see `docs/WORKSHOP_PERF.md`).
-- Painted dino heads were removed from the manifest (the paint invented mouths); they come back through the vote above.
 
 ## Rules from the user (standing)
-- Never merge into `dev` without approval. Never push. Never `git stash`. Never work in the main checkout
+- Never merge into `dev` without approval. Never push without approval (the beta push on 2026-11-23 was approved once). Never `git stash`. Never work in the main checkout
   (`C:\Users\osomo\Projects\BrainRacer`, where Codex and others work).
 - Each task on its own branch and worktree off `feature/workshop` (`.worktrees/ws-<name>`, branch `pkg/ws-<name>`),
   with a `node_modules` junction. To remove one: `cmd /c rmdir <wt>\node_modules` FIRST, then
