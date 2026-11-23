@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -19,6 +19,12 @@
   :focus-visible { outline:3px solid #ffd47c; outline-offset:3px; }
   .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:24px 0 16px; }
   .bar .field { display:grid; gap:4px; }
+  .only { display:flex; align-items:center; gap:8px; padding:9px 12px; border:2px solid #ffd47c; border-radius:8px; background:#3a3320; font-weight:650; cursor:pointer; }
+  .only input { width:20px; height:20px; }
+  .notice { background:#3a3320; border:1px solid #ffd47c; border-radius:8px; padding:10px 14px; margin:0 0 14px; }
+  .notice p { margin:0 0 8px; }
+  .empty { text-align:center; padding:40px 12px; }
+  nav button span:last-child { color:#ffdfa1; font-size:.85rem; white-space:nowrap; }
   .bar output { margin-left:auto; color:#cad4ea; }
   .layout { display:grid; grid-template-columns:minmax(185px,230px) minmax(0,1fr); gap:16px; }
   nav { display:grid; align-content:start; gap:6px; }
@@ -52,11 +58,21 @@
 <div class="bar">
   <div class="field"><label for="workshop">Workshop</label><select id="workshop"></select></div>
   <div class="field"><label for="aspect">Part</label><select id="aspect"></select></div>
+  <label class="only"><input type="checkbox" id="only-changed"> Only changed since I graded</label>
   <output id="progress"></output>
 </div>
 <div class="layout">
   <nav id="variants" aria-label="Part variants"></nav>
+  <main id="empty" class="empty" hidden>
+    <h2>Nothing new to review</h2>
+    <p>Every picture is graded and unchanged since you graded it.</p>
+    <button id="show-all" type="button">Show everything</button>
+  </main>
   <main id="editor" hidden>
+    <div id="changed-note" class="notice" hidden>
+      <p id="changed-text"></p>
+      <button id="still-good" type="button">Still good, keep my feedback</button>
+    </div>
     <div class="variant-head"><h2 id="title"></h2><a id="sheet" target="_blank" rel="noopener">Open full parts sheet</a></div>
     <div id="views" class="views"></div>
     <fieldset>
@@ -72,10 +88,11 @@
     <label for="comment"><strong>Comment</strong></label>
     <textarea id="comment" rows="3"></textarea>
     <div class="actions">
-      <button id="next" type="button">Next unreviewed</button>
+      <button id="next" type="button">Next to review</button>
       <button id="clear" type="button">Clear this review</button>
       <button id="copy" type="button">Copy all feedback</button>
       <button id="download" type="button">Download JSON</button>
+      <button id="baseline" type="button" title="Use once if your old reviews predate change tracking">Mark all graded as up to date</button>
     </div>
     <p id="message" class="hint" role="status"></p>
     <textarea id="manual-copy" aria-label="Feedback to copy" rows="6" readonly hidden></textarea>

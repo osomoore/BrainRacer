@@ -2,43 +2,76 @@
 
 const catalog = window.reviewCatalog;
 const storageKey = 'adventure-workshop.art-review.v1';
+const onlyKey = 'adventure-workshop.art-review.changed-only';
 const el = (id) => document.getElementById(id);
 const workshop = el('workshop');
 const aspect = el('aspect');
 const buttons = el('variants');
 const comment = el('comment');
 const status = el('message');
+const only = el('only-changed');
 const grades = [...document.querySelectorAll('input[name="grade"]')];
 const items = catalog.flatMap((shop) => shop.aspects.flatMap((part) => part.variants.map((variant, index) => ({
   shop, part, variant, index, key: shop.id + '/' + variant.id,
 }))));
 let reports = {};
 try { reports = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch {}
+try { only.checked = localStorage.getItem(onlyKey) === '1'; } catch {}
 let active;
+
+const hasFeedback = (report) => Boolean(report && (report.grade || report.comment));
+/** Graded before, but the picture differs now. Reports saved before fingerprints existed have no hash and count as changed. */
+const isChanged = (item) => hasFeedback(reports[item.key]) && Boolean(item.variant.hash) && reports[item.key].hash !== item.variant.hash;
+const needsReview = (item) => !hasFeedback(reports[item.key]) || isChanged(item);
+/** The lists show everything, or only what needs review (plus the variant being edited, so it doesn't vanish mid-edit). */
+const listed = (item) => !only.checked || needsReview(item) || item === active;
 
 function fillSelect(select, records, label) {
   select.replaceChildren(...records.map((record) => new Option(label(record), record.id)));
 }
 
+function persist() {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(reports));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function refreshProgress() {
-  const count = items.filter((item) => reports[item.key]).length;
-  el('progress').textContent = count + ' of ' + items.length + ' reviewed';
+  const pending = items.filter(needsReview).length;
+  const changed = items.filter(isChanged).length;
+  el('progress').textContent = only.checked
+    ? pending + ' to review of ' + items.length
+    : items.filter((item) => reports[item.key]).length + ' of ' + items.length + ' reviewed' + (changed ? ' · ' + changed + ' changed since graded' : '');
   for (const button of buttons.children) {
-    const report = reports[button.dataset.key];
-    button.lastElementChild.textContent = report?.grade ? report.grade + '/5' : report ? '•' : '';
+    const item = items.find((other) => other.key === button.dataset.key);
+    const report = reports[item.key];
+    const mark = report?.grade ? report.grade + '/5' : report ? '•' : '';
+    button.lastElementChild.textContent = (isChanged(item) ? 'changed ' : '') + mark;
+  }
+  const note = el('changed-note');
+  note.hidden = !(active && isChanged(active));
+  if (!note.hidden) {
+    const old = reports[active.key];
+    el('changed-text').textContent = 'This picture changed since you graded it. Your earlier feedback: '
+      + [old.grade ? old.grade + '/5' : '', old.comment ? '“' + old.comment + '”' : ''].filter(Boolean).join(' ') + '.';
+  }
+  const shop = catalog.find((other) => other.id === workshop.value);
+  for (const option of aspect.options) {
+    const part = shop?.aspects.find((other) => other.id === option.value);
+    if (!part) continue;
+    const left = items.filter((item) => item.part === part && needsReview(item)).length;
+    option.textContent = part.label + (left ? ' (' + left + ' to review)' : '');
   }
 }
 
 function save() {
   const grade = Number(grades.find((input) => input.checked)?.value || 0);
-  if (grade || comment.value.trim()) reports[active.key] = { grade: grade || null, comment: comment.value.trim() };
+  if (grade || comment.value.trim()) reports[active.key] = { grade: grade || null, comment: comment.value.trim(), hash: active.variant.hash };
   else delete reports[active.key];
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(reports));
-    status.textContent = 'Saved in this browser.';
-  } catch {
-    status.textContent = 'Local storage is unavailable. Copy or download your feedback before closing.';
-  }
+  status.textContent = persist() ? 'Saved in this browser.' : 'Local storage is unavailable. Copy or download your feedback before closing.';
   refreshProgress();
 }
 
@@ -67,11 +100,14 @@ function preview(item, source, label, start, end) {
 
 function show(item) {
   active = item;
+  el('empty').hidden = true;
+  const pendingIn = (test) => items.some((other) => test(other) && needsReview(other));
+  fillSelect(workshop, catalog.filter((shop) => shop === item.shop || !only.checked || pendingIn((other) => other.shop === shop)), (shop) => shop.title);
   workshop.value = item.shop.id;
-  fillSelect(aspect, item.shop.aspects, (part) => part.label);
+  fillSelect(aspect, item.shop.aspects.filter((part) => part === item.part || !only.checked || pendingIn((other) => other.part === part)), (part) => part.label);
   aspect.value = item.part.id;
   buttons.replaceChildren();
-  items.filter((other) => other.shop === item.shop && other.part === item.part).forEach((other) => {
+  items.filter((other) => other.shop === item.shop && other.part === item.part && listed(other)).forEach((other) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.key = other.key;
@@ -101,19 +137,44 @@ function show(item) {
   refreshProgress();
 }
 
+function showEmpty() {
+  active = undefined;
+  el('editor').hidden = true;
+  el('empty').hidden = false;
+  buttons.replaceChildren();
+  fillSelect(workshop, catalog, (shop) => shop.title);
+  fillSelect(aspect, [], () => '');
+  refreshProgress();
+}
+
+/** Export rows keep the long-standing shape; the hash stays internal. */
 function reviewed() {
   return items.filter((item) => reports[item.key]).map((item) => ({
     workshop: item.shop.id,
     aspect: item.part.id,
     variant: item.variant.id,
     name: item.variant.name,
-    ...reports[item.key],
+    grade: reports[item.key].grade ?? null,
+    comment: reports[item.key].comment ?? '',
   }));
 }
 
-fillSelect(workshop, catalog, (shop) => shop.title);
-workshop.onchange = () => show(items.find((item) => item.shop.id === workshop.value));
-aspect.onchange = () => show(items.find((item) => item.shop.id === workshop.value && item.part.id === aspect.value));
+const firstIn = (match) => items.find((item) => match(item) && needsReview(item)) || items.find(match);
+workshop.onchange = () => show(firstIn((item) => item.shop.id === workshop.value));
+aspect.onchange = () => show(firstIn((item) => item.shop.id === workshop.value && item.part.id === aspect.value));
+only.onchange = () => {
+  try { localStorage.setItem(onlyKey, only.checked ? '1' : '0'); } catch {}
+  const current = active;
+  active = undefined;
+  if (!only.checked) show(current || items[0]);
+  else {
+    const target = current && needsReview(current) ? current
+      : items.find((item) => current && item.part === current.part && item.shop === current.shop && needsReview(item)) || items.find(needsReview);
+    if (target) show(target);
+    else showEmpty();
+  }
+};
+el('show-all').onclick = () => { only.checked = false; only.onchange(); };
 comment.oninput = save;
 grades.forEach((input) => { input.onchange = save; });
 el('clear').onclick = () => {
@@ -122,11 +183,25 @@ el('clear').onclick = () => {
   save();
   status.textContent = 'Review cleared.';
 };
+el('still-good').onclick = () => {
+  reports[active.key] = { ...reports[active.key], hash: active.variant.hash };
+  persist();
+  status.textContent = 'Marked as still good; it will not show as changed again.';
+  refreshProgress();
+};
+el('baseline').onclick = () => {
+  if (!confirm('Treat everything you have already graded as up to date? Only future picture changes will show as changed.')) return;
+  for (const item of items) if (hasFeedback(reports[item.key]) && item.variant.hash) reports[item.key].hash = item.variant.hash;
+  persist();
+  if (active) { show(active); status.textContent = 'Everything graded so far is now up to date.'; }
+  else if (only.checked && !items.some(needsReview)) showEmpty();
+};
 el('next').onclick = () => {
   const index = items.indexOf(active);
-  const next = [...items.slice(index + 1), ...items.slice(0, index)].find((item) => !reports[item.key]);
+  const next = [...items.slice(index + 1), ...items.slice(0, index)].find(needsReview);
   if (next) show(next);
-  else status.textContent = reports[active.key] ? 'All variants have feedback.' : 'This is the last unreviewed variant.';
+  else if (only.checked && !needsReview(active)) showEmpty();
+  else status.textContent = needsReview(active) ? 'This is the last variant left to review.' : 'Nothing left to review.';
 };
 el('copy').onclick = async () => {
   const rows = reviewed();
@@ -157,6 +232,9 @@ el('download').onclick = () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 const requested = new URLSearchParams(location.search).get('part');
-show(items.find((item) => item.shop.id === 'dino' && item.part.id === requested) || items[0]);
-
-
+const start = items.find((item) => item.shop.id === 'dino' && item.part.id === requested);
+if (only.checked && !start) {
+  const first = items.find(needsReview);
+  if (first) show(first);
+  else showEmpty();
+} else show(start || items[0]);
