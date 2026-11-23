@@ -5,7 +5,7 @@ import type { Model, View } from '../../core/types';
 import { partImage, type PartSpec, Q } from '../bake';
 import { rotPt } from '../geom';
 import { BaseRig } from '../rigBase';
-import { CLAWS, TEETH } from './looks';
+import { BEAK_LOOKS, type BeakLook, CLAWS, TEETH } from './looks';
 import { type DinoLooks, type Skeleton, dinoLooks, hingePos, skeleton } from './skeleton';
 import { type SkinSpec, skinSpec } from './skin';
 import * as S from './drawSide';
@@ -28,7 +28,7 @@ export class DinoRig extends BaseRig {
   private sk!: Skeleton;
   private tailRot = 0;
 
-  constructor(scene: Phaser.Scene, model: Model, view: View) {
+  constructor(scene: Phaser.Scene, model: Model, view: View, private readonly beakLook: BeakLook = BEAK_LOOKS[0]) {
     super(scene, 'dino', model, view);
     this.init();
   }
@@ -113,8 +113,8 @@ export class DinoRig extends BaseRig {
     this.throat = this.img(this.headC, S.throatSide(h), []);
     this.img(this.headC, S.teethSide(h, m.teeth), ['teeth']);
     this.jaw = this.mk(this.headC, 0, 0);
-    this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth), ['teeth']);
-    this.img(this.headC, S.headSide(h, sk, m.head, m.teeth), ['head', 'color']);
+    this.img(this.jaw, S.jawSide(h, sk, m.head, m.teeth, this.beakLook), ['teeth']);
+    this.img(this.headC, S.headSide(h, sk, m.head, m.teeth, this.beakLook), ['head', 'color']);
     if (beak) P.teeth.push(this.headC);
     for (const s of k.legs.filter((q) => !q.far)) legImg(s, B);
     for (const s of k.arms.filter((q) => !q.far)) this.armImg(s, B, sk, claw, m.claws);
@@ -127,7 +127,8 @@ export class DinoRig extends BaseRig {
     this.cy = Math.max(60, -k.torso.y);
     // anchors / foci (design px, ground = 0)
     const hr = k.headRot;
-    const mouth = rotPt({ x: h.len * 0.95, y: Math.sin(this.jawRest) * h.len * 0.4 }, hr);
+    const front = h.len * (beak ? this.beakLook.reach : 1);
+    const mouth = rotPt({ x: front * 0.95, y: Math.sin(this.jawRest) * h.len * 0.4 }, hr);
     const headTop = rotPt({ x: h.len * 0.4, y: -h.top }, hr);
     const tailTip = { x: k.tailBase.x - l.tail.len, y: k.tailBase.y + l.tail.droop };
     const tc = { x: k.torso.x, y: k.torso.y };
@@ -135,7 +136,7 @@ export class DinoRig extends BaseRig {
     this.anchors = {
       mouth: { x: hinge.x + mouth.x, y: hinge.y + mouth.y }, headTop: { x: hinge.x + headTop.x, y: hinge.y + headTop.y },
       tail: tailTip, feet: { x: feetX, y: 0 }, belly: { x: tc.x, y: tc.y + k.torso.ry * 0.7 },
-      front: { x: hinge.x + h.len, y: hinge.y - h.top * 0.3 }, back: { x: tailTip.x, y: tailTip.y },
+      front: { x: hinge.x + front, y: hinge.y - h.top * 0.3 }, back: { x: tailTip.x, y: tailTip.y },
     };
     const A = this.anchors;
     const armPos = k.arms[1] ?? k.legs.find((q) => q.front) ?? k.legs[0];
@@ -198,14 +199,15 @@ export class DinoRig extends BaseRig {
     this.headC = this.mk(this.torsoC, hx, 0);
     if (sk.ex?.kind === 'frill') this.img(this.headC, T.frillTop(h, sk), ['extra']);
     if (sk.ex?.kind === 'feathers') this.img(this.headC, T.featherHeadTop(h, sk), ['extra']);
-    this.img(this.headC, T.headTop(h, sk, m.head, m.teeth), ['head', 'color']);
+    this.img(this.headC, T.headTop(h, sk, m.head, m.teeth, this.beakLook), ['head', 'color']);
     P.size.push(this.bodyG);
     if (sk.ex && !['feathers', 'frill'].includes(sk.ex.kind)) P.extra.push(this.torsoC);
     this.cy = 0;
     const tip = { x: -rx * 0.88 - l.tail.len, y: 0 };
+    const front = hx + h.len * (m.teeth === 'teeth.beak' ? this.beakLook.reach : 1);
     this.anchors = {
-      mouth: { x: hx + h.len, y: 0 }, headTop: { x: hx + h.len * 0.4, y: 0 }, tail: tip, feet: { x: 0, y: 0 }, belly: { x: 0, y: 0 },
-      front: { x: hx + h.len, y: 0 }, back: tip,
+      mouth: { x: front, y: 0 }, headTop: { x: hx + h.len * 0.4, y: 0 }, tail: tip, feet: { x: 0, y: 0 }, belly: { x: 0, y: 0 },
+      front: { x: front, y: 0 }, back: tip,
     };
   }
 

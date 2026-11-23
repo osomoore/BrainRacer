@@ -1,7 +1,7 @@
 /** Dino skin: base colour + patterns (spots, tiger stripes, leaf camo, glow). Shared by side and top parts. */
 import type { Model } from '../../core/types';
 import { drawShapes, ellipsePath, OL, OUTLINE, type Shape } from '../bake';
-import { type Pt, artRng, hashStr, tubeOutline } from '../geom';
+import { type Pt, artRng, hashStr, mix, tubeOutline } from '../geom';
 import { EXTRA, type ExtraLook, SKIN, type SkinLook } from './looks';
 
 type G = CanvasRenderingContext2D;
@@ -11,9 +11,21 @@ export interface Box { x0: number; y0: number; x1: number; y1: number }
 
 export function skinSpec(m: Model): SkinSpec {
   const look = SKIN[m.color] ?? SKIN['color.orange'];
-  const ex = EXTRA[m.extra] ?? null;
+  const extra = EXTRA[m.extra] ?? null;
+  const ex = extra?.kind === 'feathers' ? { ...extra, c1: look.accent } : extra;
   const pattern: PatternKind = ex && (ex.kind === 'camo' || ex.kind === 'stripes' || ex.kind === 'glow') ? ex.kind : 'none';
   return { look, pattern, ex, key: `${m.color}:${m.extra}` };
+}
+
+export function crestFill(sk: SkinSpec, start: number, end: number, topView = false): (g: G) => void {
+  return (g) => {
+    const color = g.createLinearGradient(topView ? start : 0, topView ? 0 : start, topView ? end : 0, topView ? 0 : end);
+    color.addColorStop(0, mix(sk.look.accent, sk.look.belly, 0.45));
+    color.addColorStop(0.46, sk.look.accent);
+    color.addColorStop(1, sk.look.main);
+    g.fillStyle = color;
+    g.fillRect(-300, -300, 600, 600);
+  };
 }
 
 /** Keep the head's silhouette outside the neck and soften the line where the two overlap. */
@@ -165,8 +177,20 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (
     g.fillRect(box.x0 - 4, box.y0 - 4, box.x1 - box.x0 + 8, box.y1 - box.y0 + 8);
     const w = box.x1 - box.x0, h = box.y1 - box.y0;
     const rng = artRng(hashStr(sk.key) ^ seed);
+    const mottles = Math.max(6, Math.min(65, Math.round(w * h / 650)));
+    const mottleColors = [L.light, L.dark, mix(L.accent, L.main, 0.60)];
+    g.save();
+    for (let i = 0; i < mottles; i++) {
+      const x = box.x0 + rng() * w, y = box.y0 + rng() * h, radius = 2.6 + rng() * 6.2;
+      g.globalAlpha = 0.12 + rng() * 0.12;
+      g.fillStyle = mottleColors[i % mottleColors.length];
+      g.beginPath();
+      g.ellipse(x, y, radius, radius * (0.45 + rng() * 0.42), rng() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
     if (L.spots) {
-      g.fillStyle = L.spots;
+      g.fillStyle = L.accent;
       const n = Math.max(3, Math.min(14, Math.round((w * h) / 2600)));
       for (let i = 0; i < n; i++) { g.beginPath(); g.arc(box.x0 + rng() * w, box.y0 + rng() * h, 5 + rng() * 7, 0, 6.3); g.fill(); }
     }
@@ -178,10 +202,41 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (
         g.beginPath(); g.moveTo(x, box.y0 - 4); g.lineTo(x + wd, box.y0 - 4); g.quadraticCurveTo(x + wd * 0.5 + 5, box.y0 + len * 0.5, x + 3, box.y0 + len); g.quadraticCurveTo(x - 2, box.y0 + len * 0.4, x, box.y0 - 4); g.fill();
       }
     } else if (sk.pattern === 'camo' && ex) {
-      const n = Math.max(4, Math.min(16, Math.round((w * h) / 2200)));
+      g.save();
+      const scale = Math.max(10, Math.min(19, h / 7));
+      const shade = mix(L.dark, '#304a24', 0.55);
+      for (let j = 0, y = box.y0; y <= box.y1 + scale; j++, y += scale * 0.7) {
+        g.lineWidth = 1.6;
+        g.strokeStyle = j % 2 ? L.dark : shade;
+        for (let x = box.x0 - (j % 2) * scale * 0.5; x <= box.x1 + scale; x += scale) {
+          g.globalAlpha = 0.24 + rng() * 0.17;
+          g.beginPath();
+          g.moveTo(x - scale * 0.48, y);
+          g.quadraticCurveTo(x, y + scale * (0.5 + rng() * 0.3), x + scale * 0.48, y);
+          g.stroke();
+        }
+      }
+      g.restore();
+      const n = Math.max(4, Math.min(18, Math.round((w * h) / 2000)));
       for (let i = 0; i < n; i++) {
+        const x = box.x0 + rng() * w, y = box.y0 + rng() * h, length = 9 + rng() * 8;
+        g.save();
+        g.translate(x, y);
+        g.rotate(rng() * 3);
         g.fillStyle = i % 2 ? ex.c1 : ex.c2;
-        g.beginPath(); g.ellipse(box.x0 + rng() * w, box.y0 + rng() * h, 11 + rng() * 6, 5 + rng() * 3, rng() * 3, 0, 6.3); g.fill();
+        g.beginPath();
+        g.moveTo(-length, 0);
+        g.quadraticCurveTo(-length * 0.1, -length * 0.77, length, 0);
+        g.quadraticCurveTo(length * 0.16, length * 0.68, -length, 0);
+        g.fill();
+        g.strokeStyle = i % 2 ? '#a5ca6b' : ex.c3;
+        g.globalAlpha = 0.55;
+        g.lineWidth = 1.6;
+        g.beginPath();
+        g.moveTo(-length * 0.67, 0);
+        g.quadraticCurveTo(0, -2, length * 0.72, 0);
+        g.stroke();
+        g.restore();
       }
     } else if (sk.pattern === 'glow' && ex) {
       const n = Math.max(3, Math.min(9, Math.round((w * h) / 4200)));
@@ -194,6 +249,7 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (
     }
   };
 }
+
 
 /** Shapes for a tube (polyline with per-point half widths): body polygon + two round caps. */
 export function tubeShapes(pts: readonly Pt[], hw: readonly number[], fill: (g: G) => void): Shape[] {
