@@ -1,5 +1,7 @@
 # Adventure Workshop — art polish handoff (for Codex)
 
+> **Superseded:** new art work is queued in `docs/CODEX_JOBS.md` and follows `docs/WORKSHOP_ART_PIPELINE.md`. This file stays as background (rules, review URLs, rig contract).
+
 Goal: make the Adventure Workshop look great. The game works; the art is a functional first pass made of
 procedural Canvas drawings baked to textures. Improve how things LOOK without changing how they BEHAVE.
 Read `AGENTS.md`, `CLAUDE.md` (rules 10, 11, 14, 15) and `docs/WORKSHOP.md` ("Decisions", "Art guide") first.
