@@ -2,69 +2,55 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, rrectPath } from '../bake';
 import { type Pt, deg, mix, quad, rotPt } from '../geom';
 import { BEAK_LOOKS, type BeakLook, type ClawLook, EXTRA, type HeadLook, type LegLook, type TailLook, TEETH, type TeethLook } from './looks';
-import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, type SkinSpec, skinFill, tubeShapes } from './skin';
 import type { BodyLook } from './looks';
 import type { Skeleton } from './skeleton';
 
 type G = CanvasRenderingContext2D;
+const TEETH_FRONT = 0.96;
+const MEGA_TEETH_BACK = 0.35;
+export const MEGA_JAW_REST = 0.34;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
 
 // ---------------------------------------------------------------- claws / hands
 
-/** Claws in profile, with the farther toes receding behind the visible one. */
-export function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, dir: number, forFoot: boolean): void {
+/** The near digit sets the silhouette; the other digits peek over it in profile. */
+function drawClawSet(g: G, c: ClawLook, skin: SkinSpec, x: number, y: number, dir: number, forFoot: boolean): void {
   const kind = forFoot && c.kind === 'grabby' ? 'small' : c.kind;
+  const length = kind === 'grabby' ? 23 : forFoot ? Math.min(c.claw || 11, 21) : c.claw;
+  const count = kind === 'tiny' ? 2 : 3;
   g.save();
   g.translate(x, y);
   g.rotate(dir);
-  if (kind === 'grabby') {
+  for (let i = count - 1; i >= 0; i--) {
+    const reach = length * (1 - i * 0.15);
+    g.save();
+    g.translate(-i * 2.5, -i * 3);
     drawShapes(g, [{
-      path: (cx) => {
-        cx.moveTo(-8, -8);
-        cx.quadraticCurveTo(4, -17, 14, -14);
-        cx.quadraticCurveTo(23, -13, 20, -6);
-        cx.quadraticCurveTo(31, -3, 25, 3);
-        cx.quadraticCurveTo(27, 10, 18, 11);
-        cx.quadraticCurveTo(5, 16, -8, 8);
-        cx.closePath();
+      path: (p) => {
+        p.moveTo(-5, -4);
+        p.quadraticCurveTo(reach * 0.72, -8, reach, -3);
+        if (kind === 'grabby') {
+          p.quadraticCurveTo(reach + 4, 5, reach - 4, 7);
+          p.quadraticCurveTo(reach * 0.64, 6, reach * 0.72, 1);
+        } else if (kind === 'digging') {
+          p.quadraticCurveTo(reach + 3, 3, reach - 3, 6);
+        } else {
+          p.quadraticCurveTo(reach + 1, 1, reach - (kind === 'hooks' ? 4 : 1), kind === 'hooks' ? 10 : 5);
+          p.quadraticCurveTo(reach * 0.71, 3, reach * 0.47, 3);
+        }
+        p.quadraticCurveTo(2, 6, -5, 4);
+        p.closePath();
       },
-      fill: skin.look.belly,
-      detail: (cx) => {
-        cx.strokeStyle = skin.look.dark;
-        cx.lineWidth = 2.4;
-        cx.beginPath();
-        cx.moveTo(13, -6);
-        cx.quadraticCurveTo(18, -4, 21, -5);
-        cx.moveTo(16, 3);
-        cx.quadraticCurveTo(21, 5, 24, 3);
-        cx.stroke();
-      },
-    }], 3.2);
-  } else {
-    const count = kind === 'tiny' ? 2 : 3;
-    const length = forFoot ? Math.min(c.claw, 20) : c.claw;
-    const width = kind === 'digging' ? 6 : kind === 'hooks' ? 4.8 : 3.6;
-    for (let i = count - 1; i >= 0; i--) {
-      const dx = i * 3.5, dy = -i * 4;
-      const tip = dx + length * (1 - i * 0.14);
-      drawShapes(g, [{
-        path: (cx) => {
-          cx.moveTo(dx - 2, dy - width);
-          if (kind === 'digging') {
-            cx.quadraticCurveTo(tip - 8, dy - width * 1.4, tip + 1, dy - width * 0.7);
-            cx.quadraticCurveTo(tip + 4, dy, tip, dy + width * 0.7);
-          } else {
-            const curve = kind === 'hooks' ? width * 1.35 : width * 0.75;
-            cx.quadraticCurveTo(tip - 4, dy - width, tip, dy + curve);
-            cx.quadraticCurveTo(tip - 6, dy + width * 0.12, dx + length * 0.42, dy + width * 0.73);
-          }
-          cx.quadraticCurveTo(dx + 3, dy + width * 1.18, dx - 2, dy + width * 0.88);
-          cx.closePath();
-        },
-        fill: i === 0 ? c.color : mix(c.color, '#35233e', 0.17 + i * 0.06),
-      }], 2.5);
-    }
+      fill: kind === 'grabby'
+        ? (i === 0 ? skin.look.belly : skin.look.dark)
+        : mix(c.color, skin.look.dark, i * 0.16),
+    }], 2.3);
+    g.restore();
   }
+  if (kind === 'grabby') drawShapes(g, [{
+    path: (p) => ellipsePath(p, 2, 3, 8, 5, -0.4), fill: skin.look.belly,
+  }], 2.3);
   g.restore();
 }
 
@@ -90,9 +76,21 @@ export function torsoSide(b: BodyLook, h: HeadLook, pose: Skeleton, sk: SkinSpec
     draw: (g) => {
       const fill = skinFill(sk, { x0, y0, x1, y1 }, 1);
       const sh = tubeShapes(neck, widths, fill);
-      sh.push({ path: (c) => ellipsePath(c, 0, 0, rx, ry), fill, detail: (c) => {
-        c.fillStyle = sk.look.belly; c.globalAlpha = 0.95; c.beginPath(); c.ellipse(rx * 0.08, ry * (b.kind === 'belly' ? 0.45 : 0.78), rx * 0.86, ry * (b.kind === 'belly' ? 0.75 : 0.5), 0, 0, 6.3); c.fill(); c.globalAlpha = 1;
-        if (b.kind === 'belly') { c.strokeStyle = mix(sk.look.dark, sk.look.belly, 0.20); c.lineWidth = 3.5; c.beginPath(); c.ellipse(rx * 0.08, ry * 0.60, rx * 0.31, ry * 0.27, 0, 0.24, 2.90); c.stroke(); }
+      const tubby = b.kind === 'belly';
+      sh.push({ path: (c) => {
+        if (!tubby) {
+          ellipsePath(c, 0, 0, rx, ry);
+          return;
+        }
+        c.moveTo(-rx, -ry * 0.07);
+        c.bezierCurveTo(-rx, -ry * 1.22, rx, -ry * 1.28, rx, -ry * 0.04);
+        c.bezierCurveTo(rx, ry * 1.47, -rx, ry * 1.55, -rx, -ry * 0.07);
+        c.closePath();
+      }, fill, detail: (c) => {
+        c.fillStyle = sk.look.belly;
+        c.beginPath();
+        ellipsePath(c, rx * 0.04, ry * (tubby ? 0.70 : 0.78), rx * (tubby ? 0.99 : 0.86), ry * (tubby ? 0.46 : 0.50));
+        c.fill();
       } });
       drawShapes(g, sh, OL);
     },
@@ -105,8 +103,8 @@ export function platesSide(b: BodyLook): PartSpec {
     key: `ws:d:plates:${b.rx}:${b.ry}`, w: W, h: H, ox: W / 2, oy: H / 2 + 20,
     draw: (g) => {
       const sh: Shape[] = [];
-      for (let i = 0; i < 7; i++) {
-        const t = i / 6, a = deg(-160 + t * 82);
+      for (let i = 0; i < 6; i++) {
+        const t = i / 5, a = deg(-160 + t * 72);
         const px = Math.cos(a) * b.rx * 0.98, py = Math.sin(a) * b.ry * 0.98;
         const s = 14 + 15 * Math.sin(t * Math.PI);
         const nx = Math.cos(a), ny = Math.sin(a);
@@ -144,8 +142,8 @@ function skullPath(g: G, h: HeadLook): void {
   g.bezierCurveTo(-22, -1, -27, -top * 0.54, -8, -top * 0.96);
   g.quadraticCurveTo(len * 0.12, -top * 1.16, len * 0.52, -top * (h.brow ? 1.0 : 1.02));
   g.quadraticCurveTo(len * 0.86, -top * (h.brow ? 0.9 : 0.95), len * 0.97, fy);
-  g.quadraticCurveTo(len + 14, -top * 0.12, len, 0);
-  g.quadraticCurveTo(len * 0.4, 6, -8, 5);
+  g.quadraticCurveTo(len + 13, -top * 0.15, len, -1);
+  g.bezierCurveTo(len * 0.72, 1, len * 0.32, 1, -8, 5);
   g.closePath();
 }
 
@@ -215,11 +213,13 @@ export function headSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: str
 }
 
 function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 | -1): void {
-  const n = t.n;
-  for (let i = 0; i < n; i++) {
-    const pitch = (x1 - x0) / n;
-    const cx = x0 + (i + 0.5) * pitch, w = Math.min(t.w, pitch * 0.78);
-    const tall = t.h * (t.kind === 'mega' && i % 2 ? 0.66 : t.kind === 'sharp' && i < 3 ? 0.52 + i * 0.14 : 1);
+  const pitch = (x1 - x0) / t.n;
+  for (let i = 0; i < t.n; i++) {
+    const cx = x0 + (i + 0.5) * pitch;
+    const w = Math.min(t.w, pitch * (t.kind === 'mega' ? 0.64 : 0.78));
+    const tall = t.kind === 'mega'
+      ? Math.min(t.h, cx * (dir === 1 ? 0.33 : 0.22)) * (dir === 1 && i % 2 ? 0.78 : 1)
+      : t.h * (t.kind === 'sharp' && i < 3 ? 0.48 + i * 0.18 : 1);
     drawShapes(g, [{
       path: (c) => {
         if (t.kind === 'flat') rrectPath(c, cx - w / 2, dir === 1 ? y - 2 : y - tall + 2, w, tall, 3);
@@ -238,13 +238,12 @@ function teethRow(g: G, t: TeethLook, x0: number, x1: number, y: number, dir: 1 
 
 /** Upper teeth (hang from the mouth line) or the beak cap is part of the head texture. Origin = hinge. */
 export function teethSide(h: HeadLook, teethId: string): PartSpec | null {
-  const teeth = TEETH[teethId] ?? TEETH['teeth.flat'];
-  const t = teeth.kind === 'flat' ? { ...teeth, h: teeth.h + 3 } : teeth;
+  const t = TEETH[teethId] ?? TEETH['teeth.flat'];
   if (t.kind === 'beak') return null;
   const W = h.len + 80, H = t.h + 50;
   return {
     key: `ws:d:teeth:${teethId}:${h.len}`, w: W, h: H, ox: 40, oy: 20,
-    draw: (g) => teethRow(g, t, h.len * (t.kind === 'sharp' ? 0.23 : 0.38), h.len * 0.96, 4, 1),
+    draw: (g) => teethRow(g, t, h.len * (t.kind === 'sharp' ? 0.18 : MEGA_TEETH_BACK), h.len * TEETH_FRONT, 2, 1),
   };
 }
 
@@ -279,7 +278,7 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
       const depth = beak ? jaw * 0.38 + h.top * beakLook.lower * 0.48 : jaw * 0.68;
       const lip: Shape['path'] = (c) => {
         c.moveTo(hinge, -3);
-        c.quadraticCurveTo(len * 0.54, 2, chin, -1);
+        c.quadraticCurveTo(len * 0.58, 1, chin, -1);
         c.quadraticCurveTo(chin + 1, depth * 0.64, chin * 0.74, depth);
         c.quadraticCurveTo(len * 0.28, jaw * 0.59, hinge, jaw * 0.28);
         c.quadraticCurveTo(hinge - 7, jaw * 0.06, hinge, -3);
@@ -296,10 +295,16 @@ export function jawSide(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
           },
           fill: '#ec7893',
         }], 2.4, '#8c4166');
-        const lower = { ...t, n: t.kind === 'big' ? 3 : Math.max(2, t.n - 2), h: Math.max(7, t.h * (t.kind === 'mega' ? 0.38 : 0.44)) };
-        const lowerStart = t.kind === 'sharp' ? 0.35 : t.kind === 'mega' ? 0.52 : 0.47;
-        const lowerEnd = t.kind === 'mega' ? 0.97 : 0.91;
-        teethRow(g, lower, len * lowerStart, len * lowerEnd, -4, -1);
+        if (t.kind === 'mega') {
+          // Place the lower row half a tooth forward and account for the resting jaw tilt.
+          const pitch = (TEETH_FRONT - MEGA_TEETH_BACK) / t.n;
+          const lower = { ...t, n: t.n - 1, h: 13, w: t.w * 0.70 };
+          const atRest = (x: number) => (len * x - 10 * Math.sin(MEGA_JAW_REST)) / Math.cos(MEGA_JAW_REST);
+          teethRow(g, lower, atRest(MEGA_TEETH_BACK + pitch / 2), atRest(TEETH_FRONT - pitch / 2), -4, -1);
+        } else {
+          const lower = { ...t, n: Math.max(2, t.n - 2), h: Math.max(7, t.h * 0.44) };
+          teethRow(g, lower, len * 0.42, len * 0.90, -4, -1);
+        }
       }
       drawHeadJoint(g, lip, (c) => {
         const underside = c.createLinearGradient(hinge, 0, len * 0.75, jaw * 0.65);
@@ -339,7 +344,9 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
     key: `ws:d:tail:${tailId}:${sk.key}`, w: W, h: H, ox: len + 100, oy: 100,
     draw: (g) => {
       const N = 18;
-      const pts = quad({ x: 10, y: 0 }, { x: -len * 0.5, y: -t.droop * 0.3 }, { x: -len, y: t.droop }, N);
+      const tipY = t.droop;
+      const bend = t.kind === 'paddle' ? 22 : -tipY * 0.65;
+      const pts = quad({ x: 10, y: 0 }, { x: -len * 0.56, y: bend }, { x: -len, y: tipY }, N);
       const hw = pts.map((_, i) => {
         const u = i / N;
         if (t.kind === 'club') return t.base * (0.5 - 0.28 * Math.min(1, u / 0.72));
@@ -362,7 +369,7 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
         sh.push({ path: (c) => ellipsePath(c, end.x + 4, end.y, 19, 13, 0.05), fill: mix(sk.look.main, sk.look.accent, 0.50) });
         sh.push({ path: (c) => polyPath(c, [{ x: end.x + 1, y: end.y - 8 }, { x: end.x - 36, y: end.y - 5 }, { x: end.x + 1, y: end.y + 7 }]), fill: '#fff3d0' });
       }
-      if (t.kind === 'paddle') sh.push(flipperBlade(sk, { x: end.x + 14, y: end.y, angle: Math.PI - 0.10, length: 66, width: 25 }));
+      if (t.kind === 'paddle') sh.push(...paddleFins(sk, end, false));
       if (sk.ex?.kind === 'feathers') {
         const cols = [sk.ex.c1, sk.ex.c2, sk.ex.c3];
         const compact = t.kind === 'paddle' || t.kind === 'spiked';
@@ -374,14 +381,14 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       if (t.kind === 'club') sh.push({
         path: (c) => {
           c.moveTo(end.x + 29, end.y - 10);
-          c.bezierCurveTo(end.x + 7, end.y - 21, end.x - 24, end.y - 40, end.x - 30, end.y - 9);
-          c.bezierCurveTo(end.x - 39, end.y + 23, end.x - 13, end.y + 46, end.x + 7, end.y + 29);
+          c.bezierCurveTo(end.x + 6, end.y - 11, end.x - 26, end.y - 33, end.x - 32, end.y - 5);
+          c.bezierCurveTo(end.x - 41, end.y + 30, end.x - 10, end.y + 46, end.x + 9, end.y + 31);
           c.quadraticCurveTo(end.x + 19, end.y + 17, end.x + 29, end.y + 8);
           c.closePath();
         },
         fill,
         detail: (c) => {
-          c.strokeStyle = mix(sk.look.dark, sk.look.accent, 0.28);
+          c.strokeStyle = sk.look.accent;
           c.lineWidth = 3;
           c.beginPath();
           c.moveTo(end.x - 15, end.y - 14);
@@ -396,7 +403,7 @@ export function tailSide(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
 
 export function legSide(l: LegLook, sk: SkinSpec, legId: string, claw: ClawLook, clawId: string, len: number, far: boolean, hand: boolean, swimming: boolean): PartSpec {
   const foreleg = hand && l.kind === 'powerful';
-  const th = l.thick * (foreleg ? 0.64 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
+  const th = l.thick * (foreleg ? 0.56 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
   const W = th * 2 + foot + 90, H = len + th + 70;
   return {
     key: `ws:d:leg:${legId}:${sk.key}:${clawId}:${Math.round(len)}:${far ? 'f' : 'n'}${hand ? 'h' : ''}${swimming ? 's' : ''}`, w: W, h: H, ox: th + 40, oy: th + 20,

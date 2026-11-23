@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, mix, quad } from '../geom';
 import { BEAK_LOOKS, type BeakLook, EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, type SkinSpec, skinFill, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -36,7 +36,7 @@ export function platesTop(b: BodyLook, pose: string): PartSpec {
     draw: (g) => {
       const sh: Shape[] = [];
       for (let i = 0; i < 6; i++) {
-        const x = -b.rx * 0.74 + (i / 5) * b.rx * 1.02, s = 12 + 12 * Math.sin((i / 5) * Math.PI);
+        const x = -b.rx * 0.74 + (i / 5) * b.rx * 0.89, s = 12 + 12 * Math.sin((i / 5) * Math.PI);
         sh.push({ path: (c) => polyPath(c, [{ x: x - s * 0.8, y: 0 }, { x, y: -s }, { x: x + s * 0.8, y: 0 }, { x, y: s }]), fill: i % 2 ? '#a7b0be' : '#c6ced9' });
       }
       drawShapes(g, sh, 4);
@@ -147,7 +147,7 @@ function clawTipsTop(g: G, claw: ClawLook, sk: SkinSpec, x: number, spread: numb
 
 export function legTop(l: LegLook, claw: ClawLook, sk: SkinSpec, legId: string, clawId: string, hand: boolean): PartSpec {
   const foreleg = hand && l.kind === 'powerful';
-  const th = l.thick * 0.72 * (foreleg ? 0.64 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
+  const th = l.thick * 0.72 * (foreleg ? 0.56 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
   const W = foot + 100, H = th + 100;
   return {
     key: `ws:d:tleg:${legId}:${clawId}:${sk.key}:${hand ? 'h' : ''}`, w: W, h: H, ox: 50 + foot * 0.28, oy: H / 2,
@@ -195,7 +195,7 @@ export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       const fill = skinFill(sk, { x0: -len - Math.max(t.tip, 45), y0: -t.base, x1: 10 + t.base / 2, y1: t.base }, 4);
       const sh: Shape[] = [];
       const end = pts[N];
-      if (t.kind === 'paddle') sh.push(flipperBlade(sk, { x: end.x + 14, y: 0, angle: Math.PI, length: 66, width: 66 }));
+      if (t.kind === 'paddle') sh.push(...paddleFins(sk, end, true));
       if (sk.ex?.kind === 'feathers') {
         const compact = t.kind === 'paddle' || t.kind === 'spiked';
         const reach = compact ? 18 : 30;
