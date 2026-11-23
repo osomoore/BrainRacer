@@ -5,7 +5,8 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '../..');
 const shots = path.join(__dirname, 'shots');
-const port = 5198;
+const portArg = process.argv.indexOf('--port');
+const port = Number(portArg > 0 ? process.argv[portArg + 1] : process.env.ART_REVIEW_PORT) || 5198;
 const base = `http://localhost:${port}`;
 const shapesOnly = process.argv.includes('--shapes');
 const viewQuery = shapesOnly ? '&art=shapes' : '';
@@ -70,6 +71,6 @@ const viewQuery = shapesOnly ? '&art=shapes' : '';
   const url = `${base}/tools/art-review/grade.html`;
   const opener = spawn('cmd.exe', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true });
   opener.unref();
-  console.log('Vite stays open on port 5198. Press Ctrl+C in this terminal when finished reviewing.');
+  console.log(`Vite stays open on port ${port}. Press Ctrl+C in this terminal when finished reviewing.`);
   process.once('SIGINT', () => server.close().then(() => process.exit(0)));
 })().catch(error => { console.error(error); process.exitCode = 1; });

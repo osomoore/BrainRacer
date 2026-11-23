@@ -128,6 +128,10 @@ export const WS_RUN = {
 export const WS_ART = {
   /** Side-view model height in the room at scale 1 (medium size), px. */
   modelSideH: 300,
+  /** Art reviewer: body opacity on the springs sheet so the springs show through. */
+  reviewSpringsBodyAlpha: 0.35,
+  /** Art reviewer: wheel opacity on the springs sheet so springs behind the wheels show. */
+  reviewSpringsWheelAlpha: 0.4,
 } as const;
 
 // ---------------------------------------------------------------- audio (apps/workshop/audio)
