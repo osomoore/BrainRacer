@@ -12,7 +12,11 @@ export interface Box { x0: number; y0: number; x1: number; y1: number }
 export function skinSpec(m: Model): SkinSpec {
   const look = SKIN[m.color] ?? SKIN['color.orange'];
   const extra = EXTRA[m.extra] ?? null;
-  const ex = extra?.kind === 'feathers' ? { ...extra, c1: look.accent } : extra;
+  const ex = extra && extra.kind !== 'camo'
+    ? extra.kind === 'frill'
+      ? { ...extra, c1: mix(look.accent, extra.c1, 0.35), c3: look.accent }
+      : { ...extra, c1: look.accent }
+    : extra;
   const pattern: PatternKind = ex && (ex.kind === 'camo' || ex.kind === 'stripes' || ex.kind === 'glow') ? ex.kind : 'none';
   return { look, pattern, ex, key: `${m.color}:${m.extra}` };
 }
@@ -243,7 +247,7 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (
       for (let i = 0; i < n; i++) {
         const x = box.x0 + 8 + rng() * (w - 16), y = box.y0 + 8 + rng() * (h - 16);
         const rg = g.createRadialGradient(x, y, 1, x, y, 15);
-        rg.addColorStop(0, ex.c3); rg.addColorStop(0.35, ex.c1); rg.addColorStop(1, 'rgba(200,255,60,0)');
+        rg.addColorStop(0, ex.c3); rg.addColorStop(0.35, ex.c1); rg.addColorStop(1, `${ex.c1}00`);
         g.fillStyle = rg; g.beginPath(); g.arc(x, y, 15, 0, 6.3); g.fill();
       }
     }

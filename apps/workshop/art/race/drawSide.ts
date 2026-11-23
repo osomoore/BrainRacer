@@ -7,18 +7,23 @@ import type { RaceGeom, RaceLooks } from './geometry';
 type G = CanvasRenderingContext2D;
 const PAD = 14;
 
-export function paintFill(g: G, p: PaintLook, y0: number, y1: number): CanvasGradient | string {
-  if (p.bands) {
-    const gr = g.createLinearGradient(0, y0, 0, y1);
-    const n = p.bands.length;
-    p.bands.forEach((c, i) => { gr.addColorStop(i / n + 0.001, c); gr.addColorStop((i + 1) / n - 0.001, c); });
-    return gr;
-  }
+function paintFill(g: G, p: PaintLook, y0: number, y1: number): CanvasGradient {
   const gr = g.createLinearGradient(0, y0, 0, y1);
   gr.addColorStop(0, lighten(p.main, 0.12));
   gr.addColorStop(0.55, p.main);
   gr.addColorStop(1, p.dark);
   return gr;
+}
+
+export function rainbowFill(bands: readonly string[], length: number, y0: number, y1: number): (g: G) => void {
+  return (g) => {
+    const width = length / bands.length;
+    for (const [i, color] of bands.entries()) {
+      g.fillStyle = color;
+      // The following opaque band covers the overlap and leaves a clean join.
+      g.fillRect(-length / 2 + i * width, y0, width + 1, y1 - y0);
+    }
+  };
 }
 
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -34,7 +39,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
     w, h: ty1 - ty0, ox: w / 2, oy: -ty0,
     draw: (g) => {
       const y0 = geo.roofTop, y1 = geo.bottom;
-      const fill = paintFill(g, paint, y0, y1);
+      const fill = paint.bands ? rainbowFill(paint.bands, b.len, ty0, ty1) : paintFill(g, paint, y0, y1);
       const shapes: Shape[] = [];
       const radii = b.kind === 'sports'
         ? geo.chassis.map((p) => p.y === geo.bottom ? s.r * 0.75 : s.r + 9)
@@ -49,8 +54,10 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
         detail: (c) => {
           c.fillStyle = '#14142e';
           for (const ax of [geo.frontAxle, geo.rearAxle]) { c.beginPath(); circle(c, ax, geo.hubY, l.wheel.r + 9); c.fill(); }
-          c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 3;
-          c.beginPath(); c.moveTo(geo.rear + 14, geo.chassisTop(geo.rear) + 9); c.lineTo(geo.front - 14, geo.chassisTop(geo.front) + 9); c.stroke();
+          const trimRear = geo.rear + 18, trimFront = geo.front - 18;
+          c.strokeStyle = paint.accent; c.lineWidth = 6;
+          c.beginPath(); c.moveTo(trimRear, geo.chassisTop(trimRear) + 10);
+          c.lineTo(trimFront, geo.chassisTop(trimFront) + 10); c.stroke();
         },
       });
       const footRadius = Math.min(14, s.rc);
@@ -86,7 +93,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       }
       // door handle, lights
       const mid = (geo.cabin[0].x + geo.cabin[3].x) / 2;
-      g.fillStyle = lighten(paint.light, 0.4); g.strokeStyle = OUTLINE; g.lineWidth = 3;
+      g.fillStyle = paint.accent; g.strokeStyle = OUTLINE; g.lineWidth = 3;
       g.beginPath(); rrectPath(g, mid + 8, geo.chassisTop(mid) + 11, 16, 6, 3); g.fill(); g.stroke();
       const hy = geo.chassisTop(geo.front) + Math.min(15, b.chH * s.noseK * 0.38);
       g.fillStyle = '#fff7b0'; g.beginPath(); ellipsePath(g, geo.front - 9, hy, 8, 6.5); g.fill(); g.stroke();
