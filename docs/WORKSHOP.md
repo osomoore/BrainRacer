@@ -7,6 +7,8 @@ the decisions made on top of it and how the code is split.
 
 ## Current state (2026-11-22, branch `feature/workshop`, not merged into `dev` yet)
 
+> **New session?** Start with `docs/WORKSHOP_HANDOFF.md` (what is waiting, servers, standing rules). Codex jobs C1–C8 are all merged (2026-11-23).
+
 - **Playable end to end**: title/join (1–2 players, pads or two keyboard layouts; tap on mobile) → profile pick/create
   (letter grid + reading level) → Race Shop / Dino Lab → workshop room (character walks to 10 stations) → station
   (camera zooms to the part, live preview) → board (read-only part labels + 3 challenges at the reading level; 10 in
