@@ -83,6 +83,12 @@ export default class WorkshopParts extends Phaser.Scene {
   }
 
   private draw(): void {
+    this.drawSheet();
+    // `&freeze=1` (art-review capture): stop idle tweens at the fresh pose so every capture is pixel-identical.
+    if (new URLSearchParams(location.search).get('freeze') === '1') this.tweens.killAll();
+  }
+
+  private drawSheet(): void {
     this.clear();
     const cat = CATALOGS[this.workshop];
     const base: Model = Object.fromEntries(cat.aspects.map((a) => [a.id, a.starters[0]]));
@@ -139,6 +145,8 @@ export default class WorkshopParts extends Phaser.Scene {
   private drawRow(items: RowItem[], sharedScale: boolean, sizes = false): void {
     const cw = 1920 / Math.max(items.length, 3);
     const modelW = cw - (sizes ? 56 : 0);
+    // Cell layout for tools/art-review fingerprinting (labels sit between the regions, so they are excluded).
+    (window as unknown as { __partsCells?: unknown }).__partsCells = { count: items.length, cw, side: { y: 70, h: 440 }, top: { y: 580, h: 400 } };
     const scale = sharedScale
       ? Math.min(...items.flatMap(({ side, top }) => [this.fit(side, modelW, 440), this.fit(top, modelW, 400)]))
       : undefined;
