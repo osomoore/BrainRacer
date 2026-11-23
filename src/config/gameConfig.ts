@@ -639,6 +639,13 @@ export const DINO_RIDE = {
   laserArc: 0.5,               // rad swept, centred straight ahead
 };
 
+// debug hotkeys (KeyboardEvent.code); only active with ?debug=1, none collide with keyboardMap.ts
+export const DEBUG_KEYS = {
+  cycleCar: 'F6',  // next car for P1 (restarts the race with that car; turns on developer-mode loadouts)
+  boss: 'F7',      // spawn the boss at the goal; press again to beat it into a crystal
+  laser: 'F8',     // boss fires its laser eyes now
+};
+
 // dino laser eyes (package dino-laser)
 export const DINO_LASER = {
   firstDelaySec: 6,            // after landing, before the first shot may start

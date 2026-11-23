@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 import { CameraRig } from '../camera/CameraRig';
 import { DEFAULT_SETTINGS, DEVELOPER_ROUND_SEC, DINO, QUEUED_FEATURES, VEHICLE_MODEL, WORLD, WORLD_MUSIC } from '../config/gameConfig';
 import { getTuning } from '../config/deviceTuning';
+import { UNLOCK_VEHICLE_IDS } from '../config/collectibles';
+import { debugActionFor, debugKeysEnabled, nextCar } from '../input/debugKeys';
 import { currentLaunchOverrides } from '../config/launchOptions';
 import { isQueuedMap, type QueuedMap } from '../config/queuedMaps';
 import { bus } from '../core/events';
@@ -174,6 +176,22 @@ export class RaceScene extends Phaser.Scene {
     this.ended = false;
     this.inBreak = false;
     services.audio.music(null, 0.5);
+
+    // ?debug=1: cycle P1's car (restarts the race; developer-mode loadouts unlock every car).
+    if (debugKeysEnabled(location.search)) {
+      const onKey = (e: KeyboardEvent) => {
+        if (debugActionFor(e.code) !== 'cycleCar') return;
+        e.preventDefault();
+        const reg: Settings = this.registry.get(REG.settings);
+        const p0 = reg.players[0];
+        if (!p0) return;
+        reg.developerMode = true;
+        p0.devCar = nextCar(this.players[0].kind, ['dino', 'kart', ...UNLOCK_VEHICLE_IDS]);
+        this.scene.restart(data);
+      };
+      window.addEventListener('keydown', onKey);
+      this.offs.push(() => window.removeEventListener('keydown', onKey));
+    }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
     (window as unknown as { __race?: RaceContext }).__race = this.ctx;
