@@ -1,1 +1,83 @@
-{}
+{
+ "ws:d:head:head.crest:color.orange:extra.feathers:n": {
+  "pick": 379521102
+ },
+ "ws:d:head:head.horned:color.orange:extra.feathers:n": {
+  "pick": 1588778587
+ },
+ "ws:d:head:head.longNeck:color.orange:extra.feathers:n": {
+  "pick": 4029492576
+ },
+ "ws:d:head:head.rex:color.orange:extra.feathers:n": {
+  "pick": "shape"
+ },
+ "ws:d:head:head.round:color.blue:extra.feathers:n": {
+  "pick": 3118542347
+ },
+ "ws:d:head:head.round:color.green:extra.feathers:n": {
+  "pick": 3590866520
+ },
+ "ws:d:head:head.round:color.orange:extra.camo:n": {
+  "pick": "more",
+  "comment": "Need more random feature placement to compare, right now all the leaves are in the same spot in all candidates."
+ },
+ "ws:d:head:head.round:color.orange:extra.feathers:Short and curved": {
+  "pick": 375588832
+ },
+ "ws:d:head:head.round:color.orange:extra.feathers:n": {
+  "pick": 2286925839
+ },
+ "ws:d:head:head.round:color.orange:extra.frill:n": {
+  "pick": 1382284544
+ },
+ "ws:d:head:head.round:color.orange:extra.glow:n": {
+  "pick": "more",
+  "comment": "Need more random feature placement to compare, right now all the spots are in the same spot in all candidates."
+ },
+ "ws:d:head:head.round:color.orange:extra.stripes:n": {
+  "pick": "more",
+  "comment": "Need more random feature placement to compare, right now all the stripes are in the same spot in all candidates."
+ },
+ "ws:d:head:head.round:color.purple:extra.feathers:n": {
+  "pick": 3369987998
+ },
+ "ws:d:head:head.round:color.sandy:extra.feathers:n": {
+  "pick": 229897980
+ },
+ "ws:d:head:head.round:color.spotted:extra.feathers:n": {
+  "pick": "more",
+  "comment": "Need more random feature placement to compare, right now all the spots are in the same spot in all candidates."
+ },
+ "ws:d:thead:head.crest:color.orange:extra.feathers:n": {
+  "pick": 377139507
+ },
+ "ws:d:thead:head.horned:color.orange:extra.feathers:n": {
+  "pick": "more",
+  "comment": "Horns should extend from the top of the head, but right now are shown extending from below it."
+ },
+ "ws:d:thead:head.longNeck:color.orange:extra.feathers:n": {
+  "pick": 32181000
+ },
+ "ws:d:thead:head.rex:color.orange:extra.feathers:n": {
+  "pick": 1827826459
+ },
+ "ws:d:thead:head.round:color.orange:extra.camo:n": {
+  "pick": "pending",
+  "comment": "Need more random feature placement to compare, right now all the leaves are in the same spot in all candidates."
+ },
+ "ws:d:thead:head.round:color.orange:extra.feathers:Short and curved": {
+  "pick": 152157770
+ },
+ "ws:d:thead:head.round:color.orange:extra.feathers:n": {
+  "pick": 827336845
+ },
+ "ws:d:thead:head.round:color.orange:extra.frill:n": {
+  "pick": 1541133632
+ },
+ "ws:d:thead:head.round:color.orange:extra.glow:n": {
+  "pick": 4023621566
+ },
+ "ws:d:thead:head.round:color.orange:extra.stripes:n": {
+  "pick": 3011336115
+ }
+}
