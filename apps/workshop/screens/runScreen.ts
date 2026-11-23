@@ -1,16 +1,23 @@
 /**
  * run: plays the test run of `data.challengeId` with the current model (engine decides pass/fail first,
  * the runner acts it out), records the win/fail (not in Admin Mode), then opens results.
- * A / confirm toggles fast-forward (4x). B skips straight to the results.
+ * A / confirm toggles fast-forward (4x, shown as a ">>" icon). B skips straight to the results (once).
+ * Input is ignored for the first INPUT_GUARD_MS so a button held from the board / results does not trigger anything.
  */
+import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
 import type { RunResult } from '../core/types';
 import { engine } from '../logic';
 import { playRun, type RunHandle } from '../run/runner';
 import { currentProgress } from './room/progress';
 import { setOutcome } from './run/outcome';
+import { fastForwardTexture } from './run/ffIcon';
 
 const FAST = 4;
+/** Ignore input this long after the run opens (ms). */
+const INPUT_GUARD_MS = 300;
+/** Pause after the last stage animation before the results open (ms of scene time). */
+const END_PAUSE_MS = 400;
 
 const runScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
@@ -18,11 +25,24 @@ const runScreen: ScreenFactory = (): Screen => {
   let result: RunResult;
   let challengeId = '';
   let finished = false;
+  let destroyed = false;
   let fast = false;
+  let age = 0;
+  let endTimer: Phaser.Time.TimerEvent | undefined;
+  let icon: Phaser.GameObjects.Image | undefined;
+  let iconTween: Phaser.Tweens.Tween | undefined;
+
+  const setFast = (on: boolean) => {
+    fast = on;
+    handle?.setSpeed(on ? FAST : 1);
+    icon?.setVisible(on);
+  };
 
   const finish = () => {
-    if (finished) return;
+    if (finished || destroyed) return;
     finished = true;
+    endTimer?.remove(false);
+    endTimer = undefined;
     const ws = ctx.workshop!;
     const save = ctx.save();
     const progress = currentProgress(ctx, ws);
@@ -47,26 +67,51 @@ const runScreen: ScreenFactory = (): Screen => {
     create(c: PaneContext, data: ScreenData) {
       ctx = c;
       finished = false;
+      destroyed = false;
       fast = false;
+      age = 0;
       challengeId = data.challengeId ?? '';
       const ws = ctx.workshop;
       const progress = ws ? currentProgress(ctx, ws) : undefined;
       const challenge = progress?.challenges[challengeId];
       if (!ws || !progress || !challenge) { ctx.go('board'); return; }
       result = engine.evaluate(ws, progress.model, challenge);
-      handle = playRun({
-        scene: ctx.scene, origin: { x: 0, y: 0 }, size: ctx.size, workshop: ws, model: progress.model,
-        challenge, result, audio: ctx.audio, buildRig: ctx.buildRig, seed: challenge.seed,
-      });
-      void handle.done.then(() => { if (handle) ctx.scene.time.delayedCall(400, finish); });
+      try {
+        handle = playRun({
+          scene: ctx.scene, origin: { x: 0, y: 0 }, size: ctx.size, workshop: ws, model: progress.model,
+          challenge, result, audio: ctx.audio, buildRig: ctx.buildRig, seed: challenge.seed,
+        });
+      } catch (e) {
+        console.error('run failed to start', e);
+        handle = undefined;
+        finish();
+        return;
+      }
+      // Fast-forward indicator: a ">>" icon in the top-right corner (never a word).
+      icon = ctx.scene.add.image(ctx.size.w - 90, 80, fastForwardTexture(ctx.scene)).setDepth(10_000).setVisible(false);
+      iconTween = ctx.scene.tweens.add({ targets: icon, alpha: 0.6, duration: 350, yoyo: true, repeat: -1 });
+      handle.done.then(() => {
+        if (destroyed || finished) return;
+        endTimer = ctx.scene.time.delayedCall(END_PAUSE_MS, finish);
+      }, () => { if (!destroyed) finish(); });
     },
-    update() {
-      for (const a of ctx.input.poll()) {
-        if (a === 'confirm') { fast = !fast; handle?.setSpeed(fast ? FAST : 1); }
-        else if (a === 'back') finish();
+    update(dt: number) {
+      age += dt;
+      const actions = ctx.input.poll();
+      if (age < INPUT_GUARD_MS || finished || destroyed) return;
+      for (const a of actions) {
+        if (a === 'confirm') setFast(!fast);
+        else if (a === 'back') { finish(); break; }
       }
     },
     destroy() {
+      destroyed = true;
+      endTimer?.remove(false);
+      endTimer = undefined;
+      iconTween?.remove();
+      iconTween = undefined;
+      icon?.destroy();
+      icon = undefined;
       const h = handle;
       handle = undefined;
       h?.destroy();
