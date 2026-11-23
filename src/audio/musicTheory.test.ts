@@ -11,9 +11,25 @@ import underwater from './music/tracks/underwater.json';
 import { QUEUED_TRACKS } from './music/queuedTracks';
 import results from './music/tracks/results.json';
 import {
-  beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
+  beatsToSeconds, drumKind, gmDrumToBasic, looksLikeMidi, midiToFreq, midiToTrack, prepareLayerNotes, secondsToBeats, validateTrack,
   type MidiLike,
 } from './musicTheory';
+
+it('extends pitched notes within their available time and leaves percussion at its original duration', () => {
+  const notes = [
+    { t: 1, d: 0.8, p: 65, v: 1 },
+    { t: 0, d: 0.5, p: 60, v: 1 },
+    { t: 0, d: 0.9, p: 64, v: 1 },
+  ];
+  const pitched = prepareLayerNotes({ instrument: 'triangle', volume: 1, notes }, 120, 2);
+  expect(pitched.map(({ p }) => p)).toEqual([60, 64, 65]);
+  expect(pitched[0].durationSec).toBeCloseTo(0.35);
+  expect(pitched[1].durationSec).toBeCloseTo(0.5);
+  expect(pitched[2].durationSec).toBeCloseTo(0.5);
+  const percussion = prepareLayerNotes({ instrument: 'noise', volume: 1, notes }, 120, 2);
+  expect(percussion[0].durationSec).toBeCloseTo(0.25);
+  expect(notes[1].d).toBe(0.5);
+});
 
 describe('units', () => {
   it('beats <-> seconds', () => {

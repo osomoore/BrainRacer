@@ -14,6 +14,33 @@ export interface TrackData {
   tracks: TrackLayer[];
 }
 
+export const MUSIC_SUSTAIN_FACTOR = 1.4;
+
+export interface RuntimeNote {
+  t: number; // beat position
+  durationSec: number;
+  p: number;
+  v: number;
+}
+
+/** Lengthen pitched notes up to the next onset, while preserving any overlap already written in the score. */
+export function prepareLayerNotes(layer: TrackLayer, bpm: number, lengthBeats: number): RuntimeNote[] {
+  const notes = layer.notes
+    .map(({ t, d, p, v }) => ({ t, durationSec: beatsToSeconds(d, bpm), p, v }))
+    .sort((a, b) => a.t - b.t);
+  if (layer.instrument === 'noise') return notes;
+
+  let nextBeat = lengthBeats;
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const note = notes[i];
+    const next = notes[i + 1];
+    if (next && next.t > note.t) nextBeat = next.t;
+    const available = Math.max(note.durationSec, beatsToSeconds(nextBeat - note.t, bpm));
+    note.durationSec = Math.min(note.durationSec * MUSIC_SUSTAIN_FACTOR, available);
+  }
+  return notes;
+}
+
 export function beatsToSeconds(beats: number, bpm: number): number {
   return (beats * 60) / bpm;
 }

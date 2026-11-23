@@ -8,8 +8,8 @@ import { foldTail, loopOffsetSec, planChunks, renderQueue } from './bufferUtils'
 import { applyMusicGain, limitMusicPeak, musicNormalizationGain } from './musicLoudness';
 import musicGains from './musicGains.json';
 import {
-  beatsToSeconds, drumKind, looksLikeMidi, midiToFreq, midiToTrack, secondsToBeats, validateTrack,
-  type TrackData, type TrackLayer,
+  beatsToSeconds, drumKind, looksLikeMidi, midiToFreq, midiToTrack, MUSIC_SUSTAIN_FACTOR,
+  prepareLayerNotes, secondsToBeats, validateTrack, type RuntimeNote, type TrackData, type TrackLayer,
 } from './musicTheory';
 import title from './music/tracks/title.json';
 import race from './music/tracks/race.json';
@@ -58,13 +58,6 @@ export const MUSIC_TRACKS: MusicTrack[] = ['title', 'race', 'farm', 'industrial'
 const TICK_SEC = 0.1;
 const LIVE_GAINS: Partial<Record<MusicTrack, number>> = musicGains;
 
-interface RuntimeNote {
-  t: number; // beat position
-  durationSec: number;
-  p: number;
-  v: number;
-}
-
 type NoteFn = (note: RuntimeNote, time: number) => void;
 
 interface LayerRuntime {
@@ -74,13 +67,11 @@ interface LayerRuntime {
 
 /** Builds every layer's instruments into `dest` (shared by live playback and offline rendering). */
 function buildLayers(data: TrackData, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime[] {
-  return data.tracks.map((layer) => buildLayer(layer, data.bpm, dest, nodes));
+  return data.tracks.map((layer) => buildLayer(layer, data.bpm, data.lengthBeats, dest, nodes));
 }
 
-function buildLayer(layer: TrackLayer, bpm: number, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime {
-  const notes = layer.notes
-    .map(({ t, d, p, v }) => ({ t, durationSec: beatsToSeconds(d, bpm), p, v }))
-    .sort((a, b) => a.t - b.t);
+function buildLayer(layer: TrackLayer, bpm: number, lengthBeats: number, dest: Tone.InputNode, nodes: Tone.ToneAudioNode[]): LayerRuntime {
+  const notes = prepareLayerNotes(layer, bpm, lengthBeats);
   const lvl = new Tone.Gain(Math.max(0, layer.volume) * 0.32).connect(dest);
   nodes.push(lvl);
   const env = { attack: 0.005, decay: 0.06, sustain: 0.6, release: 0.06 };
@@ -100,7 +91,7 @@ function buildLayer(layer: TrackLayer, bpm: number, dest: Tone.InputNode, nodes:
       nodes.push(lp, synth);
       return {
         notes,
-        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.min(0.35, Math.max(0.03, n.durationSec)), time, n.v),
+        play: (n, time) => synth.triggerAttackRelease(midiToFreq(n.p), Math.min(0.35 * MUSIC_SUSTAIN_FACTOR, Math.max(0.03, n.durationSec)), time, n.v),
       };
     }
     case 'pulse25':
@@ -256,7 +247,7 @@ class Playback implements Running {
 function maxNoteSec(data: TrackData): number {
   let maxBeats = 0;
   for (const layer of data.tracks) for (const n of layer.notes) maxBeats = Math.max(maxBeats, n.d);
-  return beatsToSeconds(maxBeats, data.bpm) + 0.5;
+  return beatsToSeconds(maxBeats * MUSIC_SUSTAIN_FACTOR, data.bpm) + 0.5;
 }
 
 /**

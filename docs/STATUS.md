@@ -31,31 +31,31 @@ The final music pack revises City, Factory, Beach & Harbor, Farm, Underwater, Br
 
 Every world plays at full configured music gain through the dry signal path while driving, including turbo and the final stretch. Question breaks and pauses fade over 300 ms to 70% gain through a 3 kHz low-pass filter.
 
-Live and offline playback convert note durations from beats at the score tempo. Music normalization targets −17.5 dBFS RMS and smoothly limits peaks below −2.5 dBFS before encoding. Live uses the per-track gain from `src/audio/musicGains.json` and the same peak-limiting curve.
+Live and offline playback convert note durations from beats at the score tempo and hold pitched notes up to 40% longer, within the time before the next note in the same layer. Music normalization targets −17.5 dBFS RMS and smoothly limits peaks below −2.5 dBFS before encoding. Live uses the per-track gain from `src/audio/musicGains.json` and the same peak-limiting curve.
 
 FFmpeg `volumedetect` measured the shipped Opus files. Race music, including the Dino boss track, spans **−17.7 to −17.5 dBFS mean (0.2 dB)**. The Results duration includes its ring-out.
 
 | Track | Mean (dBFS) | Peak (dBFS) | Duration (s) | Beats | Notes/min |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Dino boss (dino) | −17.5 | −4.4 | 49.2 | 128 | 1,768 |
-| In My House (house) | −17.6 | −2.0 | 60.0 | 120 | 781 |
-| City (race) | −17.5 | −4.2 | 49.2 | 128 | 1,012 |
-| Title (title) | −17.5 | −4.1 | 29.5 | 64 | 1,072 |
-| Brickworks (brickworks) | −17.5 | −3.8 | 53.3 | 112 | 639 |
-| Castle (castle) | −17.7 | −3.8 | 51.4 | 108 | 684 |
-| Farm (farm) | −17.6 | −2.1 | 58.2 | 128 | 690 |
-| Dark Forest (forest) | −17.7 | −2.1 | 45.7 | 96 | 550 |
-| Beach & Harbor (harbor) | −17.6 | −1.8 | 50.9 | 112 | 846 |
-| Factory (industrial) | −17.6 | −3.5 | 46.5 | 96 | 736 |
-| Mushroom Island (mushroom) | −17.6 | −3.3 | 54.9 | 128 | 661 |
-| Results (results) | −17.5 | −3.0 | 9.4 | 16 | 612 |
-| Frozen Tundra (tundra) | −17.5 | −2.0 | 57.9 | 112 | 319 |
-| Underwater (underwater) | −17.5 | −6.5 | 49.7 | 96 | 460 |
-| Volcano (volcano) | −17.5 | −2.3 | 51.2 | 128 | 1,055 |
-| Airport (airport) | −17.6 | −4.2 | 53.3 | 128 | 712 |
-| Sky City (sky) | −17.6 | −3.8 | 41.7 | 96 | 878 |
-| Mine (underground) | −17.6 | −2.0 | 43.6 | 96 | 971 |
-| Candyland (candy) | −17.7 | −1.8 | 48.7 | 112 | 844 |
+| Dino boss (dino) | −17.5 | −4.3 | 49.2 | 128 | 1,768 |
+| In My House (house) | −17.5 | −2.5 | 60.0 | 120 | 781 |
+| City (race) | −17.5 | −4.9 | 49.2 | 128 | 1,012 |
+| Title (title) | −17.5 | −4.7 | 29.5 | 64 | 1,072 |
+| Brickworks (brickworks) | −17.5 | −4.5 | 53.3 | 112 | 639 |
+| Castle (castle) | −17.7 | −4.2 | 51.4 | 108 | 684 |
+| Farm (farm) | −17.6 | −2.4 | 58.2 | 128 | 690 |
+| Dark Forest (forest) | −17.7 | −2.3 | 45.7 | 96 | 550 |
+| Beach & Harbor (harbor) | −17.6 | −2.7 | 50.9 | 112 | 846 |
+| Factory (industrial) | −17.6 | −4.8 | 46.5 | 96 | 736 |
+| Mushroom Island (mushroom) | −17.6 | −4.6 | 54.9 | 128 | 661 |
+| Results (results) | −17.5 | −3.1 | 9.4 | 16 | 612 |
+| Frozen Tundra (tundra) | −17.5 | −2.5 | 57.9 | 112 | 319 |
+| Underwater (underwater) | −17.5 | −6.3 | 49.7 | 96 | 460 |
+| Volcano (volcano) | −17.5 | −3.4 | 51.2 | 128 | 1,055 |
+| Airport (airport) | −17.7 | −4.2 | 53.3 | 128 | 712 |
+| Sky City (sky) | −17.6 | −3.6 | 41.7 | 96 | 878 |
+| Mine (underground) | −17.6 | −2.3 | 43.6 | 96 | 971 |
+| Candyland (candy) | −17.6 | −1.7 | 48.7 | 112 | 844 |
 
 In dev, open `/?dev=AudioTest` to audition every track at the default game volume. The engine preview starts off. Use `/?race=1&map=tundra&questions=math&every=5` to hear the mix transition in a race. Change the map to `city` or `volcano` to compare.
 
