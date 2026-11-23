@@ -1174,7 +1174,7 @@ export const QUEUED_ATMOSPHERE = {
   },
 } as const;
 
-/** Mobile admin gate (setup-screen gear -> multiplication question -> hidden admin menu). */
+/** Admin gate (Join screen gear -> multiplication question -> Admin Settings). */
 export const ADMIN_GATE = {
   factorMin: 6,
   factorMax: 12,
