@@ -3,7 +3,7 @@
  * of swatches scrolls through every available variant and the model previews the highlighted one live. A (or the
  * "Use it!" button) installs it, saves, sparkles and returns to the room; B returns without changing anything.
  */
-import type Phaser from 'phaser';
+import Phaser from 'phaser';
 import { buildDetail } from '../art';
 import { WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
@@ -45,6 +45,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const scene = ctx.scene;
       const ws = ctx.workshop ?? 'race';
       const aspect = data.aspect ?? engine.catalog(ws).aspects[0].id;
+      const springsCloseup = ws === 'race' && aspect === 'springs';
       const cat = engine.catalog(ws);
       const aspectDef = cat.aspects.find((a) => a.id === aspect) ?? cat.aspects[0];
       const progress = currentProgress(ctx, ws);
@@ -65,6 +66,9 @@ const stationScreen: ScreenFactory = (): Screen => {
       objs.push(shade);
 
       const candidate = () => withVariant(progress.model, aspect, options[index]);
+      const revealSprings = (modelRig: ModelRig) => {
+        for (const wheel of modelRig.parts.wheels as Phaser.GameObjects.Image[]) wheel.setAlpha(WS_ROOM.stationSpringsWheelAlpha);
+      };
       const placeDetail = (preview: Phaser.GameObjects.Container) => {
         fitDetail(preview, L.stage.cx, L.stage.cy, Math.min(1100, L.size.w - 120), L.strip.bandY - L.topBandH - 36);
         preview.setDepth(-300);
@@ -77,18 +81,43 @@ const stationScreen: ScreenFactory = (): Screen => {
       } else {
         const modelRig = rig = ctx.buildRig(scene, ws, progress.model, 'side');
         const baseW = modelRig.width; // measured before the root is scaled (setModel re-measures including the scale)
-        const s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, modelRig.width), RL.model.maxH / Math.max(1, modelRig.height));
+        let s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, modelRig.width), RL.model.maxH / Math.max(1, modelRig.height));
+        let springsFrame: { x: number; y: number; scale: number } | undefined;
+        if (springsCloseup) {
+          // Measure unscaled previews once so swapping springs keeps the wheel and raised body in the same frame.
+          const bounds = modelRig.root.getBounds();
+          for (const option of options) {
+            if (option === installed) continue;
+            modelRig.setModel(withVariant(progress.model, aspect, option));
+            Phaser.Geom.Rectangle.Union(bounds, modelRig.root.getBounds(), bounds);
+          }
+          modelRig.setModel(candidate());
+          revealSprings(modelRig);
+          const margin = WS_ROOM.stationSpringsMarginPx;
+          const scale = Math.min(
+            (L.size.w - 2 * margin) / bounds.width,
+            (L.strip.bandY - L.topBandH - 2 * margin) / bounds.height,
+            WS_ROOM.stationMaxScale,
+          );
+          springsFrame = { x: bounds.centerX, y: bounds.centerY, scale };
+          s0 = Math.min(s0, scale);
+        }
         modelRig.root.setPosition(RL.model.x, RL.model.groundY).setScale(s0);
         world.add(modelRig.root);
         zoomTo = (ms) => {
           const f = { ...modelRig.focus(aspect) };
-          if (ws === 'race' && aspect === 'bumpers') {
+          if (springsFrame) {
+            f.x = springsFrame.x;
+            f.y = springsFrame.y;
+            f.zoom = springsFrame.scale / s0;
+          } else if (ws === 'race' && aspect === 'bumpers') {
             // Both bumpers must be visible: centre on the car and zoom just enough to fit its whole length.
             f.x = 0;
             f.zoom = (L.size.w - 2 * WS_ROOM.stationBumperMarginPx) / ((baseW + 2 * WS_ROOM.stationBumperPadPx) * s0);
           }
           const focus = { x: RL.model.x + f.x * s0, y: RL.model.groundY + f.y * s0 };
-          const t = cameraTarget(focus, f.zoom, L.stage, WS_ROOM.stationMaxScale / s0);
+          const stage = springsFrame ? { cx: L.stage.cx, cy: (L.topBandH + L.strip.bandY) / 2 } : L.stage;
+          const t = cameraTarget(focus, f.zoom, stage, WS_ROOM.stationMaxScale / s0);
           scene.tweens.killTweensOf(world);
           tweens.push(scene.tweens.add({ targets: world, x: t.x, y: t.y, scaleX: t.scale, scaleY: t.scale, duration: ms, ease: 'Cubic.easeInOut' }));
         };
@@ -173,9 +202,10 @@ const stationScreen: ScreenFactory = (): Screen => {
           detail?.destroy();
           detail = nextDetail;
           placeDetail(detail);
-        } else {
-          rig?.setModel(model);
-            zoomTo(260);
+        } else if (rig) {
+          rig.setModel(model);
+          if (springsCloseup) revealSprings(rig);
+          zoomTo(260);
         }
       };
       const select = (i: number) => {

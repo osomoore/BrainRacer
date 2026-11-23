@@ -57,6 +57,8 @@ export const WS_UI = {
   maxPlayers: 2,
   /** Pane divider width in 2-player mode. */
   dividerW: 12,
+  /** Admin status marker in the top-right edge of the stage. */
+  adminPill: { inset: 5, h: 40, padX: 16, font: 28 },
   /** Reading-level sample sentences (profile creation / reading screens). */
   readingSamples: {
     easy: 'The red car can go.',
@@ -107,6 +109,10 @@ export const WS_ROOM = {
   /** Bumpers station: empty world px kept beyond both bumpers, and the screen-side margin (px), so front AND rear show. */
   stationBumperPadPx: 70,
   stationBumperMarginPx: 90,
+  /** Screen-space margin around the suspension preview, including room for idle bob. */
+  stationSpringsMarginPx: 24,
+  /** Keep the wheels visible while showing the springs behind them. */
+  stationSpringsWheelAlpha: 0.4,
   /** Station screen swatches: visible count per layout, swatch size (px). */
   swatchVisible: { wide: 5, tall: 3 },
   swatchSize: { wide: 250, tall: 220 },
@@ -115,6 +121,13 @@ export const WS_ROOM = {
   detailFontsWide: [52, 48, 44, 40],
   detailFontsTall: [48, 44, 40],
   detailLineGap: 1.28,
+} as const;
+
+// ---------------------------------------------------------------- results (apps/workshop/screens)
+export const WS_RESULTS = {
+  /** Neutral colors for unreached checks at full opacity. */
+  unreachedText: 0x30394e,
+  unreachedBadge: 0xdddddd,
 } as const;
 
 // ---------------------------------------------------------------- runs (apps/workshop/run)
