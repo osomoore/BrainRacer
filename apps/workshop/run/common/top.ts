@@ -10,7 +10,7 @@
  */
 import Phaser from 'phaser';
 import { Fx, along } from './fx';
-import { type Ctx2D, PAL, bakeTemp, circ, darken, fl, line, ol, poly, prop, rr, spec } from './draw';
+import { type Ctx2D, PAL, bakeTemp, circ, darken, fl, hashKey, line, ol, poly, prop, rr, spec } from './draw';
 import type { PathPose, RoundedPath } from './path';
 import type { StageContext } from '../types';
 
@@ -74,7 +74,7 @@ export class TopStage {
       for (let y = 0; y < h; y += 120) g.fillRect(0, y, w, 60);
       for (let i = 0; i < 70; i++) { const x = (i * 337) % w, y = (i * 211) % h; fl(g, darken(grass[0], 0.1), circ(x, y, 6 + (i % 4) * 2)); }
       draw(g, w, h);
-    });
+    }, `top:${this.ctx.workshop}:${hashKey(JSON.stringify(this.ctx.stage) + grass.join() + String(draw))}`);
     const img = this.scene.add.image(0, 0, key).setOrigin(0, 0);
     this.layers.back.add(img);
   }

@@ -47,10 +47,11 @@ const roomScreen: ScreenFactory = (): Screen => {
       objs.push(scene.add.image(0, 0, bg.key).setOrigin(0).setDepth(-900));
       const bubble = bubbleTexture(scene);
       for (const t of bg.tanks) {
-        for (let i = 0; i < 4; i++) {
-          const img = scene.add.image(t.x + 20 + ((i * 37) % Math.max(20, t.w - 40)), t.y + t.h - 60, bubble).setDepth(-800).setScale(0.5 + (i % 3) * 0.2).setAlpha(0);
+        // two bubbles per tank (each looping tween costs per-frame work, and the 2P room runs two scenes)
+        for (let i = 0; i < 2; i++) {
+          const img = scene.add.image(t.x + 20 + ((i * 74) % Math.max(20, t.w - 40)), t.y + t.h - 60, bubble).setDepth(-800).setScale(0.5 + ((i * 2) % 3) * 0.2).setAlpha(0);
           objs.push(img);
-          tweens.push(scene.tweens.add({ targets: img, y: t.y + t.h * 0.34, alpha: { from: 0.9, to: 0 }, duration: 1800 + i * 350, delay: i * 520, repeat: -1 }));
+          tweens.push(scene.tweens.add({ targets: img, y: t.y + t.h * 0.34, alpha: { from: 0.9, to: 0 }, duration: 1800 + i * 700, delay: i * 1040, repeat: -1 }));
         }
       }
 

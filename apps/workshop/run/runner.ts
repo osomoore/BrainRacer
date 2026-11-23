@@ -59,7 +59,6 @@ export function playRun(o: RunOpts): RunHandle {
   const tweens = new Set<Phaser.Tweens.Tween>();
   const timers = new Set<Phaser.Time.TimerEvent>();
   const loops = new Set<() => void>();
-  let maskGfx: Phaser.GameObjects.Graphics | null = null;
   const layers = new Set<Phaser.GameObjects.Container>();
   const rigs = new Set<ModelRig>();
 
@@ -70,14 +69,6 @@ export function playRun(o: RunOpts): RunHandle {
     loop: (n, opts) => { const stop = o.audio.loop(n, opts); const wrapped = () => { loops.delete(wrapped); stop(); }; loops.add(wrapped); return wrapped; },
   };
   const stopLoops = (): void => { for (const s of [...loops]) s(); loops.clear(); };
-
-  const setMask = (on: boolean): void => {
-    if (on && !maskGfx) {
-      maskGfx = scene.make.graphics({}, false);
-      maskGfx.fillStyle(0xffffff).fillRect(o.origin.x, o.origin.y, size.w, size.h);
-      root.setMask(maskGfx.createGeometryMask());
-    } else if (!on && maskGfx) { root.clearMask(true); maskGfx = null; }
-  };
 
   // ------------------------------------------------------------------ stage indicator (dots, no words)
   const dots: Phaser.GameObjects.Arc[] = [];
@@ -128,6 +119,7 @@ export function playRun(o: RunOpts): RunHandle {
     scene.time.delayedCall(900, () => { if (em.scene) em.destroy(); });
   };
 
+  // No geometry mask: the pane camera viewport already clips whatever slides or rolls outside the run area.
   const transition = async (prev: Phaser.GameObjects.Container | null, next: Phaser.GameObjects.Container, step: StageStep): Promise<void> => {
     const { w, h } = size;
     if (!prev) {
@@ -135,7 +127,6 @@ export function playRun(o: RunOpts): RunHandle {
       await tw({ targets: next, alpha: 1, duration: 250 });
       return;
     }
-    setMask(true);
     if (step.transition === 'roll') {
       const hy = Math.round(h * 0.6), sec = WS_RUN.viewRollSec * 1000, flat = 0.1;
       const st = { t: 0 };
@@ -156,7 +147,6 @@ export function playRun(o: RunOpts): RunHandle {
       audio.sfx('whoosh', { volume: 0.5, rate: 1.3 });
       await Promise.all([tw({ targets: prev, x: -w, duration: sec, ease: 'Cubic.easeInOut' }), tw({ targets: next, x: 0, duration: sec, ease: 'Cubic.easeInOut' })]);
     }
-    setMask(false);
   };
 
   /** Run-level tween (transitions); tracked so destroy() can stop it. */
@@ -218,7 +208,6 @@ export function playRun(o: RunOpts): RunHandle {
       dead = true;
       scene.tweens.timeScale = prevTween;
       scene.time.timeScale = prevTime;
-      setMask(false);
       stopLoops();
       for (const t of [...tweens]) t.stop();
       tweens.clear();

@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import type { StageContext } from '../types';
 import { Fx, along } from './fx';
-import { type Ctx2D, PAL, bakeKey, bakeTemp, circ, darken, fl, ol, prop, spec } from './draw';
+import { type Ctx2D, PAL, bakeKey, bakeTemp, circ, darken, fl, hashKey, ol, prop, spec } from './draw';
 import { P } from './props';
 
 export interface HillLayer { color: string; h: number; f: number; waves?: number; seed?: number; dy?: number }
@@ -193,6 +193,7 @@ export class SideStage {
     const em = this.fx.stream(this.layers[layer], kind, null, 0, 0, freq, over);
     const upd = (): void => em.setPos(this.car.x + a.x, this.car.y + a.y);
     this.scene.events.on('update', upd);
+    this.ctx.layer.once('destroy', () => this.scene.events.off('update', upd));
     upd();
     return { stop: () => { this.scene.events.off('update', upd); em.stop(); } };
   }
@@ -291,7 +292,7 @@ export class SideStage {
       for (let x = x1; x >= x0; x -= step) g.lineTo(x, f(x) + 34); g.closePath(); g.fillStyle = top; g.fill();
       g.beginPath(); for (let x = x0; x <= x1; x += step) g.lineTo(x, f(x) + 34); g.lineWidth = 6; g.strokeStyle = PAL.ink; g.stroke();
       g.beginPath(); for (let x = x0; x <= x1; x += step) { if (x === x0) g.moveTo(x, f(x)); else g.lineTo(x, f(x)); } g.lineWidth = 4; g.strokeStyle = darken(top, 0.25); g.stroke();
-    });
+    }, `side:${this.ctx.workshop}:${hashKey(JSON.stringify(this.ctx.stage) + top + body + this.worldW + String(f))}`);
     const img = this.scene.add.image(x0, minY - 30, key).setOrigin(0, 0).setScale(1 / S);
     this.layers.back.add(img);
   }

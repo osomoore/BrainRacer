@@ -104,6 +104,8 @@ export function scenario(id: string, run: (a: Act) => Promise<void>, opts: { top
     scenario: id,
     async play(ctx) {
       const a = new Act(ctx, opts);
+      // An aborted run never resolves `run`, so also dispose when the stage layer is destroyed (runner.destroy / next stage).
+      ctx.layer.once('destroy', () => a.dispose());
       try { await run(a); } finally { a.dispose(); }
     },
   };

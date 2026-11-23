@@ -65,8 +65,10 @@ export class Character {
       this.phase += dt * 2.2;
       this.body.y = -14 - (Math.sin(this.phase) + 1) * 1.5;
     }
-    this.root.setPosition(this.pos.x, this.pos.y);
-    this.syncDepth();
+    if (this.root.x !== this.pos.x || this.root.y !== this.pos.y) {
+      this.root.setPosition(this.pos.x, this.pos.y);
+      this.syncDepth();
+    }
   }
 
   private syncDepth(): void { this.root.setDepth(500 + this.pos.y / 10); }
