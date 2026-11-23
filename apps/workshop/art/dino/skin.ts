@@ -1,7 +1,9 @@
 /** Dino skin: base colour + patterns (spots, tiger stripes, leaf camo, glow). Shared by side and top parts. */
+import { Rng } from '../../core/rng';
 import type { Model } from '../../core/types';
-import { drawShapes, ellipsePath, OL, OUTLINE, type Shape } from '../bake';
+import { drawShapes, ellipsePath, OL, OUTLINE, type PartSpec, type Shape } from '../bake';
 import { type Pt, artRng, hashStr, mix, tubeOutline } from '../geom';
+import picks from '../paint/picks.json';
 import { EXTRA, type ExtraLook, SKIN, type SkinLook } from './looks';
 
 type G = CanvasRenderingContext2D;
@@ -19,6 +21,53 @@ export function skinSpec(m: Model): SkinSpec {
     : extra;
   const pattern: PatternKind = ex && (ex.kind === 'camo' || ex.kind === 'stripes' || ex.kind === 'glow') ? ex.kind : 'none';
   return { look, pattern, ex, key: `${m.color}:${m.extra}` };
+}
+
+export interface PatternedPartSpec extends PartSpec {
+  defaultPatternSeed?: number;
+  pickedPatternSeed?: number;
+  withPatternSeed?: (seed: number) => PartSpec;
+}
+
+type SkinPart = Omit<PartSpec, 'draw'> & { draw: (g: G, patternSeed?: number) => void };
+const patternPicks: Record<string, { pick: number | string; patternSeed?: number }> = picks;
+
+/** Keep the texture key stable. The shipped vote is fixed for this part and both projections share the default look seed. */
+export function patternedPart(sk: SkinSpec, spec: SkinPart): PatternedPartSpec {
+  if (!sk.look.spots && sk.pattern === 'none') return spec;
+  const defaultPatternSeed = hashStr(sk.key);
+  const vote = patternPicks[spec.key];
+  const pickedPatternSeed = typeof vote?.pick === 'number' ? vote.patternSeed : undefined;
+  const withPatternSeed = (seed: number): PartSpec => ({ ...spec, draw: (g) => spec.draw(g, seed) });
+  return { ...withPatternSeed(pickedPatternSeed ?? defaultPatternSeed), defaultPatternSeed, pickedPatternSeed, withPatternSeed };
+}
+
+/** Jittered cells spread marks across the part while leaving room for different layouts. */
+export function patternMarks(kind: 'camo' | 'glow' | 'spots', box: Box, seed: number, partSalt: number) {
+  const w = box.x1 - box.x0, h = box.y1 - box.y0;
+  const rng = new Rng(seed ^ partSalt ^ hashStr(kind));
+  const spacing = kind === 'camo' ? 29 : kind === 'glow' ? 43 : 40;
+  const cols = Math.max(1, Math.ceil(w / spacing));
+  const rows = Math.max(1, Math.ceil(h / spacing));
+  const size = Math.min(1, Math.min(w, h) / 50);
+  return Array.from({ length: cols * rows }, (_, i) => ({
+    x: box.x0 + (i % cols + rng.range(0.16, 0.84)) * w / cols,
+    y: box.y0 + (Math.floor(i / cols) + rng.range(0.16, 0.84)) * h / rows,
+    radius: rng.range(0.65, 1.2) * size,
+    angle: Math.PI + rng.range(-Math.PI / 12, Math.PI / 12),
+  }));
+}
+
+export function stripeMarks(box: Box, seed: number, partSalt: number) {
+  const w = box.x1 - box.x0, h = box.y1 - box.y0;
+  const rng = new Rng(seed ^ partSalt ^ hashStr('stripes'));
+  const count = Math.max(2, Math.round(w / Math.max(23, h / 3)));
+  return Array.from({ length: count }, (_, i) => ({
+    x: box.x0 + (i + rng.range(0.16, 0.84)) * w / count,
+    length: h * rng.range(0.47, 0.91),
+    width: Math.min(w / count, 24) * rng.range(0.35, 0.75),
+    bend: rng.range(-14, 14),
+  }));
 }
 
 export function crestFill(sk: SkinSpec, start: number, end: number, topView = false): (g: G) => void {
@@ -186,11 +235,11 @@ export function drawFrill(g: G, x: number, y: number, rx: number, ry: number, lo
 }
 
 /** Fill callback for the current clipped path. */
-export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (g: G) => void {
+export function skinFill(sk: SkinSpec, box: Box, seed: number, patternSeed = hashStr(sk.key)): (g: G) => void {
   return (g) => {
     const { look: L } = sk;
     const gr = g.createLinearGradient(0, box.y0, 0, box.y1);
-    gr.addColorStop(0, L.light); gr.addColorStop(0.35, L.main); gr.addColorStop(1, belly ? L.belly : L.dark);
+    gr.addColorStop(0, L.light); gr.addColorStop(0.35, L.main); gr.addColorStop(1, L.dark);
     g.fillStyle = gr;
     g.fillRect(box.x0 - 4, box.y0 - 4, box.x1 - box.x0 + 8, box.y1 - box.y0 + 8);
     const w = box.x1 - box.x0, h = box.y1 - box.y0;
@@ -209,60 +258,48 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, belly = false): (
     g.restore();
     if (L.spots) {
       g.fillStyle = L.accent;
-      const n = Math.max(3, Math.min(14, Math.round((w * h) / 2600)));
-      for (let i = 0; i < n; i++) { g.beginPath(); g.arc(box.x0 + rng() * w, box.y0 + rng() * h, 5 + rng() * 7, 0, 6.3); g.fill(); }
+      for (const { x, y, radius } of patternMarks('spots', box, patternSeed, seed)) {
+        g.beginPath(); g.arc(x, y, 8 * radius, 0, Math.PI * 2); g.fill();
+      }
     }
     const ex = sk.ex;
     if (sk.pattern === 'stripes' && ex) {
       g.fillStyle = ex.c1;
-      for (let x = box.x0 - 6; x < box.x1; x += Math.max(20, h / 3)) {
-        const len = h * (0.5 + rng() * 0.35), wd = 11;
-        g.beginPath(); g.moveTo(x, box.y0 - 4); g.lineTo(x + wd, box.y0 - 4); g.quadraticCurveTo(x + wd * 0.5 + 5, box.y0 + len * 0.5, x + 3, box.y0 + len); g.quadraticCurveTo(x - 2, box.y0 + len * 0.4, x, box.y0 - 4); g.fill();
+      for (const { x, length, width, bend } of stripeMarks(box, patternSeed, seed)) {
+        const y = box.y0 - 4;
+        g.beginPath();
+        g.moveTo(x - width / 2, y);
+        g.lineTo(x + width / 2, y);
+        g.quadraticCurveTo(x + width / 2 + bend, y + length * 0.47, x + bend, y + length);
+        g.quadraticCurveTo(x - width * 0.7 + bend, y + length * 0.52, x - width / 2, y);
+        g.fill();
       }
     } else if (sk.pattern === 'camo' && ex) {
-      g.save();
-      const scale = Math.max(10, Math.min(19, h / 7));
-      const shade = mix(L.dark, '#304a24', 0.55);
-      for (let j = 0, y = box.y0; y <= box.y1 + scale; j++, y += scale * 0.7) {
-        g.lineWidth = 1.6;
-        g.strokeStyle = j % 2 ? L.dark : shade;
-        for (let x = box.x0 - (j % 2) * scale * 0.5; x <= box.x1 + scale; x += scale) {
-          g.globalAlpha = 0.24 + rng() * 0.17;
-          g.beginPath();
-          g.moveTo(x - scale * 0.48, y);
-          g.quadraticCurveTo(x, y + scale * (0.5 + rng() * 0.3), x + scale * 0.48, y);
-          g.stroke();
-        }
-      }
-      g.restore();
-      const n = Math.max(4, Math.min(18, Math.round((w * h) / 2000)));
-      for (let i = 0; i < n; i++) {
-        const x = box.x0 + rng() * w, y = box.y0 + rng() * h, length = 9 + rng() * 8;
+      for (const [i, { x, y, radius, angle }] of patternMarks('camo', box, patternSeed, seed).entries()) {
+        const length = 12 * radius;
         g.save();
         g.translate(x, y);
-        g.rotate(rng() * 3);
+        g.rotate(angle);
         g.fillStyle = i % 2 ? ex.c1 : ex.c2;
         g.beginPath();
-        g.moveTo(-length, 0);
-        g.quadraticCurveTo(-length * 0.1, -length * 0.77, length, 0);
-        g.quadraticCurveTo(length * 0.16, length * 0.68, -length, 0);
+        g.moveTo(-length * 0.8, 0);
+        g.quadraticCurveTo(-length * 0.3, -length * 0.77, length, 0);
+        g.quadraticCurveTo(-length * 0.3, length * 0.68, -length * 0.8, 0);
         g.fill();
-        g.strokeStyle = i % 2 ? '#a5ca6b' : ex.c3;
-        g.globalAlpha = 0.55;
+        g.strokeStyle = ex.c3;
         g.lineWidth = 1.6;
         g.beginPath();
-        g.moveTo(-length * 0.67, 0);
-        g.quadraticCurveTo(0, -2, length * 0.72, 0);
+        g.moveTo(-length, 0);
+        g.lineTo(length * 0.7, 0);
         g.stroke();
         g.restore();
       }
     } else if (sk.pattern === 'glow' && ex) {
-      const n = Math.max(3, Math.min(9, Math.round((w * h) / 4200)));
-      for (let i = 0; i < n; i++) {
-        const x = box.x0 + 8 + rng() * (w - 16), y = box.y0 + 8 + rng() * (h - 16);
-        const rg = g.createRadialGradient(x, y, 1, x, y, 15);
-        rg.addColorStop(0, ex.c3); rg.addColorStop(0.35, ex.c1); rg.addColorStop(1, `${ex.c1}00`);
-        g.fillStyle = rg; g.beginPath(); g.arc(x, y, 15, 0, 6.3); g.fill();
+      for (const { x, y, radius } of patternMarks('glow', box, patternSeed, seed)) {
+        for (const [color, scale] of [[ex.c1, 10], [ex.c2, 7], [ex.c3, 3]] as const) {
+          g.fillStyle = color;
+          g.beginPath(); g.arc(x, y, radius * scale, 0, Math.PI * 2); g.fill();
+        }
       }
     }
   };

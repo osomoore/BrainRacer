@@ -161,7 +161,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - **Armor Plates:** start the plates further forward on the body (they start too far back, clearest in the crawling body plan).
 - **Done when:** every item visibly fixed in the reviewer sheets for claws, tail and body.
 
-## C11 — Dino patterns with seeded placement · `OPEN`
+## C11 — Dino patterns with seeded placement · `DONE (codex/c11)`
 - **Why:** the head vote asked for "more" on camo, glow, stripes and spotted: every painted candidate starts from the same code shape, so the leaves/spots/stripes sit in the same places on all of them.
 - **Can run in parallel with C9** (separate pattern code); if both touch the same file, C9 merges first.
 - **Scope:** `apps/workshop/art/dino/**`, `apps/workshop/art/paint/jobs.ts`, `scripts/art/**`, `tools/art-pick/**`.
@@ -170,6 +170,8 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - `art:paint --candidates N` varies the pattern seed per candidate (not only the paint seed), and the pick/apply flow records and reinstalls the chosen pattern seed, so a picked candidate reproduces.
   - **Glow Spots:** spread them out (now clustered on legs and head) and offer 3–4 distinct glow layouts in the vote.
   - **Leaf Pattern:** more leaves, each aimed within 15° of straight back along the body.
+- **Vote batch:** `npm run art:paint -- --candidates 4 --only "ws:d:*:extra.glow*" --part head,torso,tail`.
+  Add `--dry-run` to export the alternate pattern PNGs under `art-src/` without ComfyUI.
 - **Done when:** `npm run art:shapes` plus a candidate dry run (no ComfyUI) show clearly different placements per candidate; tests cover seed → placement determinism. **Do not run ComfyUI painting**; the user starts it.
 
 ## C12 — Car shapes and layering · `DONE (codex/c12)`

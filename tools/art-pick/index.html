@@ -106,7 +106,13 @@ async function render() {
   const bb = bboxes[j.key];
   // show only the painted area (the texture has transparent padding); image offset inside a clipping box
   const frame = (url) => '<div style="position:relative;overflow:hidden;width:' + Math.round(bb.w * z) + 'px;height:' + Math.round(bb.h * z) + 'px"><img style="position:absolute;left:' + (-Math.round(bb.x * z)) + 'px;top:' + (-Math.round(bb.y * z)) + 'px;width:' + Math.round(j.w * z) + 'px;height:' + Math.round(j.h * z) + 'px" src="' + url + '"></div>';
-  const cards = j.seeds.map((s, i) => '<div class="card cand ' + (p && p.pick === s ? 'chosen' : '') + '" data-i="' + i + '"><h4><i>' + (i + 1) + '</i>seed ' + s + '</h4><div class="pic ' + bg + '">' + frame(imgUrl(j, s + '.png')) + '</div></div>').join('');
+  const cards = j.seeds.map((s, i) => {
+    const pattern = j.patterns?.[s];
+    const preview = pattern
+      ? '<details><summary>Pattern ' + esc(String(pattern.seed)) + '</summary><div class="pic ' + bg + '">' + frame(imgUrl(j, pattern.shape)) + '</div></details>'
+      : '';
+    return '<div class="card cand ' + (p && p.pick === s ? 'chosen' : '') + '" data-i="' + i + '"><h4><i>' + (i + 1) + '</i>seed ' + s + '</h4><div class="pic ' + bg + '">' + frame(imgUrl(j, s + '.png')) + '</div>' + preview + '</div>';
+  }).join('');
   const shape = j.shape ? '<div class="card ' + (p && p.pick === 'shape' ? 'chosen' : '') + '"><h4><i>0</i>code shape</h4><div class="pic ' + bg + '">' + frame(imgUrl(j, j.shape)) + '</div></div>' : '';
   main.innerHTML = '<div class="title"><b>' + esc(j.part) + ' ' + esc(j.view || '') + '</b> &middot; ' + esc(j.workshop) + ' / ' + esc(j.aspect) + '<br>' + esc(j.key) + '</div>' +
     '<div class="status st-' + st + '">' + stTxt + '</div>' +
@@ -114,7 +120,7 @@ async function render() {
     '<div class="actions"><button data-a="shape" class="' + (st === 'shape' ? 'on' : '') + '">0 Keep code shape (reject all)</button><button data-a="more" class="' + (st === 'more' ? 'on' : '') + '">M Need more candidates</button><button data-a="clear">U Clear vote</button></div>' +
     '<textarea id="comment" placeholder="Optional comment (saved with the vote; press C to focus, Ctrl+Enter to save)">' + esc((p && p.comment) || '') + '</textarea>' +
     '<div class="help">' + (j.prompt ? 'Prompt: ' + esc(j.prompt) : '') + '</div>';
-  main.querySelectorAll('.cand').forEach((el) => { el.onclick = () => vote(j.seeds[Number(el.dataset.i)]); });
+  main.querySelectorAll('.cand').forEach((el) => { el.onclick = (e) => { if (!e.target.closest('details')) vote(j.seeds[Number(el.dataset.i)]); }; });
   main.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => vote(b.dataset.a === 'clear' ? null : b.dataset.a); });
   $('comment').onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') e.target.blur(); if (e.key === 'Enter' && e.ctrlKey) e.target.blur(); };
   $('comment').onblur = saveComment;
