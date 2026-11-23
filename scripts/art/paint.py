@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import io
 import json
 import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -244,7 +247,7 @@ def multiple8(v: float) -> int:
 
 
 def paint_shape(model: str, job: dict, o: dict) -> Image.Image:
-    shape = Image.open(SRC / f"{job['file']}.png").convert("RGBA")
+    shape = Image.open(source_shape(job)).convert("RGBA")
     alpha = shape.getchannel("A")
     bbox = alpha.point(lambda v: 255 if v > 8 else 0).getbbox()
     if bbox is None:
@@ -360,6 +363,29 @@ def save_cand_index(idx: dict) -> None:
     (CAND / "index.json").write_text(json.dumps(idx, indent=1) + "\n", encoding="utf8")
 
 
+def source_shape(job: dict) -> pathlib.Path:
+    suffix = f".{job['patternSeed']}" if job.get("_cand") and "patternSeed" in job else ""
+    return SRC / f"{job['file']}{suffix}.png"
+
+
+def export_candidate_patterns(tasks: list) -> None:
+    plan = {}
+    for job in tasks:
+        if "patternSeed" in job:
+            seeds = [job["patternSeed"]]
+            if job.get("_pickedPatternSeed") is not None:
+                seeds.append(job["defaultPatternSeed"])  # baseline shown by the vote page
+            for seed in seeds:
+                plan[(job["key"], seed)] = dict(key=job["key"], file=job["file"], patternSeed=seed)
+    if not plan:
+        return
+    with tempfile.TemporaryDirectory(dir=SRC) as tmp:
+        path = pathlib.Path(tmp) / "patterns.json"
+        path.write_text(json.dumps(list(plan.values())), encoding="utf8")
+        subprocess.run(["node", "--import", "tsx", "scripts/art/exportShapes.ts", "--pattern-plan", str(path)],
+                       cwd=ROOT, check=True)
+
+
 def apply_picks(jobs: list, shape_hashes: dict, src_hash: str) -> None:
     """Copy each voted candidate into public/art/workshop + manifest; drop entries voted 'shape'; list 'more' jobs."""
     picks = load_picks()
@@ -391,10 +417,18 @@ def apply_picks(jobs: list, shape_hashes: dict, src_hash: str) -> None:
             if j["seed"] != c:
                 print(f"skip {key}: job seed {j['seed']} != picked {c} (shapes export stale?)")
                 continue
+            meta = idx["jobs"].get(key, {}).get("patterns", {}).get(str(c), {})
+            pattern_seed = p.get("patternSeed")
+            if (meta.get("seed") != pattern_seed or j.get("patternSeed") != pattern_seed
+                    or (pattern_seed is not None and meta.get("shapeHash") != shape_hashes.get(key))):
+                print(f"skip {key}: picked pattern or source shape changed; generate a fresh candidate")
+                continue
             file = f"{j['file']}.png"
             (OUT / file).write_bytes(src.read_bytes())
             entries[key] = {"file": file, "w": j["w"], "h": j["h"], "specHash": j["specHash"], "srcHash": src_hash if j["kind"] == "shape" else "",
-                            "shapeHash": shape_hashes.get(key, ""), "model": manifest.get("model", MODEL), "seed": c}
+                            "shapeHash": shape_hashes.get(key, ""), "model": meta.get("model", manifest.get("model", MODEL)), "seed": c}
+            if pattern_seed is not None:
+                entries[key]["patternSeed"] = pattern_seed
             n_ok += 1
     mpath.write_text(json.dumps({"version": 1, "model": manifest.get("model", MODEL), "entries": dict(sorted(entries.items()))}, indent=1) + "\n", encoding="utf8")
     print(f"apply-picks: {n_ok} candidate(s) applied, {n_shape} kept as code shape; {len(more)} job(s) voted 'more'")
@@ -408,20 +442,35 @@ def candidate_tasks(jobs: list, picks: dict, a) -> list:
     tasks = []
     more = [j["key"] for j in jobs if picks.get(j["key"], {}).get("pick") == "more"]
     for j in jobs:
-        have = [x for x in idx.get(j["key"], {}).get("seeds", [])]
-        is_more = picks.get(j["key"], {}).get("pick") == "more"
-        want = len(have) + a.candidates if is_more else a.candidates
-        k = 0
-        have_set = set(have)
-        new = []
-        # next unused k-th seeds
-        while len(have_set) + len(new) < want:
+        entry = idx.get(j["key"], {})
+        have = set(entry.get("seeds", []))
+        patterned = "defaultPatternSeed" in j
+        layouts = {meta["seed"] for meta in entry.get("patterns", {}).values()}
+        count = len(layouts) if patterned else len(have)
+        is_more = j["key"] in more
+        remaining = a.candidates if is_more else max(0, a.candidates - count)
+        picked = picks.get(j["key"], {}).get("pick")
+        if patterned and isinstance(picked, int):
+            have.add(picked)  # reserve legacy votes even if their local candidate files were archived
+        if "patternSeed" in j:
+            layouts.add(j["patternSeed"])
+        k, layout_index = 0, 1
+        while remaining:
             sd = cand_seed(j["defaultSeed"], k)
             k += 1
-            if sd not in have_set and sd not in new:
-                new.append(sd)
-        for sd in new:
-            tasks.append(dict(j, seed=sd, _cand=True, _more=is_more))
+            if sd in have:
+                continue
+            task = dict(j, seed=sd, _cand=True, _more=is_more)
+            if patterned:
+                task["_pickedPatternSeed"] = j.get("patternSeed")
+                layout = cand_seed(j["defaultPatternSeed"], layout_index)
+                while layout in layouts:
+                    layout_index += 1
+                    layout = cand_seed(j["defaultPatternSeed"], layout_index)
+                task["patternSeed"] = layout
+                layout_index += 1
+            tasks.append(task)
+            remaining -= 1
     if more:
         print(f"{len(more)} job(s) voted 'more' get fresh candidates")
     return tasks
@@ -434,9 +483,10 @@ def rescrub_candidates() -> None:
         if e.get("protect") != "features":
             continue
         d = CAND / e["file"]
-        shape = Image.open(d / "shape.png").convert("RGBA")
-        feat = feature_mask(shape)
         for sd in e["seeds"]:
+            meta = e.get("patterns", {}).get(str(sd))
+            shape = Image.open(d / (meta["shape"] if meta else "shape.png")).convert("RGBA")
+            feat = feature_mask(shape)
             f = d / f"{sd}.png"
             im = Image.open(d / "raw" / f"{sd}.png" if (d / "raw" / f"{sd}.png").exists() else f).convert("RGBA")
             out = scrub_invented_lines(im.convert("RGB"), shape, feat)
@@ -470,6 +520,10 @@ def main() -> None:
     for k, v in DEFAULTS.items():
         ap.add_argument(f"--{k.replace('_', '-')}", dest=k, type=type(v), default=v)
     a = ap.parse_args()
+    if a.candidates is not None and a.candidates < 1:
+        ap.error("--candidates must be positive")
+    if a.candidates and a.seed is not None:
+        ap.error("--seed cannot be combined with --candidates")
     o = {k: getattr(a, k) for k in DEFAULTS}
     o.update(sticker=a.sticker, denoise=a.denoise, control=a.control, keep_outline=a.keep_outline, no_protect=a.no_protect)
 
@@ -500,7 +554,7 @@ def main() -> None:
         return
 
     picks = load_picks()
-    model = pick_model(a.model)
+    model = (a.model or MODEL) if a.dry_run else pick_model(a.model)
     todo = []
     for j in jobs:
         if not match(j["key"]):
@@ -524,10 +578,16 @@ def main() -> None:
         todo = candidate_tasks(todo, picks, a)
     if a.limit:
         todo = todo[: a.limit]
+    if a.candidates:
+        export_candidate_patterns(todo)
     print(f"{len(todo)} {'candidate image(s)' if a.candidates else 'job(s)'} to paint with {model} (of {len(jobs)} jobs)")
     if a.dry_run:
         for j in todo:
-            print("  ", j["key"])
+            if j.get("_cand"):
+                pattern = f", pattern {j['patternSeed']} ({source_shape(j).name})" if "patternSeed" in j else ""
+                print(f"   {j['key']} seed {j['seed']}{pattern}")
+            else:
+                print("  ", j["key"])
         return
 
     free_models()
@@ -557,16 +617,27 @@ def main() -> None:
                 (d / "raw").mkdir(exist_ok=True)
                 o["_raw"].save(d / "raw" / f"{jj['seed']}.png", "PNG", optimize=True)
                 o["_raw"] = None
+            shape_name = "shape-default.png" if "patternSeed" in j else "shape.png"
             if j["kind"] == "shape" and (SRC / file).exists():
-                shp = Image.open(SRC / file).convert("RGBA")
-                shp.save(d / "shape.png", "PNG", optimize=True)
+                baseline = SRC / file
+                if j.get("_pickedPatternSeed") is not None:
+                    baseline = SRC / f"{j['file']}.{j['defaultPatternSeed']}.png"
+                (d / shape_name).write_bytes(baseline.read_bytes())
             ci = load_cand_index()
             ent = ci["jobs"].setdefault(j["key"], {"seeds": []})
             ent.update(file=j["file"], workshop=j["workshop"], aspect=j["aspect"], part=j["part"], view=j.get("view"), kind=j["kind"],
-                       w=j["w"], h=j["h"], prompt=j["prompt"], negative=j["negative"], shape="shape.png" if j["kind"] == "shape" else None,
+                       w=j["w"], h=j["h"], prompt=j["prompt"], negative=j["negative"], shape=shape_name if j["kind"] == "shape" else None,
                        protect=j.get("protect"), model=model)
             if jj["seed"] not in ent["seeds"]:
                 ent["seeds"].append(jj["seed"])
+            if "patternSeed" in j:
+                shape = source_shape(j).read_bytes()
+                candidate_shape_name = f"shape-{jj['seed']}.png"
+                (d / candidate_shape_name).write_bytes(shape)
+                ent.setdefault("patterns", {})[str(jj["seed"])] = {
+                    "seed": j["patternSeed"], "shape": candidate_shape_name, "model": model,
+                    "shapeHash": hashlib.sha1(shape).hexdigest()[:16],
+                }
             save_cand_index(ci)
             if j.get("_more"):  # the 'more' vote is answered: clear it so the next run does not add again
                 pk = load_picks()
@@ -585,6 +656,8 @@ def main() -> None:
         if not a.out:
             entries[j["key"]] = {"file": file, "w": j["w"], "h": j["h"], "specHash": j["specHash"], "srcHash": src_hash if j["kind"] == "shape" else "",
                                  "shapeHash": shape_hashes.get(j["key"], ""), "model": model, "seed": jj["seed"]}
+            if "patternSeed" in j:
+                entries[j["key"]]["patternSeed"] = j["patternSeed"]
             manifest["model"] = model
             mpath.write_text(json.dumps({"version": 1, "model": model, "entries": dict(sorted(entries.items()))}, indent=1) + "\n", encoding="utf8")
         print(f"[{done}/{len(todo)}] {j['key']}  {time.time() - t0:.1f}s  {(out_dir / file).stat().st_size / 1024:.0f} KB", flush=True)

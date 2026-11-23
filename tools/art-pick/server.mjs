@@ -38,7 +38,15 @@ const server = createServer((req, res) => {
         const picks = readJson(picksPath, {});
         const cm = typeof comment === 'string' && comment.trim() ? comment.trim() : undefined;
         if (pick === null || pick === undefined) { if (cm) picks[key] = { pick: 'pending', comment: cm }; else delete picks[key]; }
-        else if (pick === 'shape' || pick === 'more' || Number.isInteger(pick)) picks[key] = cm ? { pick, comment: cm } : { pick };
+        else if (pick === 'shape' || pick === 'more' || Number.isInteger(pick)) {
+          const prev = picks[key];
+          const layout = Number.isInteger(pick)
+            ? readJson(join(candDir, 'index.json'), {}).jobs?.[key]?.patterns?.[pick]?.seed
+              ?? (prev?.pick === pick ? prev.patternSeed : undefined)
+            : undefined;
+          picks[key] = { pick, ...(cm ? { comment: cm } : {}),
+            ...(layout !== undefined ? { patternSeed: layout } : {}) };
+        }
         else throw new Error('pick');
         writePicks(picks);
         send(res, 200, JSON.stringify(picks));

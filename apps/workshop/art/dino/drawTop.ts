@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, mix, quad } from '../geom';
 import { BEAK_LOOKS, type BeakLook, EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, patternedPart, type SkinSpec, skinFill, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -17,16 +17,16 @@ export function torsoTop(b: BodyLook, h: HeadLook, pose: string, sk: SkinSpec, b
   const tipWidth = h.neckLen > 120 ? 15 : 23;
   const x0 = -b.rx, x1 = neckEnd + tipWidth;
   const pad = 30;
-  return {
+  return patternedPart(sk, {
     key: `ws:d:ttorso:${bodyId}:${headId}:${pose}:${sk.key}`,
     w: x1 - x0 + pad * 2, h: hw * 2 + pad * 2, ox: pad - x0, oy: hw + pad,
-    draw: (g) => {
-      const fill = skinFill(sk, { x0, y0: -hw, x1, y1: hw }, 1);
+    draw: (g, patternSeed) => {
+      const fill = skinFill(sk, { x0, y0: -hw, x1, y1: hw }, 1, patternSeed);
       const sh = tubeShapes([{ x: neckStart, y: 0 }, { x: neckEnd, y: 0 }], [baseWidth, tipWidth], fill);
       sh.push({ path: (c) => ellipsePath(c, 0, 0, b.rx, hw), fill });
       drawShapes(g, sh, OL);
     },
-  };
+  });
 }
 
 export function platesTop(b: BodyLook, pose: string): PartSpec {
@@ -61,9 +61,9 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
   const hw = h.top * (h.brow ? 0.5 : 0.42);
   const beak = teethId === 'teeth.beak';
   const W = h.len * (beak ? beakLook.reach : 1) + 140, H = hw * 2 + 150;
-  return {
+  return patternedPart(sk, {
     key: `ws:d:thead:${headId}:${sk.key}:${beak ? beakLook.name : 'n'}`, w: W, h: H, ox: 50, oy: H / 2,
-    draw: (g) => {
+    draw: (g, patternSeed) => {
       const len = h.len;
       const skull: Shape['path'] = (c) => {
         const snout = hw * (0.6 - h.snout * 0.5);
@@ -87,7 +87,7 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
         c.closePath();
       };
       const rear = h.brow ? -34 : -16;
-      drawHeadJoint(g, skull, skinFill(sk, { x0: rear, y0: -hw, x1: len, y1: hw }, 3), sk.look.main,
+      drawHeadJoint(g, skull, skinFill(sk, { x0: rear, y0: -hw, x1: len, y1: hw }, 3, patternSeed), sk.look.main,
         h.brow ? -25 : -8, 0, h.neckLen > 120 ? 19 : 29, true);
       if (h.crest) drawShapes(g, [{ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: crestFill(sk, len * 0.3 - h.crest * 0.55, len * 0.66, true) }], OL);
       if (h.horns) {
@@ -135,7 +135,7 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
         if (!beak) { g.beginPath(); circle(g, len * 0.88, sgn * hw * 0.22, 3); g.fill(); }
       }
     },
-  };
+  });
 }
 
 export function featherHeadTop(h: HeadLook, sk: SkinSpec): PartSpec {
@@ -177,28 +177,28 @@ export function legTop(l: LegLook, claw: ClawLook, sk: SkinSpec, legId: string, 
   const foreleg = hand && l.kind === 'powerful';
   const th = l.thick * 0.72 * (foreleg ? 0.56 : 1), foot = l.foot * (foreleg ? 0.76 : 1);
   const W = foot + 100, H = th + 100;
-  return {
+  return patternedPart(sk, {
     key: `ws:d:tleg:${legId}:${clawId}:${sk.key}:${hand ? 'h' : ''}`, w: W, h: H, ox: 50 + foot * 0.28, oy: H / 2,
-    draw: (g) => {
-      const fill = skinFill(sk, { x0: -foot / 2, y0: -th, x1: foot, y1: th }, 7);
+    draw: (g, patternSeed) => {
+      const fill = skinFill(sk, { x0: -foot / 2, y0: -th, x1: foot, y1: th }, 7, patternSeed);
       const sh: Shape[] = [];
       if (l.kind === 'flipper') sh.push(flipperBlade(sk, { x: -29, y: 0, angle: 0.14, length: foot * 0.96, width: 38 }));
       else sh.push({ path: (c) => ellipsePath(c, foot * 0.12, 0, foot * 0.5, th * 0.55), fill });
       drawShapes(g, sh, 4.5);
       if (l.kind !== 'flipper') clawTipsTop(g, claw, sk, foot * 0.55, th * 0.28, hand);
     },
-  };
+  });
 }
 
 export function armTop(c: ClawLook, sk: SkinSpec, clawId: string): PartSpec {
-  return {
+  return patternedPart(sk, {
     key: `ws:d:tarm:${clawId}:${sk.key}`, w: 120, h: 80, ox: 40, oy: 40,
-    draw: (g) => {
+    draw: (g, patternSeed) => {
       const L = c.arm * 0.55;
-      drawShapes(g, [{ path: (cx) => ellipsePath(cx, L * 0.5, 0, L * 0.6, c.thick * 0.5), fill: skinFill(sk, { x0: 0, y0: -10, x1: L, y1: 10 }, 8) }], 4.5);
+      drawShapes(g, [{ path: (cx) => ellipsePath(cx, L * 0.5, 0, L * 0.6, c.thick * 0.5), fill: skinFill(sk, { x0: 0, y0: -10, x1: L, y1: 10 }, 8, patternSeed) }], 4.5);
       clawTipsTop(g, c, sk, L, c.thick * 0.38, true);
     },
-  };
+  });
 }
 
 /** Wing from above, pointing toward -y (up); flip for the other side. Origin = shoulder. */
@@ -214,13 +214,13 @@ export function wingTop(sk: SkinSpec): PartSpec {
 
 export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
   const len = t.len, W = len + 160, H = 200;
-  return {
+  return patternedPart(sk, {
     key: `ws:d:ttail:${tailId}:${sk.key}`, w: W, h: H, ox: len + 110, oy: 100,
-    draw: (g) => {
+    draw: (g, patternSeed) => {
       const N = 14;
       const pts = quad({ x: 10, y: 0 }, { x: -len * 0.5, y: 0 }, { x: -len, y: 0 }, N);
       const hw = pts.map((_, i) => { const u = i / N; if (t.kind === 'club') return t.base * (0.5 - 0.28 * Math.min(1, u / 0.72)); return t.base / 2 + (t.tip / 2 - t.base / 2) * Math.pow(u, 0.8); });
-      const fill = skinFill(sk, { x0: -len - Math.max(t.tip, 45), y0: -t.base, x1: 10 + t.base / 2, y1: t.base }, 4);
+      const fill = skinFill(sk, { x0: -len - Math.max(t.tip, 45), y0: -t.base, x1: 10 + t.base / 2, y1: t.base }, 4, patternSeed);
       const sh: Shape[] = [];
       const end = pts[N];
       if (t.kind === 'paddle') sh.push(...paddleFins(sk, end, true));
@@ -246,7 +246,7 @@ export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
         drawShapes(g, ridge, 3.5);
       }
     },
-  };
+  });
 }
 
 export function frillTop(h: HeadLook, sk: SkinSpec): PartSpec {

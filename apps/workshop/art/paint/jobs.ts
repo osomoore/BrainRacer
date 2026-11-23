@@ -15,7 +15,7 @@ import { BEAK_LOOKS, CLAWS } from '../dino/looks';
 import * as DS from '../dino/drawSide';
 import * as DT from '../dino/drawTop';
 import { dinoLooks, skeleton } from '../dino/skeleton';
-import { skinSpec } from '../dino/skin';
+import { type PatternedPartSpec, skinSpec } from '../dino/skin';
 import { raceGeom, raceLooks } from '../race/geometry';
 import { SPRING } from '../race/looks';
 import * as RS from '../race/drawSide';
@@ -62,11 +62,13 @@ export interface ArtJob {
   protect?: 'features';
   /** The seed the job had before a vote (hash of the key); candidates derive their seeds from it. */
   defaultSeed: number;
+  defaultPatternSeed?: number;
+  patternSeed?: number;
   specHash: string;
 }
 
 /** Votes from `npm run art:pick` (apps/workshop/art/paint/picks.json): key -> a candidate seed, 'shape' (keep the code shape) or 'more' ('pending' = only a comment). */
-export interface ArtPick { pick: number | 'shape' | 'more' | 'pending'; comment?: string }
+export interface ArtPick { pick: number | 'shape' | 'more' | 'pending'; comment?: string; patternSeed?: number }
 export const PICKS = picksData as unknown as Record<string, ArtPick>;
 
 export const HOUSE_STYLE = 'Stickers, cute cartoon game asset, thick dark navy outline, bold saturated flat colors with soft cel shading and a glossy highlight, friendly, for kids, clean sharp edges, plain light grey background, centered, full object visible';
@@ -93,9 +95,10 @@ export function hash53(s: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
 }
 
-export function jobSpecHash(j: Pick<ArtJob, 'key' | 'kind' | 'prompt' | 'negative' | 'seed' | 'w' | 'h' | 'denoise' | 'control' | 'sticker' | 'genW' | 'genH' | 'tileable' | 'protect'>): string {
+export function jobSpecHash(j: Pick<ArtJob, 'key' | 'kind' | 'prompt' | 'negative' | 'seed' | 'w' | 'h' | 'denoise' | 'control' | 'sticker' | 'genW' | 'genH' | 'tileable' | 'protect' | 'patternSeed'>): string {
   const base: unknown[] = [j.key, j.kind, j.prompt, j.negative, j.seed, j.w, j.h, j.denoise, j.control, j.sticker, j.genW ?? 0, j.genH ?? 0, !!j.tileable];
   if (j.protect) base.push(j.protect); // only when set, so existing hashes stay valid
+  if (j.patternSeed !== undefined) base.push(['patternSeed', j.patternSeed]);
   return hash53(JSON.stringify(base));
 }
 
@@ -104,7 +107,7 @@ const viewText = (v: View): string => (v === 'side' ? 'side view' : 'seen from d
 
 // ------------------------------------------------------------------ shape job builder
 
-const SPECS = new Map<string, PartSpec>();
+const SPECS = new Map<string, PatternedPartSpec>();
 
 const HEAD_PARTS = new Set(['head', 'jaw', 'fhead']);
 const BODYISH_PARTS = new Set(['torso', 'tail', 'leg', 'arm', 'wing', 'plates', 'sail', 'frill']);
@@ -118,7 +121,7 @@ function negativeFor(part: string, workshop: WorkshopId): string {
   return n;
 }
 
-function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string, spec: PartSpec, subject: string): ArtJob {
+function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string, spec: PatternedPartSpec, subject: string): ArtJob {
   const w = Math.ceil(spec.w * Q), h = Math.ceil(spec.h * Q);
   const full = `${subject}, ${viewText(view)}`;
   // Plain body pieces get a face-free "flat vector" template: the cute sticker style invents eyes and limbs on them.
@@ -135,6 +138,7 @@ function shapeJob(workshop: WorkshopId, view: View, part: string, aspect: string
     denoise: plain ? PAINT_TUNE.bodyDenoise : faceSafe ? PAINT_TUNE.faceDenoise : PAINT_TUNE.denoise,
     control: faceSafe ? PAINT_TUNE.faceControl : PAINT_TUNE.control,
     sticker: plain ? PAINT_TUNE.bodySticker : faceSafe ? PAINT_TUNE.faceSticker : PAINT_TUNE.sticker, specHash: '',
+    defaultPatternSeed: spec.defaultPatternSeed, patternSeed: spec.pickedPatternSeed,
     ...(faceSafe ? { protect: 'features' as const } : {}),
   };
   j.specHash = jobSpecHash(j);
@@ -291,4 +295,10 @@ export function allArtJobs(): ArtJob[] {
 }
 
 /** The PartSpec behind a shape job (filled by `allArtJobs`; the export scene bakes it). */
-export function artSpec(key: string): PartSpec | undefined { return SPECS.get(key); }
+export function artSpec(key: string): PartSpec | undefined {
+  const candidate = /^(.*):pattern=(\d+)$/.exec(key);
+  if (!candidate) return SPECS.get(key);
+  const spec = SPECS.get(candidate[1])?.withPatternSeed?.(Number(candidate[2]));
+  // ArtExport uses the requested key to look up and remove the temporary canvas texture.
+  return spec && { ...spec, key };
+}
