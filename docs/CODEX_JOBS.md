@@ -137,6 +137,49 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   scaling (e.g. small dinos: bigger head and eyes relative to body; huge: thicker legs).
 - **Done when:** Small / Medium / Big / Huge are obviously different side by side.
 
+
+## C9 — Dino heads, mouths and teeth · `OPEN`
+- **Source:** review 2026-11-23 (`C:\Users\osomo\Projects\BrainRacer\feedback\workshop-art-feedback.json`) and head vote comments in `apps/workshop/art/paint/picks.json`.
+- **Scope:** `apps/workshop/art/dino/**`.
+- **Do:**
+  - **Horn Head:** in top view the horns must grow from the **top** of the head (now they come from below it). Check side view matches.
+  - **Rex Head:** in top view, taper smoothly into the neck (now a sharp edge where it merges back).
+  - **Beaks (all 4 profiles in `BEAK_LOOKS`):** the jawline between top and bottom jaw stops sooner; it should not run so far back toward the neck. The profiles themselves are approved, including the wide duckbill.
+  - **Teeth:** Flat, Big and Sharp: at the back of the mouth the top row runs over the bottom lip; keep it inside. Mega Teeth: start the teeth slightly closer to the front lip.
+- **Done when:** each item is visibly fixed in side + top views; the T-Rex combo still reads as a goofy T-Rex. Painted heads already voted in are keyed by shape hash, so expect the changed heads to fall back to code shapes until repainted (fine; list which ones in the hand-back).
+
+## C10 — Dino body, claws and tails · `OPEN`
+- **Scope:** `apps/workshop/art/dino/**`. Run after C9 is merged (same files).
+- **Do:**
+  - **Claws (all variants):** in side view, lower them so they touch the ground at the ends of the feet; now they float above it.
+  - **Heavy Tail:** remove the blocky corner on the bottom edge where the base joins the extension; one smooth curve.
+  - **Spiked Tail (side view only; top view is fine):** the tip swells slightly and ends in a small set of 2–3 spikes that point up, out and over from the end.
+  - **Armor Plates:** start the plates further forward on the body (they start too far back, clearest in the crawling body plan).
+- **Done when:** every item visibly fixed in the reviewer sheets for claws, tail and body.
+
+## C11 — Dino patterns with seeded placement · `OPEN`
+- **Why:** the head vote asked for "more" on camo, glow, stripes and spotted: every painted candidate starts from the same code shape, so the leaves/spots/stripes sit in the same places on all of them.
+- **Can run in parallel with C9** (separate pattern code); if both touch the same file, C9 merges first.
+- **Scope:** `apps/workshop/art/dino/**`, `apps/workshop/art/paint/jobs.ts`, `scripts/art/**`, `tools/art-pick/**`.
+- **Do:**
+  - Pattern placement for `extra.camo`, `extra.glow`, `extra.stripes` and `color.spotted` comes from a seeded `Rng` (no `Math.random`); the in-game default keeps one fixed seed per look.
+  - `art:paint --candidates N` varies the pattern seed per candidate (not only the paint seed), and the pick/apply flow records and reinstalls the chosen pattern seed, so a picked candidate reproduces.
+  - **Glow Spots:** spread them out (now clustered on legs and head) and offer 3–4 distinct glow layouts in the vote.
+  - **Leaf Pattern:** more leaves, each aimed within 15° of straight back along the body.
+- **Done when:** `npm run art:shapes` plus a candidate dry run (no ComfyUI) show clearly different placements per candidate; tests cover seed → placement determinism. **Do not run ComfyUI painting**; the user starts it.
+
+## C12 — Car shapes and layering · `OPEN`
+- **Scope:** `apps/workshop/art/race/**`. Start only after `pkg/ws-shopview` (ride height, gears view) is merged into `feature/workshop`.
+- **Do:**
+  - **Windows:** Round and Sleek shapes: the windows follow the car's own outline (now they don't match).
+  - **Wedge:** the side stripe breaks where it crosses the empty wheel well.
+  - **Jeep:** the spare tire is seen edge-on in both side and top view (only the rubber shows).
+  - **Mud Tires:** nubs stick out evenly all the way round (now only on the bottom).
+  - **Small Bumpers:** a little longer at both ends.
+  - **Rocket Booster:** slightly smaller, and not clipped at top and bottom.
+  - **Layering:** in top view all wheels draw under the body; in side view the spoiler draws behind the body.
+  - **Roof rack:** side and top views agree: Medium shows 2 bags in both, Big shows 3 in both. Remove the stray yellow piece in front of the front bumper.
+- **Done when:** every item visibly fixed in the reviewer sheets (side + top).
 ---
 
 ## Done
