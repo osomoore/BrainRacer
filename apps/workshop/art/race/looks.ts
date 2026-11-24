@@ -89,8 +89,8 @@ export interface SpringLook {
   /** Extra ride height under the body. */
   lift: number;
   coil: string; coilDark: string; turns: number; width: number; thick: number;
-  /** Shock absorber beside the coil. */
-  shock: string | null;
+  /** Shock absorber inside the coil. */
+  shock: string;
 }
 /** How far (px) the coil top sits inside the body above its lower edge (springs are drawn behind the body). */
 export const SPRING_TUCK = 16;
@@ -99,10 +99,10 @@ export const SPRING_INSET = 6;
 /** Largest body bob (px, side view) the spring rule is checked at. */
 export const SPRING_BOB_MAX = 8;
 export const SPRING: Record<VariantId, SpringLook> = {
-  'springs.soft': { lift: 16, coil: '#7fc4ff', coilDark: '#2d7cc4', turns: 4, width: 28, thick: 7, shock: null },
+  'springs.soft': { lift: 16, coil: '#7fc4ff', coilDark: '#2d7cc4', turns: 4, width: 28, thick: 7, shock: '#dee8f1' },
   'springs.sport': { lift: 6, coil: '#ff4d4d', coilDark: '#a01c28', turns: 6, width: 20, thick: 5, shock: '#ffd21f' },
-  'springs.lifted': { lift: 58, coil: '#ffb02e', coilDark: '#b36b00', turns: 7, width: 26, thick: 7, shock: '#3a3d4c' },
-  'springs.bouncy': { lift: 30, coil: '#ff6fd0', coilDark: '#b0268e', turns: 4, width: 30, thick: 6, shock: null },
+  'springs.lifted': { lift: 58, coil: '#ffb02e', coilDark: '#b36b00', turns: 7, width: 26, thick: 7, shock: '#aab9ce' },
+  'springs.bouncy': { lift: 30, coil: '#ff6fd0', coilDark: '#b0268e', turns: 4, width: 30, thick: 6, shock: '#dee8f1' },
 };
 
 export interface EngineLook {

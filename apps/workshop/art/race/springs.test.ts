@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WS_ART } from '../../config';
 import { RACE_VARIANTS } from '../../content/race/variants';
+import { springSide } from './drawSide';
 import { bodyLowerEdge, bodyTopAtAxle, raceGeom, raceLooks, SPRING_POKE_MARGIN, springEnds, springHalfWidth, springHeight, springPitch, tireRadius } from './geometry';
 import { SPRING_BOB_MAX, SPRING_INSET } from './looks';
 
@@ -29,6 +30,27 @@ function springFailures(height: (id: string, l: ReturnType<typeof raceLooks>, g:
 }
 
 describe('race springs', () => {
+  it('draws a colored vertical shock shaft inside every coil, including the shortest coils', () => {
+    for (const id of ids('springs')) for (const height of [20, 100]) {
+      const strokes: { color: string; path: number[][] }[] = [];
+      let path: number[][] = [];
+      const canvas = {
+        strokeStyle: '',
+        beginPath: () => { path = []; },
+        moveTo: (x: number, y: number) => { path.push([x, y]); },
+        lineTo: (x: number, y: number) => { path.push([x, y]); },
+        stroke: () => { strokes.push({ color: canvas.strokeStyle, path }); },
+      };
+      springSide(id, height).draw(canvas as unknown as CanvasRenderingContext2D);
+      expect(strokes.filter(({ path }) => path.length === 2 && path.every(([x]) => x === 0)))
+        .toEqual([
+          { color: '#1b1b3a', path: [[0, -4], [0, -height]] },
+          { color: expect.stringMatching(/^#[0-9a-f]{6}$/i), path: [[0, -4], [0, -height]] },
+        ]);
+      expect(strokes.at(-2)?.path).toEqual([[0, -4], [0, -height]]);
+    }
+  });
+
   it('hides the top inside the body and the bottom behind the tire for every build', () => {
     expect(springFailures((id, _l, g, ax) => springHeight(id, g, ax))).toEqual([]);
   });

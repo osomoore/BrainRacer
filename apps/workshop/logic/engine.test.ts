@@ -11,6 +11,7 @@ import { flatChecks } from './util';
 import { challengeKey } from './generator';
 import { resolveSpec } from './text';
 import { starterChallenge } from './starters';
+import { practiceTitle } from './practice';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -586,6 +587,25 @@ describe('purity', () => {
 });
 
 describe('saves', () => {
+  it('retitles generic saved build cards with the same seeded picker as new practice cards', () => {
+    const p = fresh();
+    const sample = p.challenges[p.active[0]];
+    const titles = ['One-Part Build', 'Two Part', 'Two-Part Build', 'Part Build', 'Keep this title'];
+    const challenges = Object.fromEntries(titles.map((title, i) => {
+      const id = `old-card-${i}`;
+      const stage = sample.stages[0];
+      const requirements = i === 0 ? stage.requirements : [...stage.requirements, { ...stage.requirements[0], id: 'second' }];
+      return [id, { ...sample, id, title, seed: i + 10, stages: [{ ...stage, requirements }] }];
+    }));
+    const save = { ...eng.newPlayerSave('easy'), workshops: { race: { ...p, active: Object.keys(challenges).slice(0, 3), challenges } } };
+    const normalized = eng.normalizeSave(deepFreeze(save))!;
+    for (const [id, card] of Object.entries(challenges)) {
+      const title = card.title === 'Keep this title' ? card.title : practiceTitle(C, card.seed, card.stages[0].requirements.length);
+      expect(normalized.workshops.race?.challenges[id]).toEqual({ ...card, title });
+    }
+    expect(eng.normalizeSave(normalized)).toEqual(normalized);
+  });
+
   it('creates a progress with a full board when missing and leaves the save untouched', () => {
     const save = deepFreeze(eng.newPlayerSave('medium'));
     expect(eng.progressOf(save, 'race').active.length).toBe(3);

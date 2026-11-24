@@ -2,7 +2,7 @@
  * results: every requirement of the challenge at the player's reading level with a green check or red X,
  * grouped by stage (stage number badges when there is more than one stage; stages the run never reached are dimmed
  * but still marked), a currency payout after a win, the hint after
- * enough failed attempts, and Run again / New Tests / Workshop buttons (Run again only after a fail).
+ * enough failed attempts, and buttons to retry, visit the board, or return to the workshop.
  *
  * Long checklists shrink the font (never below 40 px), then are paged (the payout and the hint stay on every page).
  * Input is ignored for a moment after the screen opens so a held A from the run does not press a button.
@@ -152,7 +152,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const bw = wide ? 460 : 270;
       const gapX = wide ? 500 : 300;
       const fs = wide ? 56 : 44;
-      const labels = result.passed ? ['New Tests', 'Workshop'] : ['Run again', 'New Tests', 'Workshop'];
+      const labels = result.passed ? ['New Tests', 'Workshop'] : ['Run again', 'Pick a Test', 'Workshop'];
       const xs = labels.map((_, i) => w / 2 + (i - (labels.length - 1) / 2) * gapX);
       const make = (i: number, color: number, onClick: () => void) => new Button(s, { x: xs[i], y: by, w: bw, h: 140, label: labels[i], fontSize: fs, color, onClick });
       const again = result.passed ? undefined : make(0, COLORS.yellow, () => ctx.go('run', { challengeId }));

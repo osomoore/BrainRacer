@@ -53,12 +53,13 @@ export function flyBuddy(
   const from = { x: pose.x, y: pose.y };
   const endFlipX = target.pointAt ? facesLeft(to, target.pointAt, buddy.flipX) : target.endFlipX ?? (to.x < from.x ? true : to.x > from.x ? false : buddy.flipX);
   const endAngle = target.pointAt ? pointAngle(to, target.pointAt, endFlipX) : target.endAngle ?? 0;
-  const side = Math.random() < 0.5 ? 1 : -1;
+  const side = to.x < from.x ? 1 : -1;
+  const opts = { side, startAngle: pose.angle, startFlipX: buddy.flipX, endAngle, endFlipX } as const;
   const progress = { t: 0 };
   return scene.tweens.add({
     targets: progress, t: 1, duration: WS_BUDDIES.driftMs, ease: 'Sine.easeInOut',
     onUpdate: () => {
-      const p = flightPose(from, to, progress.t, { side, endFlipX, endAngle });
+      const p = flightPose(from, to, progress.t, opts);
       pose.x = p.x; pose.y = p.y; pose.angle = p.angle;
       buddy.setFlipX(p.flipX);
     },

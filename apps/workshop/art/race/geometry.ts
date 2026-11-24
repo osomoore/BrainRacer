@@ -162,7 +162,7 @@ export function springExtent(id: string, H: number): { top: number; bottom: numb
   const sp = SPRING[id] ?? SPRING['springs.soft'];
   const pitch = springPitch(id, H);
   const coilTop = 4 + (sp.turns - 1) * pitch + pitch * 0.55 + (sp.thick + 6) / 2;
-  return { top: Math.max(coilTop, sp.shock ? H : 0), bottom: 4 - (sp.thick + 6) / 2 };
+  return { top: Math.max(coilTop, H), bottom: 4 - (sp.thick + 6) / 2 };
 }
 
 /** Radius of the tire including its tread (monster lugs stick out past the rim radius). */

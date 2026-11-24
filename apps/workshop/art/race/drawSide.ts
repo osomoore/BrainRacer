@@ -321,19 +321,13 @@ export function shaftSide(span: number): PartSpec {
   };
 }
 
-/** Coil spring + optional shock, from the hub (origin = bottom centre) upwards by H. */
+/** Coil spring and shock, from the hub (origin = bottom centre) upwards by H. */
 export function springSide(id: string, H: number): PartSpec {
   const sp = SPRING[id] ?? SPRING['springs.soft'];
   const w = sp.width + 40;
   return {
     key: `ws:r:spring:${id}:${Math.round(H)}`, w, h: H + 24, ox: w / 2, oy: H + 12,
     draw: (g) => {
-      if (sp.shock) {
-        g.lineCap = 'butt';
-        g.strokeStyle = OUTLINE; g.lineWidth = 12; g.beginPath(); g.moveTo(0, -4); g.lineTo(0, -H); g.stroke();
-        g.strokeStyle = sp.shock; g.lineWidth = 6; g.beginPath(); g.moveTo(0, -4); g.lineTo(0, -H); g.stroke();
-        g.lineCap = 'round';
-      }
       const pitch = (H - 6) / sp.turns;
       const pass = (col: string, wd: number) => {
         g.strokeStyle = col; g.lineWidth = wd;
@@ -347,7 +341,12 @@ export function springSide(id: string, H: number): PartSpec {
       };
       pass(OUTLINE, sp.thick + 6);
       pass(sp.coilDark, sp.thick + 1);
-      pass(sp.coil, sp.thick - 2.5);
+      // Thick coil shadows can merge on short springs. Put the shaft above them and cross it with the thin coil faces.
+      g.lineCap = 'butt';
+      g.strokeStyle = OUTLINE; g.lineWidth = 12; g.beginPath(); g.moveTo(0, -4); g.lineTo(0, -H); g.stroke();
+      g.strokeStyle = sp.shock; g.lineWidth = 6; g.beginPath(); g.moveTo(0, -4); g.lineTo(0, -H); g.stroke();
+      g.lineCap = 'round';
+      pass(sp.coil, Math.min(sp.thick - 2.5, pitch / 2));
     },
   };
 }

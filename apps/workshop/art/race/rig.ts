@@ -32,6 +32,8 @@ export class RaceRig extends BaseRig {
 
   bodyMount(): Phaser.GameObjects.Container { return this.mountG!; }
 
+  setFrontWheelVisible(visible: boolean): void { this.wheelF.setVisible(visible); }
+
   protected supports(a: RigAnim): boolean { return !['walk', 'run', 'chomp', 'crouch', 'stand', 'flap', 'wag'].includes(a); }
 
   protected construct(): void {

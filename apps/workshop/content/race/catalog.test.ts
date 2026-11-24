@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Check, FacetDef, Model, VariantId } from '../../core/types';
 import { READING_LEVELS } from '../../core/types';
-import { allPass } from '../../logic/stats';
+import { allPass, computeModel, partTag } from '../../logic/stats';
+import { evaluate } from '../../logic/evaluate';
+import { resolveSpec } from '../../logic/text';
+import { namedVariants, variantHelps } from '../../logic/validateCatalog';
+import { newProgress } from '../../logic/board';
+import { normalizeProgress } from '../../logic/save';
 import { RACE_CATALOG as C, RACE_SCENE_NOTES } from './catalog';
 
 // ---- helpers for checking content balance ----
@@ -11,20 +16,8 @@ const defaultModel: Model = Object.fromEntries(C.aspects.map((a) => [a.id, a.sta
 const starterPool = (a: string): VariantId[] => [...C.aspects.find((x) => x.id === a)!.starters];
 const allPool = (a: string): VariantId[] => C.variants.filter((v) => v.aspect === a).map((v) => v.id);
 
-function compute(model: Model) {
-  const stats: Record<string, number> = {};
-  const tags = new Set<string>();
-  for (const s of C.stats) stats[s.id] = s.base;
-  for (const id of Object.values(model)) {
-    const v = byId.get(id)!;
-    for (const [k, n] of Object.entries(v.stats)) stats[k] += n ?? 0;
-    v.tags.forEach((t) => tags.add(t));
-  }
-  for (const s of C.stats) stats[s.id] = Math.max(s.min, Math.min(s.max, stats[s.id]));
-  return { stats, tags };
-}
 function passes(model: Model, checks: Check[]): boolean {
-  return allPass(checks, compute(model));
+  return allPass(checks, computeModel(C, model));
 }
 /** Fewest changed aspects from the default model that pass `checks` with the given pool (null = unsolvable). */
 function minFix(checks: Check[], pool: (a: string) => VariantId[], maxChanges = 6): string[] | null {
@@ -79,7 +72,7 @@ describe('race catalog structure', () => {
 
   it('only checks stats and tags that exist', () => {
     const statIds = new Set(C.stats.map((s) => s.id));
-    const allTags = new Set(C.variants.flatMap((v) => v.tags));
+    const allTags = new Set(C.variants.flatMap((v) => [...v.tags, partTag(v.id)]));
     for (const f of facets) for (const l of f.levels) for (const c of f.check(l).flatMap((check) =>
       check.kind === 'anyOf' ? check.options.flat() : [check])) {
       if (c.kind === 'statMin' || c.kind === 'statMax') expect(statIds.has(c.stat), `${f.id} ${c.stat}`).toBe(true);
@@ -155,6 +148,61 @@ describe('race balance', () => {
       const top = f.levels[f.levels.length - 1];
       expect(minFix(f.check(top), starterPool), `${f.id} L${top}`).toBeNull();
     }
+  });
+});
+
+describe('jump builds printed on challenge cards', () => {
+  const speed = facetById.get('jump.speed')!;
+  const landing = facetById.get('jump.landing')!;
+  const slow = { ...defaultModel, body: 'body.van', wheels: 'wheels.mud', bumpers: 'bumpers.pusher', gears: 'gears.climbing', extra: 'extra.floats' };
+  const at = (facet: FacetDef, level: number) => ({ facet: facet.id, level });
+  const jump = (...requirements: ReturnType<typeof at>[]) => resolveSpec(C, {
+    stages: [{ scenario: 'jump', facets: requirements }],
+  }, { id: 'jump-test', source: 'generated', tier: 3, seed: 42 });
+  const fixes = (facet: FacetDef, level: number): Model[] => {
+    const row = C.facetPhrases.find((p) => p.facet === facet.id)!.requirement[level - 1];
+    const statCheck = facet.id === speed.id
+      ? { kind: 'statMin' as const, stat: 'speed', min: 1 }
+      : { kind: 'statMin' as const, stat: 'bounce', min: 1 };
+    return READING_LEVELS.flatMap((reading) => row[reading].map((line) => {
+      // A phrase can refer to "the car" without asking for the default Car body.
+      const variants = [...namedVariants(C, line)].map((id) => byId.get(id)!).filter((part) => variantHelps(C, part, statCheck));
+      expect(variants.length, line).toBeGreaterThan(0);
+      return Object.fromEntries(variants.map((part) => [part.aspect, part.id]));
+    }));
+  };
+
+  it('passes every advertised speed and landing build, alone or together at every level', () => {
+    for (const speedLevel of speed.levels) for (const speedFix of fixes(speed, speedLevel)) {
+      const speedReq = at(speed, speedLevel);
+      expect(evaluate(C, { ...slow, ...speedFix }, jump(speedReq)).passed, JSON.stringify(speedFix)).toBe(true);
+      for (const landingLevel of landing.levels) for (const landingFix of fixes(landing, landingLevel)) {
+        const challenge = jump(speedReq, at(landing, landingLevel));
+        expect(evaluate(C, { ...slow, ...speedFix, ...landingFix }, challenge).passed,
+          JSON.stringify({ speedLevel, landingLevel, speedFix, landingFix })).toBe(true);
+      }
+    }
+    for (const level of landing.levels) for (const fix of fixes(landing, level)) {
+      expect(evaluate(C, { ...slow, ...fix }, jump(at(landing, level))).passed, JSON.stringify(fix)).toBe(true);
+    }
+  });
+
+  it('repairs an existing Long Gap card and still requires the complete fix or sufficient speed', () => {
+    const card = jump(at(speed, 2));
+    card.stages[0].requirements[0].checks = [{ kind: 'statMin', stat: 'speed', min: 7 }];
+    const original = { ...newProgress(C), challenges: { [card.id]: card }, active: [card.id], fails: { [card.id]: 2 } };
+    const loaded = normalizeProgress(C, original)!;
+    const upgraded = loaded.challenges[card.id];
+    const withGears = { ...slow, gears: 'gears.speedy' };
+    const both = { ...withGears, extra: 'extra.rocket' };
+    expect(evaluate(C, both, card).passed).toBe(false);
+    expect(evaluate(C, both, upgraded).passed).toBe(true);
+    expect(evaluate(C, withGears, upgraded).passed).toBe(false);
+    expect(evaluate(C, { ...slow, extra: 'extra.rocket' }, upgraded).passed).toBe(false);
+    expect(evaluate(C, { ...defaultModel, wheels: 'wheels.racing', engine: 'engine.turbo' }, upgraded).passed).toBe(true);
+    expect(loaded.active).toEqual(original.active);
+    expect(loaded.fails).toEqual(original.fails);
+    expect(normalizeProgress(C, loaded)).toEqual(loaded);
   });
 });
 

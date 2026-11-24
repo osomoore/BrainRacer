@@ -3,7 +3,7 @@ import { READING_LEVELS } from '../core/types';
 import type { BasicCheck, Check, FacetDef, ReadingLevel, Variant, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { solve, solvable } from './solver';
-import { allPass, computeModel, defaultModel } from './stats';
+import { allPass, computeModel, defaultModel, partTag } from './stats';
 import { starterChallenge } from './starters';
 import { flatChecks } from './util';
 import { WS_RULES } from '../config';
@@ -55,7 +55,7 @@ export function variantHelps(cat: WorkshopCatalog, v: Variant, c: BasicCheck): b
   const delta = (stat: string): number => (v.stats[stat] ?? 0) - (base?.stats[stat] ?? 0);
   if (c.kind === 'statMin') return delta(c.stat) > 0;
   if (c.kind === 'statMax') return delta(c.stat) < 0;
-  if (c.kind === 'tag') return v.tags.includes(c.tag);
+  if (c.kind === 'tag') return partTag(v.id) === c.tag || v.tags.includes(c.tag);
   return !v.tags.includes(c.tag);
 }
 
@@ -69,6 +69,12 @@ export function lineProblems(cat: WorkshopCatalog, checks: readonly Check[], lin
   const out: string[] = [];
   for (const c of checks) {
     if (c.kind === 'anyOf') {
+      const recipes = c.options.filter((option) => option.every((b) => b.kind === 'tag' && b.tag.startsWith('variant:')));
+      if (recipes.length) {
+        // When a facet accepts alternate named builds, each phrase can teach one complete build.
+        if (!recipes.some((option) => option.every((b) => !missing(b)))) out.push('names no complete build');
+        continue;
+      }
       c.options.forEach((option, i) => {
         for (const b of option) if (missing(b)) out.push(`names no part for option ${i + 1} (${describeCheck(b)})`);
       });
@@ -109,6 +115,7 @@ export function validateCatalog(cat: WorkshopCatalog, opts: ValidateOptions = {}
     if (!ix.byAspect.has(v.aspect)) err(`variant ${v.id}: unknown aspect "${v.aspect}"`);
     if (!v.id.startsWith(`${v.aspect}.`)) err(`variant ${v.id}: id must be prefixed "${v.aspect}."`);
     for (const k of Object.keys(v.stats)) if (!ix.statDef.has(k)) err(`variant ${v.id}: unknown stat "${k}"`);
+    allTags.add(partTag(v.id));
     for (const t of v.tags) allTags.add(t);
   }
   for (const a of cat.aspects) {

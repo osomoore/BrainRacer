@@ -3,10 +3,16 @@
  * Stat scale: see stats.ts (default car around 3, max 10).
  */
 import type { AspectId, BasicCheck, Check, FacetDef, ScenarioDef, StatId, View } from '../../core/types';
+import { partTag } from '../../logic/stats';
 
-const atLeast = (stat: StatId, min: number): Check => ({ kind: 'statMin', stat, min });
+const atLeast = (stat: StatId, min: number): BasicCheck => ({ kind: 'statMin', stat, min });
 const atMost = (stat: StatId, max: number): Check => ({ kind: 'statMax', stat, max });
 const tag = (t: string): BasicCheck => ({ kind: 'tag', tag: t });
+
+/** Each advertised build works on its own, and any other build can still meet the stat target. */
+function jumpCheck(stat: StatId, min: number, ...builds: string[][]): Check {
+  return { kind: 'anyOf', options: [[atLeast(stat, min)], ...builds.map((parts) => parts.map((id) => tag(partTag(id))))] };
+}
 
 /** Pick the checks for a level; unknown levels clamp to the nearest defined one. */
 function byLevel(table: Record<number, Check[]>): (level: number) => Check[] {
@@ -34,8 +40,15 @@ export const RACE_SCENARIOS: readonly ScenarioDef[] = [
   },
   {
     id: 'jump', label: 'Ramp jump over a gap', minTier: 0, facets: [
-      facet('jump.speed', 'gears', SIDE, 0, { 1: [atLeast('speed', 5)], 2: [atLeast('speed', 7)], 3: [atLeast('speed', 10)] }),
-      facet('jump.landing', 'springs', SIDE, 2, { 1: [atLeast('bounce', 4)], 2: [atLeast('bounce', 6)] }),
+      facet('jump.speed', 'gears', SIDE, 0, {
+        1: [jumpCheck('speed', 5, ['gears.speedy'], ['extra.rocket'])],
+        2: [jumpCheck('speed', 7, ['gears.speedy', 'extra.rocket'], ['body.sports', 'shape.sleek'])],
+        3: [jumpCheck('speed', 10, ['gears.speedy', 'extra.rocket', 'engine.turbo'], ['body.sports', 'shape.sleek', 'engine.turbo'])],
+      }),
+      facet('jump.landing', 'springs', SIDE, 2, {
+        1: [jumpCheck('bounce', 4, ['springs.bouncy'])],
+        2: [jumpCheck('bounce', 6, ['springs.bouncy', 'wheels.monster'], ['springs.bouncy', 'bumpers.rubber'])],
+      }),
     ],
   },
   {

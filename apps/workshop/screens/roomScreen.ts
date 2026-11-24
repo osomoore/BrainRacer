@@ -83,9 +83,15 @@ const roomScreen: ScreenFactory = (): Screen => {
       const buddyPose = { ...home, angle: 0 };
       objs.push(buddy.setDepth(110).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
       animateBuddyIdle(scene, buddy, buddyPose);
+      // Keep the wing animation, but leave position and heading to the path while the buddy moves.
+      const applyMovingPose = () => {
+        if (buddyTween?.isPlaying()) buddy.setPosition(buddyPose.x, buddyPose.y).setAngle(buddyPose.angle);
+      };
+      scene.events.on('postupdate', applyMovingPose);
+      buddy.once('destroy', () => scene.events.off('postupdate', applyMovingPose));
       const drift = (at: Point, lean = 0, pointAt?: Point) => {
         buddyTween?.remove();
-        buddyTween = flyBuddy(scene, buddy, buddyPose, at, pointAt ? { pointAt } : { endAngle: lean, endFlipX: lean ? lean < 0 : at.x < buddyPose.x ? true : at.x > buddyPose.x ? false : buddy.flipX });
+        buddyTween = flyBuddy(scene, buddy, buddyPose, at, pointAt ? { pointAt } : { endAngle: lean, endFlipX: lean < 0 ? true : undefined });
       };
       const peekAt = (st: { x: number; y: number; stand: Point }) => {
         const offset = L.buddy.size / 2;

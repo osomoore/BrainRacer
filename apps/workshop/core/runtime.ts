@@ -72,6 +72,8 @@ export interface ModelRig {
   anchor(name: string): { x: number; y: number };
   /** Container that rides the body (bounce, tilt, squash) in root pixel units, for cargo/props. Race side rigs only. */
   bodyMount?(): Phaser.GameObjects.Container;
+  /** Hide or show the front wheel for a side-view race gag. */
+  setFrontWheelVisible?(visible: boolean): void;
   play(anim: RigAnim): void;
   /** Swap one part in place (station preview) without rebuilding the whole rig. */
   setModel(model: Model): void;

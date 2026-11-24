@@ -186,6 +186,8 @@ test('fail: red cross, fail counted, Run again re-runs, the hint appears after t
   await skipToResults(page);
   let info = await paneTextInfo(page);
   expect(info.map((t) => t.text)).toContain('Not yet!');
+  expect(info.map((t) => t.text)).toContain('Pick a Test');
+  expect(info.map((t) => t.text)).not.toContain('New Tests');
   expect(info.map((t) => t.text)).toContain(reqText);
   const cross = info.find((t) => t.text === '✗');
   expect(cross, 'a red cross').toBeTruthy();
@@ -196,7 +198,7 @@ test('fail: red cross, fail counted, Run again re-runs, the hint appears after t
   await shot(page, 'results-fail');
 
   for (const n of [2, 3]) {
-    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> New Tests -> Run again
+    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Pick a Test -> Run again
     await key(page, 'Space');
     await expectScreens(page, 'run');
     await skipToResults(page);
@@ -279,6 +281,7 @@ test('win: green check, currency saved, board refills, replay does not pay again
   const info = await paneTextInfo(page);
   const texts = info.map((t) => t.text);
   expect(texts).toContain('It worked!');
+  expect(texts).toContain('New Tests');
   expect(info.find((t) => t.text === '✓')?.color).toBe('#2fb84f');
   expect(texts).not.toContain('✗');
   const after = await saved(page);
@@ -507,7 +510,7 @@ test('Dino Lab: aborting runs early leaves no orphaned tweens behind', async ({ 
   expect(await tweenCount()).toBeLessThanOrEqual(base);
 });
 
-for (const ws of ['race', 'dino'] as const) for (const players of [1, 2] as const) for (const via of ['New Tests', 'Back'] as const) {
+for (const ws of ['race', 'dino'] as const) for (const players of [1, 2] as const) for (const via of ['Pick a Test', 'Back'] as const) {
   test(`${ws} ${players}P: after a failed test, ${via} returns to the same selected challenge`, async ({ page }) => {
     await boot(page);
     await enter(page, { players, ws, reading: 'medium' });
@@ -526,7 +529,7 @@ for (const ws of ['race', 'dino'] as const) for (const players of [1, 2] as cons
     await expectScreens(page, players === 2 ? 'run,board' : 'run');
     await skipToResults(page);
     expect((await saved(page, 'p1', ws)).fails[pick.id]).toBe(1);
-    if (via === 'New Tests') { await key(page, 'KeyA'); await key(page, 'Space'); } else await key(page, 'Escape');
+    if (via === 'Pick a Test') { await key(page, 'KeyA'); await key(page, 'Space'); } else await key(page, 'Escape');
     await expectScreens(page, players === 2 ? 'board,board' : 'board');
     await page.waitForTimeout(400);
     const texts = await paneTexts(page);

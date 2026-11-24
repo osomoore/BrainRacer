@@ -1,7 +1,7 @@
 /** Save creation, validation and repair. Input is untrusted (localStorage JSON); nothing is mutated. */
 import { WS_RULES } from '../config';
 import type {
-  Challenge, ChallengeId, CompletedInfo, Model, PlayerSave, ReadingLevel, VariantId, VariantOverride, WorkshopCatalog,
+  Challenge, ChallengeId, CompletedInfo, Model, PlayerSave, ReadingLevel, Requirement, VariantId, VariantOverride, WorkshopCatalog,
   WorkshopId, WorkshopProgress,
 } from '../core/types';
 import { READING_LEVELS, WORKSHOP_IDS } from '../core/types';
@@ -10,6 +10,7 @@ import { sanitizeModel } from './available';
 import { affordability } from './affordability';
 import { newProgress, refreshBoard, sortBoard } from './board';
 import { normalizeBuddies } from './buddies';
+import { practiceTitle } from './practice';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -53,6 +54,19 @@ function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Chal
     && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && r.checks.length > 0 && r.checks.every(validCheck) && isObj(r.text) && isObj(r.hint)));
 }
 
+/** Add the advertised jump builds to cards saved with only the original stat threshold. */
+function upgradeJumpRequirement(cat: WorkshopCatalog, requirement: Requirement): void {
+  if (requirement.facet !== 'jump.speed' && requirement.facet !== 'jump.landing') return;
+  const [old] = requirement.checks;
+  if (requirement.checks.length !== 1 || old.kind !== 'statMin' || !isNum(requirement.level)) return;
+  const [updated] = index(cat).facetById.get(requirement.facet)?.facet.check(requirement.level) ?? [];
+  if (updated?.kind !== 'anyOf') return;
+  const original = updated.options[0]?.[0];
+  if (original?.kind === 'statMin' && old.stat === original.stat && old.min === original.min) {
+    requirement.checks = [updated];
+  }
+}
+
 export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopProgress | null {
   if (!isObj(raw)) return null;
   const ix = index(cat);
@@ -73,6 +87,16 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
     for (const [k, v] of Object.entries(raw.challenges)) {
       if (!validChallenge(v, k, cat.id)) continue;
       const challenge = JSON.parse(JSON.stringify(v)) as Challenge;
+      if (/part build|two.part|one.part/i.test(challenge.title)) {
+        const partCount = challenge.stages.reduce((sum, stage) => sum + stage.requirements.length, 0);
+        challenge.title = practiceTitle(cat, isNum(challenge.seed) ? challenge.seed : 0, partCount);
+      }
+      if (cat.id === 'race') {
+        for (const stage of challenge.stages) {
+          if (stage.scenario !== 'jump') continue;
+          for (const requirement of stage.requirements) upgradeJumpRequirement(cat, requirement);
+        }
+      }
       const color = challenge.boardColor;
       if (typeof color !== 'number' || !Number.isInteger(color) || color < 0 || color >= WS_RULES.boardSize) {
         delete challenge.boardColor;
