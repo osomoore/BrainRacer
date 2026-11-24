@@ -5,10 +5,9 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
 ## From the user
 
 ### Screens and play
-- **Challenge stays selected:** after trying a challenge (test run or failure), the same challenge is selected again on return.
-- **Challenge view shows the vehicle, not a word list:** show the complete vehicle (or dino) below the challenge list. The player moves
-  the cursor (touch / controller) over its parts, and the hovered part's name pops up. Remove the long list of part words (too
-  much reading for kids).
+- **In progress (2026-11-24):** buy popup + result buttons (pkg/ws-shopflow), springs higher (pkg/ws-springs), challenge view
+  vehicle part walk + challenge stays selected (codex/c26).
+- **Phone join/profile:** the "PLAYER 1" label on the profile chooser is small on a phone (844x390).
 - **Back buttons:** there are none yet (Esc / B only). Every screen needs a visible back control, especially on touch.
 - **Admin button and screen:** a visible admin button that opens one screen for the admin things. Today admin is only reachable by
   hotkey (F9, LT+RT+Start, mobile gear with a multiplication gate) and the existing panel holds reading level, per-variant
@@ -17,8 +16,6 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
 - **Scoreboard / trophy screen** for past successes (later feature; successes are already kept in the save).
 
 ### Art, review round 3 (`feedback/workshop-art-feedback_3.json`)
-- **Race springs:** Soft (and Sport) springs sit too low; move them up into the body so their tops don't show between the tires and
-  the body.
 - **Dino jaw (all teeth + Rex head):** the jawline runs past the teeth into the neck; it should stop where the jaws meet.
 - **Beak:** the lower beak's back edge fades out too early; blend it into the bottom of the head.
 - **Claws (all):** still read as a stack in front of the foot in side view. Needs a new depiction (user: "live with it for now, but
