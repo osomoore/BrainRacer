@@ -27,7 +27,7 @@
    "w": 351,
    "h": 477,
    "specHash": "1af299ebd2aaf6",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "1e06a56dba452d1c",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 3660584172
@@ -37,7 +37,7 @@
    "w": 354,
    "h": 456,
    "specHash": "0c525aba82bddc",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "5df02492beae5f78",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 4243214348
@@ -47,7 +47,7 @@
    "w": 315,
    "h": 324,
    "specHash": "09dc09755016c7",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "defb5492a4be3c92",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 4029492576
@@ -57,7 +57,7 @@
    "w": 453,
    "h": 405,
    "specHash": "02c10caed22ae7",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "2eea6215e7e9da66",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 15693643
@@ -67,7 +67,7 @@
    "w": 342,
    "h": 360,
    "specHash": "0202ba9855c305",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "de753c74a6d1615e",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 3118542347
@@ -77,7 +77,7 @@
    "w": 342,
    "h": 360,
    "specHash": "0a0fcd76b74f1d",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "74cf318933fabc7b",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 3590866520
@@ -87,8 +87,8 @@
    "w": 342,
    "h": 255,
    "specHash": "01ef6522e832a5",
-   "srcHash": "240e29c68d8370f2",
-   "shapeHash": "96dd369d855623f5",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "20fe29cc9b48beda",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 3460212554
   },
@@ -97,7 +97,7 @@
    "w": 363,
    "h": 360,
    "specHash": "1a1baceb4eb980",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "883fcf4d0bddc310",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 375588832
@@ -107,7 +107,7 @@
    "w": 342,
    "h": 360,
    "specHash": "11bffbdd42383c",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "b52395f10cbc1c4e",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 2286925839
@@ -117,18 +117,29 @@
    "w": 342,
    "h": 255,
    "specHash": "1c671b30e98662",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "de737fb79c5c3ed7",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 1382284544
+  },
+  "ws:d:head:head.round:color.orange:extra.glow:n": {
+   "file": "ws_d_head_head.round_color.orange_extra.glow_n.png",
+   "w": 342,
+   "h": 255,
+   "specHash": "11db3ca8712813",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "4aa5c9ed35201c67",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2778614288,
+   "patternSeed": 3006936943
   },
   "ws:d:head:head.round:color.orange:extra.stripes:n": {
    "file": "ws_d_head_head.round_color.orange_extra.stripes_n.png",
    "w": 342,
    "h": 255,
    "specHash": "1b12266bc9b06b",
-   "srcHash": "240e29c68d8370f2",
-   "shapeHash": "f53bb2fdaf9c4b70",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "76648ec2bac82fc4",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 1122073265
   },
@@ -137,7 +148,7 @@
    "w": 342,
    "h": 360,
    "specHash": "0070b270cbbc61",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "e67949ed3498bb9f",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 3369987998
@@ -147,27 +158,48 @@
    "w": 342,
    "h": 360,
    "specHash": "084c340394cf08",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "0b1f877b1087c0cd",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 856525289
+  },
+  "ws:d:head:head.round:color.spotted:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.spotted_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "0bb69bc3c196d1",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "6bfb12d5efe4f13a",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3659245981,
+   "patternSeed": 40298416
   },
   "ws:d:thead:head.crest:color.orange:extra.feathers:n": {
    "file": "ws_d_thead_head.crest_color.orange_extra.feathers_n.png",
    "w": 366,
    "h": 319,
    "specHash": "040e7823475bb0",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "5535e311b6e75423",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 377139507
+  },
+  "ws:d:thead:head.horned:color.orange:extra.feathers:n": {
+   "file": "ws_d_thead_head.horned_color.orange_extra.feathers_n.png",
+   "w": 369,
+   "h": 329,
+   "specHash": "023de38c0aef23",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "72b4afa4667f97c5",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2897893621
   },
   "ws:d:thead:head.longNeck:color.orange:extra.feathers:n": {
    "file": "ws_d_thead_head.longNeck_color.orange_extra.feathers_n.png",
    "w": 330,
    "h": 296,
    "specHash": "00b893590a43da",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "526ad39f07845489",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 32181000
@@ -177,7 +209,7 @@
    "w": 468,
    "h": 390,
    "specHash": "1155606810d015",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "9e96f34d28f84b61",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 1827826459
@@ -187,8 +219,8 @@
    "w": 357,
    "h": 326,
    "specHash": "0e98e75f506371",
-   "srcHash": "240e29c68d8370f2",
-   "shapeHash": "0692212f5861f0bd",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "4548c45045b5e4d6",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 2946174003
   },
@@ -197,7 +229,7 @@
    "w": 378,
    "h": 326,
    "specHash": "05c7d6dfd7064e",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "8cb8298cd7b45e37",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 152157770
@@ -207,7 +239,7 @@
    "w": 357,
    "h": 326,
    "specHash": "1c1bf3f99dd740",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "245fc9359a9c61c3",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 4108399915
@@ -217,7 +249,7 @@
    "w": 357,
    "h": 326,
    "specHash": "048f7515b32067",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "cf75cdaaaf31205a",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 1541133632
@@ -227,10 +259,21 @@
    "w": 357,
    "h": 326,
    "specHash": "0d5d524aae9101",
-   "srcHash": "240e29c68d8370f2",
+   "srcHash": "fa1f0c1fbf4a859e",
    "shapeHash": "480cffd23863057c",
    "model": "realcartoonXL_v6.safetensors",
    "seed": 4023621566
+  },
+  "ws:d:thead:head.round:color.orange:extra.stripes:n": {
+   "file": "ws_d_thead_head.round_color.orange_extra.stripes_n.png",
+   "w": 357,
+   "h": 326,
+   "specHash": "0da266f1a12e3e",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "0fc748d3b1d3a49a",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2384708806,
+   "patternSeed": 595714515
   },
   "ws:d:torso:body.round:head.round:crawl:color.blue:extra.feathers": {
    "file": "ws_d_torso_body.round_head.round_crawl_color.blue_extra.feathers.png",
@@ -406,11 +449,11 @@
    "file": "ws_r_body_body.jeep_shape.boxy_paint.blue_38_16.png",
    "w": 627,
    "h": 297,
-   "specHash": "0b230d0d860975",
-   "srcHash": "1c9c8fa90392c84c",
-   "shapeHash": "3ecbfbf483237100",
+   "specHash": "08a4fb616f2470",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "f49acde5800e544c",
    "model": "realcartoonXL_v6.safetensors",
-   "seed": 3677762124
+   "seed": 3051134815
   },
   "ws:r:body:body.sports:shape.boxy:paint.blue:38:16": {
    "file": "ws_r_body_body.sports_shape.boxy_paint.blue_38_16.png",
@@ -496,11 +539,11 @@
    "file": "ws_r_tbody_body.jeep_shape.boxy_paint.blue.png",
    "w": 645,
    "h": 282,
-   "specHash": "048893dbbc3bfb",
-   "srcHash": "1c9c8fa90392c84c",
-   "shapeHash": "c5bbcf84cc0e02ef",
+   "specHash": "07ce2321558ac5",
+   "srcHash": "fa1f0c1fbf4a859e",
+   "shapeHash": "1fae9838119697b4",
    "model": "realcartoonXL_v6.safetensors",
-   "seed": 3926290184
+   "seed": 2285758649
   },
   "ws:r:tbody:body.sports:shape.boxy:paint.blue": {
    "file": "ws_r_tbody_body.sports_shape.boxy_paint.blue.png",
