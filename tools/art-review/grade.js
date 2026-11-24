@@ -231,10 +231,21 @@ el('download').onclick = () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
-const requested = new URLSearchParams(location.search).get('part');
-const start = items.find((item) => item.shop.id === 'dino' && item.part.id === requested);
-if (only.checked && !start) {
-  const first = items.find(needsReview);
-  if (first) show(first);
-  else showEmpty();
-} else show(start || items[0]);
+function begin() {
+  const requested = new URLSearchParams(location.search).get('part');
+  const start = items.find((item) => item.shop.id === 'dino' && item.part.id === requested);
+  if (only.checked && !start) {
+    const first = items.find(needsReview);
+    if (first) show(first);
+    else showEmpty();
+  } else show(start || items[0]);
+}
+/** Grades saved before fingerprints existed get the hash of the art they were graded against (baseline-hashes.json), so only really-changed art shows as changed. */
+fetch('baseline-hashes.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((base) => {
+  let filled = false;
+  for (const [key, report] of Object.entries(reports)) {
+    if (hasFeedback(report) && !report.hash && base[key]) { report.hash = base[key]; filled = true; }
+  }
+  if (filled) persist();
+  begin();
+});
