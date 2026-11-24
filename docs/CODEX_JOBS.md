@@ -356,6 +356,8 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Do:**
   - Per-workshop wallet, bought-variant list and success history in the save; bump the save version, old saves reset to
     a fresh start (1 owned variant per aspect = first starter, wallet 4). `available` = owned (+ admin overrides).
+  - **Never touch profiles:** the reset clears only workshop progress (`workshop.players.*`). The shared profile store
+    (`shared/profiles.ts`, shared with Brain Racer) is never deleted, renamed or cleared, in code or in tests.
   - Prices (2 + 2 x bought in that aspect), per-aspect shop offer (next 2 unowned variants in the aspect's unlock order,
     each with price and affordable flag), `purchase`, payout (2 x requirement count) applied in `recordWin`.
   - No replays: won challenges leave the board, dedupe by resolved requirement set (`challengeKey`), kept in the success
