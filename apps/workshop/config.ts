@@ -98,6 +98,9 @@ export const WS_ADMIN = {
   gearAlpha: 0.35,
 } as const;
 
+/** Wallet badge centre in pane coordinates; the same on every screen that shows it, per layout. */
+export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as const;
+
 // ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
 export const WS_ROOM = {
   /** Character walk speed, px/s. */

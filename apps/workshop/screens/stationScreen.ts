@@ -265,7 +265,7 @@ const stationScreen: ScreenFactory = (): Screen => {
           };
           if (!offer.affordable) {
             playWorkshopSfx(ctx.audio, 'notEnough');
-            open(`You need more ${currency}`, true, () => {});
+            open(`You have ${currentProgress(ctx, ws).wallet} ${currency}. You need ${priceOf(cat, variant)}.`, true, () => {});
           } else {
             open(`Pay ${priceOf(cat, variant)} ${currency}?`, false, () => buy(variant));
           }
@@ -313,6 +313,7 @@ const stationScreen: ScreenFactory = (): Screen => {
           preview();
           playWorkshopSfx(ctx.audio, 'buy');
           objs.push(showBanner(scene, { x: L.stage.cx, y: topH + 76, text: 'Bought!', color: 0xa8e6a1, ms: 900 }));
+          apply(); // buying also equips the new variant, like pressing "Use it!"
         }
       };
 

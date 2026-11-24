@@ -3,7 +3,7 @@
  * a 960x1080 half in 2P); screens draw in pane-local coordinates. Implements PaneContext and the screen stack.
  */
 import Phaser from 'phaser';
-import { STAGE, WS_RULES } from '../config';
+import { STAGE, WS_RULES, WS_WALLET } from '../config';
 import type { Screen, ScreenData, ScreenId } from '../core/runtime';
 import { buildRig } from '../art';
 import type { ReadingLevel, PlayerSave, WorkshopId } from '../core/types';
@@ -137,18 +137,9 @@ export class PaneScene extends Phaser.Scene {
   private mountWallet(id: string): void {
     const ws = this.workshopId;
     if (!ws) return;
-    const wide = this.ctx.layout === 'wide';
-    const { w } = this.ctx.size;
-    const positions: Record<string, [number, number]> = {
-      room: [wide ? 420 : w / 2, 80],
-      station: [w - 126, wide ? 296 : 340],
-      board: wide ? [132, 80] : [345, 1018],
-      run: [126, 80],
-      results: [w - 126, 80],
-    };
-    const at = positions[id];
-    if (!at) return;
-    this.wallet = currencyBadge(this, ws, ...at, '');
+    if (!['room', 'station', 'board', 'run', 'results'].includes(id)) return;
+    const at = WS_WALLET[this.ctx.layout === 'wide' ? 'wide' : 'tall'];
+    this.wallet = currencyBadge(this, ws, at.x, at.y, '');
     this.wallet.root.setDepth(10_001);
     this.updateWallet();
   }
