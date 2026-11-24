@@ -1,9 +1,9 @@
 /** Race car, TOP view (nose at +x, centre = origin). Same look tables as the side view. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
 import { darken, lighten } from '../geom';
-import { BUMPER, ENGINE, EXTRA, JEEP_SPARE, PAINT, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, WHEEL } from './looks';
+import { BUMPER, ENGINE, EXTRA, JEEP_SPARE, JEEP_SPARE_BRACKET, PAINT, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, WHEEL } from './looks';
 import { rainbowFill } from './drawSide';
-import { bodyHalfWidth, raceGeom, type RaceLooks, topOutline } from './geometry';
+import { bodyHalfWidth, jeepSpareMount, raceGeom, type RaceLooks, topOutline } from './geometry';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -12,9 +12,12 @@ const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r
 export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shape: string }): PartSpec {
   const paint = PAINT[paintId] ?? PAINT['paint.blue'];
   const b = l.body, s = l.shape;
-  const W = b.len + 100, H = b.hw * 2 + 60;
+  const geo = raceGeom(l);
+  const mount = b.spare ? jeepSpareMount(l, geo) : null;
+  const extension = mount?.extension ?? 0;
+  const W = b.len + Math.max(50, JEEP_SPARE.depth + extension + 4) * 2, H = b.hw * 2 + 60;
   return {
-    key: `ws:r:tbody:${ids.body}:${ids.shape}:${paintId}`, w: W, h: H, ox: W / 2, oy: H / 2,
+    key: `ws:r:tbody:${ids.body}:${ids.shape}:${paintId}${extension ? `:spare-${extension}` : ''}`, w: W, h: H, ox: W / 2, oy: H / 2,
     draw: (g) => {
       const out = topOutline(b, s);
       const bandFill = paint.bands && rainbowFill(paint.bands, b.len, -H / 2, H / 2);
@@ -24,7 +27,7 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
         c.fillStyle = gr;
         c.fill();
       });
-      const { cabin, cabinTopRange } = raceGeom(l);
+      const { cabin, cabinTopRange } = geo;
       const c0 = cabin[0].x, c1 = cabin[3].x;
       const widthAt = (x: number) => bodyHalfWidth(b, s, (x + b.len / 2) / b.len);
       const curvedGlass = s.rc >= 20;
@@ -83,9 +86,16 @@ export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shap
       g.fillStyle = '#ff3b3b';
       const tail = -b.len / 2 + 11, tailY = Math.min(b.hw * 0.55, Math.max(8, widthAt(tail) - 10));
       for (const sy of [-1, 1]) { g.beginPath(); rrectPath(g, tail - 3, sy * tailY - 7, 7, 14, 3); g.fill(); g.stroke(); }
-      if (b.spare) {
+      if (mount) {
         const spare = JEEP_SPARE;
-        const x = -b.len / 2 + spare.offset - spare.depth / 2;
+        const { x } = mount;
+        if (extension) {
+          const bracketX = x + spare.depth - 4;
+          drawShapes(g, [{
+            path: (c) => rrectPath(c, bracketX, -JEEP_SPARE_BRACKET / 2, geo.rear + 8 - bracketX, JEEP_SPARE_BRACKET, 4),
+            fill: spare.rubber,
+          }], OL);
+        }
         drawShapes(g, [{
           path: (c) => rrectPath(c, x, -spare.diameter / 2, spare.depth, spare.diameter, 6),
           fill: spare.rubber,

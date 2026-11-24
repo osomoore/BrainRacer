@@ -2,6 +2,7 @@
  * Art review sheet. `workshop.html?dev=WorkshopParts[&workshop=dino][&aspect=teeth][&page=random|beaks][&seed=3]`
  * Keys: Left/Right = aspect, Up/Down or 1/2 = workshop, R = random combos page / reseed, A = aspect page.
  * Every variant of the aspect is drawn on the default model, side view on top and top view below.
+ * Race attachments: &page=jeep|winch&body=body.truck&size=size.tiny compares every wheel on that build.
  */
 import Phaser from 'phaser';
 import { buildDetail, buildRig } from '../art';
@@ -92,6 +93,22 @@ export default class WorkshopParts extends Phaser.Scene {
     this.clear();
     const cat = CATALOGS[this.workshop];
     const base: Model = Object.fromEntries(cat.aspects.map((a) => [a.id, a.starters[0]]));
+    const q = new URLSearchParams(location.search);
+    const attachment = this.random ? null : q.get('page');
+    if (this.workshop === 'race' && (attachment === 'jeep' || attachment === 'winch')) {
+      const select = (aspect: string) =>
+        cat.variants.find((v) => v.aspect === aspect && v.id === q.get(aspect))
+        ?? cat.variants.find((v) => v.id === base[aspect])!;
+      const body = attachment === 'jeep' ? cat.variants.find((v) => v.id === 'body.jeep')! : select('body');
+      const size = select('size');
+      this.label(960, 10, `${attachment === 'jeep' ? 'Jeep spare' : 'Winch'} / ${body.name} / ${size.name}`, 40);
+      this.drawRow(cat.variants.filter((v) => v.aspect === 'wheels').map((wheel) => {
+        const model: Model = { ...base, body: body.id, size: size.id, wheels: wheel.id };
+        if (attachment === 'winch') model.extra = 'extra.winch';
+        return { name: wheel.name, side: buildRig(this, 'race', model, 'side'), top: buildRig(this, 'race', model, 'top') };
+      }), true, false, true);
+      return;
+    }
     if (this.beaks) {
       const model = { ...base, teeth: 'teeth.beak' };
       this.label(960, 10, 'Dino Lab / Beak profiles', 40);
@@ -142,7 +159,7 @@ export default class WorkshopParts extends Phaser.Scene {
     }), compareSizes, compareSizes);
   }
 
-  private drawRow(items: RowItem[], sharedScale: boolean, sizes = false): void {
+  private drawRow(items: RowItem[], sharedScale: boolean, sizes = false, centerBounds = sizes): void {
     const cw = 1920 / Math.max(items.length, 3);
     const modelW = cw - (sizes ? 56 : 0);
     // Cell layout for tools/art-review fingerprinting (labels sit between the regions, so they are excluded).
@@ -153,7 +170,7 @@ export default class WorkshopParts extends Phaser.Scene {
     if (sizes) this.annotations.push(this.add.rectangle(960, 506, 1920, 2, 0x1b1b3a, 0.38).setDepth(-1));
     items.forEach(({ name, side, top, sideDetail, topDetail }, i) => {
       const cx = cw * i + cw / 2;
-      const comparisonScale = sizes ? (scale ?? 1) : 0;
+      const comparisonScale = centerBounds ? (scale ?? 1) : 0;
       const modelX = cx - (sizes ? 28 : 0);
       this.place(side, modelX - side.root.getBounds().centerX * comparisonScale, 70, modelW, 440, scale);
       this.place(top, modelX - top.root.getBounds().centerX * comparisonScale, 580, modelW, 400, scale);

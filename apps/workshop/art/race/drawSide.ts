@@ -1,8 +1,8 @@
 /** Race car, SIDE view: one drawing function per aspect, all numbers come from ./looks. */
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
 import { darken, insetPoly, lerp, lighten } from '../geom';
-import { BUMPER, ENGINE, EXTRA, GEAR, JEEP_SPARE, PAINT, type PaintLook, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, SPRING, WHEEL } from './looks';
-import type { RaceGeom, RaceLooks } from './geometry';
+import { BUMPER, ENGINE, EXTRA, GEAR, JEEP_SPARE, JEEP_SPARE_BRACKET, PAINT, type PaintLook, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, SPRING, WHEEL } from './looks';
+import { jeepSpareMount, type RaceGeom, type RaceLooks } from './geometry';
 
 type G = CanvasRenderingContext2D;
 const PAD = 14;
@@ -31,7 +31,8 @@ const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r
 export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { body: string; shape: string }): PartSpec {
   const paint = PAINT[paintId] ?? PAINT['paint.blue'];
   const b = l.body, s = l.shape;
-  const padX = 44;
+  const mount = b.spare ? jeepSpareMount(l, geo) : null;
+  const padX = Math.max(44, JEEP_SPARE.depth + (mount?.extension ?? 0) + 4);
   const ty0 = geo.roofTop - PAD - 4, ty1 = 8;
   const w = b.len + padX * 2;
   return {
@@ -44,10 +45,17 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       const radii = b.kind === 'sports'
         ? geo.chassis.map((p) => p.y === geo.bottom ? s.r * 0.75 : s.r + 9)
         : [s.r * 0.8, s.r, s.r, s.r * 0.8];
-      if (b.spare) {
+      if (mount) {
         const spare = JEEP_SPARE;
-        const x = geo.rear + spare.offset - spare.depth / 2;
-        const y = geo.chassisTop(geo.rear) - spare.diameter * 0.7;
+        const { x, y, extension } = mount;
+        if (extension) {
+          const bracketX = x + spare.depth - 4;
+          const bracketY = y + (spare.diameter - JEEP_SPARE_BRACKET) / 2;
+          shapes.push({
+            path: (c) => rrectPath(c, bracketX, bracketY, geo.rear + 8 - bracketX, JEEP_SPARE_BRACKET, 4),
+            fill: spare.rubber,
+          });
+        }
         shapes.push({
           path: (c) => rrectPath(c, x, y, spare.depth, spare.diameter, 6),
           fill: spare.rubber,
@@ -501,5 +509,14 @@ export function winchSide(): PartSpec {
       g.strokeStyle = OUTLINE; g.lineWidth = 10; g.beginPath(); g.arc(40, 24, 8, -0.5, 4.2); g.stroke();
       g.strokeStyle = '#c3c9d4'; g.lineWidth = 4; g.beginPath(); g.arc(40, 24, 8, -0.5, 4.2); g.stroke();
     },
+  };
+}
+
+/** Narrow front mount shown in both views when an oversized tire needs more clearance. */
+export function winchBracket(extension: number): PartSpec {
+  const w = extension + 24;
+  return {
+    key: `ws:r:winchBracket:${extension}`, w, h: 20, ox: 9, oy: 10,
+    draw: (g) => drawShapes(g, [{ path: (c) => rrectPath(c, -5, -5, extension + 14, 10, 4), fill: EXTRA['extra.winch'].color3 }], 4),
   };
 }

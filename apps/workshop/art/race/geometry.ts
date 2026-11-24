@@ -1,7 +1,8 @@
 /** Pure race-car geometry shared by the side and top drawings and the rig (no Phaser). */
 import type { Model } from '../../core/types';
+import { WS_ART } from '../../config';
 import { type Pt, lerp, topAt } from '../geom';
-import { BODY, type BodyLook, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, WHEEL, type WheelLook } from './looks';
+import { BODY, BUMPER, type BodyLook, JEEP_SPARE, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, WHEEL, type WheelLook, WINCH_SCALE } from './looks';
 
 export interface RaceLooks {
   body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; rackBags: number;
@@ -95,6 +96,31 @@ export function raceGeom(l: RaceLooks): RaceGeom {
     cabinTopRange: [cabin[1].x, cabin[2].x],
     height: Math.max(-roofTop, -topY(x0), wheelRadius * 2),
   };
+}
+
+/** Horizontal reach of a rotating tire at a height on the body. */
+function tireReachAt(l: RaceLooks, geo: RaceGeom, y: number): number {
+  const radius = geo.wheelRadius * (l.wheel.tread === 'monster' ? (l.wheel.r + 14) / l.wheel.r : 1) + 4;
+  const dy = geo.hubY - (y - WS_ART.raceRideRaise);
+  return Math.sqrt(Math.max(0, radius ** 2 - dy ** 2));
+}
+
+/** Keep the spare above the small bumper. Offset its bracket when the rear tire reaches past the tail. */
+export function jeepSpareMount(l: RaceLooks, geo: RaceGeom): { x: number; y: number; extension: number } {
+  const bottom = geo.bottom - BUMPER['bumpers.small'].h - 5;
+  const tireReach = tireReachAt(l, geo, bottom + 3);
+  const standardEdge = geo.rear + JEEP_SPARE.offset + JEEP_SPARE.depth / 2;
+  const extension = Math.max(0, Math.ceil(standardEdge - (geo.rearAxle - tireReach - 4)));
+  return { x: standardEdge - extension - JEEP_SPARE.depth, y: bottom - JEEP_SPARE.diameter, extension };
+}
+
+export function winchMount(l: RaceLooks, geo: RaceGeom): Pt & { extension: number } {
+  // Recess the base into low noses so the casing still meets the body.
+  const y = Math.max(geo.bottom - BUMPER['bumpers.small'].h - 4, geo.chassisTop(geo.front) + 5);
+  const standardX = geo.front + 10;
+  const housingHalfW = 28 * WINCH_SCALE;
+  const extension = Math.max(0, Math.ceil(geo.frontAxle + tireReachAt(l, geo, y + 2) + housingHalfW + 2 - standardX));
+  return { x: standardX + extension, y, extension };
 }
 
 /** Half width of the body seen from above at length fraction t (0 = tail, 1 = nose). */
