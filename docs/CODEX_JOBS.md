@@ -267,6 +267,44 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   painted version in a run with the same position and size; with the real manifest the game looks unchanged; tests pass.
 
 
+## C18 — Dino shape fixes from review round 2 · `OPEN`
+- **Parallel-safe with C16, C17 and C19.** Shape (code) drawing only, no ComfyUI. Source: `feedback/workshop-art-feedback_2.json`.
+- **Port:** 5223.
+- **Scope:** `apps/workshop/art/dino/**` (shapes, looks, patterns, layering), `apps/workshop/dev/WorkshopParts.ts` and
+  `RigAnims.ts` (sheets only), tests next to them. No gameplay or catalog stat changes.
+- **Do:**
+  - **Beaks (teeth.beak + all 4 beak profiles):** the lower beak's back edge fades out before it meets the jaw. Carry it
+    to the head's underside so it merges with the bottom of the head.
+  - **Claws (all claw variants):** claws are drawn as one stack on the top layer. Far-side claws go behind (staggered
+    with the far foot/arm layer), start nearer the tips of the feet, and look smaller in profile. Near-side ones stay in
+    front.
+  - **Tiny Arms (`claws.tinyArms`, the T-Rex arms in the claws/arms aspect):** the reviewer showed it as something that
+    does not read as arms or claws. Make it read clearly as two short T-Rex arms with small claws, near arm in front,
+    far arm behind. In the reviewer only, label the aspect "Arms & Claws".
+  - **Tails vs feathers:** feathers clash with `tail.spiked` and `tail.paddle`. Move the feathers to a spot that works on
+    those tails (e.g. the base of the tail, before the spikes/paddle), or skip them for those two tails.
+  - **Patterns (seeded, C11):**
+    - Glow Spots also on the belly, in a faded/different shade.
+    - Leaf Pattern leaves thicker, also on the belly, in a different shade.
+    - Tiger Stripes spaced more regularly: not perfectly even, but no touching stripes, no doubles, no big gaps.
+      Add a unit test for the spacing rule over many seeds.
+- **Done when:** reviewer sheets (`?dev=WorkshopParts&art=shapes&freeze=1`) and `RigAnims` screenshots show each fix
+  at side and top views for every head/size combo that the change touches; tests pass. List in the hand-back which paint
+  keys are now stale (their voted paint hides the new shape).
+
+## C19 — Race Shop attachment placement from review round 2 · `OPEN`
+- **Parallel-safe with C16, C17 and C18.** Shape (code) only, no ComfyUI.
+- **Port:** 5224.
+- **Scope:** `apps/workshop/art/race/**`, `apps/workshop/dev/WorkshopParts.ts` (race sheets only), tests next to them.
+- **Do:**
+  - **Jeep spare tire:** mount it lower on the back, close to rear bumper height.
+  - **Winch:** mount it higher on the front, above the small bumper.
+  - Check both on every body type, size and wheel type where they appear, side and top views; nothing may float or
+    overlap the wheels.
+- **Done when:** reviewer screenshots of the jeep and winch sheets (`&art=shapes&freeze=1`) show the new placement on all
+  bodies/sizes; tests pass. List stale paint keys in the hand-back.
+
+
 ---
 
 ## Done
