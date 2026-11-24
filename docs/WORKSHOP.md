@@ -121,10 +121,13 @@ shared code lives in `shared/`.
 ## Engine semantics (logic/)
 
 - **Stats**: `stat = clamp(base + Σ variant.stats[stat], min, max)`. **Tags**: union of the variants' tags.
-- **Checks** include `statMin`, `statMax`, `tag`, `noTag`, and `anyOf`. A requirement passes when all its
-  checks pass. An `anyOf` check passes when all the checks in at least one option pass.
+- **Checks** include `statMin`, `statMax`, `tag`, `noTag`, and `anyOf`. A requirement passes with a complete
+  build named in its level's guidelines or when all its original checks pass. An `anyOf` check passes when all
+  the checks in at least one option pass.
 - **evaluate**: every requirement is evaluated (also those after a failing stage: `reached: false`).
   The run ends at the first stage with a failing requirement; `firstFail` = first failing requirement there.
+  Named fixes take precedence when recording the route. A full win with at least one stat-route requirement
+  shows a seeded celebration at the player's reading level and earns an extra buddy point.
 - **available variants** = owned (first starter per aspect + purchased) ∪ `open` overrides − `locked` overrides; an aspect never ends up empty
   (if every variant of an aspect is locked, its first starter stays available).
 - **Generator** (seeded by `genSeq`, which only increases):
@@ -141,13 +144,15 @@ shared code lives in `shared/`.
     level title; a stage with two or more uses the scenario's single stage title. Two stages join their titles with
     "&", and three or more use the first title plus "Adventure". Each requirement shows one authored row (A or B),
     the same row at every reading level.
-  - Saved challenges are fully resolved (checks + text for all three levels). Never regenerate a saved challenge.
+  - Saved challenges keep their checks, named builds, and text for all three levels. Loading older cards adds
+    named builds while preserving their thresholds and wording.
 - **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
   and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
   reorders the current cards. The save retains active cards and caps unfinished history at `maxSavedChallenges`.
 - **Win**: pays `1 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
-  the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. Nothing unlocks.
+  the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. A first win earns
+  one buddy point, or two on a clever win. Every ten points unlocks a buddy. Surplus points carry toward the next buddy.
   Variants are bought with `purchase` (fixed price from the variant's place in its aspect's shop order).
 - **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
 - **Overrides** change availability. A card that loses every possible route is replaced.
@@ -163,7 +168,9 @@ shared code lives in `shared/`.
   level. When a requirement accepts alternatives, name every option on that line and link them with "or". Use
   everyday words. Use up to **6 words on Easy**, **8 on Medium**, and **12 on Hard**, with Easy <= Medium <= Hard
   in each row. No line may repeat. Short part words other than the variant names must be listed in the catalog's
-  `partAliases`. `validateCatalog` checks all of this (see docs/WORKSHOP_CHALLENGE_TEXT.md for the graded text).
+  `partAliases`. Use “and” for parts that belong together and “or” for alternative builds. All the fix options
+  named at a facet level are accepted at that level. `validateCatalog` checks the guideline wording
+  and applies the same word limits and hard-word list to clever-win messages.
 - **Facet levels** map difficulty to thresholds (mud depth 1–3 → mud grip ≥ 2/3/4). Phrases may differ per level
   ("muddy" → "deep, sticky mud").
 - **Tradeoffs**: variants change several stats (big engine: power+, weight+). Several builds may solve one requirement.

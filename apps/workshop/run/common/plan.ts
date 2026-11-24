@@ -36,7 +36,7 @@ export function facetOfRequirement(stage: Stage, reqId: string | undefined): Fac
   return reqId === undefined ? undefined : stage.requirements.find((r) => r.id === reqId)?.facet;
 }
 
-export function facetPlays(stage: Stage, result: StageResult, reqs: readonly RequirementResult[] = []): FacetPlay[] {
+export function facetPlays(stage: Stage, result: StageResult, reqs: readonly Pick<RequirementResult, 'id' | 'passed' | 'reached'>[] = []): FacetPlay[] {
   const passedById = new Map(reqs.map((r) => [r.id, r.passed] as const));
   const ids: FacetId[] = [];
   for (const r of stage.requirements) if (!ids.includes(r.facet)) ids.push(r.facet);

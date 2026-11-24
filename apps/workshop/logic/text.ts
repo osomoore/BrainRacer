@@ -1,9 +1,10 @@
 /** Turns a scenario/facet selection into a fully resolved, saved Challenge (checks + text for every reading level). */
 import { WS_RULES } from '../config';
-import type { Challenge, ChallengeId, Check, FacetDef, Leveled, Requirement, Stage, StarterSpec, WorkshopCatalog } from '../core/types';
+import type { Challenge, ChallengeId, Check, FacetDef, Leveled, ReadingLevel, Requirement, Stage, StarterSpec, VariantId, WorkshopCatalog } from '../core/types';
 import { READING_LEVELS } from '../core/types';
 import { Rng } from '../core/rng';
 import { index } from './catalogIndex';
+import { distinctFixes, hybridChecks, lineFixes } from './namedFixes';
 
 export interface ChallengeMeta {
   id: ChallengeId;
@@ -19,6 +20,10 @@ function pickAt(r: number, arr: readonly string[] | undefined, fallback: string)
 /** Always consumes exactly one rng draw so output stays stable whether or not phrases exist. */
 function pick(rng: Rng, arr: readonly string[] | undefined, fallback: string): string {
   return pickAt(rng.next(), arr, fallback);
+}
+
+export function cleverWinMessage(cat: WorkshopCatalog, reading: ReadingLevel, seed: number): string {
+  return pick(new Rng(seed ^ 0x41f2a9b3), cat.cleverWinPhrases?.[reading], '');
 }
 
 /**
@@ -44,10 +49,30 @@ export function levelIndex(f: FacetDef, level: number): number {
   return best;
 }
 
-/** Concrete checks of a spec (cheap: no text). Unknown scenario/facet ids are skipped. */
+const fixCache = new WeakMap<WorkshopCatalog, Map<string, VariantId[][]>>();
+
+export function catalogFixes(cat: WorkshopCatalog, facet: FacetDef, level: number): VariantId[][] {
+  let cache = fixCache.get(cat);
+  if (!cache) { cache = new Map(); fixCache.set(cat, cache); }
+  const i = levelIndex(facet, level);
+  const key = facet.id + ':' + level;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const phrases = index(cat).facetPhrases.get(facet.id)?.requirement[i];
+  const checks = facet.check(level);
+  const fixes = distinctFixes(READING_LEVELS.flatMap((r) =>
+    (phrases?.[r] ?? []).flatMap((line) => lineFixes(cat, checks, line))));
+  cache.set(key, fixes);
+  return fixes;
+}
+
+/** Concrete checks of a spec. Unknown scenario/facet ids are skipped. */
 export function specChecks(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stages'>): Check[] {
   const ix = index(cat);
-  return spec.stages.flatMap((st) => st.facets.flatMap((f) => ix.facetById.get(f.facet)?.facet.check(f.level) ?? []));
+  return spec.stages.flatMap((st) => st.facets.flatMap((f) => {
+    const def = ix.facetById.get(f.facet)?.facet;
+    return def ? hybridChecks(def.check(f.level), catalogFixes(cat, def, f.level)) : [];
+  }));
 }
 
 export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stages'>, meta: ChallengeMeta): Challenge {
@@ -84,11 +109,13 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
       for (const r of READING_LEVELS) text[r] = pickAt(row, reqPhr?.[r], `Build something for ${fs.facet}.`);
       const hint = {} as Leveled;
       for (const r of READING_LEVELS) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
+      const namedFixes = def ? catalogFixes(cat, def, fs.level) : [];
       requirements.push({
         id: `s${si}r${ri}`, facet: fs.facet, level: fs.level,
         checks: (def?.check(fs.level) ?? []).map((check) => check.kind === 'anyOf'
           ? { ...check, options: check.options.map((option) => option.map((item) => ({ ...item }))) }
           : { ...check }),
+        ...(namedFixes.length ? { namedFixes: namedFixes.map((parts) => [...parts]) } : {}),
         text, hint: { aspect: hintAspect, text: hint },
       });
     });

@@ -1,4 +1,5 @@
 import type { Challenge, Check } from '../core/types';
+import { hybridChecks } from './namedFixes';
 
 /** FNV-1a string hash -> non-zero uint32 seed. */
 export function hashSeed(s: string): number {
@@ -9,7 +10,7 @@ export function hashSeed(s: string): number {
 
 /** Combine the challenge's checks while preserving each any-of group's alternatives. */
 export function flatChecks(c: Pick<Challenge, 'stages'>): Check[] {
-  return c.stages.flatMap((s) => s.requirements.flatMap((r) => r.checks));
+  return c.stages.flatMap((s) => s.requirements.flatMap((r) => hybridChecks(r.checks, r.namedFixes)));
 }
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));

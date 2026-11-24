@@ -3,6 +3,7 @@
  * Balance is checked in catalog.test.ts (default fails every starter, every facet level solvable, T-Rex payoff).
  */
 import type { StarterSpec, VariantId, WorkshopCatalog } from '../../core/types';
+import { CLEVER_WIN_PHRASES } from '../cleverWinPhrases';
 import { DINO_ASPECTS, DINO_VARIANTS } from './variants';
 import { DINO_STATS } from './stats';
 import { DINO_SCENARIOS } from './scenarios';
@@ -40,6 +41,7 @@ export const DINO_CATALOG: WorkshopCatalog = {
   scenarios: DINO_SCENARIOS,
   facetPhrases: DINO_FACET_PHRASES,
   scenarioPhrases: DINO_SCENARIO_PHRASES,
+  cleverWinPhrases: CLEVER_WIN_PHRASES,
   partAliases: DINO_PART_ALIASES,
   unlockOrder: DINO_UNLOCK_ORDER,
   starters: DINO_STARTERS,

@@ -1,12 +1,15 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
 import { READING_LEVELS } from '../core/types';
-import type { BasicCheck, Check, FacetDef, ReadingLevel, Variant, VariantId, WorkshopCatalog } from '../core/types';
+import type { BasicCheck, Check, FacetDef, ReadingLevel, Variant, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { solve, solvable } from './solver';
 import { allPass, computeModel, defaultModel, partTag } from './stats';
 import { starterChallenge } from './starters';
 import { flatChecks } from './util';
+import { lineFixes, namedVariants, variantHelps } from './namedFixes';
 import { WS_RULES } from '../config';
+
+export { namedVariants, variantHelps } from './namedFixes';
 
 const MIN_TIER0_STARTER_ONLY_FACETS = 3;
 const GUIDELINE_WORD_LIMIT: Record<ReadingLevel, number> = { easy: 6, medium: 8, hard: 12 };
@@ -20,45 +23,6 @@ export const HARD_WORDS: readonly string[] = [
 const PLACEHOLDER = /[{}<>[\]_|\\]|\b(?:TODO|TBD|XXX|FIXME)\b|\.\.\./;
 
 export const wordCount = (s: string): number => s.trim().split(/\s+/).filter(Boolean).length;
-const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/**
- * The variants a guideline names: variant names as shown at the stations (an optional plural "s" is fine) and the
- * catalog's approved aliases. Longer names win, so "Big Engine" does not also count as the size "Big".
- */
-export function namedVariants(cat: WorkshopCatalog, line: string): Set<VariantId> {
-  const names = new Map<string, Set<VariantId>>();
-  const add = (name: string, ids: readonly VariantId[]): void => {
-    const key = name.toLowerCase();
-    const set = names.get(key) ?? new Set<VariantId>();
-    ids.forEach((id) => set.add(id));
-    names.set(key, set);
-  };
-  for (const v of cat.variants) add(v.name, [v.id]);
-  for (const [alias, ids] of Object.entries(cat.partAliases ?? {})) add(alias, ids);
-  let rest = ` ${line.toLowerCase()} `;
-  const out = new Set<VariantId>();
-  for (const [name, ids] of [...names].sort((a, b) => b[0].length - a[0].length)) {
-    const stem = name.endsWith('s') ? `${escapeRe(name.slice(0, -1))}s?` : `${escapeRe(name)}s?`;
-    const re = new RegExp(`(?<![a-z0-9])${stem}(?![a-z0-9])`, 'g');
-    if (!re.test(rest)) continue;
-    ids.forEach((id) => out.add(id));
-    rest = rest.replace(re, (m) => ' '.repeat(m.length));
-  }
-  return out;
-}
-
-/** True when picking `v` (instead of its aspect's default part) moves the model toward passing `c`. */
-export function variantHelps(cat: WorkshopCatalog, v: Variant, c: BasicCheck): boolean {
-  const aspect = cat.aspects.find((a) => a.id === v.aspect);
-  const base = cat.variants.find((x) => x.id === aspect?.starters[0]);
-  const delta = (stat: string): number => (v.stats[stat] ?? 0) - (base?.stats[stat] ?? 0);
-  if (c.kind === 'statMin') return delta(c.stat) > 0;
-  if (c.kind === 'statMax') return delta(c.stat) < 0;
-  if (c.kind === 'tag') return partTag(v.id) === c.tag || v.tags.includes(c.tag);
-  return !v.tags.includes(c.tag);
-}
-
 const describeCheck = (c: BasicCheck): string => c.kind === 'statMin' ? `${c.stat} >= ${c.min}`
   : c.kind === 'statMax' ? `${c.stat} <= ${c.max}` : c.kind === 'tag' ? `tag ${c.tag}` : `no tag ${c.tag}`;
 
@@ -266,6 +230,17 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
       ph.requirement.forEach((row, i) => facetRow(cat, f, i, row, err, seenLines, hard));
     }
   }
+  for (const r of READING_LEVELS) {
+    const where = `clever win [${r}]`;
+    const phrases = cat.cleverWinPhrases?.[r] ?? [];
+    if (new Set(phrases).size < 2) err(`${where}: needs at least 2 distinct sentences`);
+    const limit = GUIDELINE_WORD_LIMIT[r];
+    for (const phrase of phrases) {
+      hard(where, phrase);
+      if (!/^[A-Z].*[.!?]$/.test(phrase)) err(`${where}: needs a complete sentence: "${phrase}"`);
+      if (wordCount(phrase) > limit) err(`${where}: exceeds ${limit} words: "${phrase}"`);
+    }
+  }
 }
 
 function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Record<ReadingLevel, readonly string[]>>,
@@ -286,6 +261,7 @@ function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Re
     hard(at, line);
     if (!/^[A-Z0-9].*[.!?]$/.test(line)) err(`${at}: start with a capital and end with . ! or ?: "${line}"`);
     for (const p of lineProblems(cat, checks, line)) err(`${at}: ${p}: "${line}"`);
+    if (!lineFixes(cat, checks, line).length) err(at + ': names no complete build: ' + line);
     const prev = seen.get(line.toLowerCase());
     if (prev) err(`${at}: duplicate line (also ${prev}): "${line}"`);
     else seen.set(line.toLowerCase(), at);

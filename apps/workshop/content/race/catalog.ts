@@ -1,5 +1,6 @@
 /** Race Shop catalog (Race Shop content package). */
 import type { WorkshopCatalog } from '../../core/types';
+import { CLEVER_WIN_PHRASES } from '../cleverWinPhrases';
 import { RACE_ASPECTS, RACE_VARIANTS } from './variants';
 import { RACE_STATS } from './stats';
 import { RACE_SCENARIOS } from './scenarios';
@@ -18,6 +19,7 @@ export const RACE_CATALOG: WorkshopCatalog = {
   scenarios: RACE_SCENARIOS,
   facetPhrases: RACE_FACET_PHRASES,
   scenarioPhrases: RACE_SCENARIO_PHRASES,
+  cleverWinPhrases: CLEVER_WIN_PHRASES,
   partAliases: RACE_PART_ALIASES,
   unlockOrder: RACE_UNLOCK_ORDER,
   starters: RACE_STARTERS,

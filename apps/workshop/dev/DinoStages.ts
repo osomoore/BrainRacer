@@ -157,7 +157,10 @@ export default class DinoStages extends Phaser.Scene {
     const rng = new Rng(1234 + this.sc * 17 + (levels[0] ?? 1));
     const ctx: StageContext = {
       scene: this, layer, size, groundY: GROUND_Y, workshop: 'dino', model, computed, stage, stageIndex: 0, stageCount: 1, result,
-      requirements: reqs.map((r) => ({ id: r.id, passed: allPass(r.checks, computed), reached: true })),
+      requirements: reqs.map((r) => {
+        const passed = allPass(r.checks, computed);
+        return { id: r.id, passed, reached: true, route: passed ? 'check' : null };
+      }),
       rig, audio: this.audio, rng,
       wait: (ms) => new Promise((res) => { this.time.delayedCall(ms, () => res()); }),
       tween: (config) => new Promise((res) => { this.tweens.add({ ...config, onComplete: () => res() }); }),

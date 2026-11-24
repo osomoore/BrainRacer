@@ -189,6 +189,7 @@ describe('jump builds printed on challenge cards', () => {
 
   it('repairs an existing Long Gap card and still requires the complete fix or sufficient speed', () => {
     const card = jump(at(speed, 2));
+    delete card.stages[0].requirements[0].namedFixes;
     card.stages[0].requirements[0].checks = [{ kind: 'statMin', stat: 'speed', min: 7 }];
     const original = { ...newProgress(C), challenges: { [card.id]: card }, active: [card.id], fails: { [card.id]: 2 } };
     const loaded = normalizeProgress(C, original)!;

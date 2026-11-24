@@ -449,5 +449,11 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Hand-back:** list the moved files, any Brain Racer behavior that changed (should be none), and what to check by hand
   (real controllers, 2 players, phone).
 
+## C36 — Hybrid Workshop challenge passes · `DONE (codex/c36)`
+
+- Race Shop and Dino Lab both accept named fixes from the guideline banks as well as their original checks.
+- Saved cards keep their thresholds, wording, and IDs. The loader adds named fixes and migrates the earlier jump alternatives.
+- A full win that needed a stat route earns a reading-level celebration and two buddy points. Extra points carry into the next buddy.
+
 ## Done
 - C1 · `DONE (codex/c1)`

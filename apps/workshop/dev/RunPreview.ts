@@ -18,6 +18,7 @@ import type { Challenge, FacetDef, Model, Requirement, RunResult, ScenarioDef, S
 import { engine, simulate } from '../logic';
 import { solve } from '../logic/solver';
 import { allPass, computeModel } from '../logic/stats';
+import { flatChecks } from '../logic/util';
 import { type RunHandle, playRun } from '../run/runner';
 
 const SPLIT = { w: 960, h: 1080 };
@@ -165,7 +166,10 @@ export default class RunPreview extends Phaser.Scene {
     const reqRes = stage.requirements.map((r) => ({ id: r.id, passed: this.pass ? true : r.facet === gagFacet ? false : allPass(r.checks, cm), reached: true }));
     if (!this.pass) { const g = reqRes.find((r) => !r.passed); if (!g) reqRes[stage.requirements.findIndex((r) => r.facet === gagFacet)].passed = false; }
     const bad = reqRes.find((r) => !r.passed);
-    const result: RunResult = { passed: !bad, endStage: 0, stages: [{ index: 0, passed: !bad, reached: true, ...(bad ? { firstFail: bad.id } : {}) }], requirements: reqRes };
+    const result: RunResult = { passed: !bad, cleverWin: false, endStage: 0,
+      stages: [{ index: 0, passed: !bad, reached: true, ...(bad ? { firstFail: bad.id } : {}) }],
+      requirements: reqRes.map((r) => ({ ...r, route: r.passed ? 'check' : null })),
+    };
     return { model, result, note };
   }
 
@@ -179,7 +183,7 @@ export default class RunPreview extends Phaser.Scene {
       const sim = simulate(this.cat, { maxSteps: 400 });
       const list = Object.values(sim.progress.challenges);
       challenge = list[this.simN % list.length];
-      const sol = solve(this.cat, challenge.stages.flatMap((s) => s.requirements.flatMap((r) => r.checks)), new Set(this.cat.variants.map((v) => v.id)), { ref: engine.defaultModel(this.ws) });
+      const sol = solve(this.cat, flatChecks(challenge), new Set(this.cat.variants.map((v) => v.id)), { ref: engine.defaultModel(this.ws) });
       model = this.pass && sol ? { ...engine.defaultModel(this.ws), ...sol.build } : engine.defaultModel(this.ws);
       result = engine.evaluate(this.ws, model, challenge);
       desc = `sim #${this.simN}: ${challenge.stages.map((s) => s.scenario).join(' > ')}`;

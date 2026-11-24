@@ -19,12 +19,12 @@ export function normalizeBuddies(raw: unknown): WorkshopBuddies {
 }
 
 /** Called after a challenge first passes validation as a win. */
-export function advanceBuddies(buddies: WorkshopBuddies, seed: number): {
+export function advanceBuddies(buddies: WorkshopBuddies, seed: number, cleverWin: boolean): {
   buddies: WorkshopBuddies;
   unlockedBuddy?: BuddyKind;
 } {
   if (buddies.unlocked.length === BUDDY_KINDS.length) return { buddies };
-  const progress = buddies.progress + 1;
+  const progress = buddies.progress + (cleverWin ? 2 : 1);
   if (progress < WS_BUDDIES.winsPerUnlock) return { buddies: { ...buddies, progress } };
 
   const locked = BUDDY_KINDS.filter((buddy) => !buddies.unlocked.includes(buddy));
@@ -33,7 +33,7 @@ export function advanceBuddies(buddies: WorkshopBuddies, seed: number): {
     buddies: {
       ...buddies,
       unlocked: [...buddies.unlocked, unlockedBuddy],
-      progress: locked.length === 1 ? WS_BUDDIES.winsPerUnlock : 0,
+      progress: locked.length === 1 ? WS_BUDDIES.winsPerUnlock : progress - WS_BUDDIES.winsPerUnlock,
     },
     unlockedBuddy,
   };

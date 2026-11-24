@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CATALOGS } from '../../apps/workshop/content';
 import { affordability } from '../../apps/workshop/logic/affordability';
+import { flatChecks } from '../../apps/workshop/logic/util';
 import { installGamepadMock, tapPad } from './gamepadMock';
 import { seedProfiles } from './profiles';
 
@@ -45,13 +46,13 @@ const visibleText = (page: Page) => page.evaluate(() => {
 test('fresh board shows Ready, Affordable, and Future challenges in order', async ({ page }) => {
   await boot(page); await enter(page, 'race', 'board');
   const progress = await saved(page);
-  const checks = await page.evaluate(() => {
+  const challenges = await page.evaluate(() => {
     const w = (window as any).__ws; const p = w.engine.progressOf(w.contexts()[0].save(), 'race');
-    return p.active.map((id: string) => p.challenges[id].stages.flatMap((s: any) => s.requirements.flatMap((r: any) => r.checks)));
+    return p.active.map((id: string) => p.challenges[id]);
   });
-  expect(checks).toHaveLength(3);
+  expect(challenges).toHaveLength(3);
   const budget = affordability(CATALOGS.race, progress);
-  const costs = checks.map((check: Parameters<typeof budget.cheapest>[0]) => budget.cheapest(check)!.cost);
+  const costs = challenges.map((challenge: Parameters<typeof flatChecks>[0]) => budget.cheapest(flatChecks(challenge))!.cost);
   expect(costs[0]).toBe(0);
   expect(costs[1]).toBeGreaterThan(0);
   expect(costs[1]).toBeLessThanOrEqual(progress.wallet);

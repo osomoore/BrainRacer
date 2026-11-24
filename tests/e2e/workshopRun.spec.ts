@@ -3,6 +3,8 @@ import { CATALOGS } from '../../apps/workshop/content';
 import { solveAffordable } from '../../apps/workshop/logic/affordability';
 import { available } from '../../apps/workshop/logic/available';
 import { solve } from '../../apps/workshop/logic/solver';
+import { cleverWinMessage, resolveSpec } from '../../apps/workshop/logic/text';
+import { flatChecks } from '../../apps/workshop/logic/util';
 import { seedProfiles } from './profiles';
 
 /**
@@ -87,11 +89,11 @@ async function useSolution(page: Page, pane: number, ws: Ws, challengeId: string
     const p = w.engine.progressOf(w.contexts()[pane].save(), ws);
     const ch = p.challenges[challengeId];
     return {
-      checks: ch.stages.flatMap((s: any) => s.requirements.flatMap((r: any) => r.checks)),
+      challenge: ch,
       progress: p,
     };
   }, { pane, ws, challengeId });
-  const sol = solveAffordable(CATALOGS[ws], d.checks, d.progress);
+  const sol = solveAffordable(CATALOGS[ws], flatChecks(d.challenge), d.progress);
   expect(sol, 'the challenge has an affordable solution').not.toBeNull();
   const owned = available(CATALOGS[ws], d.progress);
   const purchases = Object.entries(sol!.build).filter(([, variant]) => !owned.has(variant));
@@ -332,6 +334,32 @@ test('results text follows the reading level', async ({ page }) => {
   }
 });
 
+test('a stat-route win shows the leveled celebration and unlocks a buddy with the bonus point', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 1, reading: 'hard' });
+  const challenge = resolveSpec(CATALOGS.race, {
+    stages: [{ scenario: 'jump', facets: [{ facet: 'jump.speed', level: 2 }] }],
+  }, { id: 'race-clever', seed: 42, tier: 2, source: 'generated' });
+  await page.evaluate((challenge) => {
+    const ctx = (window as any).__ws.contexts()[0];
+    const save = ctx.save();
+    const p = save.workshops.race;
+    ctx.commit({ ...save, workshops: { ...save.workshops, race: {
+      ...p, active: [challenge.id], challenges: { ...p.challenges, [challenge.id]: challenge },
+      model: { ...p.model, wheels: 'wheels.racing', engine: 'engine.turbo' },
+      bought: ['wheels.racing', 'engine.turbo'], buddies: { ...p.buddies, progress: 8 },
+    } } });
+  }, challenge);
+  await goRun(page, 0, challenge.id);
+  await expectScreens(page, 'run');
+  await skipToResults(page);
+  expect(await paneTexts(page)).toContain(cleverWinMessage(CATALOGS.race, 'hard', challenge.seed));
+  const progress = await saved(page);
+  expect(progress.buddies.unlocked).toHaveLength(2);
+  expect(progress.buddies.progress).toBe(0);
+  await expectCleanLayout(page, 0);
+});
+
 test('Admin Mode: a failed or passed run never touches the real save', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1 });
@@ -357,9 +385,9 @@ test('Admin Mode: a failed or passed run never touches the real save', async ({ 
   const d = await page.evaluate((id) => {
     const w = (window as any).__ws;
     const p = w.contexts()[0].save().workshops.race;
-    return { checks: p.challenges[id].stages.flatMap((s: any) => s.requirements.flatMap((r: any) => r.checks)), avail: [...w.engine.available('race', p)] as string[] };
+    return { challenge: p.challenges[id], avail: [...w.engine.available('race', p)] as string[] };
   }, failId);
-  const sol = solve(CATALOGS.race, d.checks, new Set(d.avail), { stopAtFirst: true })!;
+  const sol = solve(CATALOGS.race, flatChecks(d.challenge), new Set(d.avail), { stopAtFirst: true })!;
   await page.evaluate((build) => {
     const c = (window as any).__ws.contexts()[0];
     const s = c.save();

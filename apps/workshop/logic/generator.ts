@@ -32,6 +32,8 @@ export interface GenParams {
 
 export interface GenResult { challenge: Challenge; minCost: number }
 
+const challengeKeys = new WeakMap<Pick<Challenge, 'stages'>, string>();
+
 function checksKey(checks: readonly Check[]): string {
   return JSON.stringify([...new Set(checks.map((check) => {
     switch (check.kind) {
@@ -44,7 +46,13 @@ function checksKey(checks: readonly Check[]): string {
 }
 
 export function challengeKey(c: Pick<Challenge, 'stages'>): string {
-  return checksKey(flatChecks(c));
+  // Resolved cards are immutable once offered. Refill scans their keys on every win.
+  let key = challengeKeys.get(c);
+  if (key === undefined) {
+    key = checksKey(flatChecks(c));
+    challengeKeys.set(c, key);
+  }
+  return key;
 }
 
 function pickLevel(rng: Rng, f: FacetDef, tier: number): number {

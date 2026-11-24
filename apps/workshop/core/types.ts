@@ -16,6 +16,7 @@ export const READING_LABEL: Record<ReadingLevel, string> = { easy: 'Easy', mediu
 
 /** The same sentence written for each reading level. */
 export type Leveled = Record<ReadingLevel, string>;
+export type LeveledPhrases = Readonly<Record<ReadingLevel, readonly string[]>>;
 
 /** Aspect id inside one workshop, e.g. 'wheels', 'teeth'. */
 export type AspectId = string;
@@ -144,6 +145,7 @@ export interface WorkshopCatalog {
   scenarios: readonly ScenarioDef[];
   facetPhrases: readonly FacetPhrases[];
   scenarioPhrases: readonly ScenarioPhrases[];
+  cleverWinPhrases?: LeveledPhrases;
   /**
    * Approved short words for parts in guidelines, besides the variant names themselves (lower case), e.g.
    * { wings: ['move.fly'] }. validateCatalog uses them to check that every guideline names a part that helps.
@@ -189,6 +191,8 @@ export interface Requirement {
   level: number;
   /** A conjunction of checks, with any-of checks kept as one choice among complete options. */
   checks: Check[];
+  /** Each option is a complete named fix. Parts within an option must all be installed. */
+  namedFixes?: readonly (readonly VariantId[])[];
   text: Leveled;
   hint: { aspect: AspectId; text: Leveled };
 }
@@ -224,6 +228,7 @@ export interface Challenge {
 export interface RequirementResult {
   id: string;
   passed: boolean;
+  route: 'named' | 'stat' | 'check' | null;
   /** False for requirements in stages after the failing stage (still evaluated and shown). */
   reached: boolean;
 }
@@ -238,6 +243,7 @@ export interface StageResult {
 
 export interface RunResult {
   passed: boolean;
+  cleverWin: boolean;
   /** Index of the stage where the run ended (last stage if passed). */
   endStage: number;
   stages: StageResult[];
@@ -259,7 +265,7 @@ export interface CompletedInfo {
 export interface WorkshopBuddies {
   unlocked: BuddyKind[];
   selected: BuddyKind;
-  /** Wins toward the next buddy. Stays full once the collection is complete. */
+  /** Points toward the next buddy. Stays full once the collection is complete. */
   progress: number;
 }
 

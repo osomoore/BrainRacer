@@ -13,6 +13,7 @@ import { shopOffers } from './shop';
 import { practiceChallenge } from './practice';
 import { flatChecks, hashSeed } from './util';
 import { advanceBuddies, normalizeBuddies } from './buddies';
+import { evaluate } from './evaluate';
 
 export function newProgress(cat: WorkshopCatalog): WorkshopProgress {
   return {
@@ -192,8 +193,8 @@ export function recordWin(cat: WorkshopCatalog, p: WorkshopProgress, challengeId
   const challenge = p.challenges[challengeId];
   const sanitized = sanitizeModel(cat, p, model);
   const validBuild = cat.aspects.every((aspect) => model[aspect.id] === sanitized[aspect.id]);
-  if (!challenge || !p.active.includes(challengeId) || p.completed[challengeId] || !validBuild
-    || !allPass(flatChecks(challenge), computeModel(cat, model))) {
+  const result = challenge && validBuild && evaluate(cat, model, challenge);
+  if (!p.active.includes(challengeId) || p.completed[challengeId] || !result || !result.passed) {
     return { progress: p, firstWin: false, payout: 0, newChallenges: [] };
   }
   const q = copyProgress(p);
@@ -203,7 +204,7 @@ export function recordWin(cat: WorkshopCatalog, p: WorkshopProgress, challengeId
   q.completed[challengeId] = { build: { ...model }, wonAt: now, payout };
   q.lastWin = { ...model };
   q.model = { ...model };
-  const { buddies, unlockedBuddy } = advanceBuddies(q.buddies, challenge.seed);
+  const { buddies, unlockedBuddy } = advanceBuddies(q.buddies, challenge.seed, result.cleverWin);
   q.buddies = buddies;
   delete q.fails[challengeId];
   const progress = refreshBoard(cat, q);

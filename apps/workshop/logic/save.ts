@@ -11,6 +11,8 @@ import { affordability } from './affordability';
 import { newProgress, refreshBoard, sortBoard } from './board';
 import { normalizeBuddies } from './buddies';
 import { practiceTitle } from './practice';
+import { distinctFixes, lineFixes } from './namedFixes';
+import { catalogFixes } from './text';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -54,17 +56,36 @@ function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Chal
     && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && r.checks.length > 0 && r.checks.every(validCheck) && isObj(r.text) && isObj(r.hint)));
 }
 
-/** Add the advertised jump builds to cards saved with only the original stat threshold. */
-function upgradeJumpRequirement(cat: WorkshopCatalog, requirement: Requirement): void {
-  if (requirement.facet !== 'jump.speed' && requirement.facet !== 'jump.landing') return;
-  const [old] = requirement.checks;
-  if (requirement.checks.length !== 1 || old.kind !== 'statMin' || !isNum(requirement.level)) return;
-  const [updated] = index(cat).facetById.get(requirement.facet)?.facet.check(requirement.level) ?? [];
-  if (updated?.kind !== 'anyOf') return;
-  const original = updated.options[0]?.[0];
-  if (original?.kind === 'statMin' && old.stat === original.stat && old.min === original.min) {
-    requirement.checks = [updated];
+/** Keep the saved targets and wording, adding named routes for cards from older builds. */
+function upgradeRequirement(cat: WorkshopCatalog, req: Requirement): void {
+  const ix = index(cat);
+  const facet = ix.facetById.get(req.facet)?.facet;
+  const validFix = (value: unknown): value is VariantId[] => {
+    if (!Array.isArray(value) || !value.length) return false;
+    const aspects = value.map((id) => typeof id === 'string' ? ix.variantById.get(id)?.aspect : undefined);
+    return !aspects.includes(undefined) && new Set(aspects).size === aspects.length;
+  };
+  const fixes = Array.isArray(req.namedFixes) ? req.namedFixes.filter(validFix) : [];
+  const hasSavedFixes = fixes.length > 0;
+  const [old] = req.checks;
+  if (cat.id === 'race' && (req.facet === 'jump.speed' || req.facet === 'jump.landing')
+    && req.checks.length === 1 && old.kind === 'anyOf') {
+    const [stat, ...parts] = old.options;
+    if (stat.length === 1 && stat[0].kind === 'statMin'
+      && parts.every((option) => option.every((c) => c.kind === 'tag' && c.tag.startsWith('variant:')))) {
+      fixes.push(...parts.map((option) => option.map((c) => c.kind === 'tag' ? c.tag.slice('variant:'.length) : '')).filter(validFix));
+      req.checks = [...stat];
+    }
   }
+  if (!hasSavedFixes && facet && isNum(req.level)) {
+    for (const r of READING_LEVELS) {
+      if (typeof req.text[r] === 'string') fixes.push(...lineFixes(cat, req.checks, req.text[r]));
+    }
+    // If the target still matches the catalog, include the alternate wording for this level.
+    if (JSON.stringify(req.checks) === JSON.stringify(facet.check(req.level))) fixes.push(...catalogFixes(cat, facet, req.level));
+  }
+  if (fixes.length) req.namedFixes = distinctFixes(fixes);
+  else delete req.namedFixes;
 }
 
 export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopProgress | null {
@@ -91,12 +112,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
         const partCount = challenge.stages.reduce((sum, stage) => sum + stage.requirements.length, 0);
         challenge.title = practiceTitle(cat, isNum(challenge.seed) ? challenge.seed : 0, partCount);
       }
-      if (cat.id === 'race') {
-        for (const stage of challenge.stages) {
-          if (stage.scenario !== 'jump') continue;
-          for (const requirement of stage.requirements) upgradeJumpRequirement(cat, requirement);
-        }
-      }
+      for (const stage of challenge.stages) for (const req of stage.requirements) upgradeRequirement(cat, req);
       const color = challenge.boardColor;
       if (typeof color !== 'number' || !Number.isInteger(color) || color < 0 || color >= WS_RULES.boardSize) {
         delete challenge.boardColor;

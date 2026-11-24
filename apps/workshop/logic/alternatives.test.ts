@@ -25,7 +25,7 @@ describe('alternative challenge fixes', () => {
     for (const model of options) {
       const result = engine.evaluate('dino', model, peek);
       expect(result.passed).toBe(true);
-      expect(result.requirements).toEqual([{ id: requirement.id, passed: true, reached: true }]);
+      expect(result.requirements).toMatchObject([{ id: requirement.id, passed: true, reached: true }]);
     }
     const failure = engine.evaluate('dino', initial.model, peek);
     expect(failure.passed).toBe(false);
@@ -65,7 +65,7 @@ describe('alternative challenge fixes', () => {
     };
     const generate = (params: Parameters<typeof generateChallenge>[4]) =>
       generateChallenge(catalog, 'test', 'generated', 1, params);
-    expect(generate(options)?.challenge.stages[0].requirements[0]).toMatchObject({ checks: peekChecks });
+    expect(flatChecks(generate(options)!.challenge)).toEqual(peekChecks);
     const longNeck = { ...progress.model, head: 'head.longNeck' };
     const bigBody = { ...progress.model, size: 'size.big' };
     expect(generate({ ...options, current: longNeck })).toBeNull();
@@ -88,6 +88,7 @@ describe('alternative challenge fixes', () => {
       id: 'legacy-stand',
       stages: [{ ...peek.stages[0], requirements: [{ ...requirement, checks: [{ kind: 'tag' as const, tag: 'pose:stand' }] }] }],
     };
+    delete legacy.stages[0].requirements[0].namedFixes;
     const progress = {
       ...initial, active: [legacy.id, peek.id], fails: { [legacy.id]: 2 },
       challenges: { [legacy.id]: legacy, [peek.id]: peek },

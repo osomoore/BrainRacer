@@ -27,10 +27,33 @@ export interface Solution {
 interface Group { contrib: number[]; mask: number; variant: VariantId; cost: number }
 
 const MAX_TAGS = 30;
+const PART_TAG_PREFIX = partTag('');
+
+function requiredParts(cat: WorkshopCatalog, checks: readonly Check[], avail: ReadonlySet<VariantId>,
+  costs?: SolveOptions['variantCosts'], limit = Infinity): Map<string, VariantId> | null {
+  const ix = index(cat);
+  const fixed = new Map<string, VariantId>();
+  let cost = 0;
+  for (const check of checks) {
+    if (check.kind !== 'tag' || !check.tag.startsWith(PART_TAG_PREFIX)) continue;
+    const id = check.tag.slice(PART_TAG_PREFIX.length);
+    const part = ix.variantById.get(id);
+    if (!part || !avail.has(id)) return null;
+    const prior = fixed.get(part.aspect);
+    if (prior === id) continue;
+    if (prior) return null;
+    fixed.set(part.aspect, id);
+    cost += costs?.get(id) ?? 0;
+    if (cost >= limit) return null;
+  }
+  return fixed;
+}
 
 export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: ReadonlySet<VariantId>, opts: SolveOptions = {}): Solution | null {
+  const fixed = requiredParts(cat, checks, avail, opts.variantCosts, opts.costLimit);
+  if (!fixed) return null;
   const alternatives = checks.find((check) => check.kind === 'anyOf');
-  if (!alternatives) return solveConjunction(cat, checks as readonly BasicCheck[], avail, opts);
+  if (!alternatives) return solveConjunction(cat, checks as readonly BasicCheck[], avail, opts, fixed);
 
   // Each complete branch describes one build, including all the other requirements.
   const remaining = checks.filter((check) => check !== alternatives);
@@ -44,7 +67,8 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
   return best;
 }
 
-function solveConjunction(cat: WorkshopCatalog, checks: readonly BasicCheck[], avail: ReadonlySet<VariantId>, opts: SolveOptions): Solution | null {
+function solveConjunction(cat: WorkshopCatalog, checks: readonly BasicCheck[], avail: ReadonlySet<VariantId>,
+  opts: SolveOptions, fixed: ReadonlyMap<string, VariantId>): Solution | null {
   const ix = index(cat);
   const ref = opts.ref ?? null;
 
@@ -66,7 +90,9 @@ function solveConjunction(cat: WorkshopCatalog, checks: readonly BasicCheck[], a
       if (c.max >= d.max) continue;
       if (c.max < d.min) return null;
       hi.set(c.stat, Math.min(hi.get(c.stat) ?? Infinity, c.max));
-    } else if (c.kind === 'tag') req.add(c.tag);
+    } else if (c.kind === 'tag') {
+      if (!c.tag.startsWith(PART_TAG_PREFIX)) req.add(c.tag);
+    }
     else forb.add(c.tag);
   }
   for (const t of req) if (forb.has(t)) return null;
@@ -88,9 +114,10 @@ function solveConjunction(cat: WorkshopCatalog, checks: readonly BasicCheck[], a
   const free: { aspect: string; groups: Group[]; spread: number }[] = [];
   for (const aspect of ix.aspectIds) {
     const refId = ref?.[aspect];
+    const required = fixed.get(aspect);
     const map = new Map<string, Group>();
     for (const v of ix.byAspect.get(aspect) ?? []) {
-      if (!avail.has(v.id)) continue;
+      if (!avail.has(v.id) || (required && required !== v.id)) continue;
       let mask = 0;
       for (const t of v.tags) { const b = tagBit.get(t); if (b !== undefined) mask |= 1 << b; }
       const installedPartBit = tagBit.get(partTag(v.id));

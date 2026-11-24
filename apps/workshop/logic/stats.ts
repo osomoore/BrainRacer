@@ -1,6 +1,5 @@
 import type { Check, ComputedModel, Model, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
-import { clamp } from './util';
 
 export const partTag = (variant: VariantId): string => 'variant:' + variant;
 
@@ -17,7 +16,7 @@ export function computeModel(cat: WorkshopCatalog, model: Model): ComputedModel 
     for (const t of v.tags) tags.add(t);
     tags.add(partTag(v.id));
   }
-  for (const s of cat.stats) stats[s.id] = clamp(stats[s.id], s.min, s.max);
+  for (const s of cat.stats) stats[s.id] = Math.max(s.min, Math.min(s.max, stats[s.id]));
   return { stats, tags };
 }
 

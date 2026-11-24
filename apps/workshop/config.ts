@@ -29,7 +29,7 @@ export const WS_RULES = {
   maxTier: 6,
   /** Random generator attempts before searching fallback candidates. */
   genAttempts: 200,
-  genVersion: 2,
+  genVersion: 3,
   /** Chance that a new challenge is preferred to need the most recently bought variant. */
   newestChance: 0.4,
   /** Generator shape per tier (index = tier, last row repeats): stage count range and requirements-per-stage range. */
