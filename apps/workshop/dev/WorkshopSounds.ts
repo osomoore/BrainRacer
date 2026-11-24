@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { WS_LOOP_SFX, WS_MUSIC_NAMES, WS_SFX_NAMES, WS_STING_NAMES } from '../audio/manifest';
-import { createWorkshopAudio, preloadWorkshopAudio } from '../audio';
-import type { WorkshopAudio, WsSfx } from '../core/runtime';
+import { WS_LOOP_SFX, WS_MUSIC_NAMES, WS_SFX_NAMES, WS_STING_NAMES, type WsAudioSfx } from '../audio/manifest';
+import { createWorkshopAudio, playWorkshopSfx, preloadWorkshopAudio } from '../audio';
+import type { WorkshopAudio } from '../core/runtime';
 
 /** `workshop.html?dev=WorkshopSounds`: click a button (or press its key) to audition every music loop, sting and sfx. */
 export default class WorkshopSounds extends Phaser.Scene {
@@ -47,18 +47,19 @@ export default class WorkshopSounds extends Phaser.Scene {
       { name: 'silence', run: () => { this.audio.music(null); this.status.setText('music: none'); } },
     ]);
     row('Stings (duck the music)', WS_STING_NAMES.map((n) => ({ name: n, run: () => { this.audio.sting(n); this.status.setText(`sting: ${n}`); } })));
-    row('Sfx', WS_SFX_NAMES.map((n) => ({ name: WS_LOOP_SFX.includes(n) ? `${n} (loop)` : n, run: () => this.trigger(n) })));
+    row('Sfx', WS_SFX_NAMES.map((n) => ({ name: WS_LOOP_SFX.some((loop) => loop === n) ? `${n} (loop)` : n, run: () => this.trigger(n) })));
   }
 
-  private trigger(n: WsSfx): void {
-    if (WS_LOOP_SFX.includes(n)) {
+  private trigger(n: WsAudioSfx): void {
+    const loop = WS_LOOP_SFX.find((name) => name === n);
+    if (loop) {
       const stop = this.loops.get(n);
       if (stop) { stop(); this.loops.delete(n); this.status.setText(`${n} loop: off`); return; }
-      this.loops.set(n, this.audio.loop(n));
+      this.loops.set(n, this.audio.loop(loop));
       this.status.setText(`${n} loop: on`);
       return;
     }
-    this.audio.sfx(n);
+    playWorkshopSfx(this.audio, n);
     this.status.setText(`sfx: ${n}`);
   }
 }

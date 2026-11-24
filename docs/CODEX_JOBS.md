@@ -402,7 +402,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Hand-back:** screenshots list, any engine API gaps found, anything left for later (scoreboard is not part of this).
 - Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review.
 
-## C24 — Currency icons and sounds · `OPEN`
+## C24 — Currency icons and sounds · `DONE (codex/c24)`
 - **Start point:** branch `codex/c24` from `feature/workshop` at `b27b5b7` (or its current tip).
 - **Parallel-safe with C22 and C23.** Shape/code only, no ComfyUI painting.
 - **Port:** 5229.

@@ -12,6 +12,8 @@ import {
   type WsAudioEntry, type WsAudioKind, type WsAudioManifest,
 } from './manifest';
 
+export { playWorkshopSfx } from './manifest';
+
 const BASE = 'audio/workshop/';
 const MANIFEST_KEY = 'ws-audio-manifest';
 const binKey = (kind: WsAudioKind, name: string): string => `ws-audio-${kind}-${name}`;
