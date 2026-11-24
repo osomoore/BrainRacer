@@ -15,8 +15,9 @@ session needs on top of that: where things are, what is waiting, and the rules t
   overhead view, no wheel fade); reviewer gears/springs sheets; reviewer "Only changed since I graded" mode (per-variant
   pixel fingerprints, `--no-open`, `--port`, `--shapes`); Codex C9–C12 (dino heads/mouths/teeth, body/claws/tails,
   seeded patterns, car shapes/layering); beta marking.
-- **Codex in flight:** C13 (screen polish + flaky mobile e2e), C14 (Dino run scenery paint jobs), C15 (Race run scenery
-  paint jobs). Review and merge each when it is marked DONE; C14/C15 both add one import line to `art/paint/jobs.ts`.
+- **Codex:** C13–C15 merged. In flight: C16 (title screen, port 5221), C17 (painted scenery wiring, 5222), both
+  branched at `0c21008`. Ready to start: C18 (dino shapes from review round 2, 5223), C19 (jeep spare/winch, 5224).
+  Review and merge each when its branch marks it DONE; then run typecheck, `npm test`, workshop e2e.
 - **User preference:** Claude quota is scarce, Codex resets. Write work as Codex jobs first; Claude sub-agents only when
   the user asks or something blocks.
 
@@ -35,11 +36,12 @@ Keys in game: Space joins/confirms, WASD moves, Esc goes back, F9 opens admin. D
 (add `&art=shapes` for code shapes only), `RigAnims`, `RunPreview`, `DinoStages`, `WorkshopSounds`, `RigPreview`.
 
 ## Waiting on the user (do not decide these alone)
-1. **Grade in the reviewer** (5199, shapes only): first full pass after C9–C12, then "Only changed since I graded" later.
-   Export to `C:\Users\osomo\Projects\BrainRacer\feedback\`. Shape problems → new Codex jobs; paint problems → `jobs.ts`.
-2. **Small paint batch (asked, no answer yet):** fresh candidates for the 5 heads voted "more" (now with per-candidate
-   pattern seeds, C11) plus thead rex and thead horned (shapes changed in C9; voted paint for thead rex hides the new
-   taper). `npm run art:paint -- --candidates 4 --only ...`. Also Jeep body paints are stale after C12.
+1. **Review round 2 is done** (`feedback/workshop-art-feedback_2.json`): all issues went into C18/C19. After they
+   merge, the user grades again with "Only changed since I graded" on 5199.
+2. **Head paint batch (approved 2026-11-23):** 4 candidates each for round/spotted/feathers, round/orange/glow,
+   thead rex, thead horned are in `art-candidates/`; the user votes on 5203 (`npm run art:pick`), then
+   `npm run art:paint -- --apply-picks` and commit picks + `public/art/workshop/`. Camo and stripes heads (voted "more")
+   wait for the C18 pattern fixes before repainting. Jeep paints are stale after C12 and C19.
 3. **Paint strength:** review says "bodies need scale/texture, not flat" → raise `PAINT_TUNE` and test on a small batch.
    Never start a full paint or new ComfyUI painting without the user.
 4. **Texture resolution** for the TV box (bake `Q`), **painted backdrops** switch-on, **racing-stripe paints** idea (to
