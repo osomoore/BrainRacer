@@ -1,15 +1,15 @@
 {
  "ws:d:head:head.crest:color.orange:extra.feathers:n": {
-  "pick": 379521102
+  "pick": 3660584172
  },
  "ws:d:head:head.horned:color.orange:extra.feathers:n": {
-  "pick": 1588778587
+  "pick": 4243214348
  },
  "ws:d:head:head.longNeck:color.orange:extra.feathers:n": {
   "pick": 4029492576
  },
  "ws:d:head:head.rex:color.orange:extra.feathers:n": {
-  "pick": "shape"
+  "pick": 15693643
  },
  "ws:d:head:head.round:color.blue:extra.feathers:n": {
   "pick": 3118542347
@@ -18,8 +18,7 @@
   "pick": 3590866520
  },
  "ws:d:head:head.round:color.orange:extra.camo:n": {
-  "pick": "more",
-  "comment": "Need more random feature placement to compare, right now all the leaves are in the same spot in all candidates."
+  "pick": 3460212554
  },
  "ws:d:head:head.round:color.orange:extra.feathers:Short and curved": {
   "pick": 375588832
@@ -31,29 +30,26 @@
   "pick": 1382284544
  },
  "ws:d:head:head.round:color.orange:extra.glow:n": {
-  "pick": "more",
-  "comment": "Need more random feature placement to compare, right now all the spots are in the same spot in all candidates."
+  "pick": 2391337371
  },
  "ws:d:head:head.round:color.orange:extra.stripes:n": {
-  "pick": "more",
-  "comment": "Need more random feature placement to compare, right now all the stripes are in the same spot in all candidates."
+  "pick": 1122073265
  },
  "ws:d:head:head.round:color.purple:extra.feathers:n": {
   "pick": 3369987998
  },
  "ws:d:head:head.round:color.sandy:extra.feathers:n": {
-  "pick": 229897980
+  "pick": 856525289
  },
  "ws:d:head:head.round:color.spotted:extra.feathers:n": {
-  "pick": "more",
-  "comment": "Need more random feature placement to compare, right now all the spots are in the same spot in all candidates."
+  "pick": 2645341755
  },
  "ws:d:thead:head.crest:color.orange:extra.feathers:n": {
   "pick": 377139507
  },
  "ws:d:thead:head.horned:color.orange:extra.feathers:n": {
   "pick": "more",
-  "comment": "Horns should extend from the top of the head, but right now are shown extending from below it."
+  "comment": "Issue: The horns are going under the eyeballs.  They need to start further back and/or angle differently."
  },
  "ws:d:thead:head.longNeck:color.orange:extra.feathers:n": {
   "pick": 32181000
@@ -62,14 +58,13 @@
   "pick": 1827826459
  },
  "ws:d:thead:head.round:color.orange:extra.camo:n": {
-  "pick": "pending",
-  "comment": "Need more random feature placement to compare, right now all the leaves are in the same spot in all candidates."
+  "pick": 2946174003
  },
  "ws:d:thead:head.round:color.orange:extra.feathers:Short and curved": {
   "pick": 152157770
  },
  "ws:d:thead:head.round:color.orange:extra.feathers:n": {
-  "pick": 827336845
+  "pick": 4108399915
  },
  "ws:d:thead:head.round:color.orange:extra.frill:n": {
   "pick": 1541133632
@@ -78,6 +73,7 @@
   "pick": 4023621566
  },
  "ws:d:thead:head.round:color.orange:extra.stripes:n": {
-  "pick": 3011336115
+  "pick": "more",
+  "comment": "Stripes when viewed from overhead like here should be symmetrical, either crossing entirely or ending on both sides, not starting on one side and ending on the other."
  }
 }
