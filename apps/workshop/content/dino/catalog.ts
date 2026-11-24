@@ -6,7 +6,7 @@ import type { StarterSpec, VariantId, WorkshopCatalog } from '../../core/types';
 import { DINO_ASPECTS, DINO_VARIANTS } from './variants';
 import { DINO_STATS } from './stats';
 import { DINO_SCENARIOS } from './scenarios';
-import { DINO_FACET_PHRASES, DINO_SCENARIO_PHRASES } from './phrases';
+import { DINO_FACET_PHRASES, DINO_PART_ALIASES, DINO_SCENARIO_PHRASES } from './phrases';
 
 export { DINO_SCENE_NOTES } from './sceneNotes';
 
@@ -40,6 +40,7 @@ export const DINO_CATALOG: WorkshopCatalog = {
   scenarios: DINO_SCENARIOS,
   facetPhrases: DINO_FACET_PHRASES,
   scenarioPhrases: DINO_SCENARIO_PHRASES,
+  partAliases: DINO_PART_ALIASES,
   unlockOrder: DINO_UNLOCK_ORDER,
   starters: DINO_STARTERS,
 };

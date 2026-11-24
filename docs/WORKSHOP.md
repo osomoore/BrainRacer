@@ -137,8 +137,10 @@ shared code lives in `shared/`.
     Prefer (not require) challenges whose solutions need the newest unlocked variant about 40% of the time; the
     rest should need older parts or combinations.
   - The three active challenges should differ (different scenarios / hint aspects where possible).
-  - Text comes from the scenario and facet phrase banks. Two stages join their titles with "&", and three or
-    more use the first title plus "Adventure". Each requirement has one guideline sentence per reading level.
+  - Text comes from the scenario and facet phrase banks. A stage with one requirement is titled by that facet's
+    level title; a stage with two or more uses the scenario's single stage title. Two stages join their titles with
+    "&", and three or more use the first title plus "Adventure". Each requirement shows one authored row (A or B),
+    the same row at every reading level.
   - Saved challenges are fully resolved (checks + text for all three levels). Never regenerate a saved challenge.
 - **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
@@ -155,20 +157,22 @@ shared code lives in `shared/`.
 
 ## Content guide (content/race, content/dino)
 
-- **Guidelines** give beginning readers one short line per requirement. The title names the problem, and each
-  line names the fix. When a requirement accepts alternatives, name every option on that line and link them with
-  "or". Use everyday words such as big, small, long, and short. Use up to **6 words on Easy**, **8 on Medium**,
-  and **12 on Hard**. `validateCatalog` checks every guideline in the phrase banks. Reading level changes the
-  wording only. Name the available parts directly when it helps children recognize the alternatives.
+- **Guidelines** give beginning readers one short line per requirement. The title names the problem (one title per
+  facet level, plus one stage title per scenario that fits all its facets), and each line names the fix by the part
+  names shown at the stations ("Get Mud Tires.", "Pick the Small size."), naming a part for every check of the
+  level. When a requirement accepts alternatives, name every option on that line and link them with "or". Use
+  everyday words. Use up to **6 words on Easy**, **8 on Medium**, and **12 on Hard**, with Easy <= Medium <= Hard
+  in each row. No line may repeat. Short part words other than the variant names must be listed in the catalog's
+  `partAliases`. `validateCatalog` checks all of this (see docs/WORKSHOP_CHALLENGE_TEXT.md for the graded text).
 - **Facet levels** map difficulty to thresholds (mud depth 1–3 → mud grip ≥ 2/3/4). Phrases may differ per level
   ("muddy" → "deep, sticky mud").
 - **Tradeoffs**: variants change several stats (big engine: power+, weight+). Several builds may solve one requirement.
 - **Scenarios**: 12–15 per workshop, each a scene the runs package can animate in side view (top view only where
   needed). Each facet lists its views and its hint aspect.
-- **Starters**: Race Shop: Deep Mud (wheels), Long Jump (speed: engine, gears or rocket), Sharp Turn (springs; top
+- **Starters**: Race Shop: Muddy Road (wheels), Jump the Gap (speed: engine, gears or rocket), Sharp Turn (springs; top
   view), Steep Hill (engine power), Foggy Road (paint; ducks wait to cross). Dino Lab:
-  Big Teeth (gulp a cartoon critter; small teeth: it giggles and wriggles away), Green Skin (hide in ferns from a big
-  sniffing predator), High Jump (legs), Small Hole (size), Tall Grass (peek over the grass to find the nest).
+  Beetle Snack (teeth; gulp a cartoon critter; small teeth: it giggles and wriggles away), Sniffing Dino (skin color; hide in ferns from a big
+  sniffing predator), High Rock (legs), Small Hole (size), Tall Grass (peek over the grass to find the nest).
 
 ### Alternative fixes (C27)
 

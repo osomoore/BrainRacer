@@ -109,8 +109,13 @@ export interface ScenarioDef {
  */
 export interface FacetPhrases {
   facet: FacetId;
-  /** [levelIndex] -> reading level -> alternative sentences (>= 2 each). */
+  /**
+   * [levelIndex] -> reading level -> alternative sentences (>= 2 each). Alternative i at every reading level is one
+   * row: a challenge shows easy[i], medium[i] and hard[i] together, so each row says the same fix.
+   */
   requirement: ReadonlyArray<Readonly<Record<ReadingLevel, readonly string[]>>>;
+  /** [levelIndex] -> card title naming the problem at that level, used when the stage has only this requirement. */
+  title?: readonly string[];
   /** Hint sentences (point at the aspect, never give the full answer). >= 2 each. */
   hint: Readonly<Record<ReadingLevel, readonly string[]>>;
   /** Target vocabulary words this facet's sentences use (for the coverage report). */
@@ -120,7 +125,10 @@ export interface FacetPhrases {
 /** Titles and stage-joining words for one scenario. */
 export interface ScenarioPhrases {
   scenario: ScenarioId;
-  /** Challenge-card title when this scenario is the only/first stage, e.g. "Deep Mud". Same at every level. */
+  /**
+   * Stage title for a stage with two or more requirements (one entry; it must fit every facet of the scenario).
+   * A stage with one requirement uses that facet's level title (FacetPhrases.title) instead.
+   */
   title: readonly string[];
   /** Short scene-setting sentence shown above the requirements. >= 2 per level. */
   intro: Readonly<Record<ReadingLevel, readonly string[]>>;
@@ -136,6 +144,11 @@ export interface WorkshopCatalog {
   scenarios: readonly ScenarioDef[];
   facetPhrases: readonly FacetPhrases[];
   scenarioPhrases: readonly ScenarioPhrases[];
+  /**
+   * Approved short words for parts in guidelines, besides the variant names themselves (lower case), e.g.
+   * { wings: ['move.fly'] }. validateCatalog uses them to check that every guideline names a part that helps.
+   */
+  partAliases?: Readonly<Record<string, readonly VariantId[]>>;
   /** Shop order after the second starter (every non-starter variant exactly once). */
   unlockOrder: readonly VariantId[];
   /** The fixed first challenges (shown first, in order; 3 offered at a time). */

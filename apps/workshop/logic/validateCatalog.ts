@@ -1,6 +1,6 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
 import { READING_LEVELS } from '../core/types';
-import type { Check, ReadingLevel, WorkshopCatalog } from '../core/types';
+import type { BasicCheck, Check, FacetDef, ReadingLevel, Variant, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { solve, solvable } from './solver';
 import { allPass, computeModel, defaultModel } from './stats';
@@ -10,8 +10,82 @@ import { WS_RULES } from '../config';
 
 const MIN_TIER0_STARTER_ONLY_FACETS = 3;
 const GUIDELINE_WORD_LIMIT: Record<ReadingLevel, number> = { easy: 6, medium: 8, hard: 12 };
+const TITLE_WORD_LIMIT = 4;
+/** Words beginning readers stumble on (found in the 2026 text review), plus idioms. Part names are allowed. */
+export const HARD_WORDS: readonly string[] = [
+  'canyon', 'dune', 'dunes', 'flock', 'shoo', 'shove', 'slippery', 'twisty', 'zigzag', 'pebble', 'pebbles', 'gooey',
+  'coconut', 'freezing', 'sneaky', 'cruncher', 'turner', 'ledge', 'pesky', 'heave', 'sag', 'snowstorm', 'traction',
+  'terrain', 'obstacle', 'clearance', 'navigate', 'accelerate', 'conceal', 'durable', 'get a grip', 'is a wall',
+];
+const PLACEHOLDER = /[{}<>[\]_|\\]|\b(?:TODO|TBD|XXX|FIXME)\b|\.\.\./;
 
-export function validateCatalog(cat: WorkshopCatalog): string[] {
+export const wordCount = (s: string): number => s.trim().split(/\s+/).filter(Boolean).length;
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The variants a guideline names: variant names as shown at the stations (an optional plural "s" is fine) and the
+ * catalog's approved aliases. Longer names win, so "Big Engine" does not also count as the size "Big".
+ */
+export function namedVariants(cat: WorkshopCatalog, line: string): Set<VariantId> {
+  const names = new Map<string, Set<VariantId>>();
+  const add = (name: string, ids: readonly VariantId[]): void => {
+    const key = name.toLowerCase();
+    const set = names.get(key) ?? new Set<VariantId>();
+    ids.forEach((id) => set.add(id));
+    names.set(key, set);
+  };
+  for (const v of cat.variants) add(v.name, [v.id]);
+  for (const [alias, ids] of Object.entries(cat.partAliases ?? {})) add(alias, ids);
+  let rest = ` ${line.toLowerCase()} `;
+  const out = new Set<VariantId>();
+  for (const [name, ids] of [...names].sort((a, b) => b[0].length - a[0].length)) {
+    const stem = name.endsWith('s') ? `${escapeRe(name.slice(0, -1))}s?` : `${escapeRe(name)}s?`;
+    const re = new RegExp(`(?<![a-z0-9])${stem}(?![a-z0-9])`, 'g');
+    if (!re.test(rest)) continue;
+    ids.forEach((id) => out.add(id));
+    rest = rest.replace(re, (m) => ' '.repeat(m.length));
+  }
+  return out;
+}
+
+/** True when picking `v` (instead of its aspect's default part) moves the model toward passing `c`. */
+export function variantHelps(cat: WorkshopCatalog, v: Variant, c: BasicCheck): boolean {
+  const aspect = cat.aspects.find((a) => a.id === v.aspect);
+  const base = cat.variants.find((x) => x.id === aspect?.starters[0]);
+  const delta = (stat: string): number => (v.stats[stat] ?? 0) - (base?.stats[stat] ?? 0);
+  if (c.kind === 'statMin') return delta(c.stat) > 0;
+  if (c.kind === 'statMax') return delta(c.stat) < 0;
+  if (c.kind === 'tag') return v.tags.includes(c.tag);
+  return !v.tags.includes(c.tag);
+}
+
+const describeCheck = (c: BasicCheck): string => c.kind === 'statMin' ? `${c.stat} >= ${c.min}`
+  : c.kind === 'statMax' ? `${c.stat} <= ${c.max}` : c.kind === 'tag' ? `tag ${c.tag}` : `no tag ${c.tag}`;
+
+/** What a guideline fails to name: a helping part for every check (and for every option of an any-of). */
+export function lineProblems(cat: WorkshopCatalog, checks: readonly Check[], line: string): string[] {
+  const named = [...namedVariants(cat, line)].map((id) => cat.variants.find((v) => v.id === id)).filter((v): v is Variant => !!v);
+  const missing = (c: BasicCheck): boolean => c.kind !== 'noTag' && !named.some((v) => variantHelps(cat, v, c));
+  const out: string[] = [];
+  for (const c of checks) {
+    if (c.kind === 'anyOf') {
+      c.options.forEach((option, i) => {
+        for (const b of option) if (missing(b)) out.push(`names no part for option ${i + 1} (${describeCheck(b)})`);
+      });
+    } else if (missing(c)) out.push(`names no part for ${describeCheck(c)}`);
+  }
+  return out;
+}
+
+export interface ValidateOptions {
+  /**
+   * Check the kid-facing wording too (titles, part names, row lengths, duplicates, hard words). Default true;
+   * synthetic test fixtures with placeholder text turn it off.
+   */
+  wording?: boolean;
+}
+
+export function validateCatalog(cat: WorkshopCatalog, opts: ValidateOptions = {}): string[] {
   const out: string[] = [];
   const ix = index(cat);
   const w = cat.id;
@@ -122,6 +196,8 @@ export function validateCatalog(cat: WorkshopCatalog): string[] {
     err(`only ${tier0StarterOnly} tier-0 facets are solvable with starter variants alone (need >= ${MIN_TIER0_STARTER_ONLY_FACETS})`);
   }
 
+  if (opts.wording ?? true) wording(cat, err);
+
   // --- starters
   if (cat.starters.length < WS_RULES.boardSize) err(`needs at least ${WS_RULES.boardSize} starters`);
   const def = defaultModel(cat);
@@ -146,4 +222,65 @@ export function validateCatalog(cat: WorkshopCatalog): string[] {
     else if (sol.cost > 1) err(`starter ${spec.id}: needs ${sol.cost} aspects changed (should need 1)`);
   }
   return out;
+}
+
+/** Kid-facing wording rules: see docs/WORKSHOP.md "Content guide". */
+function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
+  const ix = index(cat);
+  const seenLines = new Map<string, string>();
+  const seenTitles = new Map<string, string>();
+  const hard = (where: string, text: string): void => {
+    const low = ` ${text.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ')} `;
+    for (const w of HARD_WORDS) if (low.includes(` ${w} `)) err(`${where}: hard word "${w}": "${text}"`);
+    if (PLACEHOLDER.test(text)) err(`${where}: leftover placeholder: "${text}"`);
+    if (/\s{2,}/.test(text) || text !== text.trim()) err(`${where}: extra spaces: "${text}"`);
+  };
+  const title = (where: string, t: string): void => {
+    hard(where, t);
+    if (!/^[A-Z0-9][A-Za-z0-9 ',&!-]*$/.test(t)) err(`${where}: title must be capitalised words with no period: "${t}"`);
+    if (wordCount(t) > TITLE_WORD_LIMIT) err(`${where}: title over ${TITLE_WORD_LIMIT} words: "${t}"`);
+    const prev = seenTitles.get(t.toLowerCase());
+    if (prev) err(`${where}: duplicate title "${t}" (also ${prev})`);
+    else seenTitles.set(t.toLowerCase(), where);
+  };
+  for (const sc of cat.scenarios) {
+    const sp = ix.scenarioPhrases.get(sc.id);
+    if (sp) {
+      if (sp.title.length !== 1) err(`scenario ${sc.id}: needs exactly 1 title (the stage title for 2+ requirements), has ${sp.title.length}`);
+      sp.title.forEach((t) => title(`scenario ${sc.id} title`, t));
+    }
+    for (const f of sc.facets) {
+      const ph = ix.facetPhrases.get(f.id);
+      if (!ph) continue;
+      if (!ph.title || ph.title.length !== f.levels.length) {
+        err(`facet ${f.id}: needs one title per level (${f.levels.length}), has ${ph.title?.length ?? 0}`);
+      }
+      (ph.title ?? []).forEach((t, i) => title(`facet ${f.id} level ${f.levels[i] ?? i + 1} title`, t));
+      ph.requirement.forEach((row, i) => facetRow(cat, f, i, row, err, seenLines, hard));
+    }
+  }
+}
+
+function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Record<ReadingLevel, readonly string[]>>,
+  err: (m: string) => void, seen: Map<string, string>, hard: (where: string, text: string) => void): void {
+  const lv = f.levels[Math.min(i, f.levels.length - 1)];
+  const where = `facet ${f.id} level ${lv}`;
+  const n = row.easy?.length ?? 0;
+  if (READING_LEVELS.some((r) => (row[r]?.length ?? 0) !== n)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
+  const checks = f.check(lv);
+  for (let k = 0; k < n; k++) {
+    const counts = READING_LEVELS.map((r) => (row[r]?.[k] !== undefined ? wordCount(row[r][k]) : 0));
+    if (counts[0] > counts[1] || counts[1] > counts[2]) {
+      err(`${where} row ${k + 1}: words must go Easy <= Medium <= Hard (${counts.join(' / ')})`);
+    }
+  }
+  for (const r of READING_LEVELS) (row[r] ?? []).forEach((line, k) => {
+    const at = `${where} [${r}] row ${k + 1}`;
+    hard(at, line);
+    if (!/^[A-Z0-9].*[.!?]$/.test(line)) err(`${at}: start with a capital and end with . ! or ?: "${line}"`);
+    for (const p of lineProblems(cat, checks, line)) err(`${at}: ${p}: "${line}"`);
+    const prev = seen.get(line.toLowerCase());
+    if (prev) err(`${at}: duplicate line (also ${prev}): "${line}"`);
+    else seen.set(line.toLowerCase(), at);
+  });
 }

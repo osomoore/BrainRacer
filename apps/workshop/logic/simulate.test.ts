@@ -39,8 +39,8 @@ describe('simulate (fixture)', () => {
 });
 
 describe('validateCatalog', () => {
-  it('accepts the fixture', () => {
-    expect(validateCatalog(C)).toEqual([]);
+  it('accepts the fixture (placeholder wording, so the wording rules are off)', () => {
+    expect(validateCatalog(C, { wording: false })).toEqual([]);
   });
   const bad = (patch: Partial<WorkshopCatalog>): string => validateCatalog({ ...C, ...patch }).join('\n');
   it('reports phrase problems', () => {

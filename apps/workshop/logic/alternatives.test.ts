@@ -107,10 +107,10 @@ describe('alternative challenge fixes', () => {
         hard: ['One two three four five six seven eight nine ten eleven twelve thirteen.', 'Stand or use a long neck.'],
       }, ...phrases.requirement.slice(1)],
     } : phrases);
-    expect(validateCatalog({ ...dino, facetPhrases })).toEqual([
+    expect(validateCatalog({ ...dino, facetPhrases })).toEqual(expect.arrayContaining([
       expect.stringContaining('[easy]: guideline exceeds 6 words'),
       expect.stringContaining('[medium]: guideline exceeds 8 words'),
       expect.stringContaining('[hard]: guideline exceeds 12 words'),
-    ]);
+    ]));
   });
 });

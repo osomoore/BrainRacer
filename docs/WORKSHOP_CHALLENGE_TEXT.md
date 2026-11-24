@@ -1,528 +1,472 @@
-# Adventure Workshop: challenge text review
+# Adventure Workshop: challenge text review (regraded after the rework)
 
-For the designer. Review only: no game text or code was changed. Rendered by the real text builder (`apps/workshop/logic/text.ts`, `resolveSpec`) from the phrase banks in `content/race/phrases.ts` and `content/dino/phrases.ts`, plus the scenario and facet checks.
+For the designer. Every row below was rendered by the real text builder (`apps/workshop/logic/text.ts`, `resolveSpec`) from the phrase banks in `content/race/phrases.ts` and `content/dino/phrases.ts`, then graded against the facet checks. The Problems column was graded by script (word limits, row order, part names, hard words, whether the named parts alone solve the level from the default build) and then by hand. The previous review's suggestions were applied, and improved where they still broke a rule.
 
 ## Summary
 
-- **30 challenge families** (15 Race Shop, 15 Dino Lab), **48 requirements** (22 + 26), **224 table rows** (102 + 122: each requirement level has 2 authored lines per reading level), **672 guideline lines** (Easy, Medium, Hard).
-- **150 of 224 rows have at least one flag** (63 of 102 in Race Shop, 87 of 122 in Dino Lab). Word limits (Easy 6, Medium 8, Hard 12) pass everywhere; the validator guarantees that. Nothing is left as an unfilled placeholder: the phrases are plain strings with no part-name templates.
-- How the text reaches the player: the **title is picked at random** from 3 per scenario and is **not tied to the level or to the requirement**. Each reading level also picks its line separately from 2 options. So a title like "Mud Rescue" can sit above a plain grip line, and the A/B rows below are alternatives, not a sequence.
+- **30 challenge families** (15 Race Shop, 15 Dino Lab), **48 requirements** (22 + 26), **224 table rows** (102 + 122: 2 authored rows per requirement level), **672 guideline lines**.
+- **Rows changed: 224 of 224** (672 of 672 lines). Every line was rewritten so it names the fix by the part names shown at the stations; the old text is in the narrow "Was" column.
+- **Titles: all rewritten.** The title is no longer picked at random from 3 per scenario. A stage with one requirement shows that requirement's **level title** (for example Muddy Road, Deep Mud, Very Deep Mud); a stage with two or more requirements shows the scenario's single **stage title**, written to fit every requirement in it (for example Muddy Farm Road). Two stages still join with "&", three or more use "<first> Adventure". No title is shared between the workshops ("Hide and Seek" is gone).
+- **A row is a unit now.** One draw picks row A or B for all three reading levels, so Easy, Medium and Hard on a card always say the same fix. Saved cards keep their stored text.
+- **Remaining flags: 6 rows** (0 Race Shop, 6 Dino Lab), all the same kind: at the top level of a stat, the fix needs four parts, and six Easy words cannot name all four. Medium and Hard name the full fix in those rows. Two of them also use a Leaf Pattern or Tiger Stripes in the desert, which works in the rules but reads oddly.
+  - chase.speed L3 (A): E names only part of the fix (it needs more parts than the word limit allows)
+  - chase.speed L3 (B): E names only part of the fix (it needs more parts than the word limit allows)
+  - rocks.climb L3 (A): E names only part of the fix (it needs more parts than the word limit allows)
+  - rocks.climb L3 (B): E names only part of the fix (it needs more parts than the word limit allows)
+  - desert.hide L3 (A): E names only part of the fix (it needs more parts than the word limit allows); M/H name a Leaf Pattern in the desert: it works (it adds hiding), but reads oddly for sand
+  - desert.hide L3 (B): E names only part of the fix (it needs more parts than the word limit allows); M/H name Tiger Stripes in the desert: it works (it adds hiding), but reads oddly for sand
+- **Now checked by `validateCatalog`** (fails `npm test`): word limits; Easy <= Medium <= Hard word count in each row; every line names a part that helps every check of its level (and every option of an any-of); no duplicate line in a workshop (and none across workshops, in `validateCatalog.test.ts`); no leftover placeholders; no hard words or idioms from the old review (part names are allowed); one title per facet level and one stage title per scenario, all unique, at most 4 words.
 
-### Top 5 problem patterns
+### Style used
 
-1. **The line states the goal or the problem, not the fix** (about 50 rows). Example: "A heavy car will fall through." or "Hide in the ferns." The rule is title = problem, line = fix.
-2. **Hard words or wording for beginners** (about 35 rows): winch, snorkel, floaties, canyon, dunes, flock, shoo, shove, slippery, twisty, zigzag, pebbles in Easy/Medium lines; idioms such as "get a grip", "this hill is a wall".
-3. **Part not named, wrong, or only part of the fix named** (about 26 rows). The shop shows "Teeth", "Claws", "Size", "Push Bumper", "Lift Kit", "Winch", but lines say "mouth", "hands", "strong back", "big body", "a front", "tool", and many two-part requirements (color AND small; big body AND big teeth; winch AND power) name only one part.
-4. **Awkward grammar or odd wording** (about 17 rows): "so bite strong", "tough to bump rocks", "Turn best", "turner", "use long neck".
-5. **Shared title does not fit every requirement** (every multi-requirement family, 10 flagged rows plus family notes), and **duplicate lines** (8 rows: for example "Be strong and push." is Easy for both a tree and a log, "Get a car that turns well." repeats across levels). Also: "Hide and Seek" is a title in both workshops.
+- Part names are written as the stations show them, with capitals: "Get Mud Tires.", "Pick the Small size.", "Get Sky Blue skin." Approved short forms: Rocket, Spoiler, Turbo (Race Shop); stand, wings, Frill, Sandy (Dino Lab).
+- When the fix needs two or three parts and the word limit is tight, Easy uses a short list ("Climbing Gears and a Big Engine.", "Hoppy Legs, Long Tail, Slim Body."). These are noun phrases that answer the title, written to be read like labels.
+- Size words (Small, Tiny, Big, Huge) are the Size station's names, so "the Small size" names a part.
 
 ### Legend
 
-- **Level**: requirement id and difficulty level (L1 = easiest threshold), then A/B = the two authored lines (the player sees one of them per reading level).
-- **Title**: the possible titles of that scenario (listed on the first row of each table only).
-- **Easy / Medium / Hard**: exact line text. Max words 6 / 8 / 12.
-- **Problems**: E, M, H mean the Easy, Medium and Hard line. "Goal, not fix" means the line says what to achieve, not what to build. Automatic checks also flag: over word limit, Easy longer than Medium, Hard shorter than Medium, hard words in Easy/Medium, repeated words, missing end punctuation, duplicates of another line.
-- **Suggested rewrite**: only for flagged rows. Each rewrite follows the rules and the word limits (checked by script). Where a line has no suggestion, the problem is a family-level one (usually the title); see the family note.
-- A blank Problems cell means no problem was found.
+- **Level**: requirement id and level (L1 = easiest), then A/B = the two authored rows (a card shows one row at every reading level).
+- **Title**: the card title for a stage with only this requirement at this level.
+- **Easy / Medium / Hard**: exact text. Max words 6 / 8 / 12.
+- **Problems**: E, M, H = the Easy, Medium and Hard line. Blank = no problem found.
+- **Was**: the old line, only where it changed (old rows A/B were picked separately per reading level).
 
-Part names the player sees. Race Shop: Wheels, Engine, Gears, Springs, Bumper, Paint, Body, Shape, Size, Extra (Winch, Floaties, Snorkel, Rocket Booster, Roof Rack, Big Spoiler). Dino Lab: Color, Head, Teeth, Claws, Legs, Moving, Tail, Body, Size, Extra (Glow Spots, Tiger Stripes, Leaf Pattern, Feathers).
+Part names the player sees. Race Shop: Wheels, Engine, Gears, Springs, Bumper, Paint, Body, Shape, Size, Extra. Dino Lab: Color, Head, Teeth, Claws, Legs, Moving, Tail, Body, Size, Extra.
 
 ## Race Shop
 
-
 ### mud (Deep mud on the farm road)
 
-Titles (one is picked at random per challenge, any level): "Deep Mud", "Muddy Field", "Mud Rescue"
+Two-requirement title: "Muddy Farm Road". Was: "Deep Mud" / "Muddy Field" / "Mud Rescue", picked at random for every level.
 
-Family note: Title "Mud Rescue" only fits the winch requirement; "Deep Mud" does not match level 1 (H: "soft mud"). The Winch is never named.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| mud.grip L1 (A) | Deep Mud / Muddy Field / Mud Rescue | Get wheels that grip mud. | Get something that grips mud well. | Get a part that keeps the car from slipping in mud. | Title "Deep Mud" can show with "soft mud" (H). M says "something": no part named. | M: Get tires that grip mud well.<br>H: Pick wheels with a strong grip for mud. |
-| mud.grip L1 (B) | same | Get wheels that do not slip. | Do not get stuck in the mud. | Pick something with a strong grip for soft mud. | M states the problem, not the fix. H "something" is vague. | M: Get wheels that do not slip.<br>H: Pick wheels with a strong grip for mud. |
-| mud.grip L2 (A) | same | Get wheels with more grip. | Get a lot of grip for deep mud. | Get a part with a very strong grip for deep mud. |  |  |
-| mud.grip L2 (B) | same | Deep mud needs strong grip. | Deep mud needs a very good grip. | Deep, sticky mud needs the best grip you can get. |  |  |
-| mud.grip L3 (A) | same | Get the most grip for mud. | Get the best grip for gooey mud. | Get the strongest grip you can for very deep, gooey mud. | Hard word(s) in E/M: gooey |  |
-| mud.grip L3 (B) | same | This mud needs top grip. | This mud is deep, so grip the most. | Only the best grip will move through this deep mud. | M "so grip the most" is bad grammar. H "will move through" is odd (the car moves, not the grip). | M: This mud is deep. Get the best grip.<br>H: Only the best grip can get through this deep mud. |
-| mud.pull L1 (A) | same | Get a way to pull. | Get a tool to pull the tractor out. | Bring something that can hook and pull a stuck tractor. | No line names the Winch (the only fix). E "a way to pull" and M "a tool" are vague. | E: Get a winch to pull.<br>M: Get a winch to pull the tractor out.<br>H: Bring a winch to hook and pull a stuck tractor. |
-| mud.pull L1 (B) | same | Pull the stuck tractor out. | You need to pull a stuck tractor. | Pick a tool that can pull a tractor out. | E states the goal, not the fix. M and H say "tool", not Winch. | E: Use a winch on the tractor.<br>M: You need a winch to pull the tractor.<br>H: Pick a winch that can pull a tractor out. |
-| mud.pull L2 (A) | same | The tractor is heavy. Get power. | Pull a heavy tractor with power. | A heavy tractor needs a pulling tool and strong power. | Needs Winch AND power, but E and M only say "power". E "Get power" is vague. | E: Get a winch and strong power.<br>M: Get a winch and a strong engine. |
-| mud.pull L2 (B) | same | Pull a heavy tractor with power. | You need a tool and strong power. | Bring a tool to pull and plenty of power. | E repeats M of the row above. M "a tool" is vague (Winch). | E: Get a winch and strong power.<br>M: You need a winch and strong power. |
+| mud.grip L1 (A) | Muddy Road | Get Mud Tires. | Get Mud Tires so you do not slip. | Put on Mud Tires so the wheels grip the soft mud. |  | E: Get wheels that grip mud.<br>M: Get something that grips mud well.<br>H: Get a part that keeps the car from slipping in mud. |
+| mud.grip L1 (B) | Muddy Road | Pick Mud Tires for the mud. | Pick Mud Tires or 4x4 Drive. | Pick Mud Tires or 4x4 Drive to grip the mud. |  | E: Get wheels that do not slip.<br>M: Do not get stuck in the mud.<br>H: Pick something with a strong grip for soft mud. |
+| mud.grip L2 (A) | Deep Mud | Get Mud Tires and a Jeep. | Deep mud needs Mud Tires and a Jeep. | Put Mud Tires on a Jeep so it grips the deep mud. |  | E: Get wheels with more grip.<br>M: Get a lot of grip for deep mud.<br>H: Get a part with a very strong grip for deep mud. |
+| mud.grip L2 (B) | Deep Mud | Use Monster Wheels and a Jeep. | Monster Wheels on a Jeep grip deep mud. | Pick Monster Wheels and a Jeep to get through deep mud. |  | E: Deep mud needs strong grip.<br>M: Deep mud needs a very good grip.<br>H: Deep, sticky mud needs the best grip you can get. |
+| mud.grip L3 (A) | Very Deep Mud | Get Mud Tires and 4x4 Drive. | Deep mud needs Mud Tires and 4x4 Drive. | Mud this deep needs Mud Tires with 4x4 Drive to grip. |  | E: Get the most grip for mud.<br>M: Get the best grip for gooey mud.<br>H: Get the strongest grip you can for very deep, gooey mud. |
+| mud.grip L3 (B) | Very Deep Mud | Use Monster Wheels and 4x4 Drive. | Monster Wheels and 4x4 Drive grip best. | Put on Monster Wheels and 4x4 Drive for this very deep mud. |  | E: This mud needs top grip.<br>M: This mud is deep, so grip the most.<br>H: Only the best grip will move through this deep mud. |
+| mud.pull L1 (A) | Stuck Tractor | Get a Winch to pull. | Get a Winch to pull the tractor out. | Put a Winch on your car to pull the stuck tractor out. |  | E: Get a way to pull.<br>M: Get a tool to pull the tractor out.<br>H: Bring something that can hook and pull a stuck tractor. |
+| mud.pull L1 (B) | Stuck Tractor | Use a Winch on the tractor. | Hook a Winch to the stuck tractor. | Hook your Winch to the tractor and pull it from the mud. |  | E: Pull the stuck tractor out.<br>M: You need to pull a stuck tractor.<br>H: Pick a tool that can pull a tractor out. |
+| mud.pull L2 (A) | Heavy Tractor | Get a Winch and Climbing Gears. | Pull with a Winch and Climbing Gears. | The tractor is heavy, so use a Winch and Climbing Gears. |  | E: The tractor is heavy. Get power.<br>M: Pull a heavy tractor with power.<br>H: A heavy tractor needs a pulling tool and strong power. |
+| mud.pull L2 (B) | Heavy Tractor | A Winch and a Big Engine. | Get a Winch and a Big Engine. | The tractor is heavy, so get a Winch and a Big Engine. |  | E: Pull a heavy tractor with power.<br>M: You need a tool and strong power.<br>H: Bring a tool to pull and plenty of power. |
 
 ### jump (Ramp jump over a gap)
 
-Titles (one is picked at random per challenge, any level): "Long Jump", "Big Ramp", "Canyon Leap"
+Two-requirement title: "Ramp Jump". Was: "Long Jump" / "Big Ramp" / "Canyon Leap", picked at random for every level.
 
-Family note: Titles do not fit both requirements: "Big Ramp" and "Canyon Leap" suit speed, none suits the landing lines.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| jump.speed L1 (A) | Long Jump / Big Ramp / Canyon Leap | Go fast to jump the gap. | Go fast enough to jump the gap. | Your car needs enough speed to fly over the gap. | E and M say the goal (go fast), not a fix part (Gears, Engine, Rocket). |  |
-| jump.speed L1 (B) | same | Get speed for the jump. | Get speed to fly over the gap. | Go fast so you do not land short. |  |  |
-| jump.speed L2 (A) | same | Long gap. Go very fast. | Go very fast to jump the long gap. | Your car must be very fast to jump the long gap. |  |  |
-| jump.speed L2 (B) | same | A long jump needs more speed. | A long gap needs a very fast car. | The gap is long, so you need a lot of speed. |  |  |
-| jump.speed L3 (A) | same | Huge gap. Go super fast. | Get top speed to jump the huge gap. | Go as fast as you can to jump the huge gap. |  |  |
-| jump.speed L3 (B) | same | Get the most speed. | Go super fast to cross the big gap. | Only the fastest car can jump this big gap. | M says "big gap" but this level is "huge gap". | M: Go super fast to cross the huge gap. |
-| jump.landing L1 (A) | same | Get springs for a soft landing. | Land soft after the big jump. | Your car must land soft after the jump. | M says the goal (land soft), not the fix. | M: Get springs to land soft. |
-| jump.landing L1 (B) | same | Land soft, not with a bump. | Make the landing soft, not hard. | Pick a part that makes the landing soft. | E and M state the goal, not the fix. | E: Get springs to land soft.<br>M: Get springs for a soft landing. |
-| jump.landing L2 (A) | same | Big drop! Land very soft. | The drop is big, so land very soft. | The drop is high, so make the landing very soft. | "Big drop!" does not match the shared titles (Big Ramp, Canyon Leap...). |  |
-| jump.landing L2 (B) | same | Get springs that are very soft. | Make a very soft landing from up high. | Pick a part that makes a very soft landing. | "Springs that are very soft" points at Soft Springs, the weak part (the fix is Bouncy Springs). | E: Get very bouncy springs.<br>M: Get very bouncy springs for the drop. |
+| jump.speed L1 (A) | Jump the Gap | Get Speed Gears to go fast. | Get Speed Gears to jump the gap. | Put in Speed Gears so your car goes fast enough to jump. |  | E: Go fast to jump the gap.<br>M: Go fast enough to jump the gap.<br>H: Your car needs enough speed to fly over the gap. |
+| jump.speed L1 (B) | Jump the Gap | Use a Rocket Booster to jump. | A Rocket Booster gets you over the gap. | Use a Rocket Booster to fly fast over the gap. |  | E: Get speed for the jump.<br>M: Get speed to fly over the gap.<br>H: Go fast so you do not land short. |
+| jump.speed L2 (A) | Long Gap | Use Speed Gears and a Rocket. | Get Speed Gears and a Rocket Booster. | The gap is long, so get Speed Gears and a Rocket Booster. |  | E: Long gap. Go very fast.<br>M: Go very fast to jump the long gap.<br>H: Your car must be very fast to jump the long gap. |
+| jump.speed L2 (B) | Long Gap | Get a Sleek Sports Car. | A Sleek Sports Car can jump this gap. | Pick a Sports Car with a Sleek shape for the long gap. |  | E: A long jump needs more speed.<br>M: A long gap needs a very fast car.<br>H: The gap is long, so you need a lot of speed. |
+| jump.speed L3 (A) | Huge Gap | Turbo Engine, Rocket, Speed Gears. | Add Speed Gears, Turbo Engine, and Rocket. | Use Speed Gears, a Turbo Engine, and a Rocket Booster. |  | E: Huge gap. Go super fast.<br>M: Get top speed to jump the huge gap.<br>H: Go as fast as you can to jump the huge gap. |
+| jump.speed L3 (B) | Huge Gap | A Sleek Sports Car with Turbo. | A Sleek Sports Car with a Turbo Engine. | Pick a Sleek Sports Car with a Turbo Engine for this gap. |  | E: Get the most speed.<br>M: Go super fast to cross the big gap.<br>H: Only the fastest car can jump this big gap. |
+| jump.landing L1 (A) | Hard Landing | Get Bouncy Springs to land. | Get Bouncy Springs for a soft landing. | Put in Bouncy Springs so the car lands soft after the jump. |  | E: Get springs for a soft landing.<br>M: Land soft after the big jump.<br>H: Your car must land soft after the jump. |
+| jump.landing L1 (B) | Hard Landing | Land soft with Bouncy Springs. | Bouncy Springs make the landing soft. | Pick Bouncy Springs so the landing is soft, not a bump. |  | E: Land soft, not with a bump.<br>M: Make the landing soft, not hard.<br>H: Pick a part that makes the landing soft. |
+| jump.landing L2 (A) | Big Drop | Get Bouncy Springs and Monster Wheels. | Land soft on Bouncy Springs and Monster Wheels. | The drop is big, so get Bouncy Springs and Monster Wheels. |  | E: Big drop! Land very soft.<br>M: The drop is big, so land very soft.<br>H: The drop is high, so make the landing very soft. |
+| jump.landing L2 (B) | Big Drop | Use Bouncy Springs and Rubber Bumpers. | Land on Bouncy Springs and Rubber Bumpers. | Pick Bouncy Springs and Rubber Bumpers to land soft from up high. |  | E: Get springs that are very soft.<br>M: Make a very soft landing from up high.<br>H: Pick a part that makes a very soft landing. |
 
 ### turn (Sharp turns (top view))
 
-Titles (one is picked at random per challenge, any level): "Sharp Turn", "Twisty Road", "Zigzag Track"
+Two-requirement title: "Corners Ahead" (never shown: one requirement only). Was: "Sharp Turn" / "Twisty Road" / "Zigzag Track", picked at random for every level.
 
-Family note: "Twisty Road" and "Zigzag Track" only fit levels 2-3; level 1 is a "sharp corner". The title is picked at random, not by level.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| turn.handling L1 (A) | Sharp Turn / Twisty Road / Zigzag Track | Get springs that help you turn. | Turn the sharp corner without a slide. | Your car must turn the sharp corner without sliding. |  |  |
-| turn.handling L1 (B) | same | Turn fast without a slide. | Get a car that turns well. | Pick a part that helps the car turn well. | E states the goal. M is repeated as E of level 2. |  |
-| turn.handling L2 (A) | same | The road twists. Turn well. | The road twists, so turn very well. | The road has many turns, so your car must turn well. | H "help with turn after turn" is awkward. | H: Pick a part that helps in every turn. |
-| turn.handling L2 (B) | same | Get a car that turns well. | Turn many corners without a slide. | Pick a part that helps with turn after turn. | E repeats M of level 1 ("Get a car that turns well."). No part named. H "turn after turn" is awkward. | E: Get springs that turn very well.<br>H: Pick a part that helps in every turn. |
-| turn.handling L3 (A) | same | Super twisty road! Turn best. | The road is super twisty. Turn best. | Turn as well as you can on this very twisty road. | E "Turn best" is bad grammar. Hard word(s) in E/M: twisty | E: Super twisty! Get top turning.<br>M: The road is super twisty. Turn the best. |
-| turn.handling L3 (B) | same | Turn super well. | Zigzag with no slide at all. | Only the best turner can zigzag along this road. | H "best turner" is awkward. E is a goal, not a fix. Hard word(s) in E/M: zigzag | E: Get the best springs for turning.<br>H: Only the best turning car can zigzag here. |
+| turn.handling L1 (A) | Sharp Turn | Get Sport Springs to turn. | Get Sport Springs to turn without a slide. | Put in Sport Springs so the car turns without a slide. |  | E: Get springs that help you turn.<br>M: Turn the sharp corner without a slide.<br>H: Your car must turn the sharp corner without sliding. |
+| turn.handling L1 (B) | Sharp Turn | Use Racing Tires to turn. | Racing Tires help you take the sharp turn. | Pick Racing Tires or a Big Spoiler to take the sharp turn. |  | E: Turn fast without a slide.<br>M: Get a car that turns well.<br>H: Pick a part that helps the car turn well. |
+| turn.handling L2 (A) | Many Turns | Get Sport Springs and Racing Tires. | Get Sport Springs and Racing Tires for turns. | Many turns are coming, so get Sport Springs and Racing Tires. |  | E: The road twists. Turn well.<br>M: The road twists, so turn very well.<br>H: The road has many turns, so your car must turn well. |
+| turn.handling L2 (B) | Many Turns | Use Sport Springs and a Spoiler. | Use Sport Springs and a Big Spoiler. | Pick Sport Springs and a Big Spoiler for all the turns. |  | E: Get a car that turns well.<br>M: Turn many corners without a slide.<br>H: Pick a part that helps with turn after turn. |
+| turn.handling L3 (A) | Super Tight Turns | Sport Springs, Racing Tires, Big Spoiler. | Add Sport Springs, Racing Tires, and a Spoiler. | Use Sport Springs, Racing Tires, and a Big Spoiler for tight turns. |  | E: Super twisty road! Turn best.<br>M: The road is super twisty. Turn best.<br>H: Turn as well as you can on this very twisty road. |
+| turn.handling L3 (B) | Super Tight Turns | Sport Springs, Racing Tires, Tiny size. | Add Sport Springs, Racing Tires, and Tiny size. | Pick Sport Springs, Racing Tires, and Tiny size for super tight turns. |  | E: Turn super well.<br>M: Zigzag with no slide at all.<br>H: Only the best turner can zigzag along this road. |
 
 ### hill (Steep hill climb)
 
-Titles (one is picked at random per challenge, any level): "Steep Hill", "Mountain Climb", "Up, Up, Up"
+Two-requirement title: "Hill Climb" (never shown: one requirement only). Was: "Steep Hill" / "Mountain Climb" / "Up, Up, Up", picked at random for every level.
 
-Family note: Titles fine. "Up, Up, Up" has commas in a title.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| hill.power L1 (A) | Steep Hill / Mountain Climb / Up, Up, Up | Get an engine for the hill. | Get power to climb the steep hill. | Your car needs power to climb the steep hill. |  |  |
-| hill.power L1 (B) | same | Climb the hill with power. | The hill is steep, so get power. | Pick a part with strong power for the hill. |  |  |
-| hill.power L2 (A) | same | Steep hill. Get much more power. | Get lots of power for the steep hill. | A very steep hill needs a lot of power. | E "much more power" is clumsy. | E: Steep hill. Get lots more power. |
-| hill.power L2 (B) | same | Get lots of power. | The hill is very steep. Be strong. | Pick a part with much more power for this hill. | M "Be strong" is vague and sounds like Tough (rocks challenge). | M: The hill is steep. Get lots of power. |
-| hill.power L3 (A) | same | Huge hill! Get top power. | Get the most power for the steepest hill. | Get the most power you can to climb this very steep hill. | H is the same as M, just longer. "Huge hill" vs "steepest hill". |  |
-| hill.power L3 (B) | same | Be super strong. | This hill is a wall, so be strong. | Only the strongest car can climb this hill. | "strong" means power here but toughness elsewhere. M "a wall" is an idiom. | E: Get the most power.<br>M: This hill is very steep. Get top power.<br>H: Only the car with the most power can climb this hill. |
+| hill.power L1 (A) | Steep Hill | Get a Big Engine to climb. | Get a Big Engine to climb the hill. | Put in a Big Engine so the car can climb the hill. |  | E: Get an engine for the hill.<br>M: Get power to climb the steep hill.<br>H: Your car needs power to climb the steep hill. |
+| hill.power L1 (B) | Steep Hill | Use Climbing Gears for the hill. | Climbing Gears give power to go up. | Pick Climbing Gears or a Big Engine to climb the steep hill. |  | E: Climb the hill with power.<br>M: The hill is steep, so get power.<br>H: Pick a part with strong power for the hill. |
+| hill.power L2 (A) | Very Steep Hill | Climbing Gears and a Big Engine. | Get Climbing Gears and a Big Engine. | A very steep hill needs Climbing Gears and a Big Engine. |  | E: Steep hill. Get much more power.<br>M: Get lots of power for the steep hill.<br>H: A very steep hill needs a lot of power. |
+| hill.power L2 (B) | Very Steep Hill | Climbing Gears and a Turbo Engine. | Use Climbing Gears and a Turbo Engine. | Pick Climbing Gears and a Turbo Engine for lots of power. |  | E: Get lots of power.<br>M: The hill is very steep. Be strong.<br>H: Pick a part with much more power for this hill. |
+| hill.power L3 (A) | Super Steep Hill | Big Engine with Climbing Gears. | Get a Big Engine with Climbing Gears. | A super steep hill needs a Big Engine with Climbing Gears. |  | E: Huge hill! Get top power.<br>M: Get the most power for the steepest hill.<br>H: Get the most power you can to climb this very steep hill. |
+| hill.power L3 (B) | Super Steep Hill | Top power: Big Engine, Climbing Gears. | Put a Big Engine and Climbing Gears together. | Use a Turbo Engine, Climbing Gears, and a Jeep for top power. |  | E: Be super strong.<br>M: This hill is a wall, so be strong.<br>H: Only the strongest car can climb this hill. |
 
 ### fog (Foggy road, ducks waiting to cross)
 
-Titles (one is picked at random per challenge, any level): "Foggy Road", "Thick Fog", "Duck Crossing"
+Two-requirement title: "Fog and Ducks" (never shown: one requirement only). Was: "Foggy Road" / "Thick Fog" / "Duck Crossing", picked at random for every level.
 
-Family note: Good: title = problem, line = fix. One level only.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| fog.bright L1 (A) | Foggy Road / Thick Fog / Duck Crossing | Get bright paint. | Make the car bright so ducks see it. | Pick a bright color so the ducks can see your car. |  |  |
-| fog.bright L1 (B) | same | Paint the car bright. | Pick a color ducks can see in fog. | A dull car hides in fog, so make it bright. |  |  |
+| fog.bright L1 (A) | Foggy Road | Paint it Bright Yellow. | Use Bright Yellow so the ducks see you. | Pick Bright Yellow paint so the ducks can see you in fog. |  | E: Get bright paint.<br>M: Make the car bright so ducks see it.<br>H: Pick a bright color so the ducks can see your car. |
+| fog.bright L1 (B) | Foggy Road | Use Fire Red or Rainbow paint. | Bright paint like Fire Red or Rainbow works. | Pick a bright paint, like Fire Red or Rainbow, for the fog. |  | E: Paint the car bright.<br>M: Pick a color ducks can see in fog.<br>H: A dull car hides in fog, so make it bright. |
 
 ### lowBridge (Low bridge)
 
-Titles (one is picked at random per challenge, any level): "Low Bridge", "Duck Under", "Squeeze Under"
+Two-requirement title: "Bridge Ahead" (never shown: one requirement only). Was: "Low Bridge" / "Duck Under" / "Squeeze Under", picked at random for every level.
 
-Family note: "Duck Under" can be misread (ducks appear in Foggy Road). "Squeeze Under" suits narrow.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| lowBridge.height L1 (A) | Low Bridge / Duck Under / Squeeze Under | Make the car short to fit. | Make the car short to fit under. | Your car must be short enough to go under the bridge. |  |  |
-| lowBridge.height L1 (B) | same | The bridge is low. Be short. | Get low to go under the bridge. | Make sure nothing on the car is too tall. | H is a negative ("nothing too tall"), not a fix. | H: Pick parts that keep the car short. |
-| lowBridge.height L2 (A) | same | Very low bridge. Be very short. | The bridge is very low. Be very short. | The bridge is very low, so make your car very short. |  |  |
-| lowBridge.height L2 (B) | same | Get a very short car. | Make the car very short and flat. | Take off anything tall so the car fits under. | H "Take off" is not possible (the player swaps parts). | H: Pick short parts so the car fits under. |
-| lowBridge.height L3 (A) | same | Low gap! Be the shortest. | Make the car as short as you can. | Make your car as short and flat as it can be. | E says "gap" but the title says bridge. "Be the shortest" is odd. | E: Very low! Get the shortest car. |
-| lowBridge.height L3 (B) | same | Get the shortest car. | Get the lowest car to fit under. | Only the lowest car can fit under this bridge. | "lowest car" is odd; low/short are mixed. | M: Get the shortest car to fit under.<br>H: Only the shortest car can fit under this bridge. |
+| lowBridge.height L1 (A) | Low Bridge | Get the Small size. | Pick the Small size to fit under. | Make your car the Small size so it fits under the bridge. |  | E: Make the car short to fit.<br>M: Make the car short to fit under.<br>H: Your car must be short enough to go under the bridge. |
+| lowBridge.height L1 (B) | Low Bridge | Get a Sports Car to fit. | A low Sports Car fits under the bridge. | Pick a Sports Car or Sleek shape to fit under the bridge. |  | E: The bridge is low. Be short.<br>M: Get low to go under the bridge.<br>H: Make sure nothing on the car is too tall. |
+| lowBridge.height L2 (A) | Very Low Bridge | Get the Tiny size. | Pick the Tiny size to fit under. | The bridge is very low, so make your car the Tiny size. |  | E: Very low bridge. Be very short.<br>M: The bridge is very low. Be very short.<br>H: The bridge is very low, so make your car very short. |
+| lowBridge.height L2 (B) | Very Low Bridge | Small size and a Sports Car. | Get a Sports Car in the Small size. | Pick a Small Sports Car so it fits under this low bridge. |  | E: Get a very short car.<br>M: Make the car very short and flat.<br>H: Take off anything tall so the car fits under. |
+| lowBridge.height L3 (A) | Super Low Bridge | Get a Tiny Sports Car. | Pick a Tiny Sports Car to fit under. | A Tiny Sports Car can fit under this super low bridge. |  | E: Low gap! Be the shortest.<br>M: Make the car as short as you can.<br>H: Make your car as short and flat as it can be. |
+| lowBridge.height L3 (B) | Super Low Bridge | Tiny size and a Sleek shape. | Use the Tiny size and a Sleek shape. | Pick the Tiny size and a Sleek shape to fit under. |  | E: Get the shortest car.<br>M: Get the lowest car to fit under.<br>H: Only the lowest car can fit under this bridge. |
 
 ### narrow (Narrow alley between trees (top view))
 
-Titles (one is picked at random per challenge, any level): "Narrow Path", "Skinny Alley", "Between the Trees"
+Two-requirement title: "Tree Path" (never shown: one requirement only). Was: "Narrow Path" / "Skinny Alley" / "Between the Trees", picked at random for every level.
 
-Family note: Lines mix "thin", "small", "path" and "gap"; shop part names are Small and Tiny.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| narrow.width L1 (A) | Narrow Path / Skinny Alley / Between the Trees | Get a thin car to fit. | Make the car thin to fit through. | Your car must be thin enough to go through the gap. |  |  |
-| narrow.width L1 (B) | same | The path is thin. Be small. | Go through the thin gap. | A wide car gets stuck, so make yours thin. | E mixes "thin" and "small" (the check is width). M states the goal, not the fix, and says "gap" while the title says path. Easy longer than Medium | E: Thin path. Get a thin car.<br>M: Make the car thin for the narrow path. |
-| narrow.width L2 (A) | same | Very thin path. Be very thin. | The gap is very thin. Be very thin. | The gap is very thin, so make your car very thin. | E repeats "very thin" (repeated word). | E: Thin path. Be very thin. |
-| narrow.width L2 (B) | same | Get the thinnest car. | Make the car very small to fit. | Only a very thin car can go through here. | M uses "small" where the stat is width (thin). | M: Make the car very thin to fit. |
+| narrow.width L1 (A) | Narrow Path | Pick the Small size to fit. | Make the car thin with the Small size. | Pick the Small size so the car fits the narrow path. |  | E: Get a thin car to fit.<br>M: Make the car thin to fit through.<br>H: Your car must be thin enough to go through the gap. |
+| narrow.width L1 (B) | Narrow Path | Get a thin, Sleek shape. | A Sleek shape makes the car thin. | Pick a Sleek shape so your car can fit between the trees. |  | E: The path is thin. Be small.<br>M: Go through the thin gap.<br>H: A wide car gets stuck, so make yours thin. |
+| narrow.width L2 (A) | Very Narrow Path | Pick the Tiny size to fit. | Make the car very thin with Tiny size. | The path is very narrow, so make your car the Tiny size. |  | E: Very thin path. Be very thin.<br>M: The gap is very thin. Be very thin.<br>H: The gap is very thin, so make your car very thin. |
+| narrow.width L2 (B) | Very Narrow Path | Small size and a Sleek shape. | Get the Small size and a Sleek shape. | Pick the Small size and a Sleek shape for this path. |  | E: Get the thinnest car.<br>M: Make the car very small to fit.<br>H: Only a very thin car can go through here. |
 
 ### delivery (Heavy delivery)
 
-Titles (one is picked at random per challenge, any level): "Big Delivery", "Delivery Day", "Box Hauler"
+Two-requirement title: "Heavy Delivery". Was: "Big Delivery" / "Delivery Day" / "Box Hauler", picked at random for every level.
 
-Family note: Title "Big Delivery" fits load only. Power lines mention a ramp.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| delivery.load L1 (A) | Big Delivery / Delivery Day / Box Hauler | Get room for lots of boxes. | Make room to carry many boxes. | Your car needs room to carry many boxes. |  |  |
-| delivery.load L1 (B) | same | Carry boxes to the shop. | The car must carry a big load. | Pick a car with space for a big load. | E is a goal, not a fix. | E: Get a car with more room. |
-| delivery.load L2 (A) | same | Carry a very big load. | Make lots of room for the boxes. | The pile of boxes is very big, so you need much room. | E is a goal, not a fix. | E: Get a car with more room. |
-| delivery.load L2 (B) | same | Get lots of room. | The pile of boxes is very big. | Pick a car with lots of space in the back. | M states the problem, not the fix. | M: Get a car with lots of room. |
-| delivery.load L3 (A) | same | Carry the biggest load! | Get the most room you can for boxes. | Get as much room as you can for this giant load. |  |  |
-| delivery.load L3 (B) | same | Get the most room. | The load is giant, so make room. | Only a car with the most space can carry it all. |  |  |
-| delivery.power L1 (A) | same | The boxes are heavy. Get power. | The boxes are heavy, so get power. | Heavy boxes need a car with strong power. |  |  |
-| delivery.power L1 (B) | same | Heavy boxes need a strong engine. | Get strong power to pull a heavy load. | Pick a part with enough power for the ramp. | H mentions "the ramp", which is not in this challenge. | H: Pick a part with enough power for the load. |
+| delivery.load L1 (A) | Box Delivery | Get a Pickup Truck for boxes. | Get a Pickup Truck with room for boxes. | Pick a Pickup Truck so there is room for all the boxes. |  | E: Get room for lots of boxes.<br>M: Make room to carry many boxes.<br>H: Your car needs room to carry many boxes. |
+| delivery.load L1 (B) | Box Delivery | Use a Van to carry boxes. | A Van has lots of room for boxes. | Pick a Van or the Big size to make room for boxes. |  | E: Carry boxes to the shop.<br>M: The car must carry a big load.<br>H: Pick a car with space for a big load. |
+| delivery.load L2 (A) | Big Delivery | Get a Van. It holds more. | Get a Van to carry this big load. | This load is big, so get a Van with lots of room. |  | E: Carry a very big load.<br>M: Make lots of room for the boxes.<br>H: The pile of boxes is very big, so you need much room. |
+| delivery.load L2 (B) | Big Delivery | Pickup Truck and Big size. | Get a Pickup Truck in the Big size. | Pick a Big Pickup Truck to carry this big load. |  | E: Get lots of room.<br>M: The pile of boxes is very big.<br>H: Pick a car with lots of space in the back. |
+| delivery.load L3 (A) | Giant Delivery | Get a Big Van. | Get a Van in the Big size. | Only a Van in the Big size can carry this giant load. |  | E: Carry the biggest load!<br>M: Get the most room you can for boxes.<br>H: Get as much room as you can for this giant load. |
+| delivery.load L3 (B) | Giant Delivery | A Big Van holds the most. | Pick a Big Van for the giant load. | Get a Van in the Big size so every box fits. |  | E: Get the most room.<br>M: The load is giant, so make room.<br>H: Only a car with the most space can carry it all. |
+| delivery.power L1 (A) | Heavy Boxes | Get a Big Engine for boxes. | Get a Big Engine to pull heavy boxes. | Heavy boxes need power, so put in a Big Engine. |  | E: The boxes are heavy. Get power.<br>M: The boxes are heavy, so get power.<br>H: Heavy boxes need a car with strong power. |
+| delivery.power L1 (B) | Heavy Boxes | Use Climbing Gears for power. | Climbing Gears give power for the heavy load. | Pick Climbing Gears or a Turbo Engine to carry the heavy load. |  | E: Heavy boxes need a strong engine.<br>M: Get strong power to pull a heavy load.<br>H: Pick a part with enough power for the ramp. |
 
 ### snow (Snowy mountain pass)
 
-Titles (one is picked at random per challenge, any level): "Snowy Pass", "Snow Day", "Icy Road"
+Two-requirement title: "Snowy Pass" (never shown: one requirement only). Was: "Snowy Pass" / "Snow Day" / "Icy Road", picked at random for every level.
 
-Family note: Titles "Icy Road" and "Snow Day" do not match the level (L1 snow, L3 ice).
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| snow.grip L1 (A) | Snowy Pass / Snow Day / Icy Road | Get wheels that grip snow. | Get a grip so you do not slide. | Pick a part that grips the road in snow. | M "Get a grip" is an idiom and unclear. Wheels not named. | M: Get tires that grip the snow. |
-| snow.grip L1 (B) | same | Do not slide on snow. | Drive on snow without a slide. | Your car must not slide on the snowy road. | E states the problem, M the goal. Neither is a fix. Title "Icy Road" does not fit snow at this level. | E: Get wheels that grip snow.<br>M: Get tires that grip the snow. |
-| snow.grip L2 (A) | same | Deep snow! Get more grip. | Get a lot of grip for deep snow. | Pick a part with a strong grip for deep snow. |  |  |
-| snow.grip L2 (B) | same | Get wheels for deep snow. | Drive through deep snow without a slide. | Deep snow is slippery, so you need more grip. | H says deep snow is slippery (ice is). | H: Deep snow is hard to drive in, so get more grip. |
-| snow.grip L3 (A) | same | Snow and ice! Get top grip. | Get the best grip for snow and ice. | Get the best grip you can for deep snow and ice. |  |  |
-| snow.grip L3 (B) | same | Ice is slippery. Get top grip. | Ice is very slippery, so grip the most. | Only the strongest grip will work on this icy road. | H "strongest grip" is odd (best grip). Hard word(s) in E/M: slippery | H: Only the best grip will work on this icy road. |
+| snow.grip L1 (A) | Snowy Road | Get Snow Tires. | Get Snow Tires so you do not slide. | Put on Snow Tires so the wheels grip the snowy road. |  | E: Get wheels that grip snow.<br>M: Get a grip so you do not slide.<br>H: Pick a part that grips the road in snow. |
+| snow.grip L1 (B) | Snowy Road | Use 4x4 Drive in the snow. | Snow Tires or 4x4 Drive will grip snow. | Pick Snow Tires or 4x4 Drive so the car does not slide. |  | E: Do not slide on snow.<br>M: Drive on snow without a slide.<br>H: Your car must not slide on the snowy road. |
+| snow.grip L2 (A) | Deep Snow | Get Snow Tires for deep snow. | Deep snow needs Snow Tires to grip. | Put on Snow Tires so your car can get through deep snow. |  | E: Deep snow! Get more grip.<br>M: Get a lot of grip for deep snow.<br>H: Pick a part with a strong grip for deep snow. |
+| snow.grip L2 (B) | Deep Snow | Snow Tires grip deep snow. | Pick Snow Tires to drive in deep snow. | Pick Snow Tires so the car can drive through deep snow. |  | E: Get wheels for deep snow.<br>M: Drive through deep snow without a slide.<br>H: Deep snow is slippery, so you need more grip. |
+| snow.grip L3 (A) | Snow and Ice | Snow Tires and 4x4 Drive. | Get Snow Tires and 4x4 Drive for ice. | Snow and ice need both Snow Tires and 4x4 Drive. |  | E: Snow and ice! Get top grip.<br>M: Get the best grip for snow and ice.<br>H: Get the best grip you can for deep snow and ice. |
+| snow.grip L3 (B) | Snow and Ice | Get Snow Tires and a Jeep. | Put Snow Tires on a Jeep for ice. | Pick a Jeep with Snow Tires to grip the snow and ice. |  | E: Ice is slippery. Get top grip.<br>M: Ice is very slippery, so grip the most.<br>H: Only the strongest grip will work on this icy road. |
 
 ### rocks (Rocky forest trail)
 
-Titles (one is picked at random per challenge, any level): "Rocky Road", "Bumpy Trail", "Forest Trail"
+Two-requirement title: "Rocky Trail". Was: "Rocky Road" / "Bumpy Trail" / "Forest Trail", picked at random for every level.
 
-Family note: One title covers three different requirements (tough, lift, push a log). Mixes "strong" and "tough".
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| rocks.tough L1 (A) | Rocky Road / Bumpy Trail / Forest Trail | Get a tough car for rocks. | Make the car tough to bump rocks. | Your car must be tough enough for a rocky road. | M "tough to bump rocks" is bad grammar. | M: Make the car tough for rocks. |
-| rocks.tough L1 (B) | same | Get strong bumpers for rocks. | The road is rocky, so be tough. | Pick parts that can take bumps from rocks. |  |  |
-| rocks.tough L2 (A) | same | Lots of rocks! Be more tough. | Get a very tough car for big rocks. | Many big rocks need a car that is very tough. | E "be more tough" is bad grammar (tougher). | E: Lots of rocks! Be tougher. |
-| rocks.tough L2 (B) | same | Get a very tough car. | The rocks are big, so be tough. | Pick parts that can take bump after bump. |  |  |
-| rocks.tough L3 (A) | same | The rockiest road! Be the toughest. | Get the toughest car for giant rocks. | Make your car as tough as you can for giant rocks. |  |  |
-| rocks.tough L3 (B) | same | Get a super tough car. | Giant rocks need a super strong car. | Only the toughest car will get past these rocks. | M mixes "strong" and "tough" (stat is toughness). | M: Giant rocks need a super tough car. |
-| rocks.clearance L1 (A) | same | Ride high over the rocks. | Ride high so rocks go under. | Your car must ride high so rocks go underneath. |  |  |
-| rocks.clearance L1 (B) | same | Lift the car up. | Get space under the car. | Lift your car up to go over the rocks. | Does not name the part that lifts (Lift Kit). | E: Get a lift kit. |
-| rocks.clearance L2 (A) | same | Big rocks! Ride very high. | Ride very high over the huge rocks. | Huge rocks need a car that rides very high. |  |  |
-| rocks.clearance L2 (B) | same | Lift the car way up. | Get lots of space under the car. | Lift your car up a lot to pass over them. |  |  |
-| rocks.log L1 (A) | same | Push the log off the road. | Push the log out of the way. | Your car must push the log off the road. |  |  |
-| rocks.log L1 (B) | same | Get a front that can push. | The car must push a big log. | Pick a strong front that can push a log. | E "a front" is vague (part is Push Bumper). M and H "front" is not a part name. | E: Get a push bumper.<br>M: Use a push bumper on the log.<br>H: Pick a push bumper that can move a log. |
-| rocks.log L2 (A) | same | A giant log! Push hard. | Push hard to move the huge log. | The log is huge, so your car must push very hard. | "giant" and "huge" log are mixed within the same level. |  |
-| rocks.log L2 (B) | same | Push the huge log. | The log is giant, so push hard. | Pick a strong front that can move a giant log. | E "Push the huge log" is a goal; "huge" vs "giant" mix. | E: Get a push bumper. |
+| rocks.tough L1 (A) | Bumpy Rocks | Get Rubber Bumpers for rocks. | Get Rubber Bumpers to bump off the rocks. | Put on Rubber Bumpers so the rocks just bounce off. |  | E: Get a tough car for rocks.<br>M: Make the car tough to bump rocks.<br>H: Your car must be tough enough for a rocky road. |
+| rocks.tough L1 (B) | Bumpy Rocks | Use Big Bumpers on rocks. | Big Bumpers make the car tough. | Pick Big Bumpers or a Jeep so the car is tough enough. |  | E: Get strong bumpers for rocks.<br>M: The road is rocky, so be tough.<br>H: Pick parts that can take bumps from rocks. |
+| rocks.tough L2 (A) | Big Rocks | Rubber Bumpers and a Jeep. | Get Rubber Bumpers and a Jeep for rocks. | Big rocks need a tough Jeep with Rubber Bumpers. |  | E: Lots of rocks! Be more tough.<br>M: Get a very tough car for big rocks.<br>H: Many big rocks need a car that is very tough. |
+| rocks.tough L2 (B) | Big Rocks | Get Big Bumpers and a Jeep. | Put Big Bumpers on a tough Jeep. | Pick Big Bumpers and Monster Wheels to roll over big rocks. |  | E: Get a very tough car.<br>M: The rocks are big, so be tough.<br>H: Pick parts that can take bump after bump. |
+| rocks.tough L3 (A) | Giant Rocks | Jeep, Rubber Bumpers, Monster Wheels. | Get a Jeep, Rubber Bumpers, and Monster Wheels. | Giant rocks need a Jeep, Rubber Bumpers, and Monster Wheels. |  | E: The rockiest road! Be the toughest.<br>M: Get the toughest car for giant rocks.<br>H: Make your car as tough as you can for giant rocks. |
+| rocks.tough L3 (B) | Giant Rocks | Rubber Bumpers, Monster Wheels, Round shape. | Monster Wheels, Rubber Bumpers, and Round shape. | Pick Rubber Bumpers, Monster Wheels, and a Round shape for giant rocks. |  | E: Get a super tough car.<br>M: Giant rocks need a super strong car.<br>H: Only the toughest car will get past these rocks. |
+| rocks.clearance L1 (A) | Tall Rocks | Get a Lift Kit. | Get a Lift Kit to ride up high. | Put on a Lift Kit so the car rides over the rocks. |  | E: Ride high over the rocks.<br>M: Ride high so rocks go under.<br>H: Your car must ride high so rocks go underneath. |
+| rocks.clearance L1 (B) | Tall Rocks | Use Monster Wheels to ride high. | Monster Wheels lift the car over rocks. | Pick Monster Wheels or a Jeep to ride high over the rocks. |  | E: Lift the car up.<br>M: Get space under the car.<br>H: Lift your car up to go over the rocks. |
+| rocks.clearance L2 (A) | Very Tall Rocks | A Jeep with a Lift Kit. | Put a Lift Kit on a Jeep. | Put a Lift Kit on a Jeep to ride over tall rocks. |  | E: Big rocks! Ride very high.<br>M: Ride very high over the huge rocks.<br>H: Huge rocks need a car that rides very high. |
+| rocks.clearance L2 (B) | Very Tall Rocks | Lift Kit and Monster Wheels. | Get a Lift Kit and Monster Wheels. | Pick a Lift Kit and Monster Wheels to ride very high. |  | E: Lift the car way up.<br>M: Get lots of space under the car.<br>H: Lift your car up a lot to pass over them. |
+| rocks.log L1 (A) | Log on the Road | Get a Push Bumper. | Get a Push Bumper to move the log. | Put on a Push Bumper so your car can push the log. |  | E: Push the log off the road.<br>M: Push the log out of the way.<br>H: Your car must push the log off the road. |
+| rocks.log L1 (B) | Log on the Road | A Push Bumper moves logs. | Use a Push Bumper on the big log. | Pick a Push Bumper to push the log off the road. |  | E: Get a front that can push.<br>M: The car must push a big log.<br>H: Pick a strong front that can push a log. |
+| rocks.log L2 (A) | Huge Log | Push Bumper and a Wedge shape. | Get a Push Bumper and a Wedge shape. | A huge log needs a Push Bumper and a Wedge shape. |  | E: A giant log! Push hard.<br>M: Push hard to move the huge log.<br>H: The log is huge, so your car must push very hard. |
+| rocks.log L2 (B) | Huge Log | Push Bumper and a Winch. | Use a Push Bumper and a Winch. | Pick a Push Bumper and a Winch to move the huge log. |  | E: Push the huge log.<br>M: The log is giant, so push hard.<br>H: Pick a strong front that can move a giant log. |
 
 ### river (River crossing (deep stream, then a wide river))
 
-Titles (one is picked at random per challenge, any level): "River Crossing", "Water Ahead", "Deep Water"
+Two-requirement title: "River Ahead" (never shown: one requirement only). Was: "River Crossing" / "Water Ahead" / "Deep Water", picked at random for every level.
 
-Family note: Best family: both alternatives named with "or".
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| river.cross L1 (A) | River Crossing / Water Ahead / Deep Water | Use floaties or a snorkel. | Use a snorkel or floaties to cross. | Use a snorkel to go under or floaties to stay up. | Hard word(s) in E/M: floaties, snorkel |  |
-| river.cross L1 (B) | same | Pick a snorkel or floaties. | Cross with floaties or use a snorkel. | Floaties keep you up, or a snorkel lets you drive under. | Hard word(s) in E/M: snorkel, floaties |  |
-| river.cross L2 (A) | same | The river is deep. Float. | The river is very deep, so float. | The river is very deep, so your car must float. |  |  |
-| river.cross L2 (B) | same | Make the car float. | Float across like a boat. | Pick a part that keeps the car on top of the water. |  |  |
+| river.cross L1 (A) | Deep Stream | Use Floaties or a Snorkel. | Use a Snorkel or Floaties to cross. | Use a Snorkel to drive under, or Floaties to float on top. |  | E: Use floaties or a snorkel.<br>M: Use a snorkel or floaties to cross.<br>H: Use a snorkel to go under or floaties to stay up. |
+| river.cross L1 (B) | Deep Stream | Pick a Snorkel or Floaties. | Get Floaties or a Snorkel for the stream. | Floaties keep the car up, or a Snorkel lets it drive under. |  | E: Pick a snorkel or floaties.<br>M: Cross with floaties or use a snorkel.<br>H: Floaties keep you up, or a snorkel lets you drive under. |
+| river.cross L2 (A) | Big River | Get Floaties to float. | Get Floaties so the car floats across. | The river is wide and deep, so use Floaties to float across. |  | E: The river is deep. Float.<br>M: The river is very deep, so float.<br>H: The river is very deep, so your car must float. |
+| river.cross L2 (B) | Big River | Use Floaties on the river. | Floaties keep the car on top of water. | Pick Floaties so your car floats like a boat across the river. |  | E: Make the car float.<br>M: Float across like a boat.<br>H: Pick a part that keeps the car on top of the water. |
 
 ### wobbly (Wobbly old bridge)
 
-Titles (one is picked at random per challenge, any level): "Wobbly Bridge", "Creaky Crossing", "Rope Bridge"
+Two-requirement title: "Old Bridge" (never shown: one requirement only). Was: "Wobbly Bridge" / "Creaky Crossing" / "Rope Bridge", picked at random for every level.
 
-Family note: Titles say rope; lines say sticks. Several M/H lines describe the problem, not the fix.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| wobbly.weight L1 (A) | Wobbly Bridge / Creaky Crossing / Rope Bridge | Get a light car. | Make the car light for the bridge. | Your car must be light to cross the old bridge. |  |  |
-| wobbly.weight L1 (B) | same | The bridge is wobbly. Be light. | A heavy car will fall through. | A heavy car will make the bridge sag. | M and H state the problem (fall through, sag), not the fix. "sag" is a hard word. | M: Make the car light to cross.<br>H: Choose light parts so the bridge does not sag. |
-| wobbly.weight L2 (A) | same | Very wobbly! Get a light car. | The bridge is very wobbly, so be light. | The bridge is very wobbly, so make your car very light. |  |  |
-| wobbly.weight L2 (B) | same | Be very light. | Make the car very light to cross. | Take off heavy parts so the car is very light. |  |  |
-| wobbly.weight L3 (A) | same | Get the lightest car. | Make the car as light as you can. | Make your car as light as it can be to cross. |  |  |
-| wobbly.weight L3 (B) | same | Be as light as a feather. | The bridge is thin sticks. Be light. | The bridge is made of thin sticks, so use light parts. | M/H say "thin sticks" but the titles say Rope Bridge. | M: The bridge is weak. Be very light.<br>H: The bridge is weak, so use only light parts. |
+| wobbly.weight L1 (A) | Wobbly Bridge | Get a light Electric Motor. | An Electric Motor makes the car light. | Put in a light Electric Motor to cross the old bridge. |  | E: Get a light car.<br>M: Make the car light for the bridge.<br>H: Your car must be light to cross the old bridge. |
+| wobbly.weight L1 (B) | Wobbly Bridge | The Small size is light. | Make the car light with the Small size. | Pick the Small size or a Sports Car to be light. |  | E: The bridge is wobbly. Be light.<br>M: A heavy car will fall through.<br>H: A heavy car will make the bridge sag. |
+| wobbly.weight L2 (A) | Very Wobbly Bridge | Tiny size makes it very light. | Pick the Tiny size to be very light. | The bridge is very wobbly, so make your car the Tiny size. |  | E: Very wobbly! Get a light car.<br>M: The bridge is very wobbly, so be light.<br>H: The bridge is very wobbly, so make your car very light. |
+| wobbly.weight L2 (B) | Very Wobbly Bridge | Small size and an Electric Motor. | Use the Small size and an Electric Motor. | Pick an Electric Motor and the Small size to be very light. |  | E: Be very light.<br>M: Make the car very light to cross.<br>H: Take off heavy parts so the car is very light. |
+| wobbly.weight L3 (A) | Super Wobbly Bridge | Tiny size and an Electric Motor. | Use the Tiny size and an Electric Motor. | A Tiny car with an Electric Motor is light enough. |  | E: Get the lightest car.<br>M: Make the car as light as you can.<br>H: Make your car as light as it can be to cross. |
+| wobbly.weight L3 (B) | Super Wobbly Bridge | A Tiny Sports Car is light. | Pick a Tiny Sports Car to be light. | Pick a Tiny Sports Car so the bridge does not wobble. |  | E: Be as light as a feather.<br>M: The bridge is thin sticks. Be light.<br>H: The bridge is made of thin sticks, so use light parts. |
 
 ### beach (Long trip to the beach)
 
-Titles (one is picked at random per challenge, any level): "Beach Trip", "Long Drive", "Seaside Road"
+Two-requirement title: "Beach Trip". Was: "Beach Trip" / "Long Drive" / "Seaside Road", picked at random for every level.
 
-Family note: "Long Drive" fits range only. Several lines are goals, not fixes.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| beach.range L1 (A) | Beach Trip / Long Drive / Seaside Road | The beach is far. Go far. | Drive a long way to the beach. | Your car must go a long way to the beach. | E repeats "far" and is not a fix. M "do not stop" is vague. | E: Get an engine that goes far.<br>M: Get an engine that goes far. |
-| beach.range L1 (B) | same | Get an engine to go far. | Go far and do not stop. | Pick parts that let the car go far. | M "do not stop" is vague. |  |
-| beach.range L2 (A) | same | Go very far to the beach. | Drive a very long way to the beach. | The beach is very far, so your car must go very far. |  |  |
-| beach.range L2 (B) | same | A very long trip! | Go very far and do not run out. | Pick parts that let the car drive a very long way. | E is not an instruction. M "do not run out" (of what?). | E: Pick parts that go far.<br>M: Go very far on one tank. |
-| beach.range L3 (A) | same | The longest trip! Go the farthest. | Go the farthest you can to the beach. | Go as far as you can on the longest trip of all. |  |  |
-| beach.range L3 (B) | same | Go super far. | This is the longest trip of all. | Only the car that goes farthest will reach the beach. | M is not an instruction (no fix). | M: Go the farthest you can. |
-| beach.load L1 (A) | same | Get room for beach toys. | Make room for the beach things. | Your car needs room for all the beach things. |  |  |
-| beach.load L1 (B) | same | Carry toys and towels. | Carry all the toys to the beach. | Pick a car with space for toys and towels. | E is a goal, not a fix. | E: Get room for toys and towels. |
+| beach.range L1 (A) | Long Drive | Get an Efficient Engine. | Get an Efficient Engine to go far. | Put in an Efficient Engine so the car goes a long way. |  | E: The beach is far. Go far.<br>M: Drive a long way to the beach.<br>H: Your car must go a long way to the beach. |
+| beach.range L1 (B) | Long Drive | A Tiny car goes far. | The Tiny size lets the car go far. | Pick an Efficient Engine or the Tiny size to drive far. |  | E: Get an engine to go far.<br>M: Go far and do not stop.<br>H: Pick parts that let the car go far. |
+| beach.range L2 (A) | Very Long Drive | An Efficient Engine goes far. | Get an Efficient Engine for the long drive. | The beach is very far, so put in an Efficient Engine. |  | E: Go very far to the beach.<br>M: Drive a very long way to the beach.<br>H: The beach is very far, so your car must go very far. |
+| beach.range L2 (B) | Very Long Drive | Pick an Efficient Engine. | Pick an Efficient Engine to go very far. | Pick an Efficient Engine so the car can go very far. |  | E: A very long trip!<br>M: Go very far and do not run out.<br>H: Pick parts that let the car drive a very long way. |
+| beach.range L3 (A) | Longest Drive | Efficient Engine and Tiny size. | Get an Efficient Engine and the Tiny size. | The longest drive needs an Efficient Engine and the Tiny size. |  | E: The longest trip! Go the farthest.<br>M: Go the farthest you can to the beach.<br>H: Go as far as you can on the longest trip of all. |
+| beach.range L3 (B) | Longest Drive | Tiny size plus an Efficient Engine. | Pick the Tiny size and an Efficient Engine. | Pick a Tiny car with an Efficient Engine to go the farthest. |  | E: Go super far.<br>M: This is the longest trip of all.<br>H: Only the car that goes farthest will reach the beach. |
+| beach.load L1 (A) | Beach Toys | Get a Pickup Truck for toys. | Get a Pickup Truck for the beach toys. | Pick a Pickup Truck so there is room for toys and towels. |  | E: Get room for beach toys.<br>M: Make room for the beach things.<br>H: Your car needs room for all the beach things. |
+| beach.load L1 (B) | Beach Toys | Use the Big size for toys. | The Big size has room for beach toys. | Pick the Big size or a Van to fit the beach toys. |  | E: Carry toys and towels.<br>M: Carry all the toys to the beach.<br>H: Pick a car with space for toys and towels. |
 
 ### parade (Color parade)
 
-Titles (one is picked at random per challenge, any level): "Parade Day", "Color Parade", "Party Parade"
+Two-requirement title: "Color Parade" (never shown: one requirement only). Was: "Parade Day" / "Color Parade" / "Party Parade", picked at random for every level.
 
-Family note: Color lines are clear. Hard repeats Easy/Medium in more words.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| parade.color L1 (A) | Parade Day / Color Parade / Party Parade | Paint the car red. | The parade needs a red car. | The parade needs a car that is red. | M and H say the same as E (Hard adds nothing). |  |
-| parade.color L1 (B) | same | The car must be red. | Make the car red. | Pick the color red for your car. | Easy longer than Medium |  |
-| parade.color L2 (A) | same | Paint the car green. | The parade needs a green car. | The parade needs a car that is green. | M and H say the same as E (Hard adds nothing). |  |
-| parade.color L2 (B) | same | The car must be green. | Make the car green. | Pick the color green for your car. | Easy longer than Medium |  |
-| parade.color L3 (A) | same | Paint the car with all colors. | The parade needs every color. | The parade needs a car with every color on it. | Easy longer than Medium |  |
-| parade.color L3 (B) | same | Use every color. | Make the car have many colors. | Pick paint that shows all the colors at once. | M "have many colors" is awkward. | M: Use paint with every color. |
+| parade.color L1 (A) | Red Parade | Paint the car Fire Red. | Paint the car Fire Red for the parade. | The parade needs a red car, so pick Fire Red paint. |  | E: Paint the car red.<br>M: The parade needs a red car.<br>H: The parade needs a car that is red. |
+| parade.color L1 (B) | Red Parade | Use Fire Red paint. | Pick Fire Red paint for your car. | Make your car red with Fire Red paint for the parade. |  | E: The car must be red.<br>M: Make the car red.<br>H: Pick the color red for your car. |
+| parade.color L2 (A) | Green Parade | Paint the car Leaf Green. | Paint the car Leaf Green for the parade. | The parade needs a green car, so pick Leaf Green paint. |  | E: Paint the car green.<br>M: The parade needs a green car.<br>H: The parade needs a car that is green. |
+| parade.color L2 (B) | Green Parade | Use Leaf Green paint. | Pick Leaf Green paint for your car. | Make your car green with Leaf Green paint for the parade. |  | E: The car must be green.<br>M: Make the car green.<br>H: Pick the color green for your car. |
+| parade.color L3 (A) | Rainbow Parade | Paint the car Rainbow. | Paint the car Rainbow for the parade. | The parade needs every color, so pick Rainbow paint. |  | E: Paint the car with all colors.<br>M: The parade needs every color.<br>H: The parade needs a car with every color on it. |
+| parade.color L3 (B) | Rainbow Parade | Use Rainbow paint. | Pick Rainbow paint for your car. | Make your car every color with Rainbow paint for the parade. |  | E: Use every color.<br>M: Make the car have many colors.<br>H: Pick paint that shows all the colors at once. |
 
 ### night (Sleepy town at night (quiet, hide-and-seek))
 
-Titles (one is picked at random per challenge, any level): "Sleepy Town", "Night Drive", "Hide and Seek"
+Two-requirement title: "Sleepy Town". Was: "Sleepy Town" / "Night Drive" / "Hide and Seek", picked at random for every level.
 
-Family note: "Hide and Seek" duplicates a Dino Lab title. "Sleepy Town" only fits the quiet requirement.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| night.quiet L1 (A) | Sleepy Town / Night Drive / Hide and Seek | Get a quiet engine. | Make the car quiet for the sleepers. | Your car must be quiet so no one wakes up. |  |  |
-| night.quiet L1 (B) | same | Make the car quiet. | Do not wake the town. | Pick a part that makes less noise. | H is vague (what part?). M is the goal. | H: Pick an engine that makes less noise. |
-| night.quiet L2 (A) | same | Shh! Be very quiet. | Make the car very quiet. | Your car must be very quiet so the baby sleeps. |  |  |
-| night.quiet L2 (B) | same | Make no sound. | Make almost no sound at all. | Pick a part that makes almost no noise. | E "Make no sound" is absolute (check allows almost none). | E: Make almost no sound. |
-| night.hide L1 (A) | same | Paint the car dark. | Make the car dark to hide. | Your car must be dark so it is hard to see. |  |  |
-| night.hide L1 (B) | same | Hide in the dark. | The car must be hard to see. | Pick a dark color to hide at night. | E and M state the goal, not the fix. E repeats the row above. Title "Hide and Seek" duplicates a Dino Lab title. | E: Use dark paint.<br>M: Pick dark paint to hide. |
+| night.quiet L1 (A) | Quiet Night | Get an Electric Motor. | Get a quiet Electric Motor for the town. | Put in an Electric Motor so the car is quiet at night. |  | E: Get a quiet engine.<br>M: Make the car quiet for the sleepers.<br>H: Your car must be quiet so no one wakes up. |
+| night.quiet L1 (B) | Quiet Night | Use a quiet Efficient Engine. | An Efficient Engine is quiet enough here. | Pick an Efficient Engine or Electric Motor so nobody wakes up. |  | E: Make the car quiet.<br>M: Do not wake the town.<br>H: Pick a part that makes less noise. |
+| night.quiet L2 (A) | Sleeping Baby | Use an Electric Motor. Shh! | Only an Electric Motor is this quiet. | The baby is asleep, so put in a quiet Electric Motor. |  | E: Shh! Be very quiet.<br>M: Make the car very quiet.<br>H: Your car must be very quiet so the baby sleeps. |
+| night.quiet L2 (B) | Sleeping Baby | Pick the Electric Motor. | Pick the Electric Motor to make no noise. | Pick the Electric Motor so the car makes almost no sound. |  | E: Make no sound.<br>M: Make almost no sound at all.<br>H: Pick a part that makes almost no noise. |
+| night.hide L1 (A) | Hide at Night | Paint the car Night Black. | Paint the car Night Black to hide. | Pick Night Black paint so your car is hard to see. |  | E: Paint the car dark.<br>M: Make the car dark to hide.<br>H: Your car must be dark so it is hard to see. |
+| night.hide L1 (B) | Hide at Night | Use Night Black paint. | Night Black paint hides you in the dark. | Make your car dark with Night Black paint to hide at night. |  | E: Hide in the dark.<br>M: The car must be hard to see.<br>H: Pick a dark color to hide at night. |
 
 ## Dino Lab
 
-
 ### snack (Snack time: gulp a cartoon critter)
 
-Titles (one is picked at random per challenge, any level): "Snack Time", "Lunch Hunt", "Gulp!"
+Two-requirement title: "Snack Time". Was: "Snack Time" / "Lunch Hunt" / "Gulp!", picked at random for every level.
 
-Family note: Medium uses "mouth", not a part (Teeth). The two facets share titles ("Gulp!" only fits the big gulp).
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| snack.bite L1 (A) | Snack Time / Lunch Hunt / Gulp! | Get teeth for a hard shell. | Make a mouth that can crunch shells. | Give your dino a big bite to crunch a hard beetle shell. | M says "mouth", but the part is Teeth. | M: Get teeth that can crunch a shell. |
-| snack.bite L1 (B) | same | Pick teeth that can crunch. | A beetle shell is hard, so bite big. | The beetle has a hard shell, so you need a big bite. | M "so bite big" is awkward. | M: A beetle shell is hard. Get big teeth. |
-| snack.bite L2 (A) | same | Get strong teeth to catch frogs. | Make a mouth strong enough for a frog. | Give your dino a strong mouth that can hold a slippery frog. | M "a mouth" is not a part (Teeth). | M: Get strong teeth to hold a frog. |
-| snack.bite L2 (B) | same | Pick teeth that hold a frog. | A frog is slippery, so bite strong. | The frog is big and slippery, so you need a strong bite. | M "so bite strong" is bad grammar. H adds "big" frog (not in E/M). Hard word(s) in E/M: slippery | M: A frog is slippery. Get strong teeth. |
-| snack.bite L3 (A) | same | Get the biggest, strongest teeth. | Make a super big, strong mouth. | Give your dino the biggest and strongest mouth for a huge lizard. | M "mouth", not Teeth. E "biggest, strongest" is a double superlative. | E: Get the strongest teeth.<br>M: Get super big, strong teeth.<br>H: Give your dino the strongest teeth for a huge lizard. |
-| snack.bite L3 (B) | same | Get teeth for a huge lizard. | The lizard is huge, so bite very hard. | Make the bite super strong so it can gulp a huge lizard. | M "bite very hard" is awkward. | M: The lizard is huge, so get strong teeth. |
-| snack.bigGulp L1 (A) | same | Get a big dino with teeth. | Your dino must be big to gulp this. | Make your dino big and strong enough to gulp a giant beetle. | Needs big teeth AND a big body, but E says "a big dino with teeth" (any teeth would seem to work). M names no teeth. | E: Get big teeth and be big.<br>M: Be big and get big teeth. |
-| snack.bigGulp L1 (B) | same | Big beetle, so be big. | Make a big dino with a strong bite. | A giant beetle needs a big body and a strong mouth. | E "Big beetle, so be big." is awkward and has no teeth. M "strong bite" is not a part. | E: Be big, get big teeth.<br>M: Make a big dino with big teeth. |
-| snack.bigGulp L2 (A) | same | Be a huge dino. | The beetle is huge, so be huge too. | Make your dino huge, with a mouth strong enough for this beetle. | E has no teeth; M "huge too" is odd. | E: Be huge and get huge teeth.<br>M: Be huge, with huge teeth. |
-| snack.bigGulp L2 (B) | same | Get the biggest dino and teeth. | Make a huge dino with a huge bite. | Only the biggest and strongest dino can gulp this huge beetle. | E "biggest dino and teeth" is ambiguous. M "huge bite" is not a part. | E: Get a huge body, huge teeth.<br>M: Be huge and get huge teeth. |
+| snack.bite L1 (A) | Beetle Snack | Get Big Teeth to crunch. | Get Big Teeth to crunch the beetle shell. | Give your dino Big Teeth so it can crunch a hard shell. |  | E: Get teeth for a hard shell.<br>M: Make a mouth that can crunch shells.<br>H: Give your dino a big bite to crunch a hard beetle shell. |
+| snack.bite L1 (B) | Beetle Snack | Pick Big Teeth for the beetle. | Big Teeth can bite the hard beetle. | Pick Big Teeth or a Rex Head for a big bite. |  | E: Pick teeth that can crunch.<br>M: A beetle shell is hard, so bite big.<br>H: The beetle has a hard shell, so you need a big bite. |
+| snack.bite L2 (A) | Frog Snack | Get Sharp Teeth for the frog. | Get Sharp Teeth to hold the frog. | Give your dino Sharp Teeth so it can hold the frog. |  | E: Get strong teeth to catch frogs.<br>M: Make a mouth strong enough for a frog.<br>H: Give your dino a strong mouth that can hold a slippery frog. |
+| snack.bite L2 (B) | Frog Snack | Big Teeth and a Rex Head. | Use Big Teeth and a Rex Head. | Pick Sharp Teeth, or Big Teeth and a Rex Head. |  | E: Pick teeth that hold a frog.<br>M: A frog is slippery, so bite strong.<br>H: The frog is big and slippery, so you need a strong bite. |
+| snack.bite L3 (A) | Lizard Snack | Get Mega Teeth for the lizard. | Get Mega Teeth to gulp the huge lizard. | The lizard is huge, so give your dino Mega Teeth. |  | E: Get the biggest, strongest teeth.<br>M: Make a super big, strong mouth.<br>H: Give your dino the biggest and strongest mouth for a huge lizard. |
+| snack.bite L3 (B) | Lizard Snack | Sharp Teeth and a Rex Head. | Use Sharp Teeth and a Rex Head. | Pick Mega Teeth, or Sharp Teeth and a Rex Head. |  | E: Get teeth for a huge lizard.<br>M: The lizard is huge, so bite very hard.<br>H: Make the bite super strong so it can gulp a huge lizard. |
+| snack.bigGulp L1 (A) | Giant Beetle | Mega Teeth and the Big size. | Get Mega Teeth and the Big size. | A giant beetle needs Mega Teeth and the Big size to gulp. |  | E: Get a big dino with teeth.<br>M: Your dino must be big to gulp this.<br>H: Make your dino big and strong enough to gulp a giant beetle. |
+| snack.bigGulp L1 (B) | Giant Beetle | Sharp Teeth and the Huge size. | Use Sharp Teeth and the Huge size. | Pick Sharp Teeth and the Huge size to gulp it down. |  | E: Big beetle, so be big.<br>M: Make a big dino with a strong bite.<br>H: A giant beetle needs a big body and a strong mouth. |
+| snack.bigGulp L2 (A) | Huge Beetle | Mega Teeth and the Huge size. | Get Mega Teeth and the Huge size. | Only Mega Teeth and the Huge size can gulp this beetle. |  | E: Be a huge dino.<br>M: The beetle is huge, so be huge too.<br>H: Make your dino huge, with a mouth strong enough for this beetle. |
+| snack.bigGulp L2 (B) | Huge Beetle | Huge size with Mega Teeth. | Make a Huge dino with Mega Teeth. | Pick the Huge size with Mega Teeth to gulp the huge beetle. |  | E: Get the biggest dino and teeth.<br>M: Make a huge dino with a huge bite.<br>H: Only the biggest and strongest dino can gulp this huge beetle. |
 
 ### chase (Chase a speedy lizard (top view))
 
-Titles (one is picked at random per challenge, any level): "Lizard Chase", "Catch Me", "Zoom Zoom"
+Two-requirement title: "Lizard Chase". Was: "Lizard Chase" / "Catch Me" / "Zoom Zoom", picked at random for every level.
 
-Family note: The speed facet is a chase, the quiet facet is a sneak: one title cannot fit both.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| chase.speed L1 (A) | Lizard Chase / Catch Me / Zoom Zoom | Run fast to catch the lizard. | Your dino must run faster than the lizard. | Make your dino light and quick so it can catch the lizard. | H "light and quick": "light" is not something the player sees. | H: Make your dino quick so it can catch the lizard. |
-| chase.speed L1 (B) | same | Get legs that run fast. | Make a dino built for speed. | The lizard is fast, so your dino must run fast too. |  |  |
-| chase.speed L2 (A) | same | Run very fast. | This lizard is very fast, so be faster. | Make your dino very light and quick to catch this lizard. |  |  |
-| chase.speed L2 (B) | same | Get legs that run very fast. | Make your dino a very fast runner. | The lizard zooms, so your dino needs to be even faster. |  |  |
-| chase.speed L3 (A) | same | Be the fastest runner. | Make your dino the fastest runner ever. | Make your dino super light and the fastest runner of all. |  |  |
-| chase.speed L3 (B) | same | Be super fast. | The lizard is super fast, so be faster. | No lizard is faster, so your dino must be faster still. | H is illogical ("No lizard is faster"). | H: This lizard is the fastest, so be faster still. |
-| chase.quiet L1 (A) | same | Be small and sneak up. | Your dino must be small and quiet. | Make your dino small and quiet so the lizard does not wake. | Title "Lizard Chase" does not fit sneaking. H says the lizard sleeps; speed lines say it runs. |  |
-| chase.quiet L1 (B) | same | Sneak close to the lizard. | Make a dino that sneaks up softly. | A big dino is loud, so your dino must be small. | E is a goal. H states the problem, not the fix. | E: Be small to sneak up.<br>H: Make your dino small so it can sneak up. |
-| chase.quiet L2 (A) | same | Be very quiet. | This lizard wakes up fast, so be quiet. | The lizard hears well, so make your dino very small. | E/M say "quiet" but the fix is size (H says small). No quiet part exists. | E: Be very small.<br>M: This lizard wakes up fast. Be very small. |
-| chase.quiet L2 (B) | same | Be very small and sneaky. | Make your dino super small and quiet. | Make your dino so quiet that the lizard hears nothing. | Title "Zoom Zoom" does not fit sneaking. Hard word(s) in E/M: sneaky |  |
+| chase.speed L1 (A) | Fast Lizard | Get Long Legs to run fast. | Get Long Legs to run after the lizard. | Give your dino Long Legs so it can catch the fast lizard. |  | E: Run fast to catch the lizard.<br>M: Your dino must run faster than the lizard.<br>H: Make your dino light and quick so it can catch the lizard. |
+| chase.speed L1 (B) | Fast Lizard | Use a Slim Body for speed. | A Slim Body helps your dino run fast. | Pick a Slim Body or Long Legs to catch the lizard. |  | E: Get legs that run fast.<br>M: Make a dino built for speed.<br>H: The lizard is fast, so your dino must run fast too. |
+| chase.speed L2 (A) | Very Fast Lizard | Long Legs and a Slim Body. | Get Long Legs and a Slim Body. | To catch it, get Long Legs and a Slim Body. |  | E: Run very fast.<br>M: This lizard is very fast, so be faster.<br>H: Make your dino very light and quick to catch this lizard. |
+| chase.speed L2 (B) | Very Fast Lizard | Powerful Legs and a Slim Body. | Use Powerful Legs and a Slim Body. | Pick Powerful Legs and a Slim Body to run very fast. |  | E: Get legs that run very fast.<br>M: Make your dino a very fast runner.<br>H: The lizard zooms, so your dino needs to be even faster. |
+| chase.speed L3 (A) | Super Fast Lizard | Run fastest with Powerful Legs. | Powerful Legs, Slim Body, Tiny Arms, Small size. | Pick Powerful Legs, a Slim Body, a Long Tail, and Small size. | E names only part of the fix (it needs more parts than the word limit allows) | E: Be the fastest runner.<br>M: Make your dino the fastest runner ever.<br>H: Make your dino super light and the fastest runner of all. |
+| chase.speed L3 (B) | Super Fast Lizard | Get Powerful Legs. Be Small. | Powerful Legs, Slim Body, Long Tail, Small size. | Use Powerful Legs, a Slim Body, Tiny Arms, and the Small size. | E names only part of the fix (it needs more parts than the word limit allows) | E: Be super fast.<br>M: The lizard is super fast, so be faster.<br>H: No lizard is faster, so your dino must be faster still. |
+| chase.quiet L1 (A) | Sneak Up | Be the Small size to sneak. | Pick the Small size to sneak up softly. | Pick the Small size so the lizard does not see you. |  | E: Be small and sneak up.<br>M: Your dino must be small and quiet.<br>H: Make your dino small and quiet so the lizard does not wake. |
+| chase.quiet L1 (B) | Sneak Up | A Small dino can sneak. | Get the Small size and keep Crawling. | Pick the Small size and keep Crawling to sneak up close. |  | E: Sneak close to the lizard.<br>M: Make a dino that sneaks up softly.<br>H: A big dino is loud, so your dino must be small. |
+| chase.quiet L2 (A) | Sneak Up Close | Small size, Slim Body, Spotty skin. | Pick Small size, a Slim Body, and Spotty. | Pick the Small size, a Slim Body, and Spotty skin to sneak. |  | E: Be very quiet.<br>M: This lizard wakes up fast, so be quiet.<br>H: The lizard hears well, so make your dino very small. |
+| chase.quiet L2 (B) | Sneak Up Close | Small, Spotty, and a Leaf Pattern. | Small size, Spotty skin, and Leaf Pattern. | Pick the Small size, Spotty skin, and a Leaf Pattern to hide. |  | E: Be very small and sneaky.<br>M: Make your dino super small and quiet.<br>H: Make your dino so quiet that the lizard hears nothing. |
 
 ### ferns (Hide in the ferns from a big sniffing dino)
 
-Titles (one is picked at random per challenge, any level): "Fern Hide", "Hide and Seek", "Sniff Sniff"
+Two-requirement title: "Ferns and Flowers". Was: "Fern Hide" / "Hide and Seek" / "Sniff Sniff", picked at random for every level.
 
-Family note: "Hide and Seek" duplicates a Race Shop title. Many lines leave out the skin color the check needs.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| ferns.hide L1 (A) | Fern Hide / Hide and Seek / Sniff Sniff | Get skin that hides in ferns. | Make your skin match the ferns. | Pick a skin color that helps your dino hide in the ferns. |  |  |
-| ferns.hide L1 (B) | same | Hide in the ferns. | Your dino must hide in the ferns. | The big dino must not see your dino in the leaves. | E is a goal; H states the problem. Neither names skin color. | E: Match the ferns.<br>H: Pick a skin color like the ferns so nobody sees your dino. |
-| ferns.hide L2 (A) | same | Hide in short ferns. | The ferns are short, so be small. | Match the color of the ferns and be small to hide. | Needs skin color AND small. E is a goal; M leaves out color. | E: Match the ferns and be small.<br>M: Match the short ferns and be small. |
-| ferns.hide L2 (B) | same | Be small and hide. | Match the ferns and stay small. | Short ferns cannot hide a big dino, so be small. | E leaves out skin color. H states the problem. | E: Match the ferns, be small.<br>H: Short ferns hide only a small dino, so match them. |
-| ferns.hide L3 (A) | same | Hide in a few thin ferns. | There are few ferns, so be very small. | Only a few thin ferns are here, so be very small. | E is a goal. M leaves out color. | E: Match the ferns and be tiny.<br>M: Few ferns. Match them and be very small. |
-| ferns.hide L3 (B) | same | Be very small and hide. | Match the ferns and be super small. | Match the ferns and be as small as you can. | E leaves out color. | E: Match the ferns, be tiny. |
-| ferns.flowers L1 (A) | same | Get skin the color of flowers. | Make your skin the color of the flowers. | Choose a skin color that matches the flowers so your dino hides. |  |  |
-| ferns.flowers L1 (B) | same | Hide in the flowers. | Your dino must match the flowers. | The flowers are a special color, so copy that color. | H "a special color" is vague (which color?). | H: Pick the same color as the flowers. |
+| ferns.hide L1 (A) | Sniffing Dino | Get Green skin for the ferns. | Pick Green skin to hide in the ferns. | Give your dino Green skin so it hides in the green ferns. |  | E: Get skin that hides in ferns.<br>M: Make your skin match the ferns.<br>H: Pick a skin color that helps your dino hide in the ferns. |
+| ferns.hide L1 (B) | Sniffing Dino | Use a Leaf Pattern to hide. | A Leaf Pattern or Spotty skin hides you. | Pick Green, Spotty, or a Leaf Pattern to match the ferns. |  | E: Hide in the ferns.<br>M: Your dino must hide in the ferns.<br>H: The big dino must not see your dino in the leaves. |
+| ferns.hide L2 (A) | Short Ferns | Green skin and the Small size. | Get Green skin and the Small size. | The ferns are short, so pick Green skin and the Small size. |  | E: Hide in short ferns.<br>M: The ferns are short, so be small.<br>H: Match the color of the ferns and be small to hide. |
+| ferns.hide L2 (B) | Short Ferns | Spotty skin and a Leaf Pattern. | Use Spotty skin with a Leaf Pattern. | Pick Spotty skin and a Leaf Pattern to hide in short ferns. |  | E: Be small and hide.<br>M: Match the ferns and stay small.<br>H: Short ferns cannot hide a big dino, so be small. |
+| ferns.hide L3 (A) | Few Ferns | Spotty, Leaf Pattern, and Small size. | Pick Spotty, a Leaf Pattern, and Small size. | Few ferns: pick Spotty skin, a Leaf Pattern, and Small size. |  | E: Hide in a few thin ferns.<br>M: There are few ferns, so be very small.<br>H: Only a few thin ferns are here, so be very small. |
+| ferns.hide L3 (B) | Few Ferns | Spotty skin, Small size, Slim Body. | Pick Spotty, a Slim Body, and Small size. | Pick Spotty skin, a Slim Body, and the Small size to hide. |  | E: Be very small and hide.<br>M: Match the ferns and be super small.<br>H: Match the ferns and be as small as you can. |
+| ferns.flowers L1 (A) | Flower Patch | Get Purple skin. | Pick Purple skin to match the flowers. | Give your dino Purple skin so it hides in the purple flowers. |  | E: Get skin the color of flowers.<br>M: Make your skin the color of the flowers.<br>H: Choose a skin color that matches the flowers so your dino hides. |
+| ferns.flowers L1 (B) | Flower Patch | Use Purple to hide. | Purple skin hides you in the flowers. | The flowers are purple, so pick Purple skin to hide in them. |  | E: Hide in the flowers.<br>M: Your dino must match the flowers.<br>H: The flowers are a special color, so copy that color. |
 
 ### ledge (Jump up onto a high ledge)
 
-Titles (one is picked at random per challenge, any level): "High Ledge", "Jump Up", "Rock Hop"
+Two-requirement title: "Rock Jump" (never shown: one requirement only). Was: "High Ledge" / "Jump Up" / "Rock Hop", picked at random for every level.
 
-Family note: Mostly goals ("Jump up...") rather than fixes. Legs is named only a few times.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| ledge.jump L1 (A) | High Ledge / Jump Up / Rock Hop | Jump up onto the ledge. | Your dino must jump up to the ledge. | Make your dino jump high enough to reach the ledge. | E and M state the goal, not the fix (Legs). Hard word(s) in E/M: ledge | E: Get legs that jump high. |
-| ledge.jump L1 (B) | same | Get legs that jump. | Make a dino that can jump well. | A light dino with strong legs can jump up. | H is a statement, not an instruction. | H: Pick strong legs to jump up. |
-| ledge.jump L2 (A) | same | Jump up to a high ledge. | The ledge is high, so jump higher. | Make your dino light and able to jump very high. | Hard word(s) in E/M: ledge |  |
-| ledge.jump L2 (B) | same | Jump very high. | Make your dino a very high jumper. | This ledge is very high, so your dino must jump higher. |  |  |
-| ledge.jump L3 (A) | same | Jump up to the highest ledge. | Make your dino the best jumper ever. | Make your dino light and the best jumper of all. | E and M are goals, no fix named. Hard word(s) in E/M: ledge | E: Get the best jumping legs.<br>M: Get legs for the best jump. |
-| ledge.jump L3 (B) | same | Be the best jumper. | The ledge is super high, so jump higher. | No ledge is higher, so your dino must jump the highest. | H "No ledge is higher" is a story line, not a fix. Hard word(s) in E/M: ledge | H: The ledge is very high, so use the best jumping legs. |
+| ledge.jump L1 (A) | High Rock | Get Long Legs to jump. | Get Long Legs to jump up the rock. | Give your dino Long Legs so it can jump onto the rock. |  | E: Jump up onto the ledge.<br>M: Your dino must jump up to the ledge.<br>H: Make your dino jump high enough to reach the ledge. |
+| ledge.jump L1 (B) | High Rock | Pick Long Legs for a jump. | Long Legs or Hoppy Legs can jump up. | Pick Long Legs or Hoppy Legs to jump up high. |  | E: Get legs that jump.<br>M: Make a dino that can jump well.<br>H: A light dino with strong legs can jump up. |
+| ledge.jump L2 (A) | Very High Rock | Get Hoppy Legs to jump high. | Get Hoppy Legs to jump very high. | The rock is very high, so give your dino Hoppy Legs. |  | E: Jump up to a high ledge.<br>M: The ledge is high, so jump higher.<br>H: Make your dino light and able to jump very high. |
+| ledge.jump L2 (B) | Very High Rock | Hoppy Legs jump very high. | Pick Hoppy Legs for a very high jump. | Pick Hoppy Legs so your dino can jump very high. |  | E: Jump very high.<br>M: Make your dino a very high jumper.<br>H: This ledge is very high, so your dino must jump higher. |
+| ledge.jump L3 (A) | Super High Rock | Hoppy Legs, Long Tail, Slim Body. | Pick Hoppy Legs, Long Tail, and Slim Body. | Jump highest with Hoppy Legs, a Long Tail, and a Slim Body. |  | E: Jump up to the highest ledge.<br>M: Make your dino the best jumper ever.<br>H: Make your dino light and the best jumper of all. |
+| ledge.jump L3 (B) | Super High Rock | Hoppy Legs, Slim Body, Small size. | Use Hoppy Legs, Slim Body, and Small size. | Pick Hoppy Legs, a Slim Body, and Small size for this jump. |  | E: Be the best jumper.<br>M: The ledge is super high, so jump higher.<br>H: No ledge is higher, so your dino must jump the highest. |
 
 ### burrow (Squeeze into a small burrow)
 
-Titles (one is picked at random per challenge, any level): "Small Hole", "Burrow Visit", "Tunnel Time"
+Two-requirement title: "Little Tunnel". Was: "Small Hole" / "Burrow Visit" / "Tunnel Time", picked at random for every level.
 
-Family note: Three different problems (small, dirt, dark) share the title "Small Hole". Lines say "hands" for Claws and "thin" for size.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| burrow.fit L1 (A) | Small Hole / Burrow Visit / Tunnel Time | Be small to fit the hole. | Your dino must be small enough to fit. | Make your dino small enough to squeeze into the hole. |  |  |
-| burrow.fit L1 (B) | same | Get a small dino. | Make a dino that fits the little hole. | The hole is little, so your dino must be small. |  |  |
-| burrow.fit L2 (A) | same | Be tiny and thin. | The hole is tiny, so be very small. | Make your dino very small and thin to fit the hole. | E "tiny and thin": thin is not a part or stat (Size only). | E: Be tiny.<br>H: Make your dino very small to fit the hole. |
-| burrow.fit L2 (B) | same | Fit a very tiny hole. | Make your dino small and thin. | This hole is tiny, so your dino must be the smallest. | E is a goal. M "small and thin": thin is not a part. | E: Get the smallest dino.<br>M: Make your dino very small. |
-| burrow.dig L1 (A) | same | Dig through the dirt. | Your dino must dig through the dirt. | Give your dino hands that can dig through a pile of dirt. | H says "hands" but the part is Claws. | H: Give your dino claws that can dig through a pile of dirt. |
-| burrow.dig L1 (B) | same | Get claws that dig. | Make a dino that can dig well. | Dirt blocks the door, so your dino must dig. | H states the problem, not the fix. | H: Pick claws that can dig through the dirt. |
-| burrow.dig L2 (A) | same | Dig through hard dirt. | The dirt is hard, so dig very well. | Give your dino strong hands to dig through hard dirt. | H says "hands", not Claws. | H: Give your dino strong claws to dig through hard dirt. |
-| burrow.dig L2 (B) | same | Get claws that dig well. | Make your dino a great digger. | This dirt is hard and deep, so dig harder. | H states the problem; "dig harder" is odd. | H: Pick claws that dig very well in hard dirt. |
-| burrow.dark L1 (A) | same | Make light in the dark. | Your dino needs its own light. | Give your dino something extra that makes light in the dark. |  |  |
-| burrow.dark L1 (B) | same | Get glow for the dark. | Make a dino that lights the dark. | The tunnel is dark, so your dino must glow. |  |  |
+| burrow.fit L1 (A) | Small Hole | Get the Small size to fit. | Pick the Small size for the little hole. | Make your dino the Small size so it fits in the hole. |  | E: Be small to fit the hole.<br>M: Your dino must be small enough to fit.<br>H: Make your dino small enough to squeeze into the hole. |
+| burrow.fit L1 (B) | Small Hole | A Small dino fits the hole. | Only a Small dino can fit in here. | The hole is little, so pick the Small size to fit. |  | E: Get a small dino.<br>M: Make a dino that fits the little hole.<br>H: The hole is little, so your dino must be small. |
+| burrow.fit L2 (A) | Tiny Hole | Small size and a Slim Body. | Get the Small size and a Slim Body. | For the tiny hole, pick Small size and a Slim Body. |  | E: Be tiny and thin.<br>M: The hole is tiny, so be very small.<br>H: Make your dino very small and thin to fit the hole. |
+| burrow.fit L2 (B) | Tiny Hole | Be Small with a Slim Body. | Use a Slim Body in the Small size. | Only a Small dino with a Slim Body fits this tiny hole. |  | E: Fit a very tiny hole.<br>M: Make your dino small and thin.<br>H: This hole is tiny, so your dino must be the smallest. |
+| burrow.dig L1 (A) | Dirt Pile | Get Digging Claws. | Get Digging Claws to dig through dirt. | Give your dino Digging Claws so it can dig through the dirt. |  | E: Dig through the dirt.<br>M: Your dino must dig through the dirt.<br>H: Give your dino hands that can dig through a pile of dirt. |
+| burrow.dig L1 (B) | Dirt Pile | Dig with Digging Claws. | Digging Claws can dig the dirt away. | Pick Digging Claws to dig a way into the hole. |  | E: Get claws that dig.<br>M: Make a dino that can dig well.<br>H: Dirt blocks the door, so your dino must dig. |
+| burrow.dig L2 (A) | Hard Dirt | Digging Claws and a Horn Head. | Get Digging Claws and a Horn Head. | The dirt is hard, so get Digging Claws and a Horn Head. |  | E: Dig through hard dirt.<br>M: The dirt is hard, so dig very well.<br>H: Give your dino strong hands to dig through hard dirt. |
+| burrow.dig L2 (B) | Hard Dirt | A Horn Head and Digging Claws. | Dig with Digging Claws and a Horn Head. | Pick Digging Claws and a Horn Head to dig through hard dirt. |  | E: Get claws that dig well.<br>M: Make your dino a great digger.<br>H: This dirt is hard and deep, so dig harder. |
+| burrow.dark L1 (A) | Dark Tunnel | Get Glow Spots. | Get Glow Spots to see in the dark. | Give your dino Glow Spots to light up the dark tunnel. |  | E: Make light in the dark.<br>M: Your dino needs its own light.<br>H: Give your dino something extra that makes light in the dark. |
+| burrow.dark L1 (B) | Dark Tunnel | Use Glow Spots in the dark. | Glow Spots light up the dark tunnel. | Pick Glow Spots so your dino makes its own light. |  | E: Get glow for the dark.<br>M: Make a dino that lights the dark.<br>H: The tunnel is dark, so your dino must glow. |
 
 ### tallGrass (Find the nest in the tall grass)
 
-Titles (one is picked at random per challenge, any level): "Tall Grass", "High Grass", "Hidden Nest"
+Two-requirement title: "Nest in the Grass". Was: "Tall Grass" / "High Grass" / "Hidden Nest", picked at random for every level.
 
-Family note: Title is about the grass; the second facet is about hiding in it. "big body" is not a part.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| tallGrass.peek L1 (A) | Tall Grass / High Grass / Hidden Nest | Stand, long neck, or big body. | Stand up, use long neck or big body. | Stand up, grow a long neck, or get a big body. | "big body" is not a part (it is Size: Big/Huge). M is missing "a": "use long neck". | E: Stand, long neck, or big size.<br>M: Stand up, long neck, or big size.<br>H: Stand up, grow a long neck, or get big size. |
-| tallGrass.peek L1 (B) | same | Big body, long neck, or stand. | Get big, stand up, or use long neck. | Use a big body or long neck, or stand up tall. | "big body" is not a part (Size). M "Get big, stand up, or use long neck" breaks the list. | E: Big size, long neck, or stand.<br>M: Be big, stand up, or get long neck.<br>H: Get big size or a long neck, or stand up tall. |
-| tallGrass.peek L2 (A) | same | See over very tall grass. | The grass is very tall, so be taller. | Make your dino tall enough to see over the very tall grass. | E is a goal, not a fix. | E: Get taller to see over it. |
-| tallGrass.peek L2 (B) | same | Be much taller. | Make your dino tall enough for this grass. | Stand up high so your head is above the grass. | E "much taller" does not say how. | E: Be much taller. Stand or grow. |
-| tallGrass.peek L3 (A) | same | Be the tallest dino. | The grass is huge, so be super tall. | Make your dino the tallest it can be to see the nest. |  |  |
-| tallGrass.peek L3 (B) | same | See over the tallest grass. | Make your dino as tall as can be. | Only a super tall dino can see over grass this high. |  |  |
-| tallGrass.sneak L1 (A) | same | Hide in the tall grass. | Make your dino blend in with grass. | Give your dino a pattern that looks like grass shadows. | Title "Tall Grass" is about peeking; this is hiding. H "pattern" and "grass shadows" are hard and not a part (Tiger Stripes). | E: Get stripes to hide.<br>H: Give your dino stripes that look like grass. |
-| tallGrass.sneak L1 (B) | same | Pick an extra that hides. | Your dino must hide in the grass. | The big dino must not see your dino in the grass. | E "Pick an extra" is vague. H repeats the ferns/desert line. | E: Get stripes to hide.<br>H: Pick stripes so the big dino cannot see you. |
+| tallGrass.peek L1 (A) | Tall Grass | Standing, Long Neck, or Big size. | Pick Standing, a Long Neck, or Big size. | To see over the grass, pick Standing, Long Neck, or Big. |  | E: Stand, long neck, or big body.<br>M: Stand up, use long neck or big body.<br>H: Stand up, grow a long neck, or get a big body. |
+| tallGrass.peek L1 (B) | Tall Grass | Long Neck, Standing, or Big size. | Get a Long Neck, Standing, or Big size. | Peek over with a Long Neck, Standing, or the Big size. |  | E: Big body, long neck, or stand.<br>M: Get big, stand up, or use long neck.<br>H: Use a big body or long neck, or stand up tall. |
+| tallGrass.peek L2 (A) | Very Tall Grass | Get a Long Neck to peek. | Get a Long Neck to see the nest. | The grass is very tall, so give your dino a Long Neck. |  | E: See over very tall grass.<br>M: The grass is very tall, so be taller.<br>H: Make your dino tall enough to see over the very tall grass. |
+| tallGrass.peek L2 (B) | Very Tall Grass | Standing and the Big size. | Stand up tall with the Big size. | Pick Standing and the Big size to see over the grass. |  | E: Be much taller.<br>M: Make your dino tall enough for this grass.<br>H: Stand up high so your head is above the grass. |
+| tallGrass.peek L3 (A) | Super Tall Grass | Long Neck, Huge size, and Standing. | Get a Long Neck, Huge size, and Standing. | Super tall grass needs a Long Neck, Huge size, and Standing. |  | E: Be the tallest dino.<br>M: The grass is huge, so be super tall.<br>H: Make your dino the tallest it can be to see the nest. |
+| tallGrass.peek L3 (B) | Super Tall Grass | Long Neck, Big size, and Standing. | Pick a Long Neck, Big size, and Standing. | Pick Standing, a Long Neck, and the Big size to see. |  | E: See over the tallest grass.<br>M: Make your dino as tall as can be.<br>H: Only a super tall dino can see over grass this high. |
+| tallGrass.sneak L1 (A) | Grass Hide | Get Tiger Stripes to hide. | Get Tiger Stripes to hide in the grass. | Give your dino Tiger Stripes so it looks like the tall grass. |  | E: Hide in the tall grass.<br>M: Make your dino blend in with grass.<br>H: Give your dino a pattern that looks like grass shadows. |
+| tallGrass.sneak L1 (B) | Grass Hide | Tiger Stripes hide you. | Tiger Stripes look like the tall grass. | Pick Tiger Stripes so the big dino cannot see you. |  | E: Pick an extra that hides.<br>M: Your dino must hide in the grass.<br>H: The big dino must not see your dino in the grass. |
 
 ### tallTree (Get the fruit from a tall tree)
 
-Titles (one is picked at random per challenge, any level): "Fruit Tree", "Snack Up High", "Tall Tree"
+Two-requirement title: "Fruit Tree". Was: "Fruit Tree" / "Snack Up High" / "Tall Tree", picked at random for every level.
 
-Family note: Titles fine. "Be strong and push" repeats the log lines exactly.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| tallTree.fruit L1 (A) | Fruit Tree / Snack Up High / Tall Tree | Reach up for the fruit. | Your dino must reach the low fruit. | Make your dino tall enough to reach the fruit on the branch. |  |  |
-| tallTree.fruit L1 (B) | same | Get the fruit from the tree. | Make your dino able to grab fruit. | The fruit is just above your dino, so reach up. | E is a goal; H states the problem. | E: Get a long neck to reach.<br>H: The fruit is above your dino, so reach up. |
-| tallTree.fruit L2 (A) | same | Reach the high fruit. | The fruit is high, so reach higher. | Make your dino tall, with a head that can go very high. |  |  |
-| tallTree.fruit L2 (B) | same | Get fruit up high. | Make your dino able to reach very high. | This fruit hangs on a high branch, so reach up high. |  |  |
-| tallTree.fruit L3 (A) | same | Reach the fruit at the top. | Make your dino reach the very top. | Make your dino very tall with a head up high. |  |  |
-| tallTree.fruit L3 (B) | same | Reach super high. | Be super tall to reach the top fruit. | The last fruit is at the very top, so reach the highest. |  |  |
-| tallTree.shake L1 (A) | same | Shake the tree to drop fruit. | Your dino must be strong to shake it. | Make your dino strong enough to shake the fruit down. | E is a goal; no part named. |  |
-| tallTree.shake L1 (B) | same | Be strong and push. | Make a dino that can shake the tree. | Push the tree hard so the fruit falls down. | E repeats log.push exactly. H is a command with no part. | E: Get a big body to push.<br>H: Pick parts that can push the tree hard. |
-| tallTree.shake L2 (A) | same | Shake a big tree. | This tree is big, so be very strong. | Make your dino big and very strong to shake the thick tree. | E is a goal, not a fix. | E: Be big and strong. |
-| tallTree.shake L2 (B) | same | Be very strong. | Make your dino strong enough for this tree. | The tree trunk is thick, so your dino needs lots of strength. | E repeats log.push. | E: Be big and strong. |
+| tallTree.fruit L1 (A) | Fruit on a Branch | Get a Long Neck to reach. | Get a Long Neck to reach the fruit. | Give your dino a Long Neck so it can reach the fruit. |  | E: Reach up for the fruit.<br>M: Your dino must reach the low fruit.<br>H: Make your dino tall enough to reach the fruit on the branch. |
+| tallTree.fruit L1 (B) | Fruit on a Branch | Be the Huge size to reach. | A Huge dino can reach the fruit. | Pick a Long Neck or the Huge size to reach up high. |  | E: Get the fruit from the tree.<br>M: Make your dino able to grab fruit.<br>H: The fruit is just above your dino, so reach up. |
+| tallTree.fruit L2 (A) | High Fruit | Long Neck and Standing. | Get a Long Neck and stand up tall. | The fruit is high, so stand up with a Long Neck. |  | E: Reach the high fruit.<br>M: The fruit is high, so reach higher.<br>H: Make your dino tall, with a head that can go very high. |
+| tallTree.fruit L2 (B) | High Fruit | A Long Neck and Big size. | Use a Long Neck and the Big size. | Pick a Long Neck and Big size for the high fruit. |  | E: Get fruit up high.<br>M: Make your dino able to reach very high.<br>H: This fruit hangs on a high branch, so reach up high. |
+| tallTree.fruit L3 (A) | Fruit at the Top | Long Neck, Huge size, Standing. | Pick Standing, a Long Neck, and Huge size. | Reach the top with a Long Neck, Huge size, and Standing. |  | E: Reach the fruit at the top.<br>M: Make your dino reach the very top.<br>H: Make your dino very tall with a head up high. |
+| tallTree.fruit L3 (B) | Fruit at the Top | Long Neck, Grabby Hands, Huge size. | A Long Neck, Grabby Hands, and Huge size. | Pick a Long Neck, Grabby Hands, and Huge size to grab it. |  | E: Reach super high.<br>M: Be super tall to reach the top fruit.<br>H: The last fruit is at the very top, so reach the highest. |
+| tallTree.shake L1 (A) | Stuck Fruit | Get a Heavy Tail to shake. | Get a Heavy Tail to shake the tree. | Give your dino a Heavy Tail to shake the fruit down. |  | E: Shake the tree to drop fruit.<br>M: Your dino must be strong to shake it.<br>H: Make your dino strong enough to shake the fruit down. |
+| tallTree.shake L1 (B) | Stuck Fruit | Be the Huge size to shake. | A Huge dino can shake the tree. | Pick a Heavy Tail or Huge size to shake the tree hard. |  | E: Be strong and push.<br>M: Make a dino that can shake the tree.<br>H: Push the tree hard so the fruit falls down. |
+| tallTree.shake L2 (A) | Thick Tree | Heavy Tail and a Big Belly. | Get a Heavy Tail and a Big Belly. | For a thick tree, get a Heavy Tail and Big Belly. |  | E: Shake a big tree.<br>M: This tree is big, so be very strong.<br>H: Make your dino big and very strong to shake the thick tree. |
+| tallTree.shake L2 (B) | Thick Tree | Huge size and a Horn Head. | Use the Huge size and a Horn Head. | Pick Huge size and a Horn Head to shake the thick tree. |  | E: Be very strong.<br>M: Make your dino strong enough for this tree.<br>H: The tree trunk is thick, so your dino needs lots of strength. |
 
 ### rocks (Climb the big rocks)
 
-Titles (one is picked at random per challenge, any level): "Big Rocks", "Rock Climb", "Up We Go"
+Two-requirement title: "Rocky Hill". Was: "Big Rocks" / "Rock Climb" / "Up We Go", picked at random for every level.
 
-Family note: Titles "Up We Go"/"Rock Climb" do not fit the falling-pebbles facet. rocks/pile/wall/cliff are mixed.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| rocks.climb L1 (A) | Big Rocks / Rock Climb / Up We Go | Climb up the rocks. | Your dino must climb the pile of rocks. | Give your dino a good grip so it can climb the rocks. | E is a goal, not a fix. | E: Get claws to climb. |
-| rocks.climb L1 (B) | same | Get claws that climb. | Make a dino that can climb well. | The rocks make a hill, so your dino must climb up. |  |  |
-| rocks.climb L2 (A) | same | Climb the steep rocks. | The rock wall is steep, so climb well. | Make your dino light, with a good grip for a steep wall. | "rock wall" vs titles "Big Rocks / Rock Climb": rocks/pile/wall/cliff are mixed. |  |
-| rocks.climb L2 (B) | same | Be a good climber. | Make your dino a strong climber. | This wall is steep, so your dino must grip and climb. |  |  |
-| rocks.climb L3 (A) | same | Climb the steepest rocks. | The rocks are slippery, so grip very well. | Make your dino light, with a super grip for the slippery cliff. | Hard word(s) in E/M: slippery |  |
-| rocks.climb L3 (B) | same | Be the best climber. | Make your dino the best climber ever. | This cliff is tall and slippery, so your dino must grip hard. | rocks / pile / wall / cliff mix. |  |
-| rocks.tough L1 (A) | same | Be tough like a rock. | Your dino must be tough enough for pebbles. | Give your dino a strong back so pebbles bounce off. | H "a strong back" is not a part (Armor Plates). Hard word(s) in E/M: pebbles | H: Give your dino armor so pebbles bounce off. |
-| rocks.tough L1 (B) | same | Pebbles bounce off tough dinos. | Make a dino that pebbles bounce off. | Make your dino tough enough to walk under falling pebbles. | E is a statement, not an instruction. Title "Up We Go" does not fit. Hard word(s) in E/M: pebbles | E: Get armor. Pebbles bounce off. |
-| rocks.tough L2 (A) | same | Be very tough. | Big rocks fall here, so be very tough. | Give your dino a very tough back so big rocks bounce off. | H "tough back" is not a part. | H: Give your dino tough armor so big rocks bounce off. |
-| rocks.tough L2 (B) | same | Be tough for big rocks. | Make your dino tough enough for big rocks. | Make your dino strong enough to walk under falling rocks. |  |  |
+| rocks.climb L1 (A) | Rock Pile | Get Hook Claws to climb. | Get Hook Claws to climb the rocks. | Give your dino Hook Claws to climb the pile of rocks. |  | E: Climb up the rocks.<br>M: Your dino must climb the pile of rocks.<br>H: Give your dino a good grip so it can climb the rocks. |
+| rocks.climb L1 (B) | Rock Pile | Climb with Hook Claws. | Hook Claws or Grabby Hands can climb. | Pick Hook Claws or Grabby Hands to hold on and climb. |  | E: Get claws that climb.<br>M: Make a dino that can climb well.<br>H: The rocks make a hill, so your dino must climb up. |
+| rocks.climb L2 (A) | Steep Rocks | Grabby Hands and a Long Tail. | Get Grabby Hands and a Long Tail. | The rocks are steep, so get Grabby Hands and a Long Tail. |  | E: Climb the steep rocks.<br>M: The rock wall is steep, so climb well.<br>H: Make your dino light, with a good grip for a steep wall. |
+| rocks.climb L2 (B) | Steep Rocks | Grabby Hands and a Slim Body. | Climb with Grabby Hands and a Slim Body. | Pick Grabby Hands and a Slim Body to climb the steep rocks. |  | E: Be a good climber.<br>M: Make your dino a strong climber.<br>H: This wall is steep, so your dino must grip and climb. |
+| rocks.climb L3 (A) | Very Steep Rocks | Grabby Hands, Long Tail, Slim Body. | Grabby Hands, Long Tail, Slim Body, Small size. | Pick Grabby Hands, a Long Tail, a Slim Body, and Small size. | E names only part of the fix (it needs more parts than the word limit allows) | E: Climb the steepest rocks.<br>M: The rocks are slippery, so grip very well.<br>H: Make your dino light, with a super grip for the slippery cliff. |
+| rocks.climb L3 (B) | Very Steep Rocks | Climb best with Grabby Hands. | Grabby Hands, Powerful Legs, Long Tail, Slim Body. | Use Grabby Hands, Powerful Legs, a Long Tail, and a Slim Body. | E names only part of the fix (it needs more parts than the word limit allows) | E: Be the best climber.<br>M: Make your dino the best climber ever.<br>H: This cliff is tall and slippery, so your dino must grip hard. |
+| rocks.tough L1 (A) | Falling Stones | Get Armor Plates. | Get Armor Plates so stones bounce off. | Give your dino Armor Plates so falling stones bounce off. |  | E: Be tough like a rock.<br>M: Your dino must be tough enough for pebbles.<br>H: Give your dino a strong back so pebbles bounce off. |
+| rocks.tough L1 (B) | Falling Stones | A Spiked Tail makes you tough. | Armor Plates or a Spiked Tail are tough. | Pick Armor Plates or a Spiked Tail so stones bounce off. |  | E: Pebbles bounce off tough dinos.<br>M: Make a dino that pebbles bounce off.<br>H: Make your dino tough enough to walk under falling pebbles. |
+| rocks.tough L2 (A) | Falling Rocks | Armor Plates and a Spiked Tail. | Get Armor Plates and a Spiked Tail. | Big rocks fall here, so get Armor Plates and a Spiked Tail. |  | E: Be very tough.<br>M: Big rocks fall here, so be very tough.<br>H: Give your dino a very tough back so big rocks bounce off. |
+| rocks.tough L2 (B) | Falling Rocks | Armor Plates and the Huge size. | Use Armor Plates and the Huge size. | Pick Armor Plates and the Huge size so big rocks bounce off. |  | E: Be tough for big rocks.<br>M: Make your dino tough enough for big rocks.<br>H: Make your dino strong enough to walk under falling rocks. |
 
 ### river (Cross the river)
 
-Titles (one is picked at random per challenge, any level): "River Crossing", "Splash", "Fishy River"
+Two-requirement title: "Fishy River". Was: "River Crossing" / "Splash" / "Fishy River", picked at random for every level.
 
-Family note: "Splash" is not a problem. Fix lines often describe instead of instruct.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| river.swim L1 (A) | River Crossing / Splash / Fishy River | Swim across the river. | Your dino must swim to the other side. | Give your dino a way to swim across the calm river. |  |  |
-| river.swim L1 (B) | same | Get a way to swim. | Make a dino that can cross the water. | The river is calm, so your dino can paddle over. | H is a statement, not a fix. | H: Give your dino a way to paddle across the river. |
-| river.swim L2 (A) | same | Swim across the wide river. | The river is wide, so swim well. | Make your dino a strong swimmer for the wide river. |  |  |
-| river.swim L2 (B) | same | Be a good swimmer. | Make your dino a strong swimmer. | Give your dino parts that swim well across wide water. | H "parts that swim" is awkward. | H: Pick flippers or a swim body for the wide water. |
-| river.swim L3 (A) | same | Swim in a fast river. | The water is fast, so swim very hard. | Make your dino swim strong against the fast river. | E is a goal; M "swim very hard" is effort, not a part. | E: Get parts to swim fast. |
-| river.swim L3 (B) | same | Be a super swimmer. | Make your dino the best swimmer. | The river pushes hard, so your dino must swim very well. |  |  |
-| river.fish L1 (A) | same | Pick a skin like the water. | Make your skin match the water. | Pick a skin color that blends in with the river water. |  |  |
-| river.fish L1 (B) | same | Hide in the water. | A fish must not see your dino. | Hide from the fish so your dino can catch it. | E/M state the goal or the problem, not the fix. | E: Get skin like the water.<br>M: Match the water so fish miss you. |
+| river.swim L1 (A) | Calm River | Get Flippers to swim. | Get Flippers to swim across the river. | Give your dino Flippers so it can swim across the calm river. |  | E: Swim across the river.<br>M: Your dino must swim to the other side.<br>H: Give your dino a way to swim across the calm river. |
+| river.swim L1 (B) | Calm River | Use a Paddle Tail to swim. | A Paddle Tail or Flippers help you swim. | Pick Flippers, a Paddle Tail, or Swimming to cross the river. |  | E: Get a way to swim.<br>M: Make a dino that can cross the water.<br>H: The river is calm, so your dino can paddle over. |
+| river.swim L2 (A) | Wide River | Pick Swimming to cross. | Pick Swimming to cross the wide river. | The river is wide, so pick Swimming to get across. |  | E: Swim across the wide river.<br>M: The river is wide, so swim well.<br>H: Make your dino a strong swimmer for the wide river. |
+| river.swim L2 (B) | Wide River | Get Flippers for the wide river. | Flippers help your dino swim a long way. | Pick Flippers or Swimming so your dino can swim far. |  | E: Be a good swimmer.<br>M: Make your dino a strong swimmer.<br>H: Give your dino parts that swim well across wide water. |
+| river.swim L3 (A) | Fast River | Swimming and a Paddle Tail. | Use Swimming and a Paddle Tail. | The river is fast, so pick Swimming and a Paddle Tail. |  | E: Swim in a fast river.<br>M: The water is fast, so swim very hard.<br>H: Make your dino swim strong against the fast river. |
+| river.swim L3 (B) | Fast River | Flippers and a Paddle Tail. | Get Flippers and a Paddle Tail to swim. | Pick Flippers and a Paddle Tail to swim in the fast river. |  | E: Be a super swimmer.<br>M: Make your dino the best swimmer.<br>H: The river pushes hard, so your dino must swim very well. |
+| river.fish L1 (A) | Shy Fish | Get Sky Blue skin. | Pick Sky Blue skin to match the water. | Give your dino Sky Blue skin so fish do not see it. |  | E: Pick a skin like the water.<br>M: Make your skin match the water.<br>H: Pick a skin color that blends in with the river water. |
+| river.fish L1 (B) | Shy Fish | Use Sky Blue to hide. | Sky Blue skin looks like the water. | Water is blue, so pick Sky Blue skin to hide from fish. |  | E: Hide in the water.<br>M: A fish must not see your dino.<br>H: Hide from the fish so your dino can catch it. |
 
 ### canyon (Fly across a deep canyon)
 
-Titles (one is picked at random per challenge, any level): "Deep Canyon", "Sky Trip", "No Bridge"
+Two-requirement title: "No Bridge" (never shown: one requirement only). Was: "Deep Canyon" / "Sky Trip" / "No Bridge", picked at random for every level.
 
-Family note: Check is "not too big" but lines say "light".
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| canyon.fly L1 (A) | Deep Canyon / Sky Trip / No Bridge | Fly across the canyon. | Your dino must go over by air. | Give your dino a way to fly over the deep canyon. | Hard word(s) in E/M: canyon |  |
-| canyon.fly L1 (B) | same | Get a way to fly. | There is no bridge, so go by air. | The bridge is gone, so your dino must cross by air. | E "a way to fly" is vague (Flying move). | E: Get wings to fly. |
-| canyon.fly L2 (A) | same | Fly across the wide canyon. | The canyon is wide, so fly far. | Make your dino light so it can fly across the wide canyon. | The check is "not too big" but H says "light" (not something the player sees). Hard word(s) in E/M: canyon | H: Fly across the wide canyon with a small dino. |
-| canyon.fly L2 (B) | same | Fly far and stay light. | Make your dino light enough to fly far. | Fly a long way, so do not make your dino too big. | "light" is not a size/part word; the fix is smaller size. | E: Fly far and stay small.<br>M: Make your dino small enough to fly far. |
-| canyon.fly L3 (A) | same | Fly across the widest canyon. | The canyon is huge, so be very light. | Make your dino small and light to cross the huge canyon. | M "be very light": the check is small size. Hard word(s) in E/M: canyon | M: The canyon is huge, so be very small. |
-| canyon.fly L3 (B) | same | Be small and fly far. | Make your dino small enough to fly far. | Only a tiny, light dino can fly this far. |  |  |
+| canyon.fly L1 (A) | Deep Gap | Pick Flying to cross. | Pick Flying so your dino can cross. | There is no bridge, so pick Flying to cross the deep gap. |  | E: Fly across the canyon.<br>M: Your dino must go over by air.<br>H: Give your dino a way to fly over the deep canyon. |
+| canyon.fly L1 (B) | Deep Gap | Use wings: pick Flying. | Flying lets your dino go over the gap. | Pick Flying so your dino can fly over the deep gap. |  | E: Get a way to fly.<br>M: There is no bridge, so go by air.<br>H: The bridge is gone, so your dino must cross by air. |
+| canyon.fly L2 (A) | Wide Gap | Flying and a Slim Body. | Fly far with Flying and a Slim Body. | The gap is wide, so pick Flying and a Slim Body. |  | E: Fly across the wide canyon.<br>M: The canyon is wide, so fly far.<br>H: Make your dino light so it can fly across the wide canyon. |
+| canyon.fly L2 (B) | Wide Gap | Pick Flying and be Small. | Pick Flying and the Small size. | Pick Flying and stay small, not Big or Huge, to fly far. |  | E: Fly far and stay light.<br>M: Make your dino light enough to fly far.<br>H: Fly a long way, so do not make your dino too big. |
+| canyon.fly L3 (A) | Very Wide Gap | Flying and the Small size. | Use Flying and the Small size to cross. | The gap is very wide, so pick Flying and the Small size. |  | E: Fly across the widest canyon.<br>M: The canyon is huge, so be very light.<br>H: Make your dino small and light to cross the huge canyon. |
+| canyon.fly L3 (B) | Very Wide Gap | A Small dino with Flying. | Pick Flying for a Small, light dino. | Pick Small size and Flying to fly over the very wide gap. |  | E: Be small and fly far.<br>M: Make your dino small enough to fly far.<br>H: Only a tiny, light dino can fly this far. |
 
 ### nut (Crack a giant nut)
 
-Titles (one is picked at random per challenge, any level): "Nut Crack", "Crunch Time", "Tough Nut"
+Two-requirement title: "Nut Snack" (never shown: one requirement only). Was: "Nut Crack" / "Crunch Time" / "Tough Nut", picked at random for every level.
 
-Family note: Nut becomes "coconut" at level 2; the level 3 line is illogical.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| nut.crack L1 (A) | Nut Crack / Crunch Time / Tough Nut | Crack open the hard nut. | Your dino must break open the nut. | Give your dino a strong bite to crack the hard nut. |  |  |
-| nut.crack L1 (B) | same | Get strong teeth. | Make a dino that can crack nuts. | Break the hard shell to get the treat inside. | H is a goal, not a fix. | H: Pick strong teeth to break the hard shell. |
-| nut.crack L2 (A) | same | Crack a very hard nut. | The coconut is hard, so crunch very hard. | Give your dino a very strong bite to crack the coconut. | M says "coconut" while the title and level 1 say "nut". Hard word(s) in E/M: coconut | M: The nut is very hard. Crunch very hard.<br>H: Give your dino a very strong bite to crack the nut. |
-| nut.crack L2 (B) | same | Crunch a big coconut. | Make your dino able to break a coconut. | The coconut shell is thick, so your dino must crunch hard. | "coconut" appears suddenly. Hard word(s) in E/M: coconut | E: Crunch a big nut.<br>M: Get teeth that can break a big nut.<br>H: The nut shell is thick, so your dino must crunch hard. |
-| nut.crack L3 (A) | same | Crack the hardest nut. | This nut is rock hard, so crunch hardest. | Give your dino the strongest bite to crack this giant nut. | M "crunch hardest" is bad grammar. | M: This nut is hard. Get the best teeth. |
-| nut.crack L3 (B) | same | Crunch super hard. | Make your dino the strongest cruncher ever. | Nobody can crack this nut, so your dino needs super power. | H is illogical ("Nobody can crack this nut") and "super power" is vague. Hard word(s) in E/M: cruncher | H: This nut is giant, so your dino needs the strongest teeth. |
+| nut.crack L1 (A) | Hard Nut | Get a Beak to crack it. | Get a Beak to crack the hard nut. | Give your dino a Beak so it can crack the hard nut. |  | E: Crack open the hard nut.<br>M: Your dino must break open the nut.<br>H: Give your dino a strong bite to crack the hard nut. |
+| nut.crack L1 (B) | Hard Nut | Crack it with a Horn Head. | A Horn Head or a Beak cracks nuts. | Pick a Horn Head or a Beak to crack the hard shell. |  | E: Get strong teeth.<br>M: Make a dino that can crack nuts.<br>H: Break the hard shell to get the treat inside. |
+| nut.crack L2 (A) | Very Hard Nut | Get a Beak for this nut. | Pick a Beak for the very hard nut. | The nut is very hard, so give your dino a strong Beak. |  | E: Crack a very hard nut.<br>M: The coconut is hard, so crunch very hard.<br>H: Give your dino a very strong bite to crack the coconut. |
+| nut.crack L2 (B) | Very Hard Nut | Horn Head and Big Teeth. | Use a Horn Head and Big Teeth. | Pick a Horn Head and Big Teeth to crack this nut. |  | E: Crunch a big coconut.<br>M: Make your dino able to break a coconut.<br>H: The coconut shell is thick, so your dino must crunch hard. |
+| nut.crack L3 (A) | Giant Nut | A Beak and a Horn Head. | Get a Beak and a Horn Head. | The nut is giant, so get a Beak and a Horn Head. |  | E: Crack the hardest nut.<br>M: This nut is rock hard, so crunch hardest.<br>H: Give your dino the strongest bite to crack this giant nut. |
+| nut.crack L3 (B) | Giant Nut | Horn Head plus a Beak. | Crack it with a Beak and Horn Head. | Pick a Beak and a Horn Head to crack this giant nut. |  | E: Crunch super hard.<br>M: Make your dino the strongest cruncher ever.<br>H: Nobody can crack this nut, so your dino needs super power. |
 
 ### log (Push a log off the path)
 
-Titles (one is picked at random per challenge, any level): "Log Push", "Blocked Path", "Heave Ho"
+Two-requirement title: "Blocked Path" (never shown: one requirement only). Was: "Log Push" / "Blocked Path" / "Heave Ho", picked at random for every level.
 
-Family note: Repeats lines from tallTree.shake.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| log.push L1 (A) | Log Push / Blocked Path / Heave Ho | Push the log away. | Your dino must push the log away. | Make your dino strong enough to push the log off the path. | E and M are goals; no part named. | E: Get a horn head to push. |
-| log.push L1 (B) | same | Be strong and push. | Make a dino strong enough to move logs. | The log blocks the path, so your dino must shove it. | E repeats tallTree.shake. H "shove" is hard to read. | E: Get a horn head to push.<br>H: The log blocks the path, so push it away. |
-| log.push L2 (A) | same | Push a big, heavy log. | The log is heavy, so be very strong. | Make your dino big and very strong to shove the heavy log. | E is a goal. |  |
-| log.push L2 (B) | same | Be very strong. | Make your dino big and strong. | This log is thick and heavy, so push with lots of power. | E repeats tallTree.shake. | E: Be big and push. |
-| log.push L3 (A) | same | Push the giant log. | The log is giant, so be super strong. | Make your dino huge and super strong to move the giant log. |  |  |
-| log.push L3 (B) | same | Be super strong. | Make your dino the strongest of all. | Only the strongest dino can push a log this big. |  |  |
+| log.push L1 (A) | Log on the Path | Push with a Horn Head. | Get a Horn Head to push the log. | Give your dino a Horn Head to push the log away. |  | E: Push the log away.<br>M: Your dino must push the log away.<br>H: Make your dino strong enough to push the log off the path. |
+| log.push L1 (B) | Log on the Path | Get a Heavy Tail to push. | A Heavy Tail or Big Belly pushes logs. | Pick a Heavy Tail or Big Belly to push the log away. |  | E: Be strong and push.<br>M: Make a dino strong enough to move logs.<br>H: The log blocks the path, so your dino must shove it. |
+| log.push L2 (A) | Heavy Log | Be the Huge size to push. | Pick the Huge size to push the log. | The log is heavy, so make your dino the Huge size. |  | E: Push a big, heavy log.<br>M: The log is heavy, so be very strong.<br>H: Make your dino big and very strong to shove the heavy log. |
+| log.push L2 (B) | Heavy Log | Horn Head and a Heavy Tail. | Use a Horn Head and a Heavy Tail. | Pick a Horn Head and a Heavy Tail to push it away. |  | E: Be very strong.<br>M: Make your dino big and strong.<br>H: This log is thick and heavy, so push with lots of power. |
+| log.push L3 (A) | Giant Log | Huge size and a Heavy Tail. | Get the Huge size and a Heavy Tail. | The log is giant, so pick Huge size and a Heavy Tail. |  | E: Push the giant log.<br>M: The log is giant, so be super strong.<br>H: Make your dino huge and super strong to move the giant log. |
+| log.push L3 (B) | Giant Log | Be Huge with a Heavy Tail. | Make a Huge dino with a Heavy Tail. | Push the giant log with a Huge dino and a Heavy Tail. |  | E: Be super strong.<br>M: Make your dino the strongest of all.<br>H: Only the strongest dino can push a log this big. |
 
 ### snow (Walk over the snowy mountain)
 
-Titles (one is picked at random per challenge, any level): "Snowy Mountain", "Brrr", "Ice Hill"
+Two-requirement title: "Snowy Mountain". Was: "Snowy Mountain" / "Brrr" / "Ice Hill", picked at random for every level.
 
-Family note: "Brrr" is a noise, not a problem. Warmth lines never say how to get warm.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| snow.warm L1 (A) | Snowy Mountain / Brrr / Ice Hill | Stay warm in the snow. | Your dino must not get cold. | Make your dino warm enough for the cold snow. |  |  |
-| snow.warm L1 (B) | same | Get a warm dino. | Make a dino that stays warm. | Snow is cold, so your dino needs to keep warm. | E/M/H do not say how (feathers, big body). | E: Get feathers to stay warm. |
-| snow.warm L2 (A) | same | Stay warm in the storm. | The storm is freezing, so be very warm. | Make your dino very warm for the freezing snowstorm. | Title "Brrr" is not a problem. Hard word(s) in E/M: freezing |  |
-| snow.warm L2 (B) | same | Be very warm. | Make your dino super warm. | The wind is icy, so your dino needs lots of warmth. |  |  |
-| snow.slope L1 (A) | same | Climb up the snowy hill. | Your dino must not slide on snow. | Give your dino a good grip to climb the icy hill. | M states the problem, not the fix. | M: Get claws that do not slide on snow. |
-| snow.slope L1 (B) | same | Get a grip on snow. | Make a dino that can climb ice. | The hill is slippery, so your dino must grip well. | E "Get a grip" is an idiom. H states the problem. | E: Get claws that grip snow.<br>H: The hill is slippery, so use claws that grip well. |
-| snow.slope L2 (A) | same | Climb the steep, icy hill. | The ice is steep, so grip very well. | Make your dino light, with a super grip for the steep ice. |  |  |
-| snow.slope L2 (B) | same | Be a great climber. | Make your dino climb up a steep hill. | This icy wall is steep, so your dino must grip hard. | M is a goal. | M: Get claws that climb a steep hill. |
+| snow.warm L1 (A) | Cold Snow | Get a warm Back Sail. | Get a Back Sail to stay warm. | Give your dino a Back Sail to stay warm in the snow. |  | E: Stay warm in the snow.<br>M: Your dino must not get cold.<br>H: Make your dino warm enough for the cold snow. |
+| snow.warm L1 (B) | Cold Snow | Keep Feathers and be Big. | Keep your Feathers and pick the Big size. | Pick a Big Belly or the Big size to stay warm. |  | E: Get a warm dino.<br>M: Make a dino that stays warm.<br>H: Snow is cold, so your dino needs to keep warm. |
+| snow.warm L2 (A) | Snow Storm | A Back Sail and Big size. | Pick a Back Sail and the Big size. | For the cold storm, get a Back Sail and Big size. |  | E: Stay warm in the storm.<br>M: The storm is freezing, so be very warm.<br>H: Make your dino very warm for the freezing snowstorm. |
+| snow.warm L2 (B) | Snow Storm | Big Belly and the Huge size. | Get a Big Belly and the Huge size. | Keep your Feathers and get a Big Belly and Huge size. |  | E: Be very warm.<br>M: Make your dino super warm.<br>H: The wind is icy, so your dino needs lots of warmth. |
+| snow.slope L1 (A) | Snowy Hill | Get Hook Claws for the snow. | Get Hook Claws so you do not slide. | Give your dino Hook Claws so it can climb the snowy hill. |  | E: Climb up the snowy hill.<br>M: Your dino must not slide on snow.<br>H: Give your dino a good grip to climb the icy hill. |
+| snow.slope L1 (B) | Snowy Hill | Hook Claws grip the snow. | Hook Claws or Grabby Hands grip snow. | Pick Hook Claws or Grabby Hands to climb without a slide. |  | E: Get a grip on snow.<br>M: Make a dino that can climb ice.<br>H: The hill is slippery, so your dino must grip well. |
+| snow.slope L2 (A) | Icy Hill | Get Grabby Hands for ice. | Get Grabby Hands to climb the icy hill. | The hill is steep and icy, so get Grabby Hands. |  | E: Climb the steep, icy hill.<br>M: The ice is steep, so grip very well.<br>H: Make your dino light, with a super grip for the steep ice. |
+| snow.slope L2 (B) | Icy Hill | Hook Claws and a Long Tail. | Use Hook Claws and a Long Tail. | Pick Hook Claws and a Long Tail to climb the icy hill. |  | E: Be a great climber.<br>M: Make your dino climb up a steep hill.<br>H: This icy wall is steep, so your dino must grip hard. |
 
 ### birds (Shoo the pesky birds away)
 
-Titles (one is picked at random per challenge, any level): "Pesky Birds", "Shoo Shoo", "Noisy Nest"
+Two-requirement title: "Bird Trouble" (never shown: one requirement only). Was: "Pesky Birds" / "Shoo Shoo" / "Noisy Nest", picked at random for every level.
 
-Family note: Mix of noise / honk / roar. "shoo" and "flock" are hard words.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| birds.roar L1 (A) | Pesky Birds / Shoo Shoo / Noisy Nest | Make a loud noise. | Your dino must be loud to shoo birds. | Give your dino a loud voice to shoo the birds away. | M "Make a noise" is not a fix. E/M "shoo" is hard for beginners. | E: Get a loud voice.<br>M: Get a loud head to chase birds. |
-| birds.roar L1 (B) | same | Shoo the birds away. | Make a noise that chases birds away. | The birds are on the nest, so make a loud noise. | E "Shoo" is hard to read. | E: Chase the birds away. |
-| birds.roar L2 (A) | same | Make a very loud honk. | The flock is big, so be very loud. | Give your dino a very loud voice to shoo the big flock. | E "honk" vs level 3 "roar" (mixed sounds). M "flock" is hard. | E: Make a very loud roar.<br>M: There are many birds, so be very loud. |
-| birds.roar L2 (B) | same | Shoo a big flock. | Make a honk that is very loud. | Many birds are here, so your dino must be much louder. | M "honk" vs "roar" elsewhere. Hard word(s) in E/M: shoo, flock | M: Make a roar that is very loud. |
-| birds.roar L3 (A) | same | Make the loudest roar. | Make a roar that is the loudest ever. | Give your dino the loudest roar so every bird flies away. | M "the loudest ever" is a double superlative. |  |
-| birds.roar L3 (B) | same | Roar super loud. | Every bird must fly away, so roar loudest. | Your dino needs a roar even louder than thunder. |  |  |
+| birds.roar L1 (A) | Birds on the Nest | Shake a Neck Frill at them. | A loud Neck Frill chases the birds. | Give your dino a loud Neck Frill to chase the birds. |  | E: Make a loud noise.<br>M: Your dino must be loud to shoo birds.<br>H: Give your dino a loud voice to shoo the birds away. |
+| birds.roar L1 (B) | Birds on the Nest | Honk with a Crest Head. | A Crest Head makes a loud honk. | Pick a Crest Head or a Neck Frill to make loud noise. |  | E: Shoo the birds away.<br>M: Make a noise that chases birds away.<br>H: The birds are on the nest, so make a loud noise. |
+| birds.roar L2 (A) | Lots of Birds | Get a Crest Head to honk. | Get a Crest Head for a loud honk. | There are lots of birds, so give your dino a Crest Head. |  | E: Make a very loud honk.<br>M: The flock is big, so be very loud.<br>H: Give your dino a very loud voice to shoo the big flock. |
+| birds.roar L2 (B) | Lots of Birds | Roar with a Rex Head. | A Rex Head makes a very loud roar. | Pick a Rex Head or a Crest Head to be very loud. |  | E: Shoo a big flock.<br>M: Make a honk that is very loud.<br>H: Many birds are here, so your dino must be much louder. |
+| birds.roar L3 (A) | So Many Birds | Rex Head, Huge size, Neck Frill. | Use a Rex Head, Huge size, and Frill. | Get a Rex Head, the Huge size, and a Neck Frill. |  | E: Make the loudest roar.<br>M: Make a roar that is the loudest ever.<br>H: Give your dino the loudest roar so every bird flies away. |
+| birds.roar L3 (B) | So Many Birds | Crest Head, Huge size, Neck Frill. | Pick a Crest Head, Huge size, and Frill. | Be loudest with a Crest Head, Huge size, and a Neck Frill. |  | E: Roar super loud.<br>M: Every bird must fly away, so roar loudest.<br>H: Your dino needs a roar even louder than thunder. |
 
 ### desert (Hot sandy desert)
 
-Titles (one is picked at random per challenge, any level): "Hot Desert", "Sand Dunes", "Sunny Sands"
+Two-requirement title: "Hot Desert". Was: "Hot Desert" / "Sand Dunes" / "Sunny Sands", picked at random for every level.
 
-Family note: Level 2/3 lines often drop the sand color. "cool" is ambiguous.
-
-| Level | Title | Easy | Medium | Hard | Problems | Suggested rewrite |
+| Level | Title | Easy | Medium | Hard | Problems | Was |
 |---|---|---|---|---|---|---|
-| desert.hide L1 (A) | Hot Desert / Sand Dunes / Sunny Sands | Pick a skin like sand. | Make your skin match the sand. | Pick a skin color that helps your dino hide in sand. |  |  |
-| desert.hide L1 (B) | same | Hide in the sand. | Your dino must hide in the desert. | The big dino must not see your dino in the dunes. | E is a goal. | E: Get skin like the sand. |
-| desert.hide L2 (A) | same | Hide behind a small dune. | The dune is small, so be small too. | Match the color of the sand and be small to hide. | E is a goal. M leaves out sand color. Hard word(s) in E/M: dune | E: Match the sand and be small.<br>M: Small dune. Match the sand, be small. |
-| desert.hide L2 (B) | same | Match the sand and be small. | Match the sand and stay low. | Only a small dune is here, so your dino must be small. | M "stay low" is not a size word. | M: Match the sand and stay small. |
-| desert.hide L3 (A) | same | Hide on flat, open sand. | No dunes are here, so be very small. | There is nowhere to hide, so match the sand and be tiny. | E is a goal. M leaves out color. Hard word(s) in E/M: dunes | E: Match the sand and be tiny.<br>M: No dunes. Match the sand, be tiny. |
-| desert.hide L3 (B) | same | Match the sand and be tiny. | Match the sand and be super small. | On flat sand, your dino must be tiny and match the color. |  |  |
-| desert.cool L1 (A) | same | Stay cool in the sun. | Your dino must not get too hot. | Make your dino stay cool under the hot desert sun. | E is a goal. No part or way named (Extra). |  |
-| desert.cool L1 (B) | same | Do not get too hot. | Make a dino that stays cool. | The sand is hot, so your dino must keep cool. | E is a goal. |  |
-| desert.cool L2 (A) | same | Stay cool in the hottest sand. | The sand is super hot, so stay cool. | Make your dino cool and light for the very hot sand. | H "cool and light": "light" is not part of the check. | H: Make your dino as cool as can be for the hot sand. |
-| desert.cool L2 (B) | same | Be very cool. | Make your dino very cool and light. | This is the hottest day, so your dino must stay cool. | E "Be very cool" reads as slang. M "cool and light": "light" is extra. | E: Stay very cool.<br>M: Make your dino very cool. |
+| desert.hide L1 (A) | Open Sand | Get Sandy Brown skin. | Pick Sandy Brown skin to match the sand. | Give your dino Sandy Brown skin so it hides in the sand. |  | E: Pick a skin like sand.<br>M: Make your skin match the sand.<br>H: Pick a skin color that helps your dino hide in sand. |
+| desert.hide L1 (B) | Open Sand | Use Sandy Brown to hide. | Sandy Brown skin looks just like sand. | The sand is brown, so pick Sandy Brown skin to hide. |  | E: Hide in the sand.<br>M: Your dino must hide in the desert.<br>H: The big dino must not see your dino in the dunes. |
+| desert.hide L2 (A) | Small Sand Hill | Sandy Brown and the Small size. | Get Sandy Brown skin and the Small size. | Behind a small sand hill, pick Sandy Brown skin and Small size. |  | E: Hide behind a small dune.<br>M: The dune is small, so be small too.<br>H: Match the color of the sand and be small to hide. |
+| desert.hide L2 (B) | Small Sand Hill | Be Small and Sandy Brown. | Use Sandy Brown skin and be Small. | Pick Sandy Brown skin and the Small size to hide well. |  | E: Match the sand and be small.<br>M: Match the sand and stay low.<br>H: Only a small dune is here, so your dino must be small. |
+| desert.hide L3 (A) | Flat Sand | Sandy Brown, Small, Slim Body. | Sandy Brown, Small size, Slim Body, Leaf Pattern. | Pick Sandy Brown, Small size, a Slim Body, and a Leaf Pattern. | E names only part of the fix (it needs more parts than the word limit allows); M/H name a Leaf Pattern in the desert: it works (it adds hiding), but reads oddly for sand | E: Hide on flat, open sand.<br>M: No dunes are here, so be very small.<br>H: There is nowhere to hide, so match the sand and be tiny. |
+| desert.hide L3 (B) | Flat Sand | Sandy Brown skin and Small size. | Sandy Brown, Small, Slim Body, Tiger Stripes. | Use Sandy Brown skin, Small size, a Slim Body, and Tiger Stripes. | E names only part of the fix (it needs more parts than the word limit allows); M/H name Tiger Stripes in the desert: it works (it adds hiding), but reads oddly for sand | E: Match the sand and be tiny.<br>M: Match the sand and be super small.<br>H: On flat sand, your dino must be tiny and match the color. |
+| desert.cool L1 (A) | Hot Sun | Swap Feathers for a Neck Frill. | Swap the warm Feathers for a Neck Frill. | Feathers are too hot here, so pick a Neck Frill instead. |  | E: Stay cool in the sun.<br>M: Your dino must not get too hot.<br>H: Make your dino stay cool under the hot desert sun. |
+| desert.cool L1 (B) | Hot Sun | Pick Glow Spots, not Feathers. | Use Glow Spots or Tiger Stripes, not Feathers. | Pick any Extra but Feathers, like Glow Spots, to stay cool. |  | E: Do not get too hot.<br>M: Make a dino that stays cool.<br>H: The sand is hot, so your dino must keep cool. |
+| desert.cool L2 (A) | Super Hot Sun | Slim Body and a Neck Frill. | Get a Slim Body and a Neck Frill. | Get a Slim Body and swap the Feathers for a Neck Frill. |  | E: Stay cool in the hottest sand.<br>M: The sand is super hot, so stay cool.<br>H: Make your dino cool and light for the very hot sand. |
+| desert.cool L2 (B) | Super Hot Sun | Slim Body and Glow Spots. | Use a Slim Body and Glow Spots. | Pick a Slim Body and Glow Spots so your dino stays cool. |  | E: Be very cool.<br>M: Make your dino very cool and light.<br>H: This is the hottest day, so your dino must stay cool. |

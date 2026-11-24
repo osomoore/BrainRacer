@@ -132,7 +132,7 @@ describe('dino phrases', () => {
     for (const s of cat.scenarios) {
       const p = cat.scenarioPhrases.find((x) => x.scenario === s.id);
       expect(p, s.id).toBeDefined();
-      expect(p!.title.length).toBeGreaterThanOrEqual(2);
+      expect(p!.title).toHaveLength(1); // stage title for 2+ requirements; one requirement uses its level title
       for (const r of READING_LEVELS) expect(p!.intro[r]).toEqual([]);
     }
   });
@@ -158,11 +158,10 @@ describe('dino phrases', () => {
     }
   });
 
-  it('Medium and Hard may name variants when listing alternative fixes', () => {
+  it('hints never name variants (guidelines name the fix; validateCatalog checks them)', () => {
     for (const sentence of allSentences()) {
       const { r, t, id } = sentence;
-      if ('hasOptions' in sentence && sentence.hasOptions) continue;
-      if (r === 'easy') continue;
+      if (!id.endsWith('hint')) continue;
       for (const n of bannedNames) {
         const re = new RegExp(`\\b${n.replace(/\s+/g, '\\s+')}\\b`, 'i');
         expect(re.test(t), `${id} (${r}) names "${n}": ${t}`).toBe(false);

@@ -48,11 +48,10 @@ const facets: FacetDef[] = C.scenarios.flatMap((s) => [...s.facets]);
 const facetById = new Map(facets.map((f) => [f.id, f]));
 const starterChecks = (i: number) => C.starters[i].stages.flatMap((st) => st.facets.flatMap((f) => facetById.get(f.facet)!.check(f.level)));
 
-// Variant names that must never appear in Medium/Hard text (multi-word names always; distinctive single words too).
+// Variant names that must never appear in hints (multi-word names always; distinctive single words too).
 const DISTINCT = ['jeep', 'van', 'sleek', 'wedge', 'boxy', 'floaties', 'snorkel', 'winch', 'rainbow', 'tiny', 'truck',
   'rocket', 'spoiler', 'turbo', 'electric', 'bouncy', 'rubber', 'racing', 'monster'];
 const MULTI = C.variants.map((v) => v.name.toLowerCase()).filter((n) => n.includes(' '));
-const ASPECT_WORDS = ['wheels', 'wheel', 'tires', 'engine', 'motor', 'gears', 'springs', 'suspension', 'bumper', 'bumpers'];
 const words = (s: string): string[] => s.toLowerCase().match(/[a-z0-9']+/g) ?? [];
 const hasWord = (s: string, w: string) => words(s).includes(w);
 
@@ -180,7 +179,7 @@ describe('race phrases', () => {
     for (const s of C.scenarios) {
       const p = C.scenarioPhrases.find((x) => x.scenario === s.id);
       expect(p, s.id).toBeDefined();
-      expect(p!.title.length).toBeGreaterThanOrEqual(2);
+      expect(p!.title).toHaveLength(1); // stage title for 2+ requirements; one requirement uses its level title
       for (const r of READING_LEVELS) expect(p!.intro[r], `${s.id} intro ${r}`).toEqual([]); // intros are dropped
     }
   });
@@ -197,17 +196,8 @@ describe('race phrases', () => {
     expect(/[^\x20-\x7e]/.test(JSON.stringify(C.facetPhrases) + JSON.stringify(C.scenarioPhrases))).toBe(false);
   });
 
-  it('keeps single-option guidelines and hints from naming variants', () => {
+  it('keeps hints from naming variants (guidelines name the fix; validateCatalog checks them)', () => {
     for (const p of C.facetPhrases) {
-      const facet = facetById.get(p.facet)!;
-      for (const [i, row] of p.requirement.entries()) {
-        if (facet.check(facet.levels[i]).some((check) => check.kind === 'anyOf')) continue;
-        for (const r of READING_LEVELS) for (const s of row[r]) {
-          expect(allVariantText(s), s).toEqual([]);
-          if (r === 'easy') continue;
-          for (const w of [...DISTINCT, ...ASPECT_WORDS]) expect(hasWord(s, w), `${s} [${w}]`).toBe(false);
-        }
-      }
       for (const r of READING_LEVELS) for (const s of p.hint[r]) {
         expect(allVariantText(s), s).toEqual([]);
         for (const w of DISTINCT) expect(hasWord(s, w), `${s} [${w}]`).toBe(false);

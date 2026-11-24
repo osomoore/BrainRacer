@@ -12,10 +12,28 @@ export interface ChallengeMeta {
   seed: number;
 }
 
+function pickAt(r: number, arr: readonly string[] | undefined, fallback: string): string {
+  return arr && arr.length > 0 ? arr[Math.min(arr.length - 1, Math.floor(r * arr.length))] : fallback;
+}
+
 /** Always consumes exactly one rng draw so output stays stable whether or not phrases exist. */
 function pick(rng: Rng, arr: readonly string[] | undefined, fallback: string): string {
-  const r = rng.next();
-  return arr && arr.length > 0 ? arr[Math.floor(r * arr.length)] : fallback;
+  return pickAt(rng.next(), arr, fallback);
+}
+
+/**
+ * The problem named on the card for one stage: the facet's level title when the stage has one requirement,
+ * otherwise the scenario title (written to fit every facet of the scenario). Falls back to the scenario label.
+ */
+export function stageTitle(cat: WorkshopCatalog, st: StarterSpec['stages'][number]): string {
+  const ix = index(cat);
+  const fallback = ix.scenarioPhrases.get(st.scenario)?.title[0] ?? ix.scenarioById.get(st.scenario)?.label ?? st.scenario;
+  if (st.facets.length !== 1) return fallback;
+  const fs = st.facets[0];
+  const titles = ix.facetPhrases.get(fs.facet)?.title;
+  const def = ix.facetById.get(fs.facet)?.facet;
+  if (!titles || titles.length === 0) return fallback;
+  return titles[Math.min(def ? levelIndex(def, fs.level) : 0, titles.length - 1)];
 }
 
 export function levelIndex(f: FacetDef, level: number): number {
@@ -37,9 +55,8 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
   const rng = new Rng(meta.seed ^ 0x5bd1e995);
 
   const titles = spec.stages.map((st) => {
-    const sp = ix.scenarioPhrases.get(st.scenario);
-    const fb = ix.scenarioById.get(st.scenario)?.label ?? st.scenario;
-    return pick(rng, sp?.title, fb);
+    rng.next(); // titles used to be drawn at random; keep the draw so the line picks below stay stable
+    return stageTitle(cat, st);
   });
   const title = titles.length <= 1 ? (titles[0] ?? 'Challenge')
     : titles.length === 2 ? `${titles[0]} & ${titles[1]}` : `${titles[0]} Adventure`;
@@ -60,8 +77,11 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
         ? phr.requirement[Math.min(def ? levelIndex(def, fs.level) : 0, phr.requirement.length - 1)] : undefined;
       const hintAspect = def?.hintAspect ?? '';
       const aspectLabel = cat.aspects.find((a) => a.id === hintAspect)?.label ?? hintAspect;
+      // One draw picks the row (alternative i) for every reading level, so Easy/Medium/Hard say the same fix.
+      // The other two draws are kept so the rng stream (and the hint picks) stay where they were.
+      const row = rng.next(); rng.next(); rng.next();
       const text = {} as Leveled;
-      for (const r of READING_LEVELS) text[r] = pick(rng, reqPhr?.[r], `Build something for ${fs.facet}.`);
+      for (const r of READING_LEVELS) text[r] = pickAt(row, reqPhr?.[r], `Build something for ${fs.facet}.`);
       const hint = {} as Leveled;
       for (const r of READING_LEVELS) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
       requirements.push({
