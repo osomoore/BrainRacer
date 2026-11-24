@@ -1,6 +1,6 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
 import { READING_LEVELS } from '../core/types';
-import type { BasicCheck, Check, FacetDef, ReadingLevel, Variant, WorkshopCatalog } from '../core/types';
+import type { BasicCheck, Check, FacetDef, LeveledPhrases, ReadingLevel, Variant, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { solve, solvable } from './solver';
 import { allPass, computeModel, defaultModel, partTag } from './stats';
@@ -8,11 +8,13 @@ import { starterChallenge } from './starters';
 import { flatChecks } from './util';
 import { lineFixes, namedVariants, variantHelps } from './namedFixes';
 import { WS_RULES } from '../config';
+import { catalogFixes } from './text';
+import { namedReason } from './successReasons';
+import { PHRASE_WORD_LIMIT, wordCount } from './wording';
 
 export { namedVariants, variantHelps } from './namedFixes';
 
 const MIN_TIER0_STARTER_ONLY_FACETS = 3;
-const GUIDELINE_WORD_LIMIT: Record<ReadingLevel, number> = { easy: 6, medium: 8, hard: 12 };
 const TITLE_WORD_LIMIT = 4;
 /** Words beginning readers stumble on (found in the 2026 text review), plus idioms. Part names are allowed. */
 export const HARD_WORDS: readonly string[] = [
@@ -22,7 +24,7 @@ export const HARD_WORDS: readonly string[] = [
 ];
 const PLACEHOLDER = /[{}<>[\]_|\\]|\b(?:TODO|TBD|XXX|FIXME)\b|\.\.\./;
 
-export const wordCount = (s: string): number => s.trim().split(/\s+/).filter(Boolean).length;
+export { wordCount } from './wording';
 const describeCheck = (c: BasicCheck): string => c.kind === 'statMin' ? `${c.stat} >= ${c.min}`
   : c.kind === 'statMax' ? `${c.stat} <= ${c.max}` : c.kind === 'tag' ? `tag ${c.tag}` : `no tag ${c.tag}`;
 
@@ -128,7 +130,7 @@ export function validateCatalog(cat: WorkshopCatalog, opts: ValidateOptions = {}
       if (!arr || arr.length < 2) err(`${where} [${r}]: needs >= 2 sentences`);
       else if (arr.some((s) => !s || !s.trim())) err(`${where} [${r}]: empty sentence`);
       if (guideline) for (const line of arr ?? []) {
-        const limit = GUIDELINE_WORD_LIMIT[r];
+        const limit = PHRASE_WORD_LIMIT[r];
         if (line.trim().split(/\s+/).length > limit) err(`${where} [${r}]: guideline exceeds ${limit} words: "${line}"`);
       }
     }
@@ -214,6 +216,36 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
     if (prev) err(`${where}: duplicate title "${t}" (also ${prev})`);
     else seenTitles.set(t.toLowerCase(), where);
   };
+  const completeSentence = (where: string, reading: ReadingLevel, phrase: string): void => {
+    hard(where, phrase);
+    if (!/^[A-Z0-9].*[.!?]$/.test(phrase)) err(`${where}: needs a complete sentence: "${phrase}"`);
+    const limit = PHRASE_WORD_LIMIT[reading];
+    if (wordCount(phrase) > limit) err(`${where}: exceeds ${limit} words: "${phrase}"`);
+  };
+  const successRows = (where: string, bank: LeveledPhrases, render = (line: string, _reading: ReadingLevel) => line): void => {
+    const rows = READING_LEVELS.map((reading) => {
+      const phrases = (bank?.[reading] ?? []).map((line) => render(line, reading));
+      const at = `${where} [${reading}]`;
+      if (new Set(phrases).size < 2) err(`${at}: needs at least 2 distinct sentences`);
+      phrases.forEach((phrase) => completeSentence(at, reading, phrase));
+      return phrases;
+    });
+    if (rows.some((row) => row.length !== rows[0].length)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
+    rows[0].forEach((easy, i) => {
+      const medium = rows[1][i];
+      const hard = rows[2][i];
+      if (medium && hard && (wordCount(easy) > wordCount(medium) || wordCount(medium) > wordCount(hard))) {
+        err(`${where} row ${i + 1}: words must go Easy <= Medium <= Hard`);
+      }
+    });
+  };
+  for (const id of Object.keys(cat.successPhrases ?? {})) {
+    if (!ix.facetById.has(id)) err(`success phrases: unknown facet "${id}"`);
+  }
+  for (const [id, name] of Object.entries(cat.successPartNames ?? {})) {
+    if (!ix.variantById.has(id)) err(`success part name: unknown variant "${id}"`);
+    if (!name.trim()) err(`success part name: empty name for "${id}"`);
+  }
   for (const sc of cat.scenarios) {
     const sp = ix.scenarioPhrases.get(sc.id);
     if (sp) {
@@ -221,6 +253,20 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
       sp.title.forEach((t) => title(`scenario ${sc.id} title`, t));
     }
     for (const f of sc.facets) {
+      const success = cat.successPhrases?.[f.id];
+      if (!success) err(`facet ${f.id}: no success phrases`);
+      else {
+        for (const key of Object.keys(success.qualityByLevel ?? {})) {
+          if (!f.levels.includes(Number(key))) err(`facet ${f.id}: success phrases for unknown level ${key}`);
+        }
+        for (const level of f.levels) {
+          const at = `facet ${f.id} level ${level} success`;
+          successRows(`${at} quality`, success.qualityByLevel?.[level] ?? success.quality);
+          for (const fix of catalogFixes(cat, f, level)) {
+            successRows(`${at} named (${fix.join(', ')})`, success.named, (line, reading) => namedReason(cat, fix, line, reading));
+          }
+        }
+      }
       const ph = ix.facetPhrases.get(f.id);
       if (!ph) continue;
       if (!ph.title || ph.title.length !== f.levels.length) {
@@ -234,12 +280,7 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
     const where = `clever win [${r}]`;
     const phrases = cat.cleverWinPhrases?.[r] ?? [];
     if (new Set(phrases).size < 2) err(`${where}: needs at least 2 distinct sentences`);
-    const limit = GUIDELINE_WORD_LIMIT[r];
-    for (const phrase of phrases) {
-      hard(where, phrase);
-      if (!/^[A-Z].*[.!?]$/.test(phrase)) err(`${where}: needs a complete sentence: "${phrase}"`);
-      if (wordCount(phrase) > limit) err(`${where}: exceeds ${limit} words: "${phrase}"`);
-    }
+    for (const phrase of phrases) completeSentence(where, r, phrase);
   }
 }
 

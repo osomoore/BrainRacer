@@ -7,6 +7,7 @@ import { RACE_SCENARIOS } from './scenarios';
 import { RACE_FACET_PHRASES, RACE_PART_ALIASES, RACE_SCENARIO_PHRASES } from './phrases';
 import { RACE_UNLOCK_ORDER } from './unlocks';
 import { RACE_STARTERS } from './starters';
+import { RACE_SUCCESS_PART_NAMES, RACE_SUCCESS_PHRASES } from './successPhrases';
 
 export { RACE_SCENE_NOTES } from './sceneNotes';
 
@@ -20,6 +21,8 @@ export const RACE_CATALOG: WorkshopCatalog = {
   facetPhrases: RACE_FACET_PHRASES,
   scenarioPhrases: RACE_SCENARIO_PHRASES,
   cleverWinPhrases: CLEVER_WIN_PHRASES,
+  successPhrases: RACE_SUCCESS_PHRASES,
+  successPartNames: RACE_SUCCESS_PART_NAMES,
   partAliases: RACE_PART_ALIASES,
   unlockOrder: RACE_UNLOCK_ORDER,
   starters: RACE_STARTERS,

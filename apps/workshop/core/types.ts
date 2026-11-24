@@ -135,6 +135,15 @@ export interface ScenarioPhrases {
   intro: Readonly<Record<ReadingLevel, readonly string[]>>;
 }
 
+export interface SuccessPhrases {
+  /** Sentence endings that follow the name(s) of the installed parts. */
+  named: LeveledPhrases;
+  /** Complete sentences describing the quality that passed the requirement. */
+  quality: LeveledPhrases;
+  /** Overrides when the requirement changes at a higher difficulty. */
+  qualityByLevel?: Readonly<Record<number, LeveledPhrases>>;
+}
+
 export interface WorkshopCatalog {
   id: WorkshopId;
   title: string;
@@ -146,6 +155,9 @@ export interface WorkshopCatalog {
   facetPhrases: readonly FacetPhrases[];
   scenarioPhrases: readonly ScenarioPhrases[];
   cleverWinPhrases?: LeveledPhrases;
+  successPhrases?: Readonly<Record<FacetId, SuccessPhrases>>;
+  /** Short display names for multi-part success reasons when the full names exceed the word limit. */
+  successPartNames?: Readonly<Record<VariantId, string>>;
   /**
    * Approved short words for parts in guidelines, besides the variant names themselves (lower case), e.g.
    * { wings: ['move.fly'] }. validateCatalog uses them to check that every guideline names a part that helps.
@@ -229,6 +241,8 @@ export interface RequirementResult {
   id: string;
   passed: boolean;
   route: 'named' | 'stat' | 'check' | null;
+  /** The installed recipe that passed a named route, in display order. */
+  parts?: readonly VariantId[];
   /** False for requirements in stages after the failing stage (still evaluated and shown). */
   reached: boolean;
 }
