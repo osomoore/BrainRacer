@@ -153,6 +153,8 @@ export const RACE_WINDOW = '#bfeaff';
 export const RACE_WINDOW_DARK = '#6fb7e0';
 
 export const JEEP_SPARE = { depth: 22, diameter: 50, offset: -9, rubber: '#2c2c3a', tread: '#171824' };
+export const JEEP_SPARE_BRACKET = 12;
+export const WINCH_SCALE = 0.65;
 
 export const ROCKET_SCALE = 0.86;
 export const ROCKET_NOZZLE_X = -104;

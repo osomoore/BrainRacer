@@ -5,8 +5,8 @@ import type { RigAnim } from '../../core/runtime';
 import type { Model, View } from '../../core/types';
 import { partImage } from '../bake';
 import { BaseRig } from '../rigBase';
-import { BUMPER, ROCKET_NOZZLE_X, ROCKET_SCALE, SPRING } from './looks';
-import { type RaceGeom, type RaceLooks, raceGeom, raceLooks } from './geometry';
+import { BUMPER, ROCKET_NOZZLE_X, ROCKET_SCALE, SPRING, WINCH_SCALE } from './looks';
+import { type RaceGeom, type RaceLooks, raceGeom, raceLooks, winchMount } from './geometry';
 import * as S from './drawSide';
 import * as T from './drawTop';
 
@@ -103,6 +103,7 @@ export class RaceRig extends BaseRig {
     const ex = S.exhaustSide(m.engine);
     if (ex) { const pipe = partImage(sc, ex).setPosition(geo.rear + 4, geo.bottom + 3); this.bumperG.add(pipe); P.engine.push(pipe); }
     // extras on top
+    const winchAt = winchMount(L, geo);
     switch (m.extra) {
       case 'extra.roofRack': {
         const w = Math.max(70, (r1 - r0) * 0.9), cx = (r0 + r1) / 2;
@@ -116,8 +117,13 @@ export class RaceRig extends BaseRig {
         break;
       }
       case 'extra.winch': {
-        const winch = partImage(sc, S.winchSide()).setPosition(geo.front + 8, geo.bottom - 4);
-        winch.setScale(winch.scaleX * 0.65, winch.scaleY * 0.65);
+        if (winchAt.extension) {
+          const bracket = partImage(sc, S.winchBracket(winchAt.extension), geo.front, winchAt.y - 6);
+          this.bumperG.add(bracket);
+          P.extra.push(bracket);
+        }
+        const winch = partImage(sc, S.winchSide()).setPosition(winchAt.x, winchAt.y);
+        winch.setScale(winch.scaleX * WINCH_SCALE, winch.scaleY * WINCH_SCALE);
         this.bumperG.add(winch);
         P.extra.push(winch);
         break;
@@ -156,7 +162,7 @@ export class RaceRig extends BaseRig {
     const ex2: Record<string, [number, number]> = {
       'extra.roofRack': [(r0 + r1) / 2, geo.roofTop - 20], 'extra.rocket': [geo.rear - 40, geo.bottom - 20],
       'extra.floats': [0, geo.bottom + 4], 'extra.spoiler': [rearDeckX, rearDeckY - 22],
-      'extra.snorkel': [cabinFront, geo.roofTop - 10], 'extra.winch': [geo.front + 13, geo.bottom - 14],
+      'extra.snorkel': [cabinFront, geo.roofTop - 10], 'extra.winch': [winchAt.x, winchAt.y - 9],
     };
     const e = ex2[m.extra] ?? [0, -geo.height / 2];
     fx('extra', e[0], e[1], 2);
@@ -184,7 +190,12 @@ export class RaceRig extends BaseRig {
       case 'extra.roofRack': add('extra', partImage(sc, T.rackTop((c1 - c0) * 0.8, cw * 1.5, L.rackBags)), (c0 + c1) / 2, 0); break;
       case 'extra.spoiler': add('extra', partImage(sc, T.spoilerTop(hw, m.paint)), geo.rear + 28, 0); break;
       case 'extra.snorkel': add('extra', partImage(sc, T.snorkelTop()), c1 - 4, -cw); break;
-      case 'extra.winch': add('extra', partImage(sc, T.winchTop()), geo.front + 12, 0, false, 0.65); break;
+      case 'extra.winch': {
+        const { x, extension } = winchMount(L, geo);
+        if (extension) add('extra', partImage(sc, S.winchBracket(extension)), geo.front, 0);
+        add('extra', partImage(sc, T.winchTop()), x, 0, false, WINCH_SCALE);
+        break;
+      }
       default: break;
     }
     const frontBumper = partImage(sc, T.bumperTop(m.bumpers, hw)).setPosition(geo.front - 10, 0);

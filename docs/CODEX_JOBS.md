@@ -292,7 +292,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   at side and top views for every head/size combo that the change touches; tests pass. List in the hand-back which paint
   keys are now stale (their voted paint hides the new shape).
 
-## C19 — Race Shop attachment placement from review round 2 · `OPEN`
+## C19 — Race Shop attachment placement from review round 2 · `DONE (codex/c19)`
 - **Parallel-safe with C16, C17 and C18.** Shape (code) only, no ComfyUI.
 - **Port:** 5224.
 - **Scope:** `apps/workshop/art/race/**`, `apps/workshop/dev/WorkshopParts.ts` (race sheets only), tests next to them.
@@ -303,6 +303,8 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
     overlap the wheels.
 - **Done when:** reviewer screenshots of the jeep and winch sheets (`&art=shapes&freeze=1`) show the new placement on all
   bodies/sizes; tests pass. List stale paint keys in the hand-back.
+- **Review:** `workshop.html?dev=WorkshopParts&page=jeep&size=size.tiny&art=shapes&freeze=1` or
+  `workshop.html?dev=WorkshopParts&page=winch&body=body.sports&size=size.tiny&art=shapes&freeze=1`. Each sheet shows all wheels.
 
 
 ---
