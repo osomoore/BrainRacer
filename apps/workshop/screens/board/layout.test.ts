@@ -33,7 +33,8 @@ describe('boardLayout', () => {
       expect(t.x + t.w).toBeLessThanOrEqual(L.panel.x + L.panel.w / 2 + 1);
       if (kind === 'wide') expect(t.y + t.h).toBeLessThanOrEqual(L.testBtn.y - L.testBtn.h / 2);
       else expect(t.y + t.h).toBeLessThanOrEqual(L.textPager.y);
-      expect(t.h).toBeGreaterThan(kind === 'wide' ? 300 : 150);
+      // Tall Admin Mode gives back less room: the New button row and the taller reward tabs leave ~100 px of text.
+      expect(t.h).toBeGreaterThan(kind === 'wide' ? 300 : admin ? 100 : 150);
       if (kind === 'tall') expect(L.title.y + L.title.size / 2).toBeLessThan(t.y);
       if (kind === 'tall') expect(L.panel.y + L.panel.h / 2).toBeLessThanOrEqual(L.back.y - L.back.h / 2);
     });
