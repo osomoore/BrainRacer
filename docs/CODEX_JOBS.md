@@ -421,5 +421,31 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 
 ---
 
+## C25 — Workshop join and profiles use Brain Racer's menu UI · `OPEN`
+- **Start point:** branch `codex/c25` from the current `feature/workshop` tip.
+- **Parallel-safe with C23** (C23 does not touch the join / profile / name-entry screens). Code only, no ComfyUI.
+- **Port:** 5230.
+- **Scope:** move the reusable Brain Racer menu pieces from `src/ui/menu/` into `shared/ui/menu/` (JoinCard, JoinPanel,
+  LetterPicker, NewRacerPanel, MenuButton, FaceButtonBadge, OptionRow, style, letterGrid, joinLogic, newRacerLogic and their
+  tests) and re-export them from `src/ui/menu/index.ts` so Brain Racer keeps working unchanged. Then rebuild the workshop's
+  join, profile chooser and new-profile screens (`apps/workshop/shell/**`, `apps/workshop/screens/profile*`,
+  `apps/workshop/screens/newProfileScreen.ts`, `apps/workshop/ui/**` as needed) from those shared pieces. Keep
+  `tests/e2e/workshopJoin.spec.ts` and the Brain Racer menu e2e specs green (update selectors only where the flow is the same).
+- **Do:**
+  - The workshop join and profile screens look and behave like Brain Racer's (same cards, letter picker, buttons, badges,
+    styling). The user finds them comfortable and polished.
+  - The workshop allows up to 2 players (split panes as now). Touch stays 1 player.
+  - The profile list is the shared store (`shared/profiles.ts`), the same one Brain Racer uses. Never delete, rename or clear
+    profiles in code or tests.
+  - The workshop-only step stays: a profile new to the workshop picks a reading level once.
+  - Keep the fixes from `pkg/ws-join`: Done never locks up input, and Right from Delete goes to Done.
+  - The workshop still never imports from `src/`; everything shared goes through `shared/`.
+- **Done when:** typecheck, `npm test`, the workshop e2e and the Brain Racer menu/profile e2e specs pass. Screenshots of the
+  workshop join, the 2-player profile chooser and name entry at 1920x1080 and a phone viewport look like Brain Racer's.
+- **Use lower-tier sub-agents when appropriate** (mechanical moves, import rewrites, test runs, screenshots); keep the top
+  model for design and review.
+- **Hand-back:** list the moved files, any Brain Racer behavior that changed (should be none), and what to check by hand
+  (real controllers, 2 players, phone).
+
 ## Done
 - C1 · `DONE (codex/c1)`

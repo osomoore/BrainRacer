@@ -20,7 +20,6 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
 - **Claws (all):** still read as a stack in front of the foot in side view. Needs a new depiction (user: "live with it for now, but
   quite bad").
 - **Tiny Arms:** the far-side arm is bigger than the near one in side view; make both the same size.
-- **Tails:** Spiked and Paddle graded 2 (no comment; ask the user what's wrong).
 - **Glow:** spots also on the stomach, in faded/different colors.
 - **Leaf camo:** much thicker leaves, also on the stomach in a different color (still not fixed).
 - **Stripes top view, body:** must be symmetrical (cross fully or stop on both sides). C20 fixed the head only.
