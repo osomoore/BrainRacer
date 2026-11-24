@@ -5,11 +5,12 @@
 :root{--bg:#14161c;--panel:#1d2029;--line:#323746;--fg:#e8eaf0;--dim:#9aa1b5;--acc:#ffb020;--ok:#3ccf7a;--sky:#6ea8e6}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif}
 body{display:flex;flex-direction:column}
-header{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header{flex-shrink:0;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
 header select,header button,header input{background:#262a36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font:inherit}
 header button{cursor:pointer}header button:hover{border-color:var(--acc)}
 .count{font-weight:700;color:var(--acc)}.sp{flex:1}
-main{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+main{flex:1;min-height:0;overflow:auto;padding:12px}
+main > * + *{margin-top:10px}
 .title{font-size:14px;color:var(--dim);word-break:break-all}.title b{color:var(--fg);font-size:17px}
 .row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .card{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -24,7 +25,10 @@ main{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .actions button{background:#262a36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer}
 .actions button.on{border-color:var(--ok);background:#1f3a2b}.actions button:hover{border-color:var(--acc)}
-textarea{width:min(560px,100%);height:44px;background:#262a36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit}
+.comment-editor{flex-shrink:0;padding:8px 12px 12px;background:var(--panel);border-top:1px solid var(--line)}
+.comment-editor .actions{margin-bottom:6px}
+.comment-editor label{font-weight:700}
+.comment-editor textarea{display:block;width:min(680px,100%);height:92px;overflow:auto;resize:none;background:#262a36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;font:18px/1.35 system-ui,sans-serif}
 .help{color:var(--dim);font-size:13px}kbd{background:#262a36;border:1px solid var(--line);border-radius:4px;padding:0 5px}
 .status{font-weight:700}.st-shape{color:#ff8b6b}.st-more{color:#7fc4ff}.st-seed{color:var(--ok)}.st-none{color:var(--dim)}
 .empty{padding:40px;color:var(--dim)}
@@ -40,9 +44,17 @@ textarea{width:min(560px,100%);height:44px;background:#262a36;color:var(--fg);bo
   <span class="sp"></span>
   <label>Zoom <select id="zoom"><option>1</option><option selected>1.5</option><option>2</option><option>3</option><option>4</option></select></label>
   <label><input type="checkbox" id="auto" checked> auto-advance</label>
-  <span class="help"><kbd>1</kbd>-<kbd>9</kbd> pick &middot; <kbd>0</kbd> keep code shape &middot; <kbd>M</kbd> more &middot; <kbd>U</kbd> clear &middot; <kbd>&larr;</kbd><kbd>&rarr;</kbd> move &middot; <kbd>B</kbd> background &middot; <kbd>Z</kbd> zoom &middot; <kbd>C</kbd> comment</span>
+  <span class="help"><kbd>1</kbd>-<kbd>9</kbd> pick &middot; <kbd>0</kbd> keep code shape &middot; <kbd>M</kbd> more &middot; <kbd>U</kbd> clear vote &middot; <kbd>&larr;</kbd><kbd>&rarr;</kbd> move &middot; <kbd>B</kbd> background &middot; <kbd>Z</kbd> zoom &middot; <kbd>C</kbd> comment</span>
 </header>
 <main id="main"></main>
+<footer class="comment-editor" id="commentEditor" hidden>
+  <div class="actions">
+    <label for="comment">Comment</label>
+    <button id="clearComment" type="button">Clear comment</button>
+    <span class="help" id="commentHelp">Saves when you leave the field or press Ctrl+Enter.</span>
+  </div>
+  <textarea id="comment" aria-describedby="commentHelp" placeholder="Optional feedback for this job"></textarea>
+</footer>
 <script>
 const $ = (id) => document.getElementById(id);
 let index = { jobs: {} }, picks = {}, list = [], cur = 0, bgMode = 'checker';
@@ -93,14 +105,29 @@ function getBBox(j) {
   });
 }
 let renderSeq = 0;
+let commentKey;
+let pendingWrite = Promise.resolve();
 async function render() {
   const seq = ++renderSeq;
-  if (list.length) await getBBox(list[cur]);
+  const j = list[cur];
+  if (j) await getBBox(j);
+  if (seq !== renderSeq) return;
+  if (commentKey !== j?.key) {
+    saveComment();
+    await pendingWrite;
+  }
   if (seq !== renderSeq) return;
   const main = $('main');
   $('count').textContent = counts() + '  |  showing ' + (list.length ? cur + 1 : 0) + '/' + list.length;
-  if (!list.length) { main.innerHTML = '<div class="empty">No jobs match. Generate candidates with <code>npm run art:paint -- --candidates 4 --only "..."</code> or change the filters.</div>'; return; }
-  const j = list[cur], p = picks[j.key], st = status(j.key), z = Number($('zoom').value);
+  $('commentEditor').hidden = !j;
+  if (commentKey !== j?.key) {
+    saveComment();
+    commentKey = j?.key;
+    $('comment').value = j ? picks[j.key]?.comment ?? '' : '';
+    main.scrollTo(0, 0);
+  }
+  if (!j) { main.innerHTML = '<div class="empty">No jobs match. Generate candidates with <code>npm run art:paint -- --candidates 4 --only "..."</code> or change the filters.</div>'; return; }
+  const p = picks[j.key], st = status(j.key), z = Number($('zoom').value);
   const stTxt = st === 'none' ? 'not voted' : st === 'shape' ? 'keep CODE SHAPE' : st === 'more' ? 'wants MORE candidates' : 'picked seed ' + p.pick;
   const bg = bgMode === 'checker' ? 'bg-checker' : 'bg-sky';
   const bb = bboxes[j.key];
@@ -118,36 +145,53 @@ async function render() {
     '<div class="status st-' + st + '">' + stTxt + '</div>' +
     '<div class="row">' + shape + cards + '</div>' +
     '<div class="actions"><button data-a="shape" class="' + (st === 'shape' ? 'on' : '') + '">0 Keep code shape (reject all)</button><button data-a="more" class="' + (st === 'more' ? 'on' : '') + '">M Need more candidates</button><button data-a="clear">U Clear vote</button></div>' +
-    '<textarea id="comment" placeholder="Optional comment (saved with the vote; press C to focus, Ctrl+Enter to save)">' + esc((p && p.comment) || '') + '</textarea>' +
     '<div class="help">' + (j.prompt ? 'Prompt: ' + esc(j.prompt) : '') + '</div>';
   main.querySelectorAll('.cand').forEach((el) => { el.onclick = (e) => { if (!e.target.closest('details')) vote(j.seeds[Number(el.dataset.i)]); }; });
   main.querySelectorAll('[data-a]').forEach((b) => { b.onclick = () => vote(b.dataset.a === 'clear' ? null : b.dataset.a); });
-  $('comment').onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Escape') e.target.blur(); if (e.key === 'Enter' && e.ctrlKey) e.target.blur(); };
-  $('comment').onblur = saveComment;
 }
 async function post(key, pick, comment) {
   const r = await fetch('/api/pick', { method: 'POST', body: JSON.stringify({ key, pick, comment }) });
+  if (!r.ok) throw new Error('Could not save art feedback (' + r.status + ')');
   picks = await r.json();
 }
-async function saveComment() {
-  const j = list[cur]; if (!j) return;
-  const el = $('comment'); if (!el) return;
-  const c = el.value.trim(); const p = picks[j.key];
-  if (((p && p.comment) || '') === c) return;
-  await post(j.key, p && p.pick !== 'pending' ? p.pick : null, c);
-  render();
+function queueWrite(write) {
+  const request = pendingWrite.then(write);
+  pendingWrite = request.catch(console.error);
+  return request;
+}
+function saveComment() {
+  if (commentKey === undefined) return;
+  const key = commentKey;
+  const comment = $('comment').value.trim();
+  queueWrite(() => {
+    const p = picks[key];
+    if ((p?.comment ?? '') !== comment) return post(key, p && p.pick !== 'pending' ? p.pick : null, comment);
+  });
 }
 async function vote(pick) {
   const j = list[cur]; if (!j) return;
-  const c = $('comment') ? $('comment').value : '';
-  await post(j.key, pick, c);
+  if (j.key !== commentKey) return;
+  const comment = $('comment').value;
+  await queueWrite(() => post(j.key, pick, comment));
+  if (list[cur]?.key !== j.key) { render(); return; }
   if (pick !== null && $('fSt').value === 'open') applyFilter();
   else if (pick !== null && $('auto').checked) move(1);
   else render();
 }
-function move(d) { cur = Math.max(0, Math.min(list.length - 1, cur + d)); render(); window.scrollTo(0, 0); }
+$('comment').onkeydown = (e) => {
+  if (e.key === 'Escape' || (e.key === 'Enter' && e.ctrlKey)) {
+    e.preventDefault();
+    e.target.blur();
+  }
+};
+$('comment').onblur = saveComment;
+$('clearComment').onclick = () => {
+  $('comment').value = '';
+  saveComment();
+};
+function move(d) { cur = Math.max(0, Math.min(list.length - 1, cur + d)); render(); }
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || (e.key === 'Enter' && e.target.tagName === 'BUTTON') || e.ctrlKey || e.altKey || e.metaKey) return;
   const j = list[cur]; const k = e.key.toLowerCase();
   if (k === 'arrowright' || k === 'enter') { move(1); e.preventDefault(); }
   else if (k === 'arrowleft') { move(-1); e.preventDefault(); }
@@ -156,7 +200,7 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'u') vote(null);
   else if (k === 'b') { bgMode = bgMode === 'checker' ? 'sky' : 'checker'; render(); }
   else if (k === 'z') { const s = $('zoom'); s.selectedIndex = (s.selectedIndex + 1) % s.options.length; render(); }
-  else if (k === 'c') { e.preventDefault(); if ($('comment')) $('comment').focus(); }
+  else if (k === 'c') { e.preventDefault(); $('comment').focus(); }
   else if (/^[1-9]$/.test(k) && j && j.seeds[Number(k) - 1] !== undefined) vote(j.seeds[Number(k) - 1]);
 });
 ['fWs', 'fAsp', 'fPart', 'fView', 'fSt'].forEach((id) => { $(id).onchange = () => applyFilter(); });

@@ -330,7 +330,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Hand-back:** list the paint keys that are now stale. `ws:d:thead:head.horned:color.orange:extra.feathers:n` and
   `ws:d:thead:head.round:color.orange:extra.stripes:n` need fresh candidates (the user voted "more").
 
-## C21 — Art-pick vote page: comment field hidden · `OPEN`
+## C21 — Art-pick vote page: comment field hidden · `DONE (codex/c21)`
 - **Start point:** branch `codex/c21` from `feature/workshop` at `c221dc6`.
 - **Parallel-safe with C20.** Tool UI only; no art or shape changes.
 - **Port:** 5226.
