@@ -1,10 +1,11 @@
 /**
- * room: the workshop. The player's model stands in the middle, ten station signs ring the edges, the challenge board
+ * room: the workshop. The player's model and buddy stand in the middle, station signs ring the room, the challenge board
  * hangs bottom-center. Picking a destination (pad focus + A, keyboard, or a tap) makes the little character walk
  * there, then the station / board screen opens. B goes back to the workshop picker.
  */
 import type Phaser from 'phaser';
-import { WS_ROOM } from '../config';
+import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
+import { WS_BUDDIES, WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { Button } from '../ui/Button';
@@ -12,6 +13,7 @@ import { FocusGroup } from '../ui/FocusGroup';
 import { cardColor } from '../ui/screenChrome';
 import { COLORS, makeText } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
+import { buddyBar, buddyCelebration, buddyImage } from './room/buddyDisplay';
 import { Character } from './room/Character';
 import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
@@ -22,6 +24,8 @@ const roomScreen: ScreenFactory = (): Screen => {
   let group: FocusGroup;
   let character: Character | undefined;
   let rig: ModelRig | undefined;
+  let celebration: Phaser.GameObjects.Container | undefined;
+  let celebrationTimer: Phaser.Time.TimerEvent | undefined;
   let busy = false;
   const objs: Phaser.GameObjects.GameObject[] = [];
   const tweens: Phaser.Tweens.Tween[] = [];
@@ -42,6 +46,7 @@ const roomScreen: ScreenFactory = (): Screen => {
       const progress = currentProgress(ctx, ws);
       const cat = engine.catalog(ws);
       const L = roomLayout(ctx.layout, cat.aspects.map((a) => a.id));
+      bakeBuddyTextures(scene);
 
       const bg = roomBackdrop(scene, ws, ctx.layout, L.floorY);
       objs.push(scene.add.image(0, 0, bg.key).setOrigin(0).setDepth(-900));
@@ -61,6 +66,9 @@ const roomScreen: ScreenFactory = (): Screen => {
       objs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 40, 0x000000, 0.22).setDepth(90));
       rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(100);
       rig.play('idle');
+      const buddy = buddyImage(scene, progress.buddies.selected, L.buddy.x, L.buddy.y - L.buddy.size / 2, L.buddy.size);
+      objs.push(buddy.setDepth(110).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
+      animateBuddyIdle(scene, buddy);
 
       // stations
       const signs: Button[] = [];
@@ -75,6 +83,14 @@ const roomScreen: ScreenFactory = (): Screen => {
         b.add([icon, label]);
         signs.push(b);
       });
+      const buddies = new Button(scene, { ...L.buddyStation, color: cardColor(signs.length), onClick: () => {
+        ctx.audio.sfx('select');
+        walkThen(L.buddyStation.stand, () => ctx.go('buddyStation'));
+      } });
+      buddies.add([
+        buddyImage(scene, 'dino', 0, -24, 58),
+        makeText(scene, 0, 34, 'Buddies', { size: 44, color: COLORS.ink }),
+      ]);
 
       // challenge board
       const board = new Button(scene, {
@@ -88,7 +104,7 @@ const roomScreen: ScreenFactory = (): Screen => {
       const starL = scene.add.image(-L.board.w / 2 + 52, 0, starTexture(scene, 64)).setAngle(-12);
       const starR = scene.add.image(L.board.w / 2 - 52, 0, starTexture(scene, 64)).setAngle(12);
       board.add([starL, starR]);
-      objs.push(...signs, board);
+      objs.push(...signs, buddies, board);
 
       // character
       const player = ctx.index === 0 ? COLORS.p1 : COLORS.p2;
@@ -96,10 +112,24 @@ const roomScreen: ScreenFactory = (): Screen => {
       objs.push(character.root);
 
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
-      group.set([...signs, board]);
+      group.set([...signs, buddies, board]);
       const from = data.from;
       const fi = L.stations.findIndex((st) => st.aspect === from);
-      group.focus(fi >= 0 ? signs[fi] : board);
+      group.focus(from === 'buddies' ? buddies : fi >= 0 ? signs[fi] : board);
+
+      const celebrateNext = () => {
+        const kind = ctx.takeBuddyUnlock(ws);
+        if (!kind) return;
+        celebration = buddyCelebration(scene, L.model.x, 430, kind);
+        ctx.audio.sting('unlock');
+        celebrationTimer = scene.time.delayedCall(WS_BUDDIES.celebrationMs, () => {
+          celebration?.destroy();
+          celebration = undefined;
+          celebrationTimer = undefined;
+          celebrateNext();
+        });
+      };
+      celebrateNext();
     },
     update(dt) {
       character?.update(dt);
@@ -112,6 +142,8 @@ const roomScreen: ScreenFactory = (): Screen => {
     },
     destroy() {
       group?.destroy();
+      celebrationTimer?.remove(false);
+      celebration?.destroy();
       tweens.forEach((t) => t.remove());
       tweens.length = 0;
       rig?.destroy();

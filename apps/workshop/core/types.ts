@@ -5,6 +5,8 @@
  * (Model, Challenge, PlayerSave). See docs/WORKSHOP.md for the design.
  */
 
+import type { BuddyKind } from '../../../shared/buddies/catalog';
+
 export type WorkshopId = 'race' | 'dino';
 export const WORKSHOP_IDS: readonly WorkshopId[] = ['race', 'dino'];
 
@@ -241,11 +243,19 @@ export interface CompletedInfo {
   payout: number;
 }
 
+export interface WorkshopBuddies {
+  unlocked: BuddyKind[];
+  selected: BuddyKind;
+  /** Wins toward the next buddy. Stays full once the collection is complete. */
+  progress: number;
+}
+
 export interface WorkshopProgress {
   /** Current build (saved on every change). */
   model: Model;
   /** Balance of coins (Race Shop) or Bio Juice (Dino Lab). */
   wallet: number;
+  buddies: WorkshopBuddies;
   /** Variants actually bought. The first starter for each aspect is implicitly owned. */
   bought: VariantId[];
   /** Admin overrides per variant (Auto = absent). */

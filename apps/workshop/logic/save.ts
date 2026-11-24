@@ -9,6 +9,7 @@ import { index } from './catalogIndex';
 import { sanitizeModel } from './available';
 import { affordability } from './affordability';
 import { newProgress, refreshBoard, sortBoard } from './board';
+import { normalizeBuddies } from './buddies';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -57,7 +58,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   const ix = index(cat);
   const base = newProgress(cat);
   const freeStarters = new Set(Object.values(base.model));
-  const out: WorkshopProgress = { ...base };
+  const out: WorkshopProgress = { ...base, buddies: normalizeBuddies(raw.buddies) };
   out.model = repairModel(cat, raw.model, base.model);
   out.bought = Array.isArray(raw.bought)
     ? [...new Set((raw.bought as unknown[]).filter((v): v is VariantId => typeof v === 'string' && ix.variantById.has(v) && !freeStarters.has(v)))]

@@ -101,6 +101,19 @@ export const WS_ADMIN = {
 /** Wallet badge centre in pane coordinates; the same on every screen that shows it, per layout. */
 export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as const;
 
+export const WS_BUDDIES = {
+  winsPerUnlock: 10,
+  celebrationMs: 2200,
+  room: {
+    wide: { signX: 1450, signY: 110, barX: 405, barW: 64, buddyX: 1490, buddySize: 112 },
+    tall: { signX: 480, signY: 192, barX: 284, barW: 52, buddyX: 678, buddySize: 76 },
+  },
+  signW: 230,
+  signH: 128,
+  barY: 550,
+  barH: 516,
+} as const;
+
 // ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
 export const WS_ROOM = {
   /** Character walk speed, px/s. */

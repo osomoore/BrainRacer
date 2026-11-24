@@ -8,6 +8,7 @@
  * size = ctx.size. Two layouts must work: wide 1920x1080 and tall 960x1080. Text >= 40 px.
  */
 import type Phaser from 'phaser';
+import type { BuddyKind } from '../../../shared/buddies/catalog';
 import type { AspectId, ChallengeId, Model, PlayerSave, ReadingLevel, RunResult, View, WorkshopId } from './types';
 
 // ------------------------------------------------------------------ input
@@ -89,6 +90,7 @@ export type ScreenId =
   | 'pickWorkshop' // Race Shop / Dino Lab
   | 'room'         // workshop room: stations + walking character + center model area
   | 'station'      // configuration menu for one aspect
+  | 'buddyStation' // pick a buddy from this workshop's collection
   | 'board'        // model view + challenge board (3, or 10 in Admin Mode)
   | 'run'          // test run (stages in sequence)
   | 'results';     // checklist + hint + Retry / Workshop / Other challenge
@@ -97,7 +99,7 @@ export interface ScreenData {
   aspect?: AspectId;
   challengeId?: ChallengeId;
   result?: RunResult;
-  /** Room: where the character stands when the room opens (station aspect or 'center'). */
+  /** Room: where the character stands when the room opens (station aspect, 'buddies' or 'center'). */
   from?: AspectId | 'center';
 }
 
@@ -119,6 +121,9 @@ export interface PaneContext {
   save(): PlayerSave;
   /** Persist after a change (no-op in admin mode). */
   commit(save: PlayerSave): void;
+  /** Keep the announcement in this pane until the player returns to the workshop room. */
+  queueBuddyUnlock(workshop: WorkshopId, buddy: BuddyKind): void;
+  takeBuddyUnlock(workshop: WorkshopId): BuddyKind | undefined;
   reading(): ReadingLevel;
   setProfile(id: string | undefined): void;
   setWorkshop(id: WorkshopId | undefined): void;

@@ -53,6 +53,7 @@ const runScreen: ScreenFactory = (): Screen => {
         const win = engine.recordWin(ws, progress, challengeId, progress.model, Date.now());
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: win.progress } });
         outcome.payout = win.payout;
+        if (win.unlockedBuddy) ctx.queueBuddyUnlock(ws, win.unlockedBuddy);
       } else {
         const p = engine.recordFail(ws, progress, challengeId);
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: p } });

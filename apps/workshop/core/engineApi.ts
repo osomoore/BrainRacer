@@ -5,6 +5,7 @@
  * Determinism: every function is a pure function of its arguments (seeds come from WorkshopProgress.genSeq),
  * except `now` timestamps passed in by the caller.
  */
+import type { BuddyKind } from '../../../shared/buddies/catalog';
 import type {
   AspectId, Challenge, ChallengeId, ComputedModel, Model, PlayerSave, ReadingLevel, RunResult, VariantId,
   VariantOverride, WorkshopCatalog, WorkshopId, WorkshopProgress,
@@ -17,6 +18,7 @@ export interface WinOutcome {
   payout: number;
   /** Challenges that newly appeared on the board. */
   newChallenges: ChallengeId[];
+  unlockedBuddy?: BuddyKind;
 }
 
 export interface ShopOffer {
@@ -45,6 +47,7 @@ export interface WorkshopEngine {
   /** Replaces unavailable parts with the aspect's first available variant. */
   sanitizeModel(id: WorkshopId, progress: WorkshopProgress, model: Model): Model;
   setPart(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId, variant: VariantId): WorkshopProgress;
+  setBuddy(progress: WorkshopProgress, buddy: BuddyKind): WorkshopProgress;
 
   // --- shop
   shopOffers(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId): ShopOffer[];

@@ -116,6 +116,36 @@ test('room: B goes back to the workshop picker', async ({ page }) => {
   await expectScreens(page, 'pickWorkshop');
 });
 
+test('buddy station: a split-screen player can pick an unlocked buddy for their workshop', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 2, ws: 'dino', data: { from: 'buddies' } });
+  await page.evaluate(() => {
+    const [p1] = (window as any).__ws.contexts();
+    const save = p1.save();
+    save.workshops.dino.buddies.unlocked.push('star');
+    p1.commit(save);
+  });
+
+  await key(page, 'Space');
+  await expectScreens(page, 'buddyStation,room');
+  expect(await paneTexts(page)).toContain('Twinkle Star');
+  await key(page, 'KeyD');
+  await key(page, 'Space');
+  await expectScreens(page, 'room,room');
+
+  const selections = await page.evaluate(() => {
+    const { panes } = (window as any).__ws;
+    const saves = JSON.parse(localStorage.getItem('workshop.players.v1') ?? '{}');
+    return {
+      saved: ['p1', 'p2'].map((id) => saves[id].workshops.dino.buddies.selected),
+      room: panes.map((pane: any) => pane.children.getByName('workshop-buddy').texture.key),
+    };
+  });
+  expect(selections.saved).toEqual(['star', 'dino']);
+  expect(selections.room[0]).toBe('buddy_star');
+  expect(selections.room[1]).toMatch(/^buddy_dino_/);
+});
+
 test('board: three challenge cards at the player reading level, Test it! opens the run', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, reading: 'easy', screen: 'board' });

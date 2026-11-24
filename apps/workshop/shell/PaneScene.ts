@@ -3,6 +3,7 @@
  * a 960x1080 half in 2P); screens draw in pane-local coordinates. Implements PaneContext and the screen stack.
  */
 import Phaser from 'phaser';
+import type { BuddyKind } from '../../../shared/buddies/catalog';
 import { STAGE, WS_RULES, WS_WALLET } from '../config';
 import type { Screen, ScreenData, ScreenId } from '../core/runtime';
 import { buildRig } from '../art';
@@ -25,6 +26,7 @@ export class PaneScene extends Phaser.Scene {
   private wallet?: ReturnType<typeof currencyBadge>;
   private pending?: { id: string; data: ScreenData; push: boolean };
   private history: HistoryEntry[] = [];
+  private buddyUnlocks = new Map<WorkshopId, BuddyKind[]>();
   private current: HistoryEntry = { id: 'profile', data: {} };
   exited = false;
   profileId: string | undefined;
@@ -39,6 +41,7 @@ export class PaneScene extends Phaser.Scene {
     this.workshopId = undefined;
     this.exited = false;
     this.history = [];
+    this.buddyUnlocks.clear();
     this.pending = undefined;
   }
 
@@ -87,9 +90,23 @@ export class PaneScene extends Phaser.Scene {
         }
         pane.updateWallet();
       },
+      queueBuddyUnlock(ws, buddy) {
+        const queued = pane.buddyUnlocks.get(ws) ?? [];
+        queued.push(buddy);
+        pane.buddyUnlocks.set(ws, queued);
+      },
+      takeBuddyUnlock(ws) {
+        const queued = pane.buddyUnlocks.get(ws);
+        const buddy = queued?.shift();
+        if (!queued?.length) pane.buddyUnlocks.delete(ws);
+        return buddy;
+      },
       reading(): ReadingLevel { return ctx.save().reading; },
       setProfile(id) {
-        if (id !== pane.profileId) pane.workshopId = undefined;
+        if (id !== pane.profileId) {
+          pane.workshopId = undefined;
+          pane.buddyUnlocks.clear();
+        }
         pane.profileId = id;
       },
       setWorkshop(id) { pane.workshopId = id; },
@@ -137,7 +154,7 @@ export class PaneScene extends Phaser.Scene {
   private mountWallet(id: string): void {
     const ws = this.workshopId;
     if (!ws) return;
-    if (!['room', 'station', 'board', 'run', 'results'].includes(id)) return;
+    if (!['room', 'station', 'buddyStation', 'board', 'run', 'results'].includes(id)) return;
     const at = WS_WALLET[this.ctx.layout === 'wide' ? 'wide' : 'tall'];
     this.wallet = currencyBadge(this, ws, at.x, at.y, '');
     this.wallet.root.setDepth(10_001);

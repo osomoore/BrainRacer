@@ -12,11 +12,13 @@ import { currencyStarters } from './starters';
 import { shopOffers } from './shop';
 import { practiceChallenge } from './practice';
 import { flatChecks, hashSeed } from './util';
+import { advanceBuddies, normalizeBuddies } from './buddies';
 
 export function newProgress(cat: WorkshopCatalog): WorkshopProgress {
   return {
     model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {},
     lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1,
+    buddies: normalizeBuddies(undefined),
   };
 }
 
@@ -24,6 +26,7 @@ export function copyProgress(p: WorkshopProgress): WorkshopProgress {
   return {
     ...p,
     model: { ...p.model },
+    buddies: { ...p.buddies, unlocked: [...p.buddies.unlocked] },
     bought: [...p.bought],
     overrides: { ...p.overrides },
     challenges: { ...p.challenges },
@@ -200,9 +203,11 @@ export function recordWin(cat: WorkshopCatalog, p: WorkshopProgress, challengeId
   q.completed[challengeId] = { build: { ...model }, wonAt: now, payout };
   q.lastWin = { ...model };
   q.model = { ...model };
+  const { buddies, unlockedBuddy } = advanceBuddies(q.buddies, challenge.seed);
+  q.buddies = buddies;
   delete q.fails[challengeId];
   const progress = refreshBoard(cat, q);
-  return { progress, firstWin: true, payout, newChallenges: progress.active.filter((id) => !p.active.includes(id)) };
+  return { progress, firstWin: true, payout, newChallenges: progress.active.filter((id) => !p.active.includes(id)), unlockedBuddy };
 }
 
 export function regenerate(cat: WorkshopCatalog, p: WorkshopProgress): WorkshopProgress {

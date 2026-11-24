@@ -1,5 +1,5 @@
 /** Pure (Phaser-free) room layout: where the ten station signs, the challenge board, the model and the walking stand points are. */
-import { WS_ROOM, STAGE } from '../../config';
+import { WS_BUDDIES, WS_ROOM, STAGE } from '../../config';
 
 export type LayoutKind = 'wide' | 'tall';
 
@@ -11,6 +11,9 @@ export interface StationSlot extends Rect { aspect: string; stand: Point }
 export interface RoomLayout {
   size: { w: number; h: number };
   stations: StationSlot[];
+  buddyStation: Rect & { stand: Point };
+  buddyBar: Rect;
+  buddy: Point & { size: number };
   board: Rect & { stand: Point };
   /** Model stands at (x, groundY); it must fit inside maxW x maxH above the ground. */
   model: { x: number; groundY: number; maxW: number; maxH: number };
@@ -24,6 +27,12 @@ export function paneSize(kind: LayoutKind): { w: number; h: number } {
 
 export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLayout {
   const size = paneSize(kind);
+  const { signX, signY, barX, barW, buddyX, buddySize } = WS_BUDDIES.room[kind];
+  const buddyStation = {
+    x: signX, y: signY, w: WS_BUDDIES.signW, h: WS_BUDDIES.signH,
+    stand: { x: signX, y: signY + WS_BUDDIES.signH / 2 + 90 },
+  };
+  const buddyBar = { x: barX, y: WS_BUDDIES.barY, w: barW, h: WS_BUDDIES.barH };
   const sign = WS_ROOM.signSize[kind];
   const slots: Point[] = [];
   if (kind === 'wide') {
@@ -49,7 +58,8 @@ export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLa
   if (kind === 'wide') {
     const board = { x: size.w / 2, y: 950, w: 620, h: 190 };
     return {
-      size, stations,
+      size, stations, buddyStation, buddyBar,
+      buddy: { x: buddyX, y: 820, size: buddySize },
       board: { ...board, stand: { x: board.x - board.w / 2 - 70, y: 905 } },
       model: { x: size.w / 2, groundY: 820, maxW: 900, maxH: 560 },
       floorY: 713,
@@ -57,15 +67,17 @@ export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLa
   }
   const board = { x: size.w / 2, y: 975, w: 700, h: 170 };
   return {
-    size, stations,
+    size, stations, buddyStation, buddyBar,
+    buddy: { x: buddyX, y: 770, size: buddySize },
     board: { ...board, stand: { x: size.w / 2, y: 880 } },
-    model: { x: size.w / 2, groundY: 770, maxW: 440, maxH: 520 },
+    model: { x: size.w / 2, groundY: 770, maxW: 320, maxH: 510 },
     floorY: 713,
   };
 }
 
 /** Where the character stands when the room opens. */
 export function standOf(layout: RoomLayout, from: string | undefined): Point {
+  if (from === 'buddies') return { ...layout.buddyStation.stand };
   const st = layout.stations.find((s) => s.aspect === from);
   return st ? { ...st.stand } : { ...layout.board.stand };
 }

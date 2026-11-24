@@ -6,6 +6,7 @@ import type { WorkshopEngine } from '../core/engineApi';
 import type { WorkshopCatalog, WorkshopId } from '../core/types';
 import { CATALOGS } from '../content';
 import { adminSandbox, grantCurrency } from './admin';
+import { setBuddy } from './buddies';
 import { shopOffers } from './shop';
 import { available, availableFor, sanitizeModel } from './available';
 import { hint, newProgress, purchase, recordFail, recordWin, refreshBoard, regenerate, setOverride, setPart } from './board';
@@ -23,6 +24,7 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     availableFor: (id, p, aspect) => availableFor(c(id), p, aspect),
     sanitizeModel: (id, p, model) => sanitizeModel(c(id), p, model),
     setPart: (id, p, aspect, variant) => setPart(c(id), p, aspect, variant),
+    setBuddy,
     shopOffers: (id, p, aspect) => shopOffers(c(id), p, aspect),
     purchase: (id, p, aspect, variant) => purchase(c(id), p, aspect, variant),
     evaluate: (id, model, challenge) => evaluate(c(id), model, challenge),
