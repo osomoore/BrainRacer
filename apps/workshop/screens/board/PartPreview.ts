@@ -62,9 +62,17 @@ export class PartPreview {
       part.on('pointerdown', down);
       this.listeners.set(part, { over, down });
     }
-    if (this.order.length > 0) this.select(this.order[0]);
-    else { this.darkRing.setVisible(false); this.ring.setVisible(false); this.labelBg.setVisible(false); this.label.setVisible(false); }
+    this.clear();
   }
+
+  /** Hides the highlight and the name (nothing selected). */
+  clear(): void {
+    this.selected = undefined;
+    this.darkRing.setVisible(false); this.ring.setVisible(false); this.labelBg.setVisible(false); this.label.setVisible(false);
+  }
+
+  /** Enters part selection on the first component. */
+  showFirst(): void { if (this.order.length > 0) this.select(this.order[0]); }
 
   /** Step through catalog aspects without taking keyboard focus from board controls. */
   step(delta: -1 | 1): void {
@@ -87,6 +95,8 @@ export class PartPreview {
     const aspect = this.aspects.find((a) => a.id === id);
     const variantId = this.options.model[id];
     const name = this.options.variants.find((v) => v.id === variantId)?.name ?? variantId;
+    this.label.setVisible(true);
+    this.labelBg.setVisible(true);
     this.label.setText(`${aspect?.label ?? id}: ${name}`);
     const labelH = Math.min(106, Math.max(58, Math.ceil(this.label.height + 16)));
     this.labelBg.setTexture(roundedTexture(this.scene, this.options.label.w, labelH, 0x22223f,
