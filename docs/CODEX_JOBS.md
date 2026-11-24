@@ -311,6 +311,37 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Review:** `workshop.html?dev=WorkshopParts&page=jeep&size=size.tiny&art=shapes&freeze=1` or
   `workshop.html?dev=WorkshopParts&page=winch&body=body.sports&size=size.tiny&art=shapes&freeze=1`. Each sheet shows all wheels.
 
+## C20 — Dino head fixes from head paint votes · `OPEN`
+- **Start point:** branch `codex/c20` from `feature/workshop` at `c221dc6`.
+- **Parallel-safe with C21.** Shape (code) only, no ComfyUI.
+- **Port:** 5225.
+- **Scope:** `apps/workshop/art/dino/**` (shapes, looks, patterns), `apps/workshop/dev/WorkshopParts.ts` (dino sheets only),
+  tests next to them.
+- **Do:**
+  - **Top view (thead) Horned head:** the horns start under the eyeballs. Start them further back on the skull and/or angle
+    them outward so they never overlap the eyes.
+  - **Top view Tiger Stripes (`extra.stripes` on `head.round`, overhead):** stripes must be left/right symmetrical about the
+    body's center line. Each stripe either crosses fully or ends at the same distance on both sides; none may start on one
+    side and end on the other. Keep C18's regular spacing (no touching, no doubles, no big gaps).
+- **Done when:** reviewer sheets (`?dev=WorkshopParts&art=shapes&freeze=1`) show both fixes in side and top views for every
+  head/size combo the change touches; a unit test covers the stripe symmetry rule over many seeds; tests pass.
+- **Hand-back:** list the paint keys that are now stale. `ws:d:thead:head.horned:color.orange:extra.feathers:n` and
+  `ws:d:thead:head.round:color.orange:extra.stripes:n` need fresh candidates (the user voted "more").
+
+## C21 — Art-pick vote page: comment field hidden · `OPEN`
+- **Start point:** branch `codex/c21` from `feature/workshop` at `c221dc6`.
+- **Parallel-safe with C20.** Tool UI only; no art or shape changes.
+- **Port:** 5226.
+- **Scope:** `tools/art-pick/**` only, tests next to them.
+- **Problem:** on the vote page (`npm run art:pick`, http://localhost:5203/) the comment/response text field is covered by
+  the panel showing the prompt, so the user types blind and cannot see leftover text.
+- **Do:**
+  - Make the comment field always fully visible and readable: text ≥ 18 px, multi-line, grows or scrolls. It must never be
+    overlapped by the prompt panel at 1920×1080 and at a laptop size such as 1366×768.
+  - When a job loads, show the existing saved comment in the field.
+  - Make it obvious how to clear the comment (a visible clear button or label, not a hidden key).
+- **Done when:** Playwright screenshots at both sizes (1920×1080 and 1366×768) show the field fully visible with text in it;
+  existing tests pass.
 
 ---
 

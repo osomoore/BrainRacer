@@ -15,8 +15,8 @@ session needs on top of that: where things are, what is waiting, and the rules t
   overhead view, no wheel fade); reviewer gears/springs sheets; reviewer "Only changed since I graded" mode (per-variant
   pixel fingerprints, `--no-open`, `--port`, `--shapes`); Codex C9–C12 (dino heads/mouths/teeth, body/claws/tails,
   seeded patterns, car shapes/layering); beta marking.
-- **Codex:** C13–C15 merged. In flight: C16 (title screen, port 5221), C17 (painted scenery wiring, 5222), both
-  branched at `0c21008`. Ready to start: C18 (dino shapes from review round 2, 5223), C19 (jeep spare/winch, 5224).
+- **Codex:** C13–C19 merged into `feature/workshop` (green: typecheck, 961 unit tests, workshop e2e 27/27). C20 (dino head
+  fixes from head votes, 5225) and C21 (art-pick comment field, 5226) are written and ready for the user to start.
   Review and merge each when its branch marks it DONE; then run typecheck, `npm test`, workshop e2e.
 - **User preference:** Claude quota is scarce, Codex resets. Write work as Codex jobs first; Claude sub-agents only when
   the user asks or something blocks.
@@ -38,10 +38,10 @@ Keys in game: Space joins/confirms, WASD moves, Esc goes back, F9 opens admin. D
 ## Waiting on the user (do not decide these alone)
 1. **Review round 2 is done** (`feedback/workshop-art-feedback_2.json`): all issues went into C18/C19. After they
    merge, the user grades again with "Only changed since I graded" on 5199.
-2. **Head paint batch (approved 2026-11-23):** 4 candidates each for round/spotted/feathers, round/orange/glow,
-   thead rex, thead horned are in `art-candidates/`; the user votes on 5203 (`npm run art:pick`), then
-   `npm run art:paint -- --apply-picks` and commit picks + `public/art/workshop/`. Camo and stripes heads (voted "more")
-   wait for the C18 pattern fixes before repainting. Jeep paints are stale after C12 and C19.
+2. **Head paint batch 3 is applied (21 picks).** Still need fresh candidates (needs the user's yes for ComfyUI): side
+   round/orange/glow and side round/spotted/feathers (shape changed since painted); overhead stripes (stale paint removed
+   after C18); overhead horned (voted "more", after C20); side and overhead camo and stripes (repaint after C18/C20).
+   Then `npm run art:paint -- --apply-picks` and commit picks + `public/art/workshop/`. Jeep paints are stale after C12 and C19.
 3. **Paint strength:** review says "bodies need scale/texture, not flat" → raise `PAINT_TUNE` and test on a small batch.
    Never start a full paint or new ComfyUI painting without the user.
 4. **Texture resolution** for the TV box (bake `Q`), **painted backdrops** switch-on, **racing-stripe paints** idea (to
