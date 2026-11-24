@@ -455,5 +455,19 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - Saved cards keep their thresholds, wording, and IDs. The loader adds named fixes and migrates the earlier jump alternatives.
 - A full win that needed a stat route earns a reading-level celebration and two buddy points. Extra points carry into the next buddy.
 
+## C38 — Story hints, failure explanations, hint memory · `TODO`
+
+**Port:** 5224. **Worktree:** `.worktrees/codex-c38`, branch `codex/c38`. **Scope:** `apps/workshop/content/**`, `logic/**` (not `logic/save.ts` beyond what item 4 needs), `screens/boardScreen.ts` and `screens/board/*` (card and detail text only), `screens/resultsScreen.ts`, `config.ts`, tests, `docs/WORKSHOP.md`. Don't touch audio, the room, or the buddy station.
+
+User design (2026-11-24): today Easy challenge text is a flat "Pick the X" / "Get Mud Tires." and practice cards say only "Use Medium.". Replace that with stories.
+1. **Challenge text = a short story with a heavy hint.** Each requirement line describes the problem so the right kind of part is obvious, without being a bare instruction. Examples: Easy "The road is all sticky mud. Your wheels need to grip!", Medium "Deep mud is ahead, and slippery wheels will get stuck.", Hard "Thick mud covers the track; only wheels that really grip will make it." Write it for every requirement × level × reading level in both games, including practice cards ("The nest is up high! Can you reach it?"). Keep the reading-level word limits (raise Easy to 10 words total if needed; two short sentences are OK) and the hard-word rules. Titles stay as they are.
+2. **On failure, give direct info.** The results screen says what was needed and why, naming a part. Prefer a part the player already owns, then one they can afford, then any listed fix (use `logic/namedFixes.ts`). Example: Easy "You needed Mud Tires to grip the mud." Use one line per failed requirement, at most 2, worded for the reading level. This replaces the earlier "fail hint" request.
+3. **Hint memory.** After a failure, the challenge card and detail show that direct hint (in addition to the story) until the challenge is won. Store it per challenge in the save.
+4. Bump `CHALLENGE_RULES_VERSION` so old boards re-deal. Never write migrations for old cards (see AGENTS.md).
+5. `validateCatalog`: require and check the story lines and failure lines (word limits, hard words, complete sentences, no duplicates, Easy ≤ Medium ≤ Hard). A story line may name a part but doesn't have to; a failure line must name a part from its fix options. Update `docs/WORKSHOP.md` text rules and `docs/WORKSHOP_CHALLENGE_TEXT.md` if it is generated.
+6. Tests: phrase coverage, failure-part choice (owned > affordable > any), hint shown after fail and cleared on win, version bump re-deals. Checks: typecheck, `npm test`, at most `workshopRun.spec.ts`.
+
+Writing quality matters most: kids 5–9, natural, fun, the hint is obvious but not a command. Use the top model for the writing and lower-tier helpers for wiring and tests.
+
 ## Done
 - C1 · `DONE (codex/c1)`
