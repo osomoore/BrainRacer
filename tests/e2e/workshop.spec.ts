@@ -44,12 +44,12 @@ async function expectTitleTextClear(page: Page, expected: string[]) {
 test('wide title keeps both join slots clear before and after joining', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await boot(page, '/workshop.html?mobile=0');
-  await expectTitleTextClear(page, ['Player 2: press A, Space or Enter', '(optional)', 'Back to games']);
+  await expectTitleTextClear(page, ['Press any button\nor key to join', 'Back to games']);
   await page.screenshot({ path: testInfo.outputPath('title-1920x1080.png') });
   await key(page, 'Space');
-  await expectTitleTextClear(page, ['Player 2: press A or Enter', '(optional)', 'PLAY', 'Back to games']);
+  await expectTitleTextClear(page, ['Player 1 ✓', 'Keyboard: W A S D', 'Player 2', 'Press a button to join (optional)', 'Press Space to go', 'Back to games']);
   await key(page, 'Enter');
-  await expectTitleTextClear(page, ['Player 1 ✓', 'Player 2 ✓', 'PLAY', 'Back to games']);
+  await expectTitleTextClear(page, ['Player 1 ✓', 'Player 2 ✓', 'Press Space to go', 'Back to games']);
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {

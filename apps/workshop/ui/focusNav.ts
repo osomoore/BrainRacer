@@ -21,7 +21,22 @@ export function moveFocus(items: readonly FocusRect[], current: number, dir: Foc
   const sign = dir === 'right' || dir === 'down' ? 1 : -1;
   let best = -1;
   let bestScore = Infinity;
+  // First choice: things that overlap the current one on the cross axis (same row / column, even when widths
+  // differ, e.g. DELETE -> DONE). Among those the nearest wins, ties go to the best aligned.
   items.forEach((it, i) => {
+    if (i === current || !ok(i)) return;
+    const along = (horizontal ? it.x - cur.x : it.y - cur.y) * sign;
+    if (along <= EPS) return;
+    const d = Math.abs(horizontal ? it.y - cur.y : it.x - cur.x);
+    const overlap = horizontal ? (cur.h + it.h) / 2 : (cur.w + it.w) / 2;
+    if (d >= overlap) return;
+    const score = along * 1000 + d;
+    if (score < bestScore) { bestScore = score; best = i; }
+  });
+  if (best >= 0) return best;
+  // Left / right never leaves a row that has other items (the end of the row is an edge, not a jump to another row).
+  const rowMates = horizontal && items.some((it, i) => i !== current && ok(i) && Math.abs(it.y - cur.y) < (cur.h + it.h) / 2);
+  if (!rowMates) items.forEach((it, i) => {
     if (i === current || !ok(i)) return;
     const along = (horizontal ? it.x - cur.x : it.y - cur.y) * sign;
     if (along <= EPS) return;

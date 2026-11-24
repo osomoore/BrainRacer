@@ -33,6 +33,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
     grid?.destroy(); grid = undefined;
     objs.forEach((o) => o.destroy());
     objs = [];
+    nameText = undefined; message = undefined; // destroyed with objs: never touch them after a screen change
   };
 
   const showName = () => {
@@ -67,7 +68,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
     message?.setText('');
     if (k.type === 'add') name = appendName(name, k.ch);
     else if (k.type === 'delete') name = deleteName(name);
-    else done();
+    else { done(); return; } // DONE changes the screen (or shows a message): nothing more to render here
     renderName();
   };
 
@@ -112,6 +113,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
       let submitted = false;
       if (phase === 'name') {
         for (const ch of text) {
+          if (ch === ' ' && actions.includes('confirm')) continue; // Space also presses the focused key: don't type it twice
           if (ch === '\n') { submitted = true; done(); break; }
           message?.setText('');
           name = appendName(name, ch);

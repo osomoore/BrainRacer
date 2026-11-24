@@ -6,7 +6,7 @@ import { STAGE, WS_UI } from '../config';
 import { Button } from '../ui/Button';
 import { makeBadge } from '../ui/Badge';
 import { backdropTexture, COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
-import { emptyJoin, reduceJoin, slotLine, type JoinState } from './joinLogic';
+import { emptyJoin, goButtonLabel, reduceJoin, slotLine, type JoinState } from './joinLogic';
 import { shell } from './shell';
 
 export class TitleScene extends Phaser.Scene {
@@ -63,25 +63,34 @@ export class TitleScene extends Phaser.Scene {
       this.slotTexts.push(makeText(this, x, cardY, '', { size: 56, color: i === 0 ? COLORS.p1 : COLORS.p2, wrap: cw - 40 }));
       this.slotSubs.push(makeText(this, x, cardY, '', { size: 40, bold: false, wrap: cw - 40 }));
     }
-    this.play = new Button(this, { x: STAGE.w / 2, y: 760, w: 640, h: 170, label: 'PLAY', fontSize: 84, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
+    this.play = new Button(this, { x: STAGE.w / 2, y: 735, w: 800, h: 160, label: 'Press A to go', fontSize: 72, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
     makeBadge(this, 'B', 120, STAGE.h - 70);
     makeText(this, 170, STAGE.h - 70, 'Back to games', { size: 44, color: COLORS.paper, stroke: COLORS.ink, origin: [0, 0.5] });
     this.refresh();
   }
 
+  /**
+   * Nobody joined: one centered card, "Press any button or key to join". Player 1 joined: Player 1's card (which
+   * device it is) + an optional Player 2 card + a go button that names Player 1's button.
+   */
   private refresh(): void {
     const n = this.join.slots.length;
+    const { cardY, textGap } = WS_UI.titleJoin;
     for (let i = 0; i < WS_UI.maxPlayers; i++) {
       const d = this.join.slots[i];
-      const other = this.join.slots[0];
-      const joinLabel = i === 0 ? 'press A, Space or Enter' : other && other.kind === 'kb' ? (other.layout === 1 ? 'press A or Enter' : 'press A or Space') : 'press A, Space or Enter';
-      const label = this.slotTexts[i].setText(slotLine(i, d, joinLabel));
-      const detail = this.slotSubs[i].setText(d ? shell.router.deviceName(d) : i === 1 ? '(optional)' : '');
-      const { cardY, textGap } = WS_UI.titleJoin;
+      const solo = n === 0;
+      const x = solo ? STAGE.w / 2 : STAGE.w / 2 + (i === 0 ? -400 : 400);
+      const text = solo ? 'Press any button\nor key to join' : d ? slotLine(i, d, '') : `Player ${i + 1}`;
+      const sub = d ? shell.router.deviceName(d) : solo ? '' : 'Press a button to join (optional)';
+      const label = this.slotTexts[i].setText(text).setX(x);
+      const detail = this.slotSubs[i].setText(sub).setX(x);
       label.setY(detail.text ? cardY - (detail.height + textGap) / 2 : cardY);
       detail.setY(cardY + (label.height + textGap) / 2);
-      this.slotCards[i].setAlpha(d ? 1 : 0.85);
+      this.slotCards[i].setX(x).setAlpha(d ? 1 : 0.85).setVisible(!solo || i === 0);
+      label.setVisible(!solo || i === 0);
+      detail.setVisible(!solo || i === 0);
     }
+    this.play?.setLabel(`Press ${goButtonLabel(this.join.slots[0])} to go`);
     this.play?.setVisible(n > 0);
     this.play?.setEnabled(n > 0);
   }
