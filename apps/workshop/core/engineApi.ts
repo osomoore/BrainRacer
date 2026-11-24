@@ -13,10 +13,23 @@ import type {
 export interface WinOutcome {
   progress: WorkshopProgress;
   firstWin: boolean;
-  /** Variants unlocked by this win (empty on replays / when the unlock list is used up). */
-  unlocked: VariantId[];
+  /** Currency deposited for this win (0 when the win was rejected). */
+  payout: number;
   /** Challenges that newly appeared on the board. */
   newChallenges: ChallengeId[];
+}
+
+export interface ShopOffer {
+  variant: VariantId;
+  price: number;
+  affordable: boolean;
+}
+
+export interface PurchaseOutcome {
+  progress: WorkshopProgress;
+  status: 'bought' | 'unaffordable' | 'unavailable';
+  /** Offered price, or 0 when the variant was unavailable. */
+  price: number;
 }
 
 export interface WorkshopEngine {
@@ -25,13 +38,18 @@ export interface WorkshopEngine {
   // --- models
   computeModel(id: WorkshopId, model: Model): ComputedModel;
   defaultModel(id: WorkshopId): Model;
-  /** Variants the player may use now: starters + earned + 'open' overrides - 'locked' overrides (an aspect never ends up empty). */
+  /** Variants the player may use now: first starters + bought + 'open' overrides - 'locked' overrides (an aspect never ends up empty). */
   available(id: WorkshopId, progress: WorkshopProgress): Set<VariantId>;
   /** Variants of one aspect available to the player, in catalog order. */
   availableFor(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId): VariantId[];
   /** Replaces unavailable parts with the aspect's first available variant. */
   sanitizeModel(id: WorkshopId, progress: WorkshopProgress, model: Model): Model;
   setPart(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId, variant: VariantId): WorkshopProgress;
+
+  // --- shop
+  shopOffers(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId): ShopOffer[];
+  /** Buy a listed variant and refresh the board. Installing the part is a separate action. */
+  purchase(id: WorkshopId, progress: WorkshopProgress, aspect: AspectId, variant: VariantId): PurchaseOutcome;
 
   // --- runs
   evaluate(id: WorkshopId, model: Model, challenge: Challenge): RunResult;
@@ -40,7 +58,7 @@ export interface WorkshopEngine {
 
   // --- progression (all return a NEW progress object; callers commit it)
   newProgress(id: WorkshopId): WorkshopProgress;
-  /** Fills the board to 3 active challenges, drops unsolvable ones after override changes. Idempotent. */
+  /** Rechecks affordability, preserving valid active cards and filling empty slots. */
   refreshBoard(id: WorkshopId, progress: WorkshopProgress): WorkshopProgress;
   recordFail(id: WorkshopId, progress: WorkshopProgress, challengeId: ChallengeId): WorkshopProgress;
   recordWin(id: WorkshopId, progress: WorkshopProgress, challengeId: ChallengeId, model: Model, now: number): WinOutcome;
@@ -52,8 +70,13 @@ export interface WorkshopEngine {
   /** Every variant open, the player's current model, `count` challenges spread over all tiers. */
   adminSandbox(id: WorkshopId, progress: WorkshopProgress, seed: number, count: number): WorkshopProgress;
 
+  /** Add the testing grant to one workshop wallet and recheck its board. */
+  grantCurrency(id: WorkshopId, progress: WorkshopProgress): WorkshopProgress;
+
   // --- saves
   newPlayerSave(reading: ReadingLevel): PlayerSave;
+  /** Reset both workshops, preserving the profile's reading level. */
+  resetPlayer(save: PlayerSave): PlayerSave;
   /** Validates/repairs a loaded save (unknown ids dropped, missing fields defaulted). */
   normalizeSave(raw: unknown): PlayerSave | null;
   /** Progress for a workshop, created + board refreshed when missing. */

@@ -1,6 +1,8 @@
-import type { Check, ComputedModel, Model, WorkshopCatalog } from '../core/types';
+import type { Check, ComputedModel, Model, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { clamp } from './util';
+
+export const partTag = (variant: VariantId): string => 'variant:' + variant;
 
 /** stat = clamp(base + sum of variant stats); tags = union. Unknown variant ids are ignored. */
 export function computeModel(cat: WorkshopCatalog, model: Model): ComputedModel {
@@ -13,6 +15,7 @@ export function computeModel(cat: WorkshopCatalog, model: Model): ComputedModel 
     if (!v) continue;
     for (const [k, val] of Object.entries(v.stats)) if (k in stats && val !== undefined) stats[k] += val;
     for (const t of v.tags) tags.add(t);
+    tags.add(partTag(v.id));
   }
   for (const s of cat.stats) stats[s.id] = clamp(stats[s.id], s.min, s.max);
   return { stats, tags };

@@ -65,7 +65,7 @@ export interface AspectDef {
   id: AspectId;
   /** Station sign, e.g. "Wheels". */
   label: string;
-  /** The two variants a new player owns. The first one is in the default model. */
+  /** The default owned variant and the first variant sold at this station. */
   starters: readonly [VariantId, VariantId];
   /** True when the part can be seen in the top-down view (paint, size, wheels...). Teeth: false. */
   visibleFromTop: boolean;
@@ -134,7 +134,7 @@ export interface WorkshopCatalog {
   scenarios: readonly ScenarioDef[];
   facetPhrases: readonly FacetPhrases[];
   scenarioPhrases: readonly ScenarioPhrases[];
-  /** Order in which first-time wins hand out new variants (every non-starter variant exactly once). */
+  /** Shop order after the second starter (every non-starter variant exactly once). */
   unlockOrder: readonly VariantId[];
   /** The fixed first challenges (shown first, in order; 3 offered at a time). */
   starters: readonly StarterSpec[];
@@ -230,21 +230,21 @@ export interface RunResult {
 export type VariantOverride = 'open' | 'locked';
 
 export interface CompletedInfo {
-  /** Most recent winning build. */
   build: Model;
-  wins: number;
-  firstWinAt: number;
-  lastWinAt: number;
+  wonAt: number;
+  payout: number;
 }
 
 export interface WorkshopProgress {
   /** Current build (saved on every change). */
   model: Model;
-  /** Variants earned from first-time wins (starters are implicit). */
-  earned: VariantId[];
+  /** Balance of coins (Race Shop) or Bio Juice (Dino Lab). */
+  wallet: number;
+  /** Variants actually bought. The first starter for each aspect is implicitly owned. */
+  bought: VariantId[];
   /** Admin overrides per variant (Auto = absent). */
   overrides: Record<VariantId, VariantOverride>;
-  /** Every challenge this player has been offered and not dropped (active + completed, capped). */
+  /** Every challenge this player has been offered and not dropped (active, retained unfinished, and all successes). */
   challenges: Record<ChallengeId, Challenge>;
   /** The three offered challenges, in board order. */
   active: ChallengeId[];
@@ -262,7 +262,7 @@ export interface WorkshopProgress {
 }
 
 export interface PlayerSave {
-  version: 1;
+  version: 2;
   reading: ReadingLevel;
   workshops: Partial<Record<WorkshopId, WorkshopProgress>>;
   /** Workshop picked last (pre-selected on the picker). */

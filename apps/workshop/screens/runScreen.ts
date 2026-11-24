@@ -47,12 +47,12 @@ const runScreen: ScreenFactory = (): Screen => {
     const save = ctx.save();
     const progress = currentProgress(ctx, ws);
     const challenge = progress.challenges[challengeId];
-    let outcome = { unlocked: [] as string[], hint: null as string | null, firstWin: false };
+    let outcome = { unlocked: [] as string[], payout: 0, hint: null as string | null, firstWin: false };
     if (!ctx.adminMode && challenge) {
       if (result.passed) {
         const win = engine.recordWin(ws, progress, challengeId, progress.model, Date.now());
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: win.progress } });
-        outcome = { unlocked: win.unlocked, hint: null, firstWin: win.firstWin };
+        outcome = { unlocked: [], payout: win.payout, hint: null, firstWin: win.firstWin };
       } else {
         const p = engine.recordFail(ws, progress, challengeId);
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: p } });
@@ -74,7 +74,7 @@ const runScreen: ScreenFactory = (): Screen => {
       const ws = ctx.workshop;
       const progress = ws ? currentProgress(ctx, ws) : undefined;
       const challenge = progress?.challenges[challengeId];
-      if (!ws || !progress || !challenge) { ctx.go('board'); return; }
+      if (!ws || !progress?.active.includes(challengeId) || !challenge) { ctx.go('board'); return; }
       result = engine.evaluate(ws, progress.model, challenge);
       try {
         handle = playRun({

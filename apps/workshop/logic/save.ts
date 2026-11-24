@@ -6,6 +6,7 @@ import type {
 } from '../core/types';
 import { READING_LEVELS, WORKSHOP_IDS } from '../core/types';
 import { index } from './catalogIndex';
+import { sanitizeModel } from './available';
 import { newProgress, refreshBoard } from './board';
 
 type Obj = Record<string, unknown>;
@@ -13,7 +14,7 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 export function newPlayerSave(reading: ReadingLevel): PlayerSave {
-  return { version: 1, reading, workshops: {} };
+  return { version: 2, reading, workshops: {} };
 }
 
 function repairModel(cat: WorkshopCatalog, raw: unknown, fallback: Model): Model {
@@ -26,22 +27,35 @@ function repairModel(cat: WorkshopCatalog, raw: unknown, fallback: Model): Model
   return out;
 }
 
+function validCheck(value: unknown): boolean {
+  if (!isObj(value)) return false;
+  switch (value.kind) {
+    case 'statMin': return typeof value.stat === 'string' && isNum(value.min);
+    case 'statMax': return typeof value.stat === 'string' && isNum(value.max);
+    case 'tag':
+    case 'noTag': return typeof value.tag === 'string';
+    default: return false;
+  }
+}
+
 function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Challenge {
   if (!isObj(c) || c.id !== id || c.workshop !== workshop || !Array.isArray(c.stages) || c.stages.length === 0) return false;
   if (!isObj(c.intro) || typeof c.title !== 'string') return false;
-  return (c.stages as unknown[]).every((s) => isObj(s) && Array.isArray(s.requirements)
-    && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && isObj(r.text) && isObj(r.hint)));
+  return (c.stages as unknown[]).every((s) => isObj(s) && typeof s.scenario === 'string' && Array.isArray(s.requirements) && s.requirements.length > 0
+    && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && r.checks.length > 0 && r.checks.every(validCheck) && isObj(r.text) && isObj(r.hint)));
 }
 
 export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopProgress | null {
   if (!isObj(raw)) return null;
   const ix = index(cat);
   const base = newProgress(cat);
+  const freeStarters = new Set(Object.values(base.model));
   const out: WorkshopProgress = { ...base };
   out.model = repairModel(cat, raw.model, base.model);
-  out.earned = Array.isArray(raw.earned)
-    ? [...new Set((raw.earned as unknown[]).filter((v): v is VariantId => typeof v === 'string' && ix.variantById.has(v) && !ix.starterIds.has(v)))]
+  out.bought = Array.isArray(raw.bought)
+    ? [...new Set((raw.bought as unknown[]).filter((v): v is VariantId => typeof v === 'string' && ix.variantById.has(v) && !freeStarters.has(v)))]
     : [];
+  out.wallet = isNum(raw.wallet) ? Math.max(0, Math.floor(raw.wallet)) : WS_RULES.startWallet;
   if (isObj(raw.overrides)) {
     for (const [k, v] of Object.entries(raw.overrides)) {
       if (ix.variantById.has(k) && (v === 'open' || v === 'locked')) out.overrides[k] = v as VariantOverride;
@@ -57,9 +71,8 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
       if (!isObj(v) || !out.challenges[k]) continue;
       const info: CompletedInfo = {
         build: repairModel(cat, v.build, out.model),
-        wins: isNum(v.wins) ? Math.max(1, Math.floor(v.wins)) : 1,
-        firstWinAt: isNum(v.firstWinAt) ? v.firstWinAt : 0,
-        lastWinAt: isNum(v.lastWinAt) ? v.lastWinAt : 0,
+        wonAt: isNum(v.wonAt) ? v.wonAt : 0,
+        payout: isNum(v.payout) ? Math.max(0, Math.floor(v.payout)) : 0,
       };
       out.completed[k] = info;
     }
@@ -70,9 +83,12 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   if (isObj(raw.fails)) {
     for (const [k, v] of Object.entries(raw.fails)) if (out.challenges[k] && isNum(v) && v > 0) out.fails[k] = Math.floor(v);
   }
+  // Existing builds are historical records; only the current editable model is
+  // constrained to today's availability.
+  out.model = sanitizeModel(cat, out, out.model);
   out.lastWin = isObj(raw.lastWin) ? repairModel(cat, raw.lastWin, out.model) : null;
   out.nextStarter = isNum(raw.nextStarter) ? Math.min(cat.starters.length, Math.max(0, Math.floor(raw.nextStarter))) : 0;
-  out.firstWins = isNum(raw.firstWins) ? Math.max(0, Math.floor(raw.firstWins)) : 0;
+  out.firstWins = Object.keys(out.completed).length;
   // genSeq must exceed every generated id in the save so ids are never reused
   let seq = isNum(raw.genSeq) ? Math.max(1, Math.floor(raw.genSeq)) : 1;
   for (const id of Object.keys(out.challenges)) {
@@ -84,7 +100,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
 }
 
 export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCatalog>>, raw: unknown): PlayerSave | null {
-  if (!isObj(raw) || raw.version !== 1) return null;
+  if (!isObj(raw) || raw.version !== 2) return null;
   const reading = (READING_LEVELS as readonly unknown[]).includes(raw.reading) ? (raw.reading as ReadingLevel) : 'easy';
   const save = newPlayerSave(reading);
   if (isObj(raw.workshops)) {

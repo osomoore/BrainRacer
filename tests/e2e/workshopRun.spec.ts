@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CATALOGS } from '../../apps/workshop/content';
+import { solveAffordable } from '../../apps/workshop/logic/affordability';
+import { available } from '../../apps/workshop/logic/available';
 import { solve } from '../../apps/workshop/logic/solver';
 import { seedProfiles } from './profiles';
 
@@ -78,7 +80,7 @@ const pickChallenge = (page: Page, pane: number, ws: Ws, wantPass: boolean) => p
   return p.active.find((id: string) => w.engine.evaluate(ws, p.model, p.challenges[id]).passed === wantPass) as string | undefined;
 }, { pane, ws, wantPass });
 
-/** Sets the pane's build to a solution of `challengeId` (solved in Node with the real solver). */
+/** Buys the supporting parts and sets the pane's build to an affordable solution. */
 async function useSolution(page: Page, pane: number, ws: Ws, challengeId: string): Promise<void> {
   const d = await page.evaluate(({ pane, ws, challengeId }) => {
     const w = (window as any).__ws;
@@ -86,17 +88,25 @@ async function useSolution(page: Page, pane: number, ws: Ws, challengeId: string
     const ch = p.challenges[challengeId];
     return {
       checks: ch.stages.flatMap((s: any) => s.requirements.flatMap((r: any) => r.checks)),
-      avail: [...w.engine.available(ws, p)] as string[],
+      progress: p,
     };
   }, { pane, ws, challengeId });
-  const sol = solve(CATALOGS[ws], d.checks, new Set(d.avail), { stopAtFirst: true });
-  expect(sol, 'the challenge has a solution').not.toBeNull();
-  await page.evaluate(({ pane, ws, build }) => {
+  const sol = solveAffordable(CATALOGS[ws], d.checks, d.progress);
+  expect(sol, 'the challenge has an affordable solution').not.toBeNull();
+  const owned = available(CATALOGS[ws], d.progress);
+  const purchases = Object.entries(sol!.build).filter(([, variant]) => !owned.has(variant));
+  await page.evaluate(({ pane, ws, build, purchases }) => {
     const c = (window as any).__ws.contexts()[pane];
     const save = c.save();
-    const p = (window as any).__ws.engine.progressOf(save, ws);
+    const w = (window as any).__ws;
+    let p = w.engine.progressOf(save, ws);
+    for (const [aspect, variant] of purchases) {
+      const out = w.engine.purchase(ws, p, aspect, variant);
+      if (out.status !== 'bought') throw new Error(`Could not buy ${variant}: ${out.status}`);
+      p = out.progress;
+    }
     c.commit({ ...save, workshops: { ...save.workshops, [ws]: { ...p, model: build } } });
-  }, { pane, ws, build: sol!.build });
+  }, { pane, ws, build: sol!.build, purchases });
 }
 
 const goRun = (page: Page, pane: number, challengeId: string) =>
@@ -240,13 +250,13 @@ test('run: leaving mid-run (pane exit) cleans up and records nothing', async ({ 
   expect((await saved(page)).fails[id] ?? 0).toBe(0);
 });
 
-test('win: green check, saved, first win unlocks a part, the board refills, a replay does not unlock again', async ({ page }) => {
+test('win: green check, currency saved, board refills, replay does not pay again', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, reading: 'easy' });
   const id = (await pickChallenge(page, 0, 'race', false))!;
   await useSolution(page, 0, 'race', id);
   const before = await saved(page);
-  expect(before.earned).toEqual([]);
+  expect(typeof before.wallet).toBe('number');
 
   await goRun(page, 0, id);
   await expectScreens(page, 'run');
@@ -261,12 +271,8 @@ test('win: green check, saved, first win unlocks a part, the board refills, a re
   expect(info.find((t) => t.text === '✓')?.color).toBe('#2fb84f');
   expect(texts).not.toContain('✗');
   const after = await saved(page);
-  expect(after.completed[id].wins).toBe(1);
-  expect(after.lastWin).toEqual(after.model);
-  expect(after.earned).toHaveLength(1);
-  expect(after.firstWins).toBe(1);
-  const name = await page.evaluate((v) => (window as any).__ws.engine.catalog('race').variants.find((x: any) => x.id === v).name as string, after.earned[0]);
-  expect(texts).toContain(`New part: ${name}!`);
+  expect(after.completed[id].payout).toBeGreaterThan(0);
+  expect(after.wallet).toBe(before.wallet + after.completed[id].payout);
   await expectCleanLayout(page, 0);
   await shot(page, 'results-first-win');
 
@@ -277,15 +283,14 @@ test('win: green check, saved, first win unlocks a part, the board refills, a re
   expect(active).toHaveLength(3);
   expect(active).not.toContain(id);
 
-  // replay the same challenge: wins again, no second unlock
-  await goRun(page, 0, id);
-  await expectScreens(page, 'run');
-  await skipToResults(page);
-  const replay = await saved(page);
-  expect(replay.completed[id].wins).toBe(2);
-  expect(replay.earned).toEqual(after.earned);
-  expect(replay.firstWins).toBe(1);
-  expect((await paneTexts(page)).some((t) => t.startsWith('New part'))).toBe(false);
+  // Replaying a completed challenge cannot pay again; the run screen guards it from selection.
+  const replay = await page.evaluate(({ id, after }) => {
+    const w = (window as any).__ws;
+    return w.engine.recordWin('race', after, id, after.completed[id].build, 9999);
+  }, { id, after });
+  expect(replay.payout).toBe(0);
+  expect(replay.progress.wallet).toBe(after.wallet);
+  expect(replay.progress.completed[id]).toEqual(after.completed[id]);
 });
 
 test('results text follows the reading level', async ({ page }) => {
@@ -378,10 +383,10 @@ test('2P: both panes run at once and each results screen belongs to its own play
   expect(t0).not.toContain('✓');
   expect(t1).toContain('It worked!');
   expect(t1).toContain('✓');
-  expect(t1.some((x) => x.startsWith('New part'))).toBe(true);
+  expect(t1.some((x) => x.startsWith('New part'))).toBe(false);
   expect((await saved(page, 'p1')).fails[failId]).toBe(1);
   expect((await saved(page, 'p1')).completed[failId]).toBeUndefined();
-  expect((await saved(page, 'p2')).completed[winId].wins).toBe(1);
+  expect((await saved(page, 'p2')).completed[winId].payout).toBeGreaterThan(0);
   expect((await saved(page, 'p2')).fails[winId] ?? 0).toBe(0);
   await expectCleanLayout(page, 0);
   await expectCleanLayout(page, 1);

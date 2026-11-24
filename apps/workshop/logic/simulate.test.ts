@@ -18,6 +18,24 @@ describe('simulate (fixture)', () => {
   it('is deterministic', () => {
     expect(simulate(C).progress).toEqual(simulate(C).progress);
   });
+  it('buys distinct cards through the full progression across many seeds', () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const r = simulate(C, { seed });
+      expect(r.stalls).toEqual([]);
+      expect(r.allUnlocked).toBe(true);
+      expect(new Set(r.progress.bought).size).toBe(r.progress.bought.length);
+      expect(r.progress.bought.length).toBe(C.variants.length - C.aspects.length);
+      expect(r.progress.active).toHaveLength(3);
+      expect(r.progress.wallet).toBeGreaterThanOrEqual(0);
+    }
+  });
+  it('keeps independent simulator seeds deterministic and sandboxed', () => {
+    const a = simulate(C, { seed: 17 });
+    const b = simulate(C, { seed: 17 });
+    const c = simulate(C, { seed: 18 });
+    expect(a).toEqual(b);
+    expect(c.progress).not.toEqual(a.progress);
+  });
 });
 
 describe('validateCatalog', () => {

@@ -5,11 +5,14 @@
  */
 import type { Check, Model, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
+import { partTag } from './stats';
 
 export interface SolveOptions {
   /** Reference build for the change count (null: every solution costs 0 and the first one wins). */
   ref?: Model | null;
-  /** Only look for solutions that change fewer than this many aspects. */
+  /** Optional additive cost per variant, in place of the reference-build change count. */
+  variantCosts?: ReadonlyMap<VariantId, number>;
+  /** Only look for solutions strictly below this cost. */
   costLimit?: number;
   /** Return the first solution found (feasibility only). */
   stopAtFirst?: boolean;
@@ -17,11 +20,11 @@ export interface SolveOptions {
 
 export interface Solution {
   build: Model;
-  /** Number of aspects changed from the reference (relevant aspects only). */
+  /** Minimum variant cost, or number of aspects changed from the reference. */
   cost: number;
 }
 
-interface Group { contrib: number[]; mask: number; variants: VariantId[]; cost: number }
+interface Group { contrib: number[]; mask: number; variant: VariantId; cost: number }
 
 const MAX_TAGS = 30;
 
@@ -67,7 +70,6 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
   const fixedPick = new Map<string, VariantId>();
   let baseCost = 0;
   const free: { aspect: string; groups: Group[]; spread: number }[] = [];
-  const chosenVariant = (g: Group, refId: VariantId | undefined): VariantId => (refId && g.variants.includes(refId) ? refId : g.variants[0]);
   for (const aspect of ix.aspectIds) {
     const refId = ref?.[aspect];
     const map = new Map<string, Group>();
@@ -75,13 +77,14 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
       if (!avail.has(v.id)) continue;
       let mask = 0;
       for (const t of v.tags) { const b = tagBit.get(t); if (b !== undefined) mask |= 1 << b; }
+      const installedPartBit = tagBit.get(partTag(v.id));
+      if (installedPartBit !== undefined) mask |= 1 << installedPartBit;
       if (mask & forbMask) continue;
       const contrib = stats.map((s) => v.stats[s] ?? 0);
       const key = `${contrib.join(',')}|${mask}`;
-      let g = map.get(key);
-      if (!g) { g = { contrib, mask, variants: [], cost: ref ? 1 : 0 }; map.set(key, g); }
-      g.variants.push(v.id);
-      if (ref && v.id === refId) g.cost = 0;
+      const cost = opts.variantCosts ? (opts.variantCosts.get(v.id) ?? 0) : Number(!!ref && v.id !== refId);
+      const group = map.get(key);
+      if (!group || cost < group.cost) map.set(key, { contrib, mask, variant: v.id, cost });
     }
     const groups = [...map.values()];
     if (groups.length === 0) return null;
@@ -89,9 +92,8 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
       const g = groups[0];
       g.contrib.forEach((c, i) => { cur[i] += c; });
       curMask |= g.mask;
-      const pickId = chosenVariant(g, refId);
-      fixedPick.set(aspect, pickId);
-      if (ref && pickId !== refId) baseCost++;
+      fixedPick.set(aspect, g.variant);
+      baseCost += g.cost;
       continue;
     }
     let spread = 0;
@@ -122,7 +124,7 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
   let bestChoice: Group[] | null = null;
   const choice: Group[] = new Array(n);
   let done = false;
-  const stopAtFirst = opts.stopAtFirst || !ref;
+  const stopAtFirst = opts.stopAtFirst || (!ref && !opts.variantCosts);
 
   const dfs = (i: number, cost: number): void => {
     if (done || cost >= best) return;
@@ -157,9 +159,9 @@ export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: Rea
     const fixed = fixedPick.get(aspect);
     if (fixed) { build[aspect] = fixed; continue; }
     const i = free.findIndex((f) => f.aspect === aspect);
-    build[aspect] = chosenVariant((bestChoice as Group[])[i], ref?.[aspect]);
+    build[aspect] = (bestChoice as Group[])[i].variant;
   }
-  return { build, cost: ref ? best : 0 };
+  return { build, cost: best };
 }
 
 export function solvable(cat: WorkshopCatalog, checks: readonly Check[], avail: ReadonlySet<VariantId>): boolean {

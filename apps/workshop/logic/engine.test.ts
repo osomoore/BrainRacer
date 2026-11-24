@@ -3,10 +3,12 @@ import { WS_RULES } from '../config';
 import type { WorkshopEngine } from '../core/engineApi';
 import type { Challenge, Model, WorkshopCatalog, WorkshopId, WorkshopProgress } from '../core/types';
 import { createEngine } from './index';
+import { solveAffordable } from './affordability';
 import { solvable } from './solver';
 import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
 import { deepFreeze } from './testing/helpers';
 import { flatChecks } from './util';
+import { challengeKey } from './generator';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -14,26 +16,33 @@ const fresh = (): WorkshopProgress => eng.refreshBoard('race', eng.newProgress('
 const unfinished = (p: WorkshopProgress): Challenge[] => p.active.filter((id) => !p.completed[id]).map((id) => p.challenges[id]);
 const win = (p: WorkshopProgress, id: string, model: Model, now = 1): WorkshopProgress => eng.recordWin('race', p, id, model, now).progress;
 
-/** Finds a winning build by brute force over the parts the player has (independent of the engine's solver). */
-function solveBrute(p: WorkshopProgress, ch: Challenge): Model {
-  const aspects = C.aspects.map((a) => a.id);
-  let found: Model | null = null;
-  const rec = (i: number, m: Model): void => {
-    if (found) return;
-    if (i === aspects.length) { if (eng.evaluate('race', m, ch).passed) found = m; return; }
-    for (const v of eng.availableFor('race', p, aspects[i])) rec(i + 1, { ...m, [aspects[i]]: v });
-  };
-  rec(0, {});
-  if (!found) throw new Error(`unsolvable ${ch.id}`);
-  return found;
+function affordableBuild(p: WorkshopProgress, ch: Challenge, cat: WorkshopCatalog = C): Model {
+  const solution = solveAffordable(cat, flatChecks(ch), p);
+  if (!solution) throw new Error(`unaffordable ${ch.id}`);
+  return solution.build;
 }
 
 function playStarters(): WorkshopProgress {
   let p = fresh();
   for (let i = 0; i < 5; i++) {
-    const ch = unfinished(p).find((c) => c.source === 'starter');
+    const ch = unfinished(p)[0];
     if (!ch) break;
-    p = win(p, ch.id, solveBrute(p, ch), i + 1);
+    const build = affordableBuild(p, ch);
+    for (const [aspect, id] of Object.entries(build)) {
+      if (!eng.available('race', p).has(id)) p = eng.purchase('race', p, aspect, id).progress;
+    }
+    p = win(p, ch.id, build, i + 1);
+  }
+  return p;
+}
+
+function buyBuild(p: WorkshopProgress, model: Model, engine: WorkshopEngine = eng): WorkshopProgress {
+  for (const [aspect, id] of Object.entries(model)) {
+    if (!engine.available('race', p).has(id)) {
+      const outcome = engine.purchase('race', p, aspect, id);
+      if (outcome.status !== 'bought') throw new Error(`could not buy ${id}: ${outcome.status}`);
+      p = outcome.progress;
+    }
   }
   return p;
 }
@@ -72,103 +81,129 @@ describe('evaluate', () => {
 });
 
 describe('availability', () => {
-  it('is starters + earned + open - locked, and an aspect is never empty', () => {
+  it('is first starters + bought + open - locked, and an aspect is never empty', () => {
     const p = eng.newProgress('race');
-    expect(eng.available('race', p).size).toBe(12);
-    const q: WorkshopProgress = { ...p, earned: ['wheels.racing'], overrides: { 'engine.turbo': 'open', 'wheels.road': 'locked' } };
+    expect(eng.available('race', p).size).toBe(C.aspects.length);
+    const q: WorkshopProgress = { ...p, bought: ['wheels.racing'], overrides: { 'engine.turbo': 'open', 'wheels.road': 'locked' } };
     const a = eng.available('race', q);
     expect(a.has('wheels.racing') && a.has('engine.turbo')).toBe(true);
     expect(a.has('wheels.road')).toBe(false);
+    expect(a.has('wheels.mud')).toBe(false);
     const all: WorkshopProgress = { ...p, overrides: { 'size.medium': 'locked', 'size.small': 'locked' } };
     expect(eng.availableFor('race', all, 'size')).toEqual(['size.medium']);
   });
   it('setOverride sanitizes the model and keeps the board solvable', () => {
     let p = fresh();
+    p = eng.purchase('race', p, 'wheels', 'wheels.mud').progress;
     p = eng.setPart('race', p, 'wheels', 'wheels.mud');
     p = eng.setOverride('race', p, 'wheels.mud', 'locked');
     expect(p.model.wheels).toBe('wheels.road');
-    for (const c of unfinished(p)) expect(solvable(C, flatChecks(c), eng.available('race', p))).toBe(true);
+    for (const c of unfinished(p)) expect(solveAffordable(C, flatChecks(c), p)).not.toBeNull();
     p = eng.setOverride('race', p, 'wheels.mud', 'auto');
     expect(p.overrides['wheels.mud']).toBeUndefined();
   });
-  it('locking a part drops the active challenges that need it and refills the board', () => {
+  it('locking a part rechecks the board against remaining affordable builds', () => {
     let p = fresh();
-    expect(p.active).toContain('st-mud');
+    const oldActive = [...p.active];
     p = eng.setOverride('race', p, 'wheels.mud', 'locked');
-    expect(p.active).not.toContain('st-mud');
     expect(p.active.length).toBe(3);
+    for (const id of p.active) expect(solveAffordable(C, flatChecks(p.challenges[id]), p)?.cost).toBe(2);
+    expect(oldActive.length).toBe(3);
   });
   it('setPart ignores unavailable parts', () => {
     const p = fresh();
     expect(eng.setPart('race', p, 'wheels', 'wheels.racing').model.wheels).toBe('wheels.road');
-    expect(eng.setPart('race', p, 'wheels', 'wheels.mud').model.wheels).toBe('wheels.mud');
+    const bought = eng.purchase('race', p, 'wheels', 'wheels.mud').progress;
+    expect(eng.setPart('race', bought, 'wheels', 'wheels.mud').model.wheels).toBe('wheels.mud');
   });
 });
 
 describe('starters and board', () => {
-  it('offers three starters first, in order, all failing with the default model', () => {
+  it('offers the first currency starter and fills the rest of the board', () => {
     const p = fresh();
-    expect(p.active).toEqual(['st-mud', 'st-jump', 'st-turn']);
-    expect(p.nextStarter).toBe(3);
-    expect(p.challenges['st-mud']).toMatchObject({ source: 'starter', tier: 0, workshop: 'race' });
-    for (const id of p.active) expect(eng.evaluate('race', p.model, p.challenges[id]).passed).toBe(false);
+    expect(p.active).toHaveLength(3);
+    expect(p.challenges[p.active[0]]).toMatchObject({ source: 'starter', tier: 0, workshop: 'race' });
+    expect(p.nextStarter).toBeGreaterThan(0);
+    for (const id of p.active) expect(solveAffordable(C, flatChecks(p.challenges[id]), p)).not.toBeNull();
   });
   it('is idempotent', () => {
     const p = fresh();
     expect(eng.refreshBoard('race', p)).toEqual(p);
-    const q = eng.refreshBoard('race', win(p, 'st-mud', { ...p.model, wheels: 'wheels.mud' }));
+    const ch = p.challenges[p.active[0]];
+    const model = affordableBuild(p, ch);
+    const purchased = buyBuild(p, model);
+    const q = eng.refreshBoard('race', win(purchased, ch.id, model));
     expect(eng.refreshBoard('race', q)).toEqual(q);
   });
-  it('replaces a won challenge in its own slot with the next starter', () => {
+  it('refills after a valid first win and pays its requirements', () => {
     const p = fresh();
-    const out = eng.recordWin('race', p, 'st-jump', { ...p.model, extra: 'extra.rocket' }, 10);
-    expect(out.progress.active).toEqual(['st-mud', 'st-hill', 'st-turn']);
-    expect(out.newChallenges).toEqual(['st-hill']);
+    const ch = p.challenges[p.active[0]];
+    const model = affordableBuild(p, ch);
+    const out = eng.recordWin('race', buyBuild(p, model), ch.id, model, 10);
+    expect(out.firstWin).toBe(true);
+    expect(out.progress.active).toHaveLength(3);
+    expect(out.payout).toBe(ch.stages.reduce((n, s) => n + s.requirements.length, 0) * 2);
   });
-  it('defers a starter the last win already solves', () => {
-    const p = fresh();
-    // the big engine wins the mud starter and also solves the hill starter
-    let q = win(p, 'st-mud', { ...p.model, wheels: 'wheels.mud', engine: 'engine.big' });
-    expect(q.active).toEqual(['st-bright', 'st-jump', 'st-turn']);
-    // a later win with a small engine makes the hill starter eligible again
-    q = win(q, 'st-jump', { ...p.model, extra: 'extra.rocket' }, 2);
-    expect(q.active).toEqual(['st-bright', 'st-hill', 'st-turn']);
+  it('pays for every requirement across stages and dedupes reordered requirements', () => {
+    const start = fresh();
+    const mud = start.challenges['st-mud'];
+    const turn = start.challenges['st-turn'];
+    const challenge = { ...mud, id: 'combined', stages: [...mud.stages, ...turn.stages] };
+    const reversed = { ...challenge, id: 'reversed', stages: [...challenge.stages].reverse() };
+    expect(challengeKey(reversed)).toBe(challengeKey(challenge));
+    const withChallenge = { ...start, active: [challenge.id], challenges: { [challenge.id]: challenge } };
+    const build = affordableBuild(withChallenge, challenge);
+    const prepared = buyBuild(withChallenge, build);
+    const out = eng.recordWin('race', prepared, challenge.id, build, 1);
+    expect(out.payout).toBe(4);
+    const reloaded = eng.refreshBoard('race', {
+      ...out.progress, active: [reversed.id, ...out.progress.active],
+      challenges: { ...out.progress.challenges, [reversed.id]: reversed },
+    });
+    expect(reloaded.active).not.toContain(reversed.id);
   });
-  it('first win unlocks the next part in order, replays do not', () => {
-    const p = fresh();
-    const m = { ...p.model, wheels: 'wheels.mud' };
+  it('first win records a payout and replays do not pay twice', () => {
+    const start = fresh();
+    const m = { ...start.model, wheels: 'wheels.mud' };
+    const p = buyBuild(start, m);
     const w1 = eng.recordWin('race', p, 'st-mud', m, 5);
-    expect(w1).toMatchObject({ firstWin: true, unlocked: ['wheels.racing'] });
-    expect(w1.progress.earned).toEqual(['wheels.racing']);
+    expect(w1).toMatchObject({ firstWin: true, payout: 2 });
+    expect(w1.progress.wallet).toBe(4);
     expect(w1.progress.firstWins).toBe(1);
+    expect(w1.progress.bought).toContain('wheels.mud');
     expect(w1.progress.lastWin).toEqual(m);
-    expect(w1.progress.completed['st-mud']).toMatchObject({ wins: 1, firstWinAt: 5, lastWinAt: 5, build: m });
+    expect(w1.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 2, build: m });
     const w2 = eng.recordWin('race', { ...w1.progress, fails: { 'st-mud': 2 } }, 'st-mud', m, 9);
     expect(w2.firstWin).toBe(false);
-    expect(w2.unlocked).toEqual([]);
+    expect(w2.payout).toBe(0);
     expect(w2.progress.firstWins).toBe(1);
-    expect(w2.progress.completed['st-mud']).toMatchObject({ wins: 2, firstWinAt: 5, lastWinAt: 9 });
-    expect(w2.progress.fails['st-mud']).toBeUndefined();
+    expect(w2.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 2 });
+    expect(w2.progress.wallet).toBe(w1.progress.wallet);
+    expect(w2.progress.fails['st-mud']).toBe(2);
   });
   it('skips unlock-order variants that are already available', () => {
     const p = eng.setOverride('race', fresh(), 'wheels.racing', 'open');
-    const out = eng.recordWin('race', p, 'st-mud', { ...p.model, wheels: 'wheels.mud' }, 1);
-    expect(out.unlocked).toEqual(['engine.efficient']);
+    const m = { ...p.model, wheels: 'wheels.mud' };
+    const out = eng.recordWin('race', buyBuild(p, m), 'st-mud', m, 1);
+    expect(out.payout).toBe(2);
   });
   it('ignores a win for an unknown challenge', () => {
     const p = fresh();
-    expect(eng.recordWin('race', p, 'nope', p.model, 1)).toMatchObject({ firstWin: false, unlocked: [], newChallenges: [] });
+    expect(eng.recordWin('race', p, 'nope', p.model, 1)).toMatchObject({ firstWin: false, payout: 0, newChallenges: [] });
   });
-  it('fills the board with completed challenges when no new ones can be made', () => {
+  it('keeps won requirements off the board even when authored challenges run out', () => {
     const tiny: WorkshopCatalog = { ...C, scenarios: C.scenarios.filter((s) => s.id === 'fog'), starters: [C.starters[4]] };
     const e = createEngine(pair(tiny));
     let p = e.refreshBoard('race', e.newProgress('race'));
-    expect(p.active).toEqual(['st-bright']);
-    p = e.recordWin('race', p, 'st-bright', { ...p.model, paint: 'paint.yellow' }, 1).progress;
-    expect(p.active).toEqual(['st-bright']);
+    expect(p.active).toContain('st-bright');
+    const model = { ...p.model, paint: 'paint.yellow' };
+    p = e.recordWin('race', e.purchase('race', p, 'paint', 'paint.yellow').progress, 'st-bright', model, 1).progress;
+    expect(p.active).not.toContain('st-bright');
+    const wonKey = challengeKey(p.challenges['st-bright']);
+    expect(p.active.map((id) => challengeKey(p.challenges[id]))).not.toContain(wonKey);
     expect(e.refreshBoard('race', p)).toEqual(p);
   });
-  it('caps saved challenges but never drops active ones or starters', () => {
+  it('retains completed history beyond the unfinished challenge cap', () => {
     let p = fresh();
     const extra: Record<string, Challenge> = {};
     for (let i = 0; i < 80; i++) {
@@ -176,14 +211,105 @@ describe('starters and board', () => {
     }
     p = {
       ...p, challenges: { ...p.challenges, ...extra },
-      completed: Object.fromEntries(Object.keys(extra).map((id, i) => [id, { build: p.model, wins: 1, firstWinAt: i, lastWinAt: i }])),
+      completed: Object.fromEntries(Object.keys(extra).map((id, i) => [id, { build: p.model, wonAt: i, payout: 0 }])),
     };
     const q = eng.refreshBoard('race', p);
-    expect(Object.keys(q.challenges).length).toBeLessThanOrEqual(WS_RULES.maxSavedChallenges);
+    expect(Object.keys(q.challenges).length).toBeGreaterThan(WS_RULES.maxSavedChallenges);
     for (const id of q.active) expect(q.challenges[id]).toBeDefined();
     expect(q.challenges.old79).toBeDefined();
-    expect(q.challenges.old0).toBeUndefined();
+    expect(q.challenges.old0).toBeDefined();
     expect(q.challenges['st-mud']).toBeDefined();
+  });
+  it('caps inactive unfinished challenges while retaining active cards', () => {
+    const p = fresh();
+    const extra: Record<string, Challenge> = {};
+    for (let i = 0; i < 80; i++) {
+      extra[`unfinished${i}`] = { ...p.challenges[p.active[0]], id: `unfinished${i}`, source: 'generated' };
+    }
+    const q = eng.refreshBoard('race', { ...p, challenges: { ...p.challenges, ...extra } });
+    for (const id of q.active) expect(q.challenges[id]).toBeDefined();
+    expect(Object.keys(q.challenges).filter((id) => !q.completed[id]).length).toBeLessThanOrEqual(WS_RULES.maxSavedChallenges);
+    expect(Object.keys(extra).some((id) => q.challenges[id] === undefined)).toBe(true);
+  });
+});
+
+describe('shop and currency', () => {
+  const early = ['wheels.mud', 'wheels.racing', 'wheels.snow'];
+  const variant = (id: string) => C.variants.find((v) => v.id === id)!;
+
+  it('offers the first three cards at prices 2, 4, and 6 with seeded availability', () => {
+    let p = eng.grantCurrency('race', { ...fresh(), wallet: 0 });
+    expect(p.wallet).toBe(10);
+    for (let i = 0; i < early.length; i++) {
+      const offer = eng.shopOffers('race', p, 'wheels').find((o) => o.variant === early[i]);
+      expect(offer).toMatchObject({ variant: early[i], price: (i + 1) * 2, affordable: p.wallet >= (i + 1) * 2 });
+      if (i < 2) p = eng.purchase('race', p, 'wheels', early[i]).progress;
+    }
+    expect(p.wallet).toBe(4);
+    expect(eng.shopOffers('race', p, 'wheels')).toEqual(eng.shopOffers('race', p, 'wheels'));
+  });
+
+  it('updates the shop after purchases at the same station', () => {
+    let p = eng.grantCurrency('race', { ...fresh(), wallet: 0 });
+    for (const [i, id] of early.slice(0, 2).entries()) {
+      const v = variant(id);
+      const out = eng.purchase('race', p, v.aspect, id);
+      expect(out).toMatchObject({ status: 'bought', price: (i + 1) * 2 });
+      p = out.progress;
+      expect(p.bought).toContain(id);
+      expect(eng.available('race', p).has(id)).toBe(true);
+      expect(eng.purchase('race', p, v.aspect, id).status).toBe('unavailable');
+    }
+    expect(p.wallet).toBe(4);
+    expect(eng.shopOffers('race', p, 'wheels').find((o) => o.variant === early[2])).toMatchObject({ price: 6, affordable: false });
+    expect(eng.purchase('race', p, 'wheels', early[2]).status).toBe('unaffordable');
+  });
+
+  it('keeps newly owned-solvable cards and replaces unaffordable cards after spending', () => {
+    const start = fresh();
+    const mud = eng.purchase('race', start, 'wheels', 'wheels.mud').progress;
+    const spent = eng.purchase('race', mud, 'paint', 'paint.red').progress;
+    expect(spent.wallet).toBe(0);
+    expect(spent.active).toHaveLength(3);
+    expect(spent.active).toContain('st-mud');
+    expect(spent.active).not.toContain('st-jump');
+    expect(spent.active).not.toContain('st-turn');
+    for (const pending of unfinished(spent)) expect(solveAffordable(C, flatChecks(pending), spent)?.cost).toBe(0);
+  });
+
+  it('checks current wallet and board state on each purchase and grants currency deterministically', () => {
+    const p = fresh();
+    const v = variant(early[0]);
+    const bad = eng.purchase('race', { ...p, wallet: 0 }, v.aspect, early[0]);
+    expect(bad.status).toBe('unaffordable');
+    const missing = eng.purchase('race', p, v.aspect, 'unknown.card');
+    expect(missing.status).toBe('unavailable');
+    const paid = eng.grantCurrency('race', { ...p, wallet: 0 });
+    expect(paid.wallet).toBe(10);
+    expect(eng.grantCurrency('race', paid)).toEqual({ ...paid, wallet: 20 });
+  });
+
+  it('returns the cheapest affordable build and respects a zero wallet', () => {
+    const p = fresh();
+    const checks = [{ kind: 'tag' as const, tag: 'color:red' }];
+    const result = solveAffordable(C, checks, p);
+    expect(result).not.toBeNull();
+    expect(result!.cost).toBeLessThanOrEqual(p.wallet);
+    expect(solveAffordable(C, checks, { ...p, wallet: 0 })).toBeNull();
+    const combined = [...checks, ...flatChecks(p.challenges['st-mud'])];
+    expect(solveAffordable(C, combined, p)?.cost).toBe(4);
+    expect(solveAffordable(C, combined, { ...p, wallet: 2 })).toBeNull();
+  });
+
+  it('resets purchased progress and wallet while preserving reading', () => {
+    const save = eng.newPlayerSave('hard');
+    const p = fresh();
+    const v = variant(early[0]);
+    const purchase = eng.purchase('race', p, v.aspect, early[0]);
+    const populated = { ...save, workshops: { race: purchase.progress } };
+    const reset = eng.resetPlayer(populated);
+    expect(reset.reading).toBe('hard');
+    expect(reset.workshops).toEqual({});
   });
 });
 
@@ -196,7 +322,7 @@ describe('generator rules', () => {
       expect(c.id).toMatch(/^race-g\d+$/);
       expect(eng.evaluate('race', p.model, c).passed).toBe(false);
       expect(eng.evaluate('race', p.lastWin!, c).passed).toBe(false);
-      expect(solvable(C, flatChecks(c), eng.available('race', p))).toBe(true);
+      expect(solveAffordable(C, flatChecks(c), p)).not.toBeNull();
     }
   });
   it('is deterministic and respects tier shape, facet uniqueness and views', () => {
@@ -225,7 +351,9 @@ describe('generator rules', () => {
     for (let i = 0; i < 10; i++) {
       const ch = unfinished(p).find((c) => c.source === 'generated');
       if (!ch) break;
-      const out = eng.recordWin('race', p, ch.id, solveBrute(p, ch), 100 + i);
+      const build = affordableBuild(p, ch);
+      p = buyBuild(p, build);
+      const out = eng.recordWin('race', p, ch.id, build, 100 + i);
       p = out.progress;
       const aspects = C.aspects.map((a) => a.id);
       for (const c of out.newChallenges.map((id) => p.challenges[id]).filter((x) => x.source === 'generated')) {
@@ -252,8 +380,9 @@ describe('generator rules', () => {
     const times: number[] = [];
     for (let i = 0; i < 10; i++) {
       const ch = unfinished(p)[0];
-      const m = solveBrute(p, ch);
+      const m = affordableBuild(p, ch);
       const t0 = performance.now();
+      p = buyBuild(p, m);
       p = win(p, ch.id, m, 500 + i);
       times.push(performance.now() - t0);
     }
@@ -279,7 +408,9 @@ describe('text', () => {
       for (const c of Object.values(p.challenges)) titles.add(`${c.stages.length}|${c.title}`);
       const ch = unfinished(p)[0];
       if (!ch) break;
-      p = win(p, ch.id, solveBrute(p, ch), 200 + i);
+      const build = affordableBuild(p, ch);
+      p = buyBuild(p, build);
+      p = win(p, ch.id, build, 200 + i);
     }
     const two = [...titles].filter((t) => t.startsWith('2|'));
     const three = [...titles].filter((t) => t.startsWith('3|'));
@@ -301,7 +432,9 @@ describe('text', () => {
     let p = e.refreshBoard('race', e.newProgress('race'));
     for (let i = 0; i < 6; i++) {
       const ch = p.active.map((id) => p.challenges[id]).find((c) => !p.completed[c.id])!;
-      p = e.recordWin('race', p, ch.id, p.model, i).progress;
+      const build = affordableBuild(p, ch, short);
+      p = buyBuild(p, build, e);
+      p = e.recordWin('race', p, ch.id, build, i).progress;
     }
     for (const c of Object.values(p.challenges)) for (const s of c.stages) for (const r of s.requirements) expect(r.text.hard).toContain('level 1');
   });
@@ -330,7 +463,7 @@ describe('regenerate', () => {
     const q = eng.regenerate('race', p);
     expect(q.active.length).toBe(3);
     expect(q.genSeq).toBeGreaterThan(p.genSeq);
-    for (const id of old) { expect(q.active).not.toContain(id); expect(q.challenges[id]).toBeUndefined(); }
+    for (const id of old) { expect(q.active).not.toContain(id); expect(q.challenges[id]).toBeDefined(); }
   });
   it('replaces unfinished starters with generated challenges and stays idempotent', () => {
     const q = eng.regenerate('race', fresh());
@@ -388,16 +521,16 @@ describe('saves', () => {
   });
   it('rejects non-saves and repairs broken ones', () => {
     expect(eng.normalizeSave(null)).toBeNull();
-    expect(eng.normalizeSave({ version: 2 })).toBeNull();
+    expect(eng.normalizeSave({ version: 1 })).toBeNull();
     expect(eng.normalizeSave('x')).toBeNull();
     const p = fresh();
     const raw = JSON.parse(JSON.stringify({
-      version: 1, reading: 'bogus', lastWorkshop: 'nope',
+      version: 2, reading: 'bogus', lastWorkshop: 'nope',
       workshops: {
         race: {
           ...p,
           model: { ...p.model, wheels: 'wheels.ghost', engine: 'paint.red' },
-          earned: ['wheels.racing', 'wheels.racing', 'ghost.part', 'wheels.road', 5],
+          bought: ['wheels.racing', 'wheels.racing', 'ghost.part', 'wheels.road', 5], wallet: 3,
           overrides: { 'wheels.mud': 'open', 'ghost.x': 'open', 'engine.big': 'maybe' },
           active: ['st-mud', 'missing', 'st-mud'],
           fails: { 'st-mud': 2, missing: 4 },
@@ -415,9 +548,10 @@ describe('saves', () => {
     const r = s.workshops.race!;
     expect(r.model.wheels).toBe('wheels.road');
     expect(r.model.engine).toBe('engine.small');
-    expect(r.earned).toEqual(['wheels.racing']);
+    expect(r.bought).toEqual(['wheels.racing']);
+    expect(r.wallet).toBe(3);
     expect(r.overrides).toEqual({ 'wheels.mud': 'open' });
-    expect(r.active).toEqual(['st-mud']);
+    expect(r.active).toContain('st-mud');
     expect(r.fails).toEqual({ 'st-mud': 2 });
     expect(r.nextStarter).toBe(C.starters.length);
     expect(r.firstWins).toBe(0);
@@ -426,7 +560,9 @@ describe('saves', () => {
     expect(r.challenges.junk).toBeUndefined();
   });
   it('round-trips a normal save unchanged', () => {
-    const p = win(fresh(), 'st-mud', { ...eng.defaultModel('race'), wheels: 'wheels.mud' }, 3);
+    const start = fresh();
+    const model = { ...eng.defaultModel('race'), wheels: 'wheels.mud' };
+    const p = win(buyBuild(start, model), 'st-mud', model, 3);
     const save = { ...eng.newPlayerSave('hard'), workshops: { race: p }, lastWorkshop: 'race' as const };
     expect(eng.normalizeSave(JSON.parse(JSON.stringify(save)))).toEqual(save);
   });
