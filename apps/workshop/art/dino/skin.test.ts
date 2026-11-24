@@ -13,6 +13,23 @@ describe('seeded dino patterns', () => {
     expect(new Set([42, 43, 44, 45].map((seed) => JSON.stringify(marks(seed)))).size).toBe(4);
   });
 
+  it('keeps neighboring stripes separated without doubles or large gaps', () => {
+    for (let seed = 1; seed <= 512; seed++) {
+      for (const box of [torso, { x0: -10, y0: 0, x1: 30, y1: 150 }, { x0: -250, y0: -20, x1: 18, y1: 24 }]) {
+        const stripes = stripeMarks(box, seed, 1);
+        const pitch = (box.x1 - box.x0) / stripes.length;
+        for (let i = 1; i < stripes.length; i++) {
+          const a = stripes[i - 1], b = stripes[i];
+          // All drawn points lie within the horizontal envelope of the curve control points.
+          const right = a.x + a.width / 2 + Math.max(0, a.bend);
+          const left = b.x - Math.max(b.width / 2, b.width * 0.7 - b.bend);
+          expect(left - right).toBeGreaterThan(pitch * 0.06);
+          expect(b.x - b.width / 2 - (a.x + a.width / 2)).toBeLessThan(pitch * 0.85);
+        }
+      }
+    }
+  });
+
   it('spreads glow over the torso and aims leaves backward within 15 degrees', () => {
     const glow = patternMarks('glow', torso, 42, 1);
     for (const xSign of [-1, 1]) {

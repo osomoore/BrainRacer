@@ -19,7 +19,10 @@ const MODELS: Record<WorkshopId, { name: string; set: Model }[]> = {
     { name: 'default', set: {} },
     { name: 'T-Rex', set: { head: 'head.rex', teeth: 'teeth.mega', claws: 'claws.tinyArms', legs: 'legs.powerful', move: 'move.stand', tail: 'tail.heavy', size: 'size.big', color: 'color.green' } },
     { name: 'flyer', set: { move: 'move.fly', head: 'head.crest', teeth: 'teeth.beak', color: 'color.blue', extra: 'extra.feathers', tail: 'tail.long' } },
-    { name: 'swimmer', set: { move: 'move.swim', legs: 'legs.flippers', tail: 'tail.paddle', color: 'color.purple', body: 'body.slim' } },
+    { name: 'swimmer', set: { move: 'move.swim', legs: 'legs.flippers', tail: 'tail.paddle', extra: 'extra.feathers', color: 'color.purple', body: 'body.slim' } },
+    { name: 'spiked tail', set: { tail: 'tail.spiked', extra: 'extra.feathers', size: 'size.huge' } },
+    { name: 'glow spots', set: { extra: 'extra.glow', size: 'size.small', head: 'head.horned' } },
+    { name: 'leaf pattern', set: { extra: 'extra.camo' } },
     { name: 'long neck', set: { head: 'head.longNeck', body: 'body.belly', legs: 'legs.long', tail: 'tail.long', extra: 'extra.stripes' } },
   ],
 };
@@ -65,7 +68,15 @@ export default class RigAnims extends Phaser.Scene {
     const cat = CATALOGS[this.workshop];
     const base: Model = Object.fromEntries(cat.aspects.map((a) => [a.id, a.starters[0]]));
     const mod = MODELS[this.workshop][this.mi];
-    this.rig = buildRig(this, this.workshop, { ...base, ...mod.set }, this.view);
+    const model = { ...base, ...mod.set };
+    if (this.workshop === 'dino') {
+      const q = new URLSearchParams(location.search);
+      for (const aspect of ['head', 'size']) {
+        const variant = cat.variants.find((v) => v.aspect === aspect && v.id === q.get(aspect));
+        if (variant) model[aspect] = variant.id;
+      }
+    }
+    this.rig = buildRig(this, this.workshop, model, this.view);
     const s = Math.min(2, 560 / Math.max(this.rig.height, 1), 1500 / Math.max(this.rig.width, 1));
     this.rig.root.setScale(s);
     this.rig.root.setPosition(960, this.view === 'side' ? 880 : 520);

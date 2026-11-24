@@ -2,7 +2,7 @@
 import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath } from '../bake';
 import { type Pt, mix, quad } from '../geom';
 import { BEAK_LOOKS, type BeakLook, EXTRA, type BodyLook, type ClawLook, type HeadLook, type LegLook, type TailLook, TEETH } from './looks';
-import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, patternedPart, type SkinSpec, skinFill, tubeShapes } from './skin';
+import { crestFill, drawFrill, drawHeadFeathers, drawHeadJoint, flipperBlade, paddleFins, patternedPart, type SkinSpec, skinFill, tailFeathers, tubeShapes } from './skin';
 
 type G = CanvasRenderingContext2D;
 const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
@@ -148,7 +148,7 @@ export function featherHeadTop(h: HeadLook, sk: SkinSpec): PartSpec {
 
 /** Overhead toe spread stays visible when a claw is chosen for a front leg or arm. */
 function clawTipsTop(g: G, claw: ClawLook, sk: SkinSpec, x: number, spread: number, hand: boolean): void {
-  const kind = !hand && claw.kind === 'grabby' ? 'small' : claw.kind;
+  const kind = !hand && (claw.kind === 'grabby' || claw.kind === 'tiny') ? 'small' : claw.kind;
   const length = Math.max(8, Math.min(claw.claw, hand ? 32 : 20) * 0.74);
   const count = kind === 'tiny' ? 2 : kind === 'grabby' ? 4 : 3;
   const tips: Shape[] = [];
@@ -185,7 +185,7 @@ export function legTop(l: LegLook, claw: ClawLook, sk: SkinSpec, legId: string, 
       if (l.kind === 'flipper') sh.push(flipperBlade(sk, { x: -29, y: 0, angle: 0.14, length: foot * 0.96, width: 38 }));
       else sh.push({ path: (c) => ellipsePath(c, foot * 0.12, 0, foot * 0.5, th * 0.55), fill });
       drawShapes(g, sh, 4.5);
-      if (l.kind !== 'flipper') clawTipsTop(g, claw, sk, foot * 0.55, th * 0.28, hand);
+      if (l.kind !== 'flipper') clawTipsTop(g, claw, sk, foot * 0.57, th * 0.24, hand);
     },
   });
 }
@@ -194,6 +194,18 @@ export function armTop(c: ClawLook, sk: SkinSpec, clawId: string): PartSpec {
   return patternedPart(sk, {
     key: `ws:d:tarm:${clawId}:${sk.key}`, w: 120, h: 80, ox: 40, oy: 40,
     draw: (g, patternSeed) => {
+      if (c.kind === 'tiny') {
+        const wrist = { x: 31, y: 13 };
+        const points = quad({ x: 0, y: 0 }, { x: 3, y: 21 }, wrist, 8);
+        const widths = points.map((_, i) => c.thick * 0.5 * (1 - i / 8 * 0.35));
+        const fill = skinFill(sk, { x0: -10, y0: -10, x1: 38, y1: 23 }, 8, patternSeed);
+        drawShapes(g, tubeShapes(points, widths, fill), 3.5);
+        g.save();
+        g.translate(wrist.x, wrist.y);
+        clawTipsTop(g, c, sk, 1, 6, true);
+        g.restore();
+        return;
+      }
       const L = c.arm * 0.55;
       drawShapes(g, [{ path: (cx) => ellipsePath(cx, L * 0.5, 0, L * 0.6, c.thick * 0.5), fill: skinFill(sk, { x0: 0, y0: -10, x1: L, y1: 10 }, 8, patternSeed) }], 4.5);
       clawTipsTop(g, c, sk, L, c.thick * 0.38, true);
@@ -224,11 +236,11 @@ export function tailTop(t: TailLook, sk: SkinSpec, tailId: string): PartSpec {
       const sh: Shape[] = [];
       const end = pts[N];
       if (t.kind === 'paddle') sh.push(...paddleFins(sk, end, true));
-      if (sk.ex?.kind === 'feathers') {
-        const compact = t.kind === 'paddle' || t.kind === 'spiked';
-        const reach = compact ? 18 : 30;
-        const x = end.x + (compact ? 24 : t.kind === 'club' ? -16 : 0);
-        [sk.ex.c1, sk.ex.c2, sk.ex.c3].forEach((col, i) => { const a = Math.PI + (i - 1) * 0.6; sh.push({ path: (c) => ellipsePath(c, x + Math.cos(a) * reach, Math.sin(a) * reach, reach + 2, reach * 0.33, a), fill: col }); });
+      const feathers = tailFeathers(t, sk);
+      if (feathers) {
+        const reach = 30;
+        const x = end.x - (t.kind === 'club' ? 16 : 0);
+        [feathers.c1, feathers.c2, feathers.c3].forEach((col, i) => { const a = Math.PI + (i - 1) * 0.6; sh.push({ path: (c) => ellipsePath(c, x + Math.cos(a) * reach, Math.sin(a) * reach, reach + 2, reach * 0.33, a), fill: col }); });
       }
       sh.push(...tubeShapes(pts, hw, fill));
       if (t.kind === 'club') sh.push({ path: (c) => ellipsePath(c, end.x + 2, 0, 34, 27), fill });
