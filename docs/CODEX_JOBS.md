@@ -313,7 +313,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Review:** `workshop.html?dev=WorkshopParts&page=jeep&size=size.tiny&art=shapes&freeze=1` or
   `workshop.html?dev=WorkshopParts&page=winch&body=body.sports&size=size.tiny&art=shapes&freeze=1`. Each sheet shows all wheels.
 
-## C20 — Dino head fixes from head paint votes · `OPEN`
+## C20 — Dino head fixes from head paint votes · `DONE (codex/c20)`
 - **Start point:** branch `codex/c20` from `feature/workshop` at `c221dc6`.
 - **Parallel-safe with C21.** Shape (code) only, no ComfyUI.
 - **Port:** 5225.

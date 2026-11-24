@@ -87,16 +87,18 @@ export function headTop(h: HeadLook, sk: SkinSpec, headId: string, teethId: stri
         c.closePath();
       };
       const rear = h.brow ? -34 : -16;
-      drawHeadJoint(g, skull, skinFill(sk, { x0: rear, y0: -hw, x1: len, y1: hw }, 3, patternSeed), sk.look.main,
+      const fill = skinFill(sk, { x0: rear, y0: -hw, x1: len, y1: hw }, 3, patternSeed, headId === 'head.round');
+      drawHeadJoint(g, skull, fill, sk.look.main,
         h.brow ? -25 : -8, 0, h.neckLen > 120 ? 19 : 29, true);
       if (h.crest) drawShapes(g, [{ path: (c) => ellipsePath(c, len * 0.3, 0, h.crest * 0.55, 8), fill: crestFill(sk, len * 0.3 - h.crest * 0.55, len * 0.66, true) }], OL);
       if (h.horns) {
         const horns: Shape[] = [-1, 1].map((sgn) => ({
           path: (c) => {
-            c.moveTo(len * 0.15, sgn * hw * 0.62);
-            c.quadraticCurveTo(len * 0.42, sgn * hw * 1.25, len * 0.22 + h.horns, sgn * (hw + 28));
-            c.quadraticCurveTo(len * 0.46, sgn * hw * 0.57, len * 0.36, sgn * hw * 0.31);
-            c.quadraticCurveTo(len * 0.18, sgn * hw * 0.26, len * 0.15, sgn * hw * 0.62);
+            // Root behind the eye, with the tip sweeping out past the skull.
+            c.moveTo(len * 0.02, sgn * hw * 0.52);
+            c.quadraticCurveTo(len * 0.10, sgn * hw * 1.24, len * 0.02 + h.horns * 0.62, sgn * (hw + 28));
+            c.quadraticCurveTo(len * 0.23, sgn * hw * 0.77, len * 0.21, sgn * hw * 0.23);
+            c.quadraticCurveTo(len * 0.08, sgn * hw * 0.20, len * 0.02, sgn * hw * 0.52);
             c.closePath();
           },
           fill: '#fff3d0',

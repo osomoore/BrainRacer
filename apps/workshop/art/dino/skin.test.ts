@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { allArtJobs, artSpec, PICKS } from '../paint/jobs';
-import { patternedPart, patternMarks, skinSpec, stripeMarks } from './skin';
+import { headTop } from './drawTop';
+import { HEAD } from './looks';
+import { patternedPart, patternMarks, type PatternedPartSpec, skinSpec, stripeMarks } from './skin';
 
 const torso = { x0: -140, y0: -70, x1: 140, y1: 70 };
 
@@ -28,6 +30,64 @@ describe('seeded dino patterns', () => {
         }
       }
     }
+  });
+
+  it('draws each overhead round-head stripe symmetrically with room between bands', () => {
+    type Point = [number, number];
+    type Segment = [Point, Point, Point?];
+    const sk = skinSpec({ color: 'color.orange', extra: 'extra.stripes' });
+    const head: PatternedPartSpec = headTop(HEAD['head.round'], sk, 'head.round', 'teeth.flat');
+    const gradient = { addColorStop() {} };
+    let start: Point, current: Point;
+    let path: Segment[] = [], stripes: Segment[][] = [];
+    const g = {
+      fillStyle: '',
+      beginPath() { path = []; },
+      moveTo(x: number, y: number) { start = current = [x, y]; },
+      lineTo(x: number, y: number) {
+        path.push([current, [x, y]]);
+        current = [x, y];
+      },
+      quadraticCurveTo(cx: number, cy: number, x: number, y: number) {
+        path.push([current, [x, y], [cx, cy]]);
+        current = [x, y];
+      },
+      closePath() {
+        if (current[0] !== start[0] || current[1] !== start[1]) path.push([current, start]);
+      },
+      fill() { if (this.fillStyle === sk.look.accent) stripes.push(path); },
+      createLinearGradient: () => gradient,
+      createRadialGradient: () => gradient,
+      fillRect() {}, ellipse() {}, stroke() {}, clip() {}, save() {}, restore() {},
+    };
+    const segmentKeys = (segments: Segment[], ySign: number) => {
+      const pointKey = ([x, y]: Point) => JSON.stringify([x, y * ySign]);
+      return segments.map(([a, b, control]) =>
+        JSON.stringify([[pointKey(a), pointKey(b)].sort(), control && pointKey(control)]),
+      ).sort();
+    };
+
+    const layouts = new Set<boolean>();
+    for (let seed = 1; seed <= 512; seed++) {
+      stripes = [];
+      head.withPatternSeed!(seed).draw(g as unknown as CanvasRenderingContext2D);
+      expect(stripes.length).toBeGreaterThan(1);
+      const pitch = (HEAD['head.round'].len + 16) / stripes.length;
+      let lastRight = -Infinity;
+      for (const stripe of stripes) {
+        expect(segmentKeys(stripe, 1)).toEqual(segmentKeys(stripe, -1));
+        const points = stripe.flatMap(([a, b, control]) => control ? [a, b, control] : [a, b]);
+        layouts.add(points.some(([, y]) => y === 0));
+        const xs = points.map(([x]) => x);
+        const gap = Math.min(...xs) - lastRight;
+        if (Number.isFinite(gap)) {
+          expect(gap).toBeGreaterThan(pitch * 0.06);
+          expect(gap).toBeLessThan(pitch * 0.85);
+        }
+        lastRight = Math.max(...xs);
+      }
+    }
+    expect(layouts.size).toBe(2);
   });
 
   it('spreads glow over the torso and aims leaves backward within 15 degrees', () => {
