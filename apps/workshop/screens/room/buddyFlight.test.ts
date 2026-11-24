@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { WS_BUDDIES } from '../../config';
-import { boardPerch, facesLeft, flightPose, pointAngle } from './buddyFlight';
+import { RACE_ASPECTS } from '../../content/race/variants';
+import { DINO_ASPECTS } from '../../content/dino/variants';
+import { facesLeft, flightPose, perchFor, pointAngle } from './buddyFlight';
+import { rectsOverlap, roomLayout, type LayoutKind } from './layout';
 
 const a = { x: 100, y: 500 };
 const b = { x: 700, y: 300 };
@@ -46,8 +49,20 @@ describe('buddy flight', () => {
     expect(facesLeft({ x: 500, y: 0 }, { x: 100, y: 0 }, false)).toBe(true);
     expect(facesLeft({ x: 500, y: 0 }, { x: 505, y: 90 }, true)).toBe(true);
   });
-  it('perches above the board', () => {
-    const p = boardPerch({ x: 960, y: 950, w: 620, h: 190 }, 170);
-    expect(p.y).toBeLessThan(855);
-  });
+  for (const kind of ['wide', 'tall'] as LayoutKind[]) for (const [name, aspects] of [['race', RACE_ASPECTS], ['dino', DINO_ASPECTS]] as const) {
+    it(`${kind}/${name}: perch never covers its tile and stays in the pane`, () => {
+      const L = roomLayout(kind, aspects.map((x) => x.id));
+      const tiles = [...L.stations, L.buddyStation, L.board];
+      const size = L.buddy.size;
+      for (const t of tiles) {
+        const p = perchFor(t, L.size, size, tiles);
+        const box = { x: p.x, y: p.y, w: size, h: size };
+        expect(rectsOverlap(box, t)).toBe(false);
+        expect(p.x - size / 2).toBeGreaterThanOrEqual(-0.5);
+        expect(p.x + size / 2).toBeLessThanOrEqual(L.size.w + 0.5);
+        expect(p.y - size / 2).toBeGreaterThanOrEqual(-0.5);
+        expect(p.y + size / 2).toBeLessThanOrEqual(L.size.h + 0.5);
+      }
+    });
+  }
 });

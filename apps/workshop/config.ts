@@ -111,7 +111,7 @@ export const WS_BUDDIES = {
   peekMs: 240,
   hopMs: 175,
   /** Room flight arcs and the final pose when the buddy points at a station. */
-  fly: { arc: 0.22, minTurnPx: 50, maxOffsetPx: 130, maxTiltDeg: 55, flipDeadPx: 24 },
+  fly: { arc: 0.22, minTurnPx: 50, maxOffsetPx: 130, maxTiltDeg: 55, flipDeadPx: 24, perchGapPx: 12 },
   run: {
     size: { wide: 150, tall: 110 },
     leadMs: 1150,
