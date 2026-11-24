@@ -1,6 +1,7 @@
 /** Wording rules in validateCatalog: each mechanical problem from the 2026 text review must fail. */
 import { describe, expect, it } from 'vitest';
-import type { FacetPhrases, ReadingLevel, WorkshopCatalog } from '../core/types';
+import type { FacetPhrases, FacetStory, ReadingLevel, WorkshopCatalog } from '../core/types';
+import { READING_LEVELS } from '../core/types';
 import { CATALOGS } from '../content';
 import { lineProblems, namedVariants, validateCatalog } from './validateCatalog';
 import { resolveSpec } from './text';
@@ -91,16 +92,42 @@ describe('validateCatalog wording', () => {
     }
   });
 
-  it('shows one row at every reading level', () => {
-    const facet = race.facetPhrases.find((p) => p.facet === 'hill.power')!;
+  it('shows the story row for the level at every reading level', () => {
+    const row = race.stories!['hill.power'].story[1];
     for (let seed = 1; seed < 40; seed++) {
       const text = resolveSpec(race, { stages: [{ scenario: 'hill', facets: [{ facet: 'hill.power', level: 2 }] }] },
         { id: 't', source: 'generated', tier: 1, seed }).stages[0].requirements[0].text;
-      const i = facet.requirement[1].easy.indexOf(text.easy);
+      const i = row.easy.indexOf(text.easy);
       expect(i).toBeGreaterThanOrEqual(0);
-      expect(text.medium).toBe(facet.requirement[1].medium[i]);
-      expect(text.hard).toBe(facet.requirement[1].hard[i]);
+      expect(text.medium).toBe(row.medium[i]);
+      expect(text.hard).toBe(row.hard[i]);
     }
+  });
+
+  it('has a story row and failure lines for every facet level in both workshops', () => {
+    for (const cat of [race, dino]) for (const sc of cat.scenarios) for (const f of sc.facets) {
+      const st = cat.stories?.[f.id];
+      expect(st, f.id).toBeDefined();
+      expect(st!.story.length, f.id).toBe(f.levels.length);
+      for (const r of READING_LEVELS) expect(st!.fail[r].length, f.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('flags story and failure lines that break the rules', () => {
+    const broken = (patch: (stories: Record<string, FacetStory>) => void) => {
+      const stories = JSON.parse(JSON.stringify(race.stories)) as Record<string, FacetStory>;
+      patch(stories);
+      return validateCatalog({ ...race, stories });
+    };
+    const set = (st: Record<string, FacetStory>, r: 'easy' | 'medium' | 'hard', line: string) => {
+      (st['mud.grip'].story[0][r] as string[])[0] = line;
+    };
+    expect(broken((st) => set(st, 'easy', 'The mud is so very deep and sticky and brown today!')).join('|')).toMatch(/exceeds 10 words/);
+    expect(broken((st) => set(st, 'easy', 'the road is mud')).join('|')).toMatch(/complete sentence/);
+    expect(broken((st) => set(st, 'easy', 'The slippery road is mud.')).join('|')).toMatch(/hard word "slippery"/);
+    expect(broken((st) => set(st, 'hard', 'Mud!')).join('|')).toMatch(/Easy <= Medium <= Hard/);
+    expect(broken((st) => set(st, 'easy', st['mud.pull'].story[0].easy[0])).join('|')).toMatch(/duplicate line/);
+    expect(broken((st) => { (st['mud.grip'].fail.easy as string[])[0] = 'You needed better parts.'; }).join('|')).toMatch(/exactly one \{parts\}/);
   });
 });
 

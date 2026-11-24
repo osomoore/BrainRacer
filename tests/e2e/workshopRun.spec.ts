@@ -197,6 +197,9 @@ test('fail: red cross, fail counted, Run again re-runs, the hint appears after t
   expect(cross, 'a red cross').toBeTruthy();
   expect(cross!.color).toBe('#e8232a');
   expect((await saved(page)).fails[id]).toBe(1);
+  // C38: a failure line names a part (and is remembered for the card); it replaces the old "Hint:" line.
+  const notes = (await saved(page)).failHints?.[id] ?? [];
+  expect(notes.length).toBeGreaterThan(0);
   expect(info.some((t) => t.text.startsWith('Hint:'))).toBe(false);
   await expectCleanLayout(page, 0);
   await shot(page, 'results-fail');
@@ -208,7 +211,8 @@ test('fail: red cross, fail counted, Run again re-runs, the hint appears after t
     await skipToResults(page);
     expect((await saved(page)).fails[id]).toBe(n);
     info = await paneTextInfo(page);
-    expect(info.some((t) => t.text.startsWith('Hint:')), `hint after ${n} fails`).toBe(n === 3);
+    expect(info.some((t) => t.text.startsWith('Hint:')), `no aspect hint after ${n} fails`).toBe(false);
+    expect((await saved(page)).failHints?.[id]?.length, `failure hint after ${n} fails`).toBeGreaterThan(0);
   }
   await expectCleanLayout(page, 0);
   await shot(page, 'results-fail-hint');

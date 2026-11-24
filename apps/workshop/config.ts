@@ -7,7 +7,7 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 1;
+export const CHALLENGE_RULES_VERSION = 2;
 
 export const WS_RULES = {
   /** Offered challenges on the board. */
@@ -23,6 +23,8 @@ export const WS_RULES = {
   adminBoardSize: 10,
   /** Failed attempts on one challenge before its hint shows. */
   hintAfterFails: 3,
+  /** Failure lines (each naming a fix) on the results screen and remembered on the card. */
+  failLinesMax: 2,
   /** New challenges: every solution must differ from the last winning build in at least this many aspects (relaxed to 1 if impossible, never 0). */
   minChangedAspects: 2,
   /** Maximum unfinished challenges retained (active ones never dropped). */
@@ -165,6 +167,8 @@ export const WS_ROOM = {
   detailFontsWide: [52, 48, 44, 40],
   detailFontsTall: [48, 44, 40],
   detailLineGap: 1.28,
+  /** Text color of a remembered failure hint in the challenge detail (dark blue, high contrast on white). */
+  hintText: 0x1d4e89,
 } as const;
 
 /** Board part view: zoom onto the selected part, and the cycle arrows beside it. */

@@ -86,7 +86,7 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
   const title = titles.length <= 1 ? (titles[0] ?? 'Challenge')
     : titles.length === 2 ? `${titles[0]} & ${titles[1]}` : `${titles[0]} Adventure`;
 
-  // No intro or story text: the title names the problem, each requirement names the fix.
+  // No intro: the title names the problem, each requirement tells its story.
   const intro: Leveled = { easy: '', medium: '', hard: '' };
 
   const stages: Stage[] = spec.stages.map((st, si) => {
@@ -106,7 +106,12 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
       // The other two draws are kept so the rng stream (and the hint picks) stay where they were.
       const row = rng.next(); rng.next(); rng.next();
       const text = {} as Leveled;
-      for (const r of READING_LEVELS) text[r] = pickAt(row, reqPhr?.[r], `Build something for ${fs.facet}.`);
+      // The card shows the story; the fix lines (reqPhr) stay as the source of the named fixes.
+      const stories = cat.stories?.[fs.facet]?.story;
+      const storyRow = stories?.length ? stories[Math.min(def ? levelIndex(def, fs.level) : 0, stories.length - 1)] : undefined;
+      for (const r of READING_LEVELS) {
+        text[r] = storyRow?.[r]?.length ? pickAt(row, storyRow[r], '') : pickAt(row, reqPhr?.[r], `Build something for ${fs.facet}.`);
+      }
       const hint = {} as Leveled;
       for (const r of READING_LEVELS) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
       const namedFixes = def ? catalogFixes(cat, def, fs.level) : [];

@@ -1,8 +1,8 @@
 /**
  * results: every requirement of the challenge at the player's reading level with a green check or red X,
  * grouped by stage (stage number badges when there is more than one stage; stages the run never reached are dimmed
- * but still marked), a currency payout and reasons after a win, a message for clever wins, the hint after
- * enough failed attempts, and buttons to retry, visit the board, or return to the workshop.
+ * but still marked), a currency payout and reasons after a win, a message for clever wins, up to two lines after a
+ * failure that name a part that would have helped (logic/failHints), and buttons to retry, visit the board, or return to the workshop.
  *
  * Long checklists shrink the font (never below 40 px), then are paged (the payout and message stay on every page).
  * Input is ignored for a moment after the screen opens so a held A from the run does not press a button.
@@ -24,6 +24,7 @@ import { getOutcome } from './run/outcome';
 import { CATALOGS } from '../content';
 import { cleverWinMessage } from '../logic/text';
 import { successReasons } from '../logic/successReasons';
+import { failLines, failNotes } from '../logic/failHints';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
 const INPUT_GUARD_MS = 400;
@@ -105,9 +106,11 @@ const resultsScreen: ScreenFactory = (): Screen => {
 
       const catalog = CATALOGS[ws];
       const reasons = successReasons(catalog, challenge, result, reading);
+      // A failed run says what was needed, naming a part (the same lines the card remembers until a win).
+      const fails = result.passed ? [] : failLines(catalog, challenge, failNotes(catalog, progress, challenge, result), reading);
       const message = result.cleverWin ? cleverWinMessage(catalog, reading, challenge.seed)
-        : !result.passed && outcome.hint ? `Hint: ${outcome.hint}` : '';
-      const lines = [...reasons, ...(message ? [message] : [])];
+        : !result.passed && !fails.length && outcome.hint ? `Hint: ${outcome.hint}` : '';
+      const lines = [...reasons, ...fails, ...(message ? [message] : [])];
       const messageTexts = lines.map((line, i) => keep(makeText(s, w / 2, 0, line, {
         size: min, color: COLORS.ink, wrap: w - 112, origin: [0.5, 0], bold: i >= reasons.length,
       })).setDepth(1));

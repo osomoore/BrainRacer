@@ -135,6 +135,22 @@ export interface ScenarioPhrases {
   intro: Readonly<Record<ReadingLevel, readonly string[]>>;
 }
 
+/**
+ * Story text for one facet. `story[levelIndex]` holds the card lines for that level (alternative i at every reading
+ * level is one row, like FacetPhrases.requirement). `fail` holds failure-line templates: each has one "{parts}" that
+ * is replaced by the named parts of a fix (see logic/failHints.ts).
+ */
+export interface FacetStory {
+  story: readonly LeveledPhrases[];
+  fail: LeveledPhrases;
+}
+
+/** A remembered failure hint: the failed requirement and the fix it names. */
+export interface FailNote {
+  req: string;
+  parts: VariantId[];
+}
+
 export interface SuccessPhrases {
   /** Sentence endings that follow the name(s) of the installed parts. */
   named: LeveledPhrases;
@@ -156,6 +172,14 @@ export interface WorkshopCatalog {
   scenarioPhrases: readonly ScenarioPhrases[];
   cleverWinPhrases?: LeveledPhrases;
   successPhrases?: Readonly<Record<FacetId, SuccessPhrases>>;
+  /** Story lines and failure-line templates per facet (shown as the requirement text). */
+  stories?: Readonly<Record<FacetId, FacetStory>>;
+  /** Practice-card story templates per aspect, with one "{part}" each. */
+  practiceStories?: Readonly<Record<AspectId, LeveledPhrases>>;
+  /** Practice failure-line templates, with one "{parts}" each. */
+  practiceFail?: LeveledPhrases;
+  /** How a part reads inside a sentence ("a Winch", "the Small size", "Fire Red paint"). Defaults to its name. */
+  partPhrases?: Readonly<Record<VariantId, string>>;
   /** Short display names for multi-part success reasons when the full names exceed the word limit. */
   successPartNames?: Readonly<Record<VariantId, string>>;
   /**
@@ -308,6 +332,8 @@ export interface WorkshopProgress {
   firstWins: number;
   /** Generator counter (seed source; never reused). */
   genSeq: number;
+  /** Direct hints from the last failed run per challenge (shown on the card until it is won). */
+  failHints?: Record<ChallengeId, FailNote[]>;
   /** CHALLENGE_RULES_VERSION the open cards were dealt under; a mismatch on load re-deals them. */
   rulesVersion?: number;
 }

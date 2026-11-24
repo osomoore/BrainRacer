@@ -1,5 +1,7 @@
 # Adventure Workshop: challenge text review (regraded after the rework)
 
+> **Since C38** the cards no longer show these guideline lines. They show the story lines in `content/race/stories.ts` and `content/dino/stories.ts`, and a failed run adds lines that name a part. The guidelines below still define each level's named fixes. This file is hand-written, not generated, so it was not regenerated.
+
 For the designer. Every row below was rendered by the real text builder (`apps/workshop/logic/text.ts`, `resolveSpec`) from the phrase banks in `content/race/phrases.ts` and `content/dino/phrases.ts`, then graded against the facet checks. The Problems column was graded by script (word limits, row order, part names, hard words, whether the named parts alone solve the level from the default build) and then by hand. The previous review's suggestions were applied, and improved where they still broke a rule.
 
 ## Summary

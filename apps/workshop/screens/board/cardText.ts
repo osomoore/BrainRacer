@@ -5,17 +5,19 @@
 import type { Challenge, ReadingLevel } from '../../core/types';
 
 export interface TextBlock {
-  kind: 'intro' | 'req';
+  /** 'hint' = a remembered failure hint (logic/failHints), shown after the stories until the challenge is won. */
+  kind: 'intro' | 'req' | 'hint';
   text: string;
   /** 0-based stage index for a requirement. */
   stage: number;
 }
 
-/** Intro sentence followed by every requirement sentence (all stages, in order) at the reading level. */
-export function buildBlocks(c: Challenge, level: ReadingLevel): TextBlock[] {
+/** Intro sentence, every requirement story (all stages, in order) at the reading level, then any failure hints. */
+export function buildBlocks(c: Challenge, level: ReadingLevel, hints: readonly string[] = []): TextBlock[] {
   const out: TextBlock[] = [];
   if (c.intro[level]) out.push({ kind: 'intro', text: c.intro[level], stage: 0 });
   c.stages.forEach((st, si) => st.requirements.forEach((r) => out.push({ kind: 'req', text: r.text[level], stage: si })));
+  for (const text of hints) out.push({ kind: 'hint', text, stage: 0 });
   return out;
 }
 
@@ -51,7 +53,7 @@ export interface PlanOpts {
 
 function layoutAt(blocks: readonly TextBlock[], size: number, o: PlanOpts): PlacedBlock[] {
   return blocks.map((b) => {
-    const lines = wrapLines(b.text, b.kind === 'req' ? o.maxW - o.indent : o.maxW, size, o.measure);
+    const lines = wrapLines(b.text, b.kind === 'intro' ? o.maxW : o.maxW - o.indent, size, o.measure);
     return { block: b, lines, y: 0, h: Math.ceil(lines.length * size * o.lineGap) };
   });
 }

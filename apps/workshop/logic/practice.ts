@@ -3,6 +3,7 @@ import { Rng } from '../core/rng';
 import type { Challenge, ChallengeId, Model, Requirement, Variant, VariantId, WorkshopCatalog } from '../core/types';
 import { challengeKey } from './generator';
 import { partTag } from './stats';
+import { practiceStory } from './failHints';
 
 /** Practice cards borrow scenario titles, joining two different titles for a two-part build. */
 export function practiceTitle(cat: WorkshopCatalog, seed: number, partCount: number): string {
@@ -33,9 +34,9 @@ export function practiceChallenge(
         id: 's0r' + i, facet: 'practice.' + part.aspect, level: 1,
         checks: [{ kind: 'tag', tag: partTag(part.id) }],
         text: {
-          easy: 'Use ' + part.name + '.',
-          medium: 'Fit the ' + part.name + '.',
-          hard: 'Install the ' + part.name + '.',
+          easy: practiceStory(cat, part.id, 'easy'),
+          medium: practiceStory(cat, part.id, 'medium'),
+          hard: practiceStory(cat, part.id, 'hard'),
         },
         hint: { aspect: part.aspect, text: { easy: hint, medium: hint, hard: hint } },
       };

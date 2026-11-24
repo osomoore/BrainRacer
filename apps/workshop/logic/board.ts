@@ -2,7 +2,7 @@
 import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type { PurchaseOutcome, WinOutcome } from '../core/engineApi';
 import type {
-  Challenge, ChallengeId, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
+  Challenge, ChallengeId, FailNote, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
 import { availableFor, sanitizeModel } from './available';
 import { affordability, BOARD_CATEGORIES, boardCategory, type BoardCategory } from './affordability';
@@ -18,7 +18,7 @@ import { evaluate } from './evaluate';
 /** A fresh workshop; `buddySeed` (the profile's seed) picks the starting buddy. */
 export function newProgress(cat: WorkshopCatalog, buddySeed?: number): WorkshopProgress {
   return {
-    model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {},
+    model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {}, failHints: {},
     lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1, rulesVersion: CHALLENGE_RULES_VERSION,
     buddies: normalizeBuddies(undefined, buddySeed === undefined ? undefined : startingBuddy(buddySeed)),
   };
@@ -35,6 +35,7 @@ export function copyProgress(p: WorkshopProgress): WorkshopProgress {
     active: [...p.active],
     completed: { ...p.completed },
     fails: { ...p.fails },
+    ...(p.failHints ? { failHints: { ...p.failHints } } : {}),
     lastWin: p.lastWin ? { ...p.lastWin } : null,
   };
 }
@@ -99,6 +100,7 @@ export function refreshBoard(cat: WorkshopCatalog, p0: WorkshopProgress): Worksh
   for (const id of inactive.slice(0, Math.max(0, inactive.length + p.active.length - WS_RULES.maxSavedChallenges))) {
     delete p.challenges[id];
     delete p.fails[id];
+    if (p.failHints) delete p.failHints[id];
   }
   return p;
 }
@@ -184,9 +186,11 @@ export function purchase(cat: WorkshopCatalog, p: WorkshopProgress, aspect: stri
   return { progress, status: 'bought', price };
 }
 
-export function recordFail(p: WorkshopProgress, challengeId: ChallengeId): WorkshopProgress {
+/** Count a failed attempt; `notes` (direct hints from logic/failHints) replace the remembered ones when given. */
+export function recordFail(p: WorkshopProgress, challengeId: ChallengeId, notes: readonly FailNote[] = []): WorkshopProgress {
   const q = copyProgress(p);
   q.fails[challengeId] = (q.fails[challengeId] ?? 0) + 1;
+  if (notes.length) q.failHints = { ...q.failHints, [challengeId]: notes.map((n) => ({ req: n.req, parts: [...n.parts] })) };
   return q;
 }
 
@@ -208,6 +212,7 @@ export function recordWin(cat: WorkshopCatalog, p: WorkshopProgress, challengeId
   const { buddies, unlockedBuddy } = advanceBuddies(q.buddies, challenge.seed, result.cleverWin);
   q.buddies = buddies;
   delete q.fails[challengeId];
+  if (q.failHints) delete q.failHints[challengeId];
   const progress = refreshBoard(cat, q);
   return { progress, firstWin: true, payout, newChallenges: progress.active.filter((id) => !p.active.includes(id)), unlockedBuddy };
 }

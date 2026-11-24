@@ -97,6 +97,16 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   if (isObj(raw.fails)) {
     for (const [k, v] of Object.entries(raw.fails)) if (out.challenges[k] && isNum(v) && v > 0) out.fails[k] = Math.floor(v);
   }
+  out.failHints = {};
+  if (isObj(raw.failHints)) {
+    for (const [k, v] of Object.entries(raw.failHints)) {
+      if (!out.challenges[k] || out.completed[k] || !Array.isArray(v)) continue;
+      const notes = (v as unknown[]).flatMap((n) => isObj(n) && typeof n.req === 'string' && Array.isArray(n.parts)
+        && n.parts.length > 0 && n.parts.every((id) => typeof id === 'string' && ix.variantById.has(id))
+        ? [{ req: n.req, parts: [...n.parts as string[]] }] : []).slice(0, WS_RULES.failLinesMax);
+      if (notes.length) out.failHints[k] = notes;
+    }
+  }
   // Existing builds are historical records; only the current editable model is
   // constrained to today's availability.
   out.model = sanitizeModel(cat, out, out.model);
@@ -116,6 +126,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
     for (const id of Object.keys(out.challenges)) if (!out.completed[id]) delete out.challenges[id];
     out.active = [];
     out.fails = {};
+    out.failHints = {};
     out.rulesVersion = CHALLENGE_RULES_VERSION;
     return refreshBoard(cat, out);
   }

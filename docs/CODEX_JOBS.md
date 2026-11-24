@@ -455,7 +455,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - Saved cards keep their thresholds, wording, and IDs. The loader adds named fixes and migrates the earlier jump alternatives.
 - A full win that needed a stat route earns a reading-level celebration and two buddy points. Extra points carry into the next buddy.
 
-## C38 — Story hints, failure explanations, hint memory · `TODO`
+## C38 — Story hints, failure explanations, hint memory · `DONE (codex/c38)`
 
 **Port:** 5224. **Worktree:** `.worktrees/codex-c38`, branch `codex/c38`. **Scope:** `apps/workshop/content/**`, `logic/**` (not `logic/save.ts` beyond what item 4 needs), `screens/boardScreen.ts` and `screens/board/*` (card and detail text only), `screens/resultsScreen.ts`, `config.ts`, tests, `docs/WORKSHOP.md`. Don't touch audio, the room, or the buddy station.
 

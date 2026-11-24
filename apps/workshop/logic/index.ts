@@ -11,6 +11,7 @@ import { shopOffers } from './shop';
 import { available, availableFor, sanitizeModel } from './available';
 import { hint, newProgress, purchase, recordFail, recordWin, refreshBoard, regenerate, setOverride, setPart } from './board';
 import { evaluate } from './evaluate';
+import { failNotes } from './failHints';
 import { newPlayerSave, normalizeSave, progressOf } from './save';
 import { computeModel, defaultModel } from './stats';
 
@@ -31,7 +32,12 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     hint,
     newProgress: (id, buddySeed) => newProgress(c(id), buddySeed),
     refreshBoard: (id, p) => refreshBoard(c(id), p),
-    recordFail: (_id, p, challengeId) => recordFail(p, challengeId),
+    // The run tests the saved model, so evaluating it again tells which requirements failed.
+    recordFail: (id, p, challengeId) => {
+      const challenge = p.challenges[challengeId];
+      const notes = challenge ? failNotes(c(id), p, challenge, evaluate(c(id), p.model, challenge)) : [];
+      return recordFail(p, challengeId, notes);
+    },
     recordWin: (id, p, challengeId, model, now) => recordWin(c(id), p, challengeId, model, now),
     regenerate: (id, p) => regenerate(c(id), p),
     setOverride: (id, p, variant, value) => setOverride(c(id), p, variant, value),

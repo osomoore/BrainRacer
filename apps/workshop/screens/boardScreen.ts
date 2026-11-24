@@ -8,6 +8,7 @@ import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runti
 import type { Challenge, WorkshopProgress } from '../core/types';
 import { ensureCurrencyIcon } from '../art/icons';
 import { engine } from '../logic';
+import { failLines } from '../logic/failHints';
 import { newAdminChallenges } from '../shell/adminMode';
 import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -73,6 +74,8 @@ const boardScreen: ScreenFactory = (): Screen => {
   const wide = () => ctx.layout === 'wide';
   const ids = () => progress.active;
   const challenge = (): Challenge | undefined => progress.challenges[ids()[sel]];
+  /** Direct hints remembered from the last failed run of a challenge (until it is won). */
+  const hintsOf = (c: Challenge): string[] => failLines(engine.catalog(ws()), c, progress.failHints?.[c.id], ctx.reading());
   const hook = (fn: () => void): Phaser.GameObjects.GameObject => ({ destroy: fn, scene: ctx.scene } as unknown as Phaser.GameObjects.GameObject);
   const kill = (list: Phaser.GameObjects.GameObject[]) => { list.forEach((o) => { if (o.scene) o.destroy(); }); list.length = 0; };
 
@@ -147,6 +150,10 @@ const boardScreen: ScreenFactory = (): Screen => {
         b.add(t);
         addFooter(b, slot.h / 2 - 40, stages, reward);
       }
+      if (hintsOf(c).length) { // a yellow "!" says this card remembers a hint (shown in the detail)
+        const d = 56, hx = slot.w / 2 - d / 2 - 10, hy = -slot.h / 2 + d / 2 + 10;
+        b.add([scene.add.image(hx, hy, circleTexture(scene, d, COLORS.yellow)), makeText(scene, hx, hy, '!', { size: 40, color: COLORS.ink })]);
+      }
       cardBtns.push(b);
       cardObjs.push(b);
     });
@@ -208,14 +215,15 @@ const boardScreen: ScreenFactory = (): Screen => {
     const T = L.textArea;
     const multi = c.stages.length > 1;
     const indent = 96;
-    const plan = planDetail(buildBlocks(c, ctx.reading()), {
+    const plan = planDetail(buildBlocks(c, ctx.reading(), hintsOf(c)), {
       maxW: T.w, indent, boxH: T.h, sizes: detailFonts(ctx.layout), lineGap: WS_ROOM.detailLineGap, blockGap: 22, measure,
     });
     textPage = Math.min(textPage, plan.pages.length - 1);
     for (const pb of plan.pages[textPage] ?? []) {
       const isReq = pb.block.kind === 'req';
-      const tx = T.x + (isReq ? indent : 0);
-      const t = makeText(scene, tx, T.y + pb.y, pb.lines.join('\n'), { size: plan.size, align: 'left', origin: [0, 0], bold: isReq, color: isReq ? COLORS.ink : 0x4a4a6a });
+      const isHint = pb.block.kind === 'hint';
+      const tx = T.x + (isReq || isHint ? indent : 0);
+      const t = makeText(scene, tx, T.y + pb.y, pb.lines.join('\n'), { size: plan.size, align: 'left', origin: [0, 0], bold: isReq || isHint, color: isReq ? COLORS.ink : isHint ? WS_ROOM.hintText : 0x4a4a6a });
       t.setLineSpacing(Math.round(plan.size * 0.1));
       detailObjs.push(t);
       if (isReq) {
@@ -223,6 +231,11 @@ const boardScreen: ScreenFactory = (): Screen => {
         const cy = T.y + pb.y + Math.min(plan.size * 0.7, 34);
         detailObjs.push(scene.add.image(T.x + d / 2, cy, circleTexture(scene, d, STAGE_COLORS[pb.block.stage % STAGE_COLORS.length])));
         detailObjs.push(makeText(scene, T.x + d / 2, cy, multi ? String(pb.block.stage + 1) : '★', { size: 44, color: COLORS.ink }));
+      } else if (isHint) {
+        const d = 64;
+        const cy = T.y + pb.y + Math.min(plan.size * 0.7, 34);
+        detailObjs.push(scene.add.image(T.x + d / 2, cy, circleTexture(scene, d, COLORS.yellow)));
+        detailObjs.push(makeText(scene, T.x + d / 2, cy, '!', { size: 44, color: COLORS.ink }));
       }
     }
     if (plan.pages.length > 1) {

@@ -10,7 +10,8 @@ import { lineFixes, namedVariants, variantHelps } from './namedFixes';
 import { WS_RULES } from '../config';
 import { catalogFixes } from './text';
 import { namedReason } from './successReasons';
-import { PHRASE_WORD_LIMIT, wordCount } from './wording';
+import { FAIL_WORD_LIMIT, PHRASE_WORD_LIMIT, STORY_WORD_LIMIT, wordCount } from './wording';
+import { fillParts, practiceStory } from './failHints';
 
 export { namedVariants, variantHelps } from './namedFixes';
 
@@ -276,6 +277,7 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
       ph.requirement.forEach((row, i) => facetRow(cat, f, i, row, err, seenLines, hard));
     }
   }
+  stories(cat, err, hard);
   for (const r of READING_LEVELS) {
     const where = `clever win [${r}]`;
     const phrases = cat.cleverWinPhrases?.[r] ?? [];
@@ -307,4 +309,92 @@ function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Re
     if (prev) err(`${at}: duplicate line (also ${prev}): "${line}"`);
     else seen.set(line.toLowerCase(), at);
   });
+}
+
+/**
+ * Story lines (the card text) and failure templates. Stories: complete sentences within STORY_WORD_LIMIT, Easy <=
+ * Medium <= Hard in each row, no duplicates. Failure lines are checked after every listed fix of every level is
+ * filled in: within FAIL_WORD_LIMIT and naming a part of that fix. Practice stories and failure lines likewise, for
+ * every part of every station.
+ */
+function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: string, text: string) => void): void {
+  const ix = index(cat);
+  const seen = new Map<string, string>();
+  const sentence = (where: string, line: string, limit: number): void => {
+    hard(where, line);
+    if (!/^[A-Z0-9].*[.!?]$/.test(line)) err(`${where}: needs a complete sentence: "${line}"`);
+    if (wordCount(line) > limit) err(`${where}: exceeds ${limit} words: "${line}"`);
+  };
+  const unique = (where: string, line: string): void => {
+    const prev = seen.get(line.toLowerCase());
+    if (prev) err(`${where}: duplicate line (also ${prev}): "${line}"`);
+    else seen.set(line.toLowerCase(), where);
+  };
+  const ordered = (where: string, bank: LeveledPhrases, count = wordCount): void => {
+    const n = bank.easy?.length ?? 0;
+    if (READING_LEVELS.some((r) => (bank[r]?.length ?? 0) !== n)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
+    for (let k = 0; k < n; k++) {
+      const c = READING_LEVELS.map((r) => (bank[r]?.[k] !== undefined ? count(bank[r][k]) : 0));
+      if (c[0] > c[1] || c[1] > c[2]) err(`${where} row ${k + 1}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
+    }
+  };
+  const templates = (where: string, bank: LeveledPhrases | undefined, token: string): boolean => {
+    if (!bank || READING_LEVELS.some((r) => !bank[r]?.length)) { err(`${where}: needs a line per reading level`); return false; }
+    ordered(where, bank, (t) => wordCount(t.replace(token, '')));
+    for (const r of READING_LEVELS) for (const t of bank[r]) {
+      if (t.split(token).length !== 2) err(`${where} [${r}]: needs exactly one ${token}: "${t}"`);
+      unique(`${where} [${r}]`, t);
+    }
+    return true;
+  };
+  const namesOne = (where: string, line: string, parts: readonly string[]): void => {
+    if (![...namedVariants(cat, line)].some((id) => parts.includes(id))) err(`${where}: names no part of the fix: "${line}"`);
+  };
+
+  for (const sc of cat.scenarios) for (const f of sc.facets) {
+    const st = cat.stories?.[f.id];
+    if (!st) { err(`facet ${f.id}: no story`); continue; }
+    if (st.story.length !== f.levels.length) err(`facet ${f.id}: needs one story row per level (${f.levels.length}), has ${st.story.length}`);
+    st.story.forEach((row, i) => {
+      const at = `facet ${f.id} level ${f.levels[i] ?? i + 1} story`;
+      ordered(at, row);
+      for (const r of READING_LEVELS) for (const line of row[r] ?? []) {
+        sentence(`${at} [${r}]`, line, STORY_WORD_LIMIT[r]);
+        unique(`${at} [${r}]`, line);
+      }
+    });
+    if (!templates(`facet ${f.id} fail`, st.fail, '{parts}')) continue;
+    for (const level of f.levels) for (const fix of catalogFixes(cat, f, level)) for (const r of READING_LEVELS) {
+      for (const t of st.fail[r]) {
+        const at = `facet ${f.id} level ${level} fail (${fix.join(', ')}) [${r}]`;
+        const line = fillParts(cat, t, fix, r);
+        sentence(at, line, FAIL_WORD_LIMIT[r]);
+        namesOne(at, line, fix);
+      }
+    }
+  }
+
+  const practiceFail = templates('practice fail', cat.practiceFail, '{parts}');
+  for (const a of cat.aspects) {
+    const bank = cat.practiceStories?.[a.id];
+    const ok = templates(`practice story ${a.id}`, bank, '{part}');
+    for (const v of ix.byAspect.get(a.id) ?? []) {
+      if (ok) {
+        const lines = READING_LEVELS.map((r) => practiceStory(cat, v.id, r));
+        READING_LEVELS.forEach((r, k) => {
+          const at = `practice story ${v.id} [${r}]`;
+          sentence(at, lines[k], STORY_WORD_LIMIT[r]);
+          namesOne(at, lines[k], [v.id]);
+        });
+        const c = lines.map(wordCount);
+        if (c[0] > c[1] || c[1] > c[2]) err(`practice story ${v.id}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
+      }
+      if (practiceFail) for (const r of READING_LEVELS) for (const t of cat.practiceFail![r]) {
+        const at = `practice fail ${v.id} [${r}]`;
+        const line = fillParts(cat, t, [v.id], r);
+        sentence(at, line, FAIL_WORD_LIMIT[r]);
+        namesOne(at, line, [v.id]);
+      }
+    }
+  }
 }

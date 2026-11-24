@@ -154,7 +154,11 @@ shared code lives in `shared/`.
   the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. A first win earns
   one buddy point, or two on a clever win. Every ten points unlocks a buddy. Surplus points carry toward the next buddy.
   Variants are bought with `purchase` (fixed price from the variant's place in its aspect's shop order).
-- **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
+- **Fail**: `fails[id]++`. The results screen shows up to `failLinesMax` (2) failure lines, one per failed reached
+  requirement, each naming a fix from the requirement's named fixes: one the player owns, else one the wallet covers,
+  else the cheapest (`logic/failHints.ts`). The chosen parts are saved in `failHints[id]` and shown on the card (a
+  yellow "!") and in its detail, at the current reading level, until the challenge is won. The older aspect hint
+  (after `hintAfterFails`) only shows when no failure line can be named.
 - **Overrides** change availability. A card that loses every possible route is replaced.
 - **Version 2 saves** use `workshop.players.v1` for `Record<profileId, PlayerSave>` and `workshop.device.v1` for
   `DeviceSave` in localStorage. Per-workshop data includes the wallet, bought variants, board and success history.
@@ -171,6 +175,17 @@ shared code lives in `shared/`.
   `partAliases`. Use “and” for parts that belong together and “or” for alternative builds. All the fix options
   named at a facet level are accepted at that level. `validateCatalog` checks the guideline wording
   and applies the same word limits and hard-word list to clever-win messages.
+- **Stories** are what the card shows for each requirement (`content/<ws>/stories.ts`, one row per facet level).
+  A story describes the problem so the kind of part that helps is obvious ("Squish! The road is sticky mud. Wheels
+  need to grip!"), without being a bare order. It may name a part but does not have to. Up to **10 words on Easy**,
+  **12 on Medium**, **14 on Hard** (two short sentences are fine), Easy <= Medium <= Hard, complete sentences, the
+  same hard-word list, no repeats. Vary how lines start. The guideline lines above stay in `phrases.ts`: they are
+  no longer shown, but they define each level's named fixes.
+- **Failure lines** are templates per facet with one `{parts}` ("You needed {parts} to grip the mud."). Parts read
+  as `partPhrases` writes them ("a Winch", "the Small size", "Fire Red paint"). `validateCatalog` fills in every
+  named fix of every level and checks the result: up to 12 / 14 / 16 words (long fixes end in "and more"), a
+  complete sentence that names a part of that fix. Practice cards use a story per station with one `{part}`
+  ("Vroom! Fans want to hear a Turbo Engine.") and the shared `PRACTICE_FAIL` lines, checked for every part.
 - **Facet levels** map difficulty to thresholds (mud depth 1–3 → mud grip ≥ 2/3/4). Phrases may differ per level
   ("muddy" → "deep, sticky mud").
 - **Tradeoffs**: variants change several stats (big engine: power+, weight+). Several builds may solve one requirement.

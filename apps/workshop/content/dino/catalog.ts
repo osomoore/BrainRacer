@@ -7,6 +7,8 @@ import { CLEVER_WIN_PHRASES } from '../cleverWinPhrases';
 import { DINO_ASPECTS, DINO_VARIANTS } from './variants';
 import { DINO_STATS } from './stats';
 import { DINO_SCENARIOS } from './scenarios';
+import { DINO_PRACTICE_STORIES, DINO_STORIES } from './stories';
+import { partPhrases, PRACTICE_FAIL } from '../stories';
 import { DINO_FACET_PHRASES, DINO_PART_ALIASES, DINO_SCENARIO_PHRASES } from './phrases';
 import { DINO_SUCCESS_PART_NAMES, DINO_SUCCESS_PHRASES } from './successPhrases';
 
@@ -46,6 +48,10 @@ export const DINO_CATALOG: WorkshopCatalog = {
   successPhrases: DINO_SUCCESS_PHRASES,
   successPartNames: DINO_SUCCESS_PART_NAMES,
   partAliases: DINO_PART_ALIASES,
+  stories: DINO_STORIES,
+  practiceStories: DINO_PRACTICE_STORIES,
+  practiceFail: PRACTICE_FAIL,
+  partPhrases: partPhrases(DINO_VARIANTS, { suffix: { size: 'size', color: 'skin' }, the: ['size'] }),
   unlockOrder: DINO_UNLOCK_ORDER,
   starters: DINO_STARTERS,
 };
