@@ -69,6 +69,8 @@ export interface ModelRig {
   focus(aspect: AspectId): { x: number; y: number; zoom: number };
   /** Named local anchor points, e.g. 'mouth', 'headTop', 'wheelFront', 'wheelRear', 'tail', 'exhaust'. */
   anchor(name: string): { x: number; y: number };
+  /** Container that rides the body (bounce, tilt, squash) in root pixel units, for cargo/props. Race side rigs only. */
+  bodyMount?(): Phaser.GameObjects.Container;
   play(anim: RigAnim): void;
   /** Swap one part in place (station preview) without rebuilding the whole rig. */
   setModel(model: Model): void;

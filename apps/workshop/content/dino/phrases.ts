@@ -22,9 +22,9 @@ const sp = (scenario: string, title: string[], intro: Tri): ScenarioPhrases => (
 export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
   // ------------------------------------------------------------------ snack
   fp('snack.bite', [
-    L(['Get teeth that can grab bugs.', 'Pick teeth for a small bug.'],
-      ['Your dino needs a mouth for small bugs.', 'Make the mouth good at catching bugs.'],
-      ['Give your dino a mouth that can catch a small, wiggly bug.', 'Change the mouth so it can grab a bug.']),
+    L(['Get teeth for a hard shell.', 'Pick teeth that can crunch.'],
+      ['Make a mouth that can crunch shells.', 'A beetle shell is hard, so bite big.'],
+      ['Give your dino a big bite to crunch a hard beetle shell.', 'The beetle has a hard shell, so you need a big bite.']),
     L(['Get strong teeth to catch frogs.', 'Pick teeth that hold a frog.'],
       ['Make a mouth strong enough for a frog.', 'A frog is slippery, so bite strong.'],
       ['Give your dino a strong mouth that can hold a slippery frog.', 'The frog is big and slippery, so you need a strong bite.']),
@@ -33,8 +33,8 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
       ['Give your dino the biggest and strongest mouth for a huge lizard.', 'Make the bite super strong so it can gulp a huge lizard.']),
   ], L(['Try different teeth.', 'Look at the teeth.'],
        ['Change what your dino bites with.', 'Try a different mouth.'],
-       ['Think about what part of your dino does the biting.', 'A mouth for leaves may not catch bugs.']),
-  ['big', 'strong', 'slippery', 'catch']),
+       ['Think about what part of your dino does the biting.', 'A mouth for leaves may not crunch shells.']),
+  ['big', 'strong', 'slippery', 'catch', 'crunch', 'hard']),
   fp('snack.bigGulp', [
     L(['Get a big dino with teeth.', 'Big beetle, so be big.'],
       ['Your dino must be big to gulp this.', 'Make a big dino with a strong bite.'],

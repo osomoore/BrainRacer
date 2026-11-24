@@ -98,6 +98,9 @@ export const WS_ADMIN = {
   gearAlpha: 0.35,
 } as const;
 
+/** Wallet badge centre in pane coordinates; the same on every screen that shows it, per layout. */
+export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as const;
+
 // ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
 export const WS_ROOM = {
   /** Character walk speed, px/s. */
@@ -130,6 +133,20 @@ export const WS_ROOM = {
   detailFontsWide: [52, 48, 44, 40],
   detailFontsTall: [48, 44, 40],
   detailLineGap: 1.28,
+} as const;
+
+/** Board part view: zoom onto the selected part, and the cycle arrows beside it. */
+export const WS_PARTVIEW = {
+  /** Largest zoom factor, fraction of the view the zoomed part should fill, zoom tween (ms). */
+  zoomMax: 3,
+  fill: 0.7,
+  zoomMs: 420,
+  /** Arrow button size (px), pulse scale and duration (ms). */
+  arrowSize: 80,
+  pulseScale: 1.3,
+  pulseMs: 200,
+  /** Aspects left out of the part walk (nothing to see on the vehicle). */
+  skip: ['gears'],
 } as const;
 
 // ---------------------------------------------------------------- results (apps/workshop/screens)

@@ -1,6 +1,6 @@
 /**
  * board: the player's composed model and challenge board. Wide layout: model preview + challenge tabs and details.
- * Tall layout: a challenge list and a detail view per challenge. "Test it!" starts a run: go('run', { challengeId }).
+ * Tall layout: the same single view (vehicle, challenge tabs, selected challenge text). "Test it!" starts a run: go('run', { challengeId }).
  */
 import type Phaser from 'phaser';
 import { WS_ROOM, WS_UI } from '../config';
@@ -17,7 +17,7 @@ import { cardColor } from '../ui/screenChrome';
 import { COLORS, circleTexture, fitText, makeText, ringTexture, roundedOriginY, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
-import { boardLayout, detailFonts, type BoardLayout } from './board/layout';
+import { boardLayout, detailFonts, type BoardLayout, type BoxC } from './board/layout';
 import { PartPreview } from './board/PartPreview';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
@@ -42,7 +42,6 @@ const boardScreen: ScreenFactory = (): Screen => {
   let sel = 0;
   let cardPage = 0;
   let textPage = 0;
-  let mode: 'overview' | 'detail' = 'overview';
   let busy = false;
   let cardPager: Pager | undefined;
   let textPager: Pager | undefined;
@@ -56,8 +55,9 @@ const boardScreen: ScreenFactory = (): Screen => {
   let modelObjs: Phaser.GameObjects.GameObject[] = [];
   let testBtn: Button | undefined;
   let partPreview: PartPreview | undefined;
-  let partPrevBtn: Button | undefined;
-  let partNextBtn: Button | undefined;
+  /** Part selection: focus is on the vehicle; Up/Down (wide) or Left/Right (narrow) cycle, the opposite way leaves. */
+  let partMode = false;
+  let returnFocus: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
 
   const ws = () => ctx.workshop ?? 'race';
@@ -77,9 +77,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   // ------------------------------------------------------------ composed model
   const buildModel = () => {
     const scene = ctx.scene;
-    const panel = wide()
-      ? { x: 330, y: 470, w: 620, h: 890 }
-      : { x: L.size.w / 2, y: 245, w: L.size.w - 20, h: 470 };
+    const panel = wide() ? { x: 330, y: 470, w: 620, h: 890 } : (L.modelPanel as BoxC);
     modelObjs.push(scene.add.image(panel.x, panel.y, roundedTexture(scene, panel.w, panel.h, 0xfff8e6, { radius: 36 })).setOrigin(0.5, roundedOriginY(panel.h)).setDepth(-300));
     rig = ctx.buildRig(scene, ws(), progress.model, 'side');
     const s = Math.min(WS_ROOM.boardModelScale[ctx.layout], L.model.maxW / Math.max(1, rig.width), L.model.maxH / Math.max(1, rig.height));
@@ -90,32 +88,16 @@ const boardScreen: ScreenFactory = (): Screen => {
 
   const destroyPartPreview = () => {
     partPreview?.destroy(); partPreview = undefined;
-    partPrevBtn?.destroy(); partPrevBtn = undefined;
-    partNextBtn?.destroy(); partNextBtn = undefined;
   };
 
   const buildPartPreview = () => {
     destroyPartPreview();
     if (!rig) return;
     const cat = engine.catalog(ws());
-    const P = L.partPreview;
-    const bounds = { x: P.x, y: P.y, maxW: P.maxW, maxH: P.maxH };
-    const label = { x: P.labelX, y: P.labelY, w: P.labelW };
-    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, { bounds, label, model: progress.model, variants: cat.variants });
-    partPrevBtn = new Button(ctx.scene, {
-      x: P.arrowLeftX, y: P.arrowY, w: P.arrowW, h: P.arrowH, label: '<', fontSize: 64, color: COLORS.yellow,
-      onClick: () => { partPreview?.step(-1); },
+    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, {
+      layout: L.partPreview, model: progress.model, variants: cat.variants,
+      onTap: (kind) => { if (!partMode) enterPartMode(group.focused, false); if (kind === 'arrow') ctx.audio.sfx('select'); },
     });
-    partNextBtn = new Button(ctx.scene, {
-      x: P.arrowRightX, y: P.arrowY, w: P.arrowW, h: P.arrowH, label: '>', fontSize: 64, color: COLORS.yellow,
-      onClick: () => { partPreview?.step(1); },
-    });
-  };
-
-  const restoreModelPosition = () => {
-    if (!rig) return;
-    const s = Math.min(WS_ROOM.boardModelScale[ctx.layout], L.model.maxW / Math.max(1, rig.width), L.model.maxH / Math.max(1, rig.height));
-    rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(-200);
   };
 
   // ------------------------------------------------------------ cards
@@ -133,7 +115,7 @@ const boardScreen: ScreenFactory = (): Screen => {
         x: slot.x, y: slot.y, w: slot.w, h: slot.h, color: cardColor(gi),
         onClick: () => {
           ctx.audio.sfx('select');
-          if (wide()) { group.focus(b); lastFocus = b; select(gi); } else { sel = gi; openDetail(); }
+          group.focus(b); lastFocus = b; select(gi);
         },
       });
       const stages = c.stages.length;
@@ -142,6 +124,10 @@ const boardScreen: ScreenFactory = (): Screen => {
         fitText(t, slot.w - 330);
         b.add(t);
         if (stages > 1) addChip(b, slot.w / 2 - 150, 0, `${stages} stages`);
+      } else if (!wide()) { // narrow tab: the title only (stage count is in the detail below)
+        const t = makeText(scene, 0, 0, c.title, { size: 44, wrap: slot.w - 24 });
+        for (let size = 40; t.height > slot.h - 16 && size >= 32; size -= 4) t.setFontSize(size);
+        b.add(t);
       } else {
         const t = makeText(scene, 0, stages > 1 ? -28 : 0, c.title, { size: 48, wrap: slot.w - 30 });
         if (t.height > 120) t.setFontSize(40);
@@ -156,11 +142,9 @@ const boardScreen: ScreenFactory = (): Screen => {
       cardPager = new Pager(scene, { x: L.pager.x, y: L.pager.y, gap: L.pager.gap, pages, page: cardPage, onChange: (p) => { cardPage = p; sel = Math.min(p * L.perPage, list.length - 1); refreshAll(); } });
       cardObjs.push(hook(() => { cardPager?.destroy(); cardPager = undefined; }));
     }
-    if (wide()) {
-      ring = scene.add.image(0, 0, ringTexture(scene, L.cards[0].w + 36, L.cards[0].h + 36, COLORS.blue, 14)).setDepth(-1);
-      cardObjs.push(ring);
-      placeRing();
-    }
+    ring = scene.add.image(0, 0, ringTexture(scene, L.cards[0].w + 24, L.cards[0].h + 24, COLORS.blue, 14)).setDepth(-1);
+    cardObjs.push(ring);
+    placeRing();
   };
 
   function placeRing(): void {
@@ -235,23 +219,15 @@ const boardScreen: ScreenFactory = (): Screen => {
 
   // ------------------------------------------------------------ focus / modes
   function setFocusables(): void {
-    const list: Button[] = [];
-    if (mode === 'overview' || wide()) {
-      list.push(...cardBtns);
-      if (cardPager) list.push(...cardPager.buttons);
-      if (newBtn) list.push(newBtn);
-    }
-    if (wide() || mode === 'detail') {
-      if (textPager) list.push(...textPager.buttons);
-      if (partPrevBtn) list.push(partPrevBtn);
-      if (partNextBtn) list.push(partNextBtn);
-      if (testBtn) list.push(testBtn);
-    }
+    const list: Button[] = [...cardBtns];
+    if (cardPager) list.push(...cardPager.buttons);
+    if (newBtn) list.push(newBtn);
+    if (textPager) list.push(...textPager.buttons);
+    if (testBtn) list.push(testBtn);
     list.push(backBtn);
     group.set(list);
     const keep = lastFocus && list.includes(lastFocus) ? lastFocus : undefined;
     if (keep) group.focus(keep);
-    else if (mode === 'detail' && !wide()) group.focus(testBtn);
     else group.focus(cardBtns[Math.max(0, sel - cardPage * L.perPage)] ?? list[0]);
     lastFocus = group.focused;
   }
@@ -265,48 +241,30 @@ const boardScreen: ScreenFactory = (): Screen => {
     setFocusables();
   }
 
-  function openDetail(): void {
-    mode = 'detail';
-    textPage = 0;
-    if (!wide()) buildPartPreview();
-    refreshAll();
-    group.focus(testBtn);
-    lastFocus = testBtn;
-  }
-
-  function showMode(): void {
-    if (wide()) return;
-    const overview = mode === 'overview';
-    modelObjs.forEach((o) => (o as Phaser.GameObjects.Image).setVisible(overview));
-    rig?.root.setVisible(overview || !!partPreview);
-    cardObjs.forEach((o) => (o as Phaser.GameObjects.Image).setVisible?.(overview));
-    cardPager?.buttons.forEach((b) => b.setVisible(overview && cardPager!.count > 1));
-    newBtn?.setVisible(overview);
-  }
-
   function refreshAll(): void {
-    if (wide() || mode === 'overview') buildCards();
-    else {
-      cardPager?.destroy(); cardPager = undefined;
-      kill(cardObjs);
-      cardBtns = [];
-    }
-    if (wide() || mode === 'detail') buildDetail(); else { kill(detailObjs); testBtn = undefined; }
+    buildCards();
+    buildDetail();
     setFocusables();
-    showMode();
+  }
+
+  function enterPartMode(from: Button | undefined, first = true): void {
+    partMode = true;
+    returnFocus = from;
+    group.focus(undefined);
+    if (first) partPreview?.showFirst();
+    ctx.audio.sfx('select');
+  }
+
+  function leavePartMode(): void {
+    partMode = false;
+    partPreview?.clear();
+    group.focus(returnFocus ?? cardBtns[0]);
+    lastFocus = group.focused;
+    ctx.audio.sfx('back');
   }
 
   const leave = () => {
     if (busy) return;
-    if (!wide() && mode === 'detail') {
-      mode = 'overview';
-      ctx.audio.sfx('back');
-      destroyPartPreview();
-      restoreModelPosition();
-      lastFocus = undefined;
-      refreshAll();
-      return;
-    }
     busy = true;
     ctx.audio.sfx('back');
     ctx.go('room', { from: 'center' });
@@ -336,7 +294,6 @@ const boardScreen: ScreenFactory = (): Screen => {
         sel = restoredIndex >= 0 ? restoredIndex : Math.min(restore.cardPage * L.perPage, Math.max(0, progress.active.length - 1));
         cardPage = Math.floor(sel / L.perPage);
         textPage = restoredIndex >= 0 ? restore.textPage : 0;
-        if (!wide() && restoredIndex >= 0) mode = 'detail';
       }
       const RL = roomLayout(ctx.layout, []);
       const bg = roomBackdrop(scene, ws(), ctx.layout, RL.floorY);
@@ -350,33 +307,32 @@ const boardScreen: ScreenFactory = (): Screen => {
         staticObjs.push(newBtn);
       }
       buildModel();
-      if (wide() || mode === 'detail') buildPartPreview();
+      buildPartPreview();
       refreshAll();
     },
     update() {
       for (const a of ctx.input.poll()) {
         if (busy) continue;
-        if (a === 'back') { leave(); continue; }
         const f = group.focused;
-        if (wide() && f === cardBtns[0] && a === 'left' && partNextBtn) { group.focus(partNextBtn); continue; }
-        if (partPreview && (f === partPrevBtn || f === partNextBtn) && (a === 'left' || a === 'right')) {
-          partPreview.step(a === 'left' ? -1 : 1);
+        if (partMode) {
+          const prev = wide() ? 'up' : 'left', next = wide() ? 'down' : 'right', out = wide() ? 'right' : 'down';
+          if (a === prev || a === next) { partPreview?.step(a === next ? 1 : -1); ctx.audio.sfx('select'); }
+          else if (a === out || a === 'back') leavePartMode();
           continue;
         }
-        if (partPreview && !textPager && (f === partPrevBtn || f === partNextBtn) && a === 'down' && testBtn) { group.focus(testBtn); continue; }
-        if (wide() && partPreview && (f === partPrevBtn || f === partNextBtn) && a === 'up') {
-          group.focus(cardBtns[Math.max(0, sel - cardPage * L.perPage)] ?? cardBtns[0]);
+        if (partPreview && ((wide() && a === 'left' && (f === cardBtns[0] || f === testBtn)) || (!wide() && a === 'up' && f && cardBtns.includes(f)))) {
+          enterPartMode(f);
           continue;
         }
-        if (!wide() && !textPager && partPreview && f === testBtn && a === 'up' && partNextBtn) { group.focus(partNextBtn); continue; }
-        if (a === 'confirm' && f && cardBtns.includes(f) && wide()) { startRun(ids()[cardPage * L.perPage + cardBtns.indexOf(f)]); continue; }
+        if (a === 'back') { leave(); continue; }
+        if (a === 'confirm' && f && cardBtns.includes(f)) { startRun(ids()[cardPage * L.perPage + cardBtns.indexOf(f)]); continue; }
         group.handle(a);
       }
       const f = group.focused;
       if (f !== lastFocus) {
         lastFocus = f;
         const k = f ? cardBtns.indexOf(f) : -1;
-        if (k >= 0 && wide()) select(cardPage * L.perPage + k);
+        if (k >= 0) select(cardPage * L.perPage + k);
       }
     },
     destroy() {

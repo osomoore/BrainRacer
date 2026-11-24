@@ -59,7 +59,8 @@ const resultsScreen: ScreenFactory = (): Screen => {
 
       keep(addBackdrop(ctx));
       ctx.audio.sting(result.passed ? 'success' : 'fail');
-      keep(addHeader(ctx, result.passed ? 'It worked!' : 'Not yet!', wide ? 78 : 66, wide ? 100 : 72));
+      const header = keep(addHeader(ctx, result.passed ? 'It worked!' : 'Not yet!', wide ? 78 : 66, wide ? 100 : 64));
+      if (!wide) header.setX(w - 40 - header.width / 2); // the wallet badge owns the top centre of a narrow pane
       const title = keep(makeText(s, w / 2, wide ? 184 : 152, challenge.title,
         { size: wide ? 56 : 48, color: COLORS.paper, stroke: COLORS.ink, wrap: w - 80 }));
       const titleBottom = title.y + title.height / 2;

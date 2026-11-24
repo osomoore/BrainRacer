@@ -48,8 +48,9 @@ export default scenario('snack', async (a) => {
     a.sfx('gulp');
     const bulge = new Bulge(a, `${spec.kind}:happy`, 1);
     const bp = a.pt('belly');
-    const bs = (a.rig.height * a.rs) / 330 * (big ? 1.5 : 0.95);
-    await bulge.inflate(bp.x, bp.y - 10, bs);
+    // The bulge sits in front of the body, so keep it low and small enough to stay clear of the neck and head.
+    const bs = (a.rig.height * a.rs) / 330 * (big ? 1.05 : 0.8);
+    await bulge.inflate(bp.x - a.rig.width * a.rs * 0.04, bp.y + a.rig.height * a.rs * 0.05, bs);
     a.play('happy');
     await a.wait(500);
     a.sfx('burp', { volume: big ? 1 : 0.8 });

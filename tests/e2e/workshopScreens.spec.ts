@@ -126,7 +126,7 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(easy).toContain(ch[0].stages[0].requirements[0].text.easy);
   expect(easy).not.toContain(ch[0].stages[0].requirements[0].text.hard);
   expect(easy).toContain('Test it!');
-  expect(easy).toContain('Wheels: Road Tires'); // read-only model labels include the fitted part
+  expect(easy).not.toContain('Wheels: Road Tires'); // no part is highlighted until the vehicle is entered
 
   // switch the reading level: the text changes, nothing else
   await page.evaluate(() => {
@@ -146,6 +146,42 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(await paneTexts(page)).toContain(ch[1].stages[0].requirements[0].text.hard);
   await key(page, 'Space');
   await expectScreens(page, 'run');
+});
+
+for (const [ws, players, first, second] of [['race', 1, 'Wheels', 'Engine'], ['dino', 1, '', ''], ['race', 2, 'Wheels', 'Engine'], ['dino', 2, '', '']] as const) {
+  test(`board ${ws} ${players}P: focus enters the vehicle part view, cycles parts, and leaves again`, async ({ page }) => {
+    await boot(page);
+    await enter(page, { players, ws, screen: 'board' });
+    const partLabel = async () => (await paneTexts(page)).find((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint')) ?? '';
+    const [enterKey, nextKey, prevKey, leaveKey] = players === 1 ? ['KeyA', 'KeyS', 'KeyW', 'KeyD'] : ['KeyW', 'KeyD', 'KeyA', 'KeyS'];
+    expect(await partLabel()).toBe('');
+    await key(page, enterKey);
+    const a = await partLabel();
+    expect(a).not.toBe('');
+    if (first) expect(a.startsWith(first)).toBe(true);
+    await key(page, nextKey);
+    const b = await partLabel();
+    expect(b).not.toBe(a);
+    if (second) expect(b.startsWith(second)).toBe(true);
+    await key(page, prevKey);
+    expect(await partLabel()).toBe(a);
+    await key(page, leaveKey);
+    expect(await partLabel()).toBe('');
+    // focus is back on the challenge list: Space starts the selected test
+    await key(page, 'Space');
+    await expectScreens(page, players === 2 ? 'run,board' : 'run');
+  });
+}
+
+test('board race: the part walk skips Gears and shows both cycle arrows', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 1, ws: 'race', screen: 'board' });
+  const partLabel = async () => (await paneTexts(page)).find((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint')) ?? '';
+  await key(page, 'KeyA');
+  const seen = new Set<string>();
+  for (let i = 0; i < 12; i++) { seen.add((await partLabel()).split(':')[0]); await key(page, 'KeyS'); }
+  expect(seen.has('Wheels') && seen.has('Engine')).toBe(true);
+  expect(seen.has('Gears')).toBe(false);
 });
 
 test('board: B returns to the room (character at the board)', async ({ page }) => {
@@ -215,7 +251,7 @@ test('mobile: tap a station sign, the character walks there and the station open
   };
   await tap('Wheels', 760, 110);
   await expectScreens(page, 'station');
-  await tap('Back', 175, 115);
+  await tap('Back', 420, 115); // wide layout: Back sits right of the wallet badge (WS_WALLET wide x=126)
   await expectScreens(page, 'room');
   await tap('Test', 960, 950);
   await expectScreens(page, 'board');

@@ -26,7 +26,7 @@ export function stationLayout(kind: LayoutKind): StationLayout {
       size, topBandH: 250,
       aspect: { x: size.w / 2, y: 68, size: 72 },
       name: { x: size.w / 2, y: 160, size: 88, maxW: 1000 },
-      back: { x: 175, y: 115, w: 240, h: 130 },
+      back: { x: 420, y: 115, w: 240, h: 130 },
       use: { x: size.w - 230, y: 115, w: 380, h: 130 },
       strip: { bandY: 790, y: 935, swatch: sw, visible, xs, arrowL: 100, arrowR: size.w - 100, arrowW: 130 },
       stage: { cx: size.w / 2, cy: 505 },
@@ -34,7 +34,7 @@ export function stationLayout(kind: LayoutKind): StationLayout {
   }
   return {
     size, topBandH: 285,
-    aspect: { x: 570, y: 75, size: 64 },
+    aspect: { x: 770, y: 75, size: 64 },
     name: { x: size.w / 2, y: 190, size: 76, maxW: 880 },
     back: { x: 130, y: 75, w: 200, h: 120 },
     use: { x: size.w / 2, y: 1005, w: 560, h: 120 },
