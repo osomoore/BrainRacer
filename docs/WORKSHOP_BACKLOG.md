@@ -7,6 +7,7 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
 ### Screens and play
 - **In progress (2026-11-24):** buy popup + result buttons (pkg/ws-shopflow), springs higher (pkg/ws-springs), challenge view
   vehicle part walk + challenge stays selected (codex/c26).
+- **2-player challenge board:** selecting a challenge shows its text right away in the same pane (no separate detail screen). Queued after C26.
 - **Phone join/profile:** the "PLAYER 1" label on the profile chooser is small on a phone (844x390).
 - **Back buttons:** there are none yet (Esc / B only). Every screen needs a visible back control, especially on touch.
 - **Admin button and screen:** a visible admin button that opens one screen for the admin things. Today admin is only reachable by
