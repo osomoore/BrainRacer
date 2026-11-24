@@ -18,8 +18,8 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
-export function newPlayerSave(reading: ReadingLevel): PlayerSave {
-  return { version: 2, reading, workshops: {} };
+export function newPlayerSave(reading: ReadingLevel, buddySeed?: number): PlayerSave {
+  return buddySeed === undefined ? { version: 2, reading, workshops: {} } : { version: 2, reading, workshops: {}, buddySeed };
 }
 
 function repairModel(cat: WorkshopCatalog, raw: unknown, fallback: Model): Model {
@@ -157,7 +157,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
 export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCatalog>>, raw: unknown): PlayerSave | null {
   if (!isObj(raw) || raw.version !== 2) return null;
   const reading = (READING_LEVELS as readonly unknown[]).includes(raw.reading) ? (raw.reading as ReadingLevel) : 'easy';
-  const save = newPlayerSave(reading);
+  const save = newPlayerSave(reading, isNum(raw.buddySeed) ? raw.buddySeed : undefined);
   if (isObj(raw.workshops)) {
     for (const id of WORKSHOP_IDS) {
       const p = normalizeProgress(catalogs[id], raw.workshops[id]);
@@ -171,5 +171,5 @@ export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCata
 }
 
 export function progressOf(cat: WorkshopCatalog, save: PlayerSave): WorkshopProgress {
-  return refreshBoard(cat, save.workshops[cat.id] ?? newProgress(cat));
+  return refreshBoard(cat, save.workshops[cat.id] ?? newProgress(cat, save.buddySeed));
 }

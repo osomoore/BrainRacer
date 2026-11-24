@@ -60,7 +60,7 @@ export interface WorkshopEngine {
   hint(progress: WorkshopProgress, challenge: Challenge, result: RunResult, reading: ReadingLevel): string | null;
 
   // --- progression (all return a NEW progress object; callers commit it)
-  newProgress(id: WorkshopId): WorkshopProgress;
+  newProgress(id: WorkshopId, buddySeed?: number): WorkshopProgress;
   /** Rechecks affordability, preserving valid active cards and filling empty slots. */
   refreshBoard(id: WorkshopId, progress: WorkshopProgress): WorkshopProgress;
   recordFail(id: WorkshopId, progress: WorkshopProgress, challengeId: ChallengeId): WorkshopProgress;
@@ -77,7 +77,7 @@ export interface WorkshopEngine {
   grantCurrency(id: WorkshopId, progress: WorkshopProgress): WorkshopProgress;
 
   // --- saves
-  newPlayerSave(reading: ReadingLevel): PlayerSave;
+  newPlayerSave(reading: ReadingLevel, buddySeed?: number): PlayerSave;
   /** Reset both workshops, preserving the profile's reading level. */
   resetPlayer(save: PlayerSave): PlayerSave;
   /** Validates/repairs a loaded save (unknown ids dropped, missing fields defaulted). */

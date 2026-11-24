@@ -302,6 +302,8 @@ export interface PlayerSave {
   workshops: Partial<Record<WorkshopId, WorkshopProgress>>;
   /** Workshop picked last (pre-selected on the picker). */
   lastWorkshop?: WorkshopId;
+  /** Seed (from the profile id) that picks the starting buddy of a new workshop. Absent on older saves: the dino. */
+  buddySeed?: number;
 }
 
 export interface DeviceSave {

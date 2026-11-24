@@ -29,7 +29,7 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     purchase: (id, p, aspect, variant) => purchase(c(id), p, aspect, variant),
     evaluate: (id, model, challenge) => evaluate(c(id), model, challenge),
     hint,
-    newProgress: (id) => newProgress(c(id)),
+    newProgress: (id, buddySeed) => newProgress(c(id), buddySeed),
     refreshBoard: (id, p) => refreshBoard(c(id), p),
     recordFail: (_id, p, challengeId) => recordFail(p, challengeId),
     recordWin: (id, p, challengeId, model, now) => recordWin(c(id), p, challengeId, model, now),
@@ -38,7 +38,7 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     adminSandbox: (id, p, seed, count) => adminSandbox(c(id), p, seed, count),
     grantCurrency: (id, p) => grantCurrency(c(id), p),
     newPlayerSave,
-    resetPlayer: (save) => newPlayerSave(save.reading),
+    resetPlayer: (save) => newPlayerSave(save.reading, save.buddySeed),
     normalizeSave: (raw) => normalizeSave(catalogs, raw),
     progressOf: (save, id) => progressOf(c(id), save),
   };

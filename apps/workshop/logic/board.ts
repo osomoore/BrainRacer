@@ -12,14 +12,15 @@ import { currencyStarters } from './starters';
 import { shopOffers } from './shop';
 import { practiceChallenge } from './practice';
 import { flatChecks, hashSeed } from './util';
-import { advanceBuddies, normalizeBuddies } from './buddies';
+import { advanceBuddies, normalizeBuddies, startingBuddy } from './buddies';
 import { evaluate } from './evaluate';
 
-export function newProgress(cat: WorkshopCatalog): WorkshopProgress {
+/** A fresh workshop; `buddySeed` (the profile's seed) picks the starting buddy. */
+export function newProgress(cat: WorkshopCatalog, buddySeed?: number): WorkshopProgress {
   return {
     model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {},
     lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1,
-    buddies: normalizeBuddies(undefined),
+    buddies: normalizeBuddies(undefined, buddySeed === undefined ? undefined : startingBuddy(buddySeed)),
   };
 }
 

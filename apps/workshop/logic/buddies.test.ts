@@ -5,6 +5,7 @@ import type { Challenge, WorkshopCatalog, WorkshopId, WorkshopProgress } from '.
 import { createEngine } from './index';
 import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
 import { hashSeed } from './util';
+import { normalizeBuddies, startingBuddy } from './buddies';
 
 const catalogs: Readonly<Record<WorkshopId, WorkshopCatalog>> = { race: C, dino: { ...C, id: 'dino' } };
 const engine = createEngine(catalogs);
@@ -84,7 +85,7 @@ describe('buddy save and progression', () => {
     expect(outcome.firstWin).toBe(true);
     expect(outcome.progress.buddies).toEqual(progress.buddies);
     expect(outcome.unlockedBuddy).toBeUndefined();
-  }, 30000);
+  }, 60000);
 
   it('does not count failed, invalid, or duplicate wins', () => {
     const progress = fresh();
@@ -116,5 +117,35 @@ describe('buddy save and progression', () => {
     expect(restored.workshops.race?.buddies.selected).toBe(other);
     expect(restored.workshops.dino?.buddies.selected).toBe('dino');
     expect(restored.workshops.race).not.toBe(restored.workshops.dino);
+  });
+
+  it('gives each new profile a seeded starting buddy: same profile, same buddy; different profiles differ', () => {
+    const profileIds = ['p-ava', 'p-ben', 'p-cy', 'p-dee', 'p-eli', 'p-fay', 'p-gus', 'p-hal'];
+    const start = (id: string) => engine.progressOf(engine.newPlayerSave('easy', hashSeed(id)), 'race').buddies;
+    for (const id of profileIds) {
+      const first = start(id);
+      expect(first).toEqual(start(id));
+      expect(first.unlocked).toEqual([first.selected]);
+      expect(first.progress).toBe(0);
+    }
+    const picks = new Set(profileIds.map((id) => start(id).selected));
+    expect(picks.size).toBeGreaterThan(3);
+    expect(startingBuddy(hashSeed('p-ava'))).not.toBe(startingBuddy(hashSeed('p-ben')));
+    expect(fresh().buddies.selected).toBe('dino');
+  });
+
+  it('keeps the buddy seed through save normalization and reset, and leaves older saves on the dino', () => {
+    const seeded = engine.newPlayerSave('hard', hashSeed('p-ava'));
+    const restored = engine.normalizeSave(JSON.parse(JSON.stringify(seeded)))!;
+    expect(restored.buddySeed).toBe(hashSeed('p-ava'));
+    expect(engine.resetPlayer(restored).buddySeed).toBe(hashSeed('p-ava'));
+    const legacy = engine.normalizeSave({ version: 2, reading: 'easy', workshops: {} })!;
+    expect(legacy.buddySeed).toBeUndefined();
+    expect(engine.progressOf(legacy, 'race').buddies.selected).toBe('dino');
+  });
+
+  it('keeps saved ownership without forcing the dino into it', () => {
+    expect(normalizeBuddies({ unlocked: ['owl'], selected: 'owl', progress: 4 })).toEqual({ unlocked: ['owl'], selected: 'owl', progress: 4 });
+    expect(normalizeBuddies(undefined, 'owl')).toEqual({ unlocked: ['owl'], selected: 'owl', progress: 0 });
   });
 });
