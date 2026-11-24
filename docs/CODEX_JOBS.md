@@ -12,7 +12,6 @@ Read `AGENTS.md`, `CLAUDE.md` (rules 10, 11, 14, 15), `docs/WORKSHOP.md` and `do
 **Start**
 ```powershell
 cd C:\Users\osomo\Projects\BrainRacer
-git fetch . feature/workshop:feature/workshop 2>$null   # local branch; nothing to fetch remotely
 git worktree add -q ".worktrees\codex-<job>" -b "codex/<job>" feature/workshop
 New-Item -ItemType Junction -Path ".worktrees\codex-<job>\node_modules" -Target "$PWD\node_modules"
 cd ".worktrees\codex-<job>"; npm run assets
