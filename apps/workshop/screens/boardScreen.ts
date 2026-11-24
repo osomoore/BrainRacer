@@ -20,10 +20,9 @@ import { COLORS, circleTexture, fitText, makeText, ringTexture, roundedOriginY, 
 import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
 import { boardLayout, detailFonts, type BoardLayout, type BoxC } from './board/layout';
-import { PartPreview } from './board/PartPreview';
 import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './board/focusChoice';
 import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from './board/reward';
-import { guardBackAfterPreview, isBackGuarded } from './backGuard';
+import { isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
 
@@ -63,10 +62,6 @@ const boardScreen: ScreenFactory = (): Screen => {
   let newBtn: Button | undefined;
   let modelObjs: Phaser.GameObjects.GameObject[] = [];
   let testBtn: Button | undefined;
-  let partPreview: PartPreview | undefined;
-  /** Part selection: focus is on the vehicle; Up/Down (wide) or Left/Right (narrow) cycle, the opposite way leaves. */
-  let partMode = false;
-  let returnFocus: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
   let sessionReturnKey = '';
 
@@ -96,20 +91,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(-200);
     rig.play('idle');
     modelObjs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 26, 0x000000, 0.2).setDepth(-250));
-  };
-
-  const destroyPartPreview = () => {
-    partPreview?.destroy(); partPreview = undefined;
-  };
-
-  const buildPartPreview = () => {
-    destroyPartPreview();
-    if (!rig) return;
-    const cat = engine.catalog(ws());
-    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, {
-      layout: L.partPreview, model: progress.model, variants: cat.variants,
-      onTap: (kind) => { if (!partMode) enterPartMode(group.focused, false); if (kind === 'arrow') ctx.audio.sfx('select'); },
-    });
   };
 
   // ------------------------------------------------------------ cards
@@ -265,7 +246,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     return undefined;
   }
 
-  function saveReturn(challengeId?: string, focus = focusKey(partMode ? returnFocus : group.focused)): void {
+  function saveReturn(challengeId?: string, focus = focusKey(group.focused)): void {
     const selectedId = challenge()?.id;
     challengeId ??= focus?.startsWith('card:') ? focus.slice(5) : selectedId;
     const records = boardReturn.get(ctx) ?? new Map<string, BoardReturn>();
@@ -323,27 +304,9 @@ const boardScreen: ScreenFactory = (): Screen => {
     setFocusables(restore);
   }
 
-  function enterPartMode(from: Button | undefined, first = true): void {
-    partMode = true;
-    returnFocus = from;
-    group.focus(undefined);
-    if (first) partPreview?.showFirst();
-    ctx.audio.sfx('select');
-  }
-
-  function leavePartMode(fromBack = false): void {
-    partMode = false;
-    partPreview?.clear();
-    group.focus(returnFocus ?? cardBtns[0]);
-    lastFocus = group.focused;
-    if (fromBack) guardBackAfterPreview(ctx, ctx.scene.time.now);
-    ctx.audio.sfx('back');
-  }
-
   const handleBack = () => {
     if (isBackGuarded(ctx, ctx.scene.time.now)) return;
-    if (partMode) leavePartMode(true);
-    else leave();
+    leave();
   };
 
   const leave = () => {
@@ -391,24 +354,12 @@ const boardScreen: ScreenFactory = (): Screen => {
         staticObjs.push(newBtn);
       }
       buildModel();
-      buildPartPreview();
       refreshAll(restore);
     },
     update() {
       for (const a of ctx.input.poll()) {
         if (busy) continue;
         const f = group.focused;
-        if (partMode) {
-          const prev = wide() ? 'up' : 'left', next = wide() ? 'down' : 'right', out = wide() ? 'right' : 'down';
-          if (a === prev || a === next) { partPreview?.step(a === next ? 1 : -1); ctx.audio.sfx('select'); }
-          else if (a === out) leavePartMode();
-          else if (a === 'back') handleBack();
-          continue;
-        }
-        if (partPreview && ((wide() && a === 'left' && (f === cardBtns[0] || f === testBtn)) || (!wide() && a === 'up' && f && cardBtns.includes(f)))) {
-          enterPartMode(f);
-          continue;
-        }
         if (a === 'back') { handleBack(); continue; }
         if (a === 'confirm' && f && cardBtns.includes(f)) {
           const id = ids()[cardPage * L.perPage + cardBtns.indexOf(f)];
@@ -429,7 +380,6 @@ const boardScreen: ScreenFactory = (): Screen => {
       group?.destroy();
       cardPager?.destroy(); textPager?.destroy();
       cardPager = undefined; textPager = undefined;
-      destroyPartPreview();
       rig?.destroy(); rig = undefined;
       for (const list of [cardObjs, detailObjs, modelObjs, staticObjs]) kill(list);
       cardBtns = [];
