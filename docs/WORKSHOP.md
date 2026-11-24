@@ -120,7 +120,8 @@ shared code lives in `shared/`.
 ## Engine semantics (logic/)
 
 - **Stats**: `stat = clamp(base + Σ variant.stats[stat], min, max)`. **Tags**: union of the variants' tags.
-- **Checks**: `statMin`, `statMax`, `tag`, `noTag`. A requirement passes when all its checks pass.
+- **Checks** include `statMin`, `statMax`, `tag`, `noTag`, and `anyOf`. A requirement passes when all its
+  checks pass. An `anyOf` check passes when all the checks in at least one option pass.
 - **evaluate**: every requirement is evaluated (also those after a failing stage: `reached: false`).
   The run ends at the first stage with a failing requirement; `firstFail` = first failing requirement there.
 - **available variants** = owned (first starter per aspect + purchased) ∪ `open` overrides − `locked` overrides; an aspect never ends up empty
@@ -135,8 +136,8 @@ shared code lives in `shared/`.
     Prefer (not require) challenges whose solutions need the newest unlocked variant about 40% of the time; the
     rest should need older parts or combinations.
   - The three active challenges should differ (different scenarios / hint aspects where possible).
-  - Text: title from the scenario phrase bank (2 stages: "A & B", 3+: first title + " Adventure"); intro + one
-    sentence per requirement, picked deterministically from the phrase bank for each reading level.
+  - Text comes from the scenario and facet phrase banks. Two stages join their titles with "&", and three or
+    more use the first title plus "Adventure". Each requirement has one guideline sentence per reading level.
   - Saved challenges are fully resolved (checks + text for all three levels). Never regenerate a saved challenge.
 - **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
@@ -152,22 +153,52 @@ shared code lives in `shared/`.
 
 ## Content guide (content/race, content/dino)
 
-- **Reading levels** (same requirement, three wordings):
-  - Easy: short (≤ 9 words), everyday words, may name the aspect: "Your car needs wheels that work in mud."
-  - Medium: describes the task: "Build a car that can drive across a muddy field."
-  - Hard: richer vocabulary, the reader must infer the part: "Equip your vehicle with enough traction to cross slippery, muddy ground."
-  - Never name the exact variant ("Mud Tires") at Medium/Hard. Easy may name the aspect ("wheels"), not the variant.
-  - Target vocabulary groups: big/small/long/short, fast/slow/heavy/light, narrow/wide/steep/slippery,
-    powerful/flexible/durable/efficient, traction/accelerate/navigate/conceal. Tag the words each facet uses (`vocab`).
+- **Guidelines** give beginning readers one short line per requirement. The title names the problem, and each
+  line names the fix. When a requirement accepts alternatives, name every option on that line and link them with
+  "or". Use everyday words such as big, small, long, and short. Use up to **6 words on Easy**, **8 on Medium**,
+  and **12 on Hard**. `validateCatalog` checks every guideline in the phrase banks. Reading level changes the
+  wording only. Name the available parts directly when it helps children recognize the alternatives.
 - **Facet levels** map difficulty to thresholds (mud depth 1–3 → mud grip ≥ 2/3/4). Phrases may differ per level
   ("muddy" → "deep, sticky mud").
 - **Tradeoffs**: variants change several stats (big engine: power+, weight+). Several builds may solve one requirement.
 - **Scenarios**: 12–15 per workshop, each a scene the runs package can animate in side view (top view only where
   needed). Each facet lists its views and its hint aspect.
 - **Starters**: Race Shop: Deep Mud (wheels), Long Jump (speed: engine, gears or rocket), Sharp Turn (springs; top
-  view), Steep Hill (engine power), Bright Color (paint; fog, ducks wait to cross: a dull car isn't seen). Dino Lab:
+  view), Steep Hill (engine power), Foggy Road (paint; ducks wait to cross). Dino Lab:
   Big Teeth (gulp a cartoon critter; small teeth: it giggles and wriggles away), Green Skin (hide in ferns from a big
-  sniffing predator), High Jump (legs), Small Hole (size), Standing Up (peek over tall grass to find the nest).
+  sniffing predator), High Jump (legs), Small Hole (size), Tall Grass (peek over the grass to find the nest).
+
+### Alternative fixes (C27)
+
+| Workshop and challenge | Accepted fixes | Easy guideline example |
+|---|---|---|
+| Dino Lab, Tall Grass (`tallGrass.peek`, level 1) | Standing, Long Neck, or Big or Huge size. | Stand, long neck, or big body. |
+| Race Shop, River Crossing (`river.cross`, level 1) | Snorkel to drive through the stream, or Floaties to cross on the surface. | Use floaties or a snorkel. |
+
+Both fixes count as one requirement on their respective cards. A build must satisfy every guideline, and the
+win pays two coins or two Bio Juice per requirement. The board compares the total cost of complete builds
+and uses the cheapest. A card with an owned route can fill the owned-only slot. The board targets one owned-only
+card and two affordable purchase cards as it fills or replaces slots. An owned practice card can fill the
+owned slot if the authored pool has no eligible card. Cards that become owned-solvable after a purchase stay active.
+Version 2 saves retain their resolved requirements, wording, and IDs. Newly offered cards use the updated catalog.
+
+The review kept these cases on their existing rules.
+
+| Workshop and requirements reviewed | Alternatives considered |
+|---|---|
+| Race Shop, mud grip and tractor pull | Mud Tires, Monster Wheels, and 4x4 already contribute grip. A stronger engine helps pull the heavy tractor, which still needs a winch to hook on. |
+| Race Shop, jump speed and landing, sharp turn, hill power | Engines, gears, rockets, tires, springs, and other relevant parts already contribute through the speed, bounce, handling, and power thresholds. A soft landing still needs enough bounce. |
+| Race Shop, fog visibility, parade color, night quiet and hiding | Any bright paint already works in fog. Honking was excluded since the ducks need to see the car. Keep the requested parade color and the separate quiet and dark checks at night. |
+| Race Shop, low bridge, narrow path, wobbly bridge | Size, shape, and other relevant parts already affect height, width, or weight. Speed does not make an oversized car fit or reduce its weight on the bridge. |
+| Race Shop, delivery load and power, beach range and load | Storage, body, size, and helpful engines already contribute to their relevant thresholds. Room for boxes and power to move them remain separate. |
+| Race Shop, snow grip, rock toughness, clearance, and log push | Traction, lift, toughness, and pushing have stat-based solutions across parts. An extra route around the log would require a different course. |
+| Race Shop, river level 2 | The wide river calls for floating. The snorkel is for a stream with a road within driving depth. |
+| Dino Lab, snack bite and big gulp, chase speed and quiet | Teeth, size, legs, and other contributors already work through the relevant stats. The big gulp needs both a strong bite and room for the snack. |
+| Dino Lab, fern and flower camouflage, grass sneak, fish camouflage, desert camouflage | Forest colors and the Leaf Pattern already share the forest camouflage tag. Low movement or small size alone does not provide the scene's leaf, flower, grass, water, or sand pattern. |
+| Dino Lab, ledge jump, river swim, canyon flight | Legs and other stat contributors already support jumping and swimming. These scenes have distinct movement goals. Generic wings would bypass the jump and swim, and a leap would skip the canyon's flight and weight checks. |
+| Dino Lab, burrow fit, dig, and light | Smaller builds and digging parts already contribute. Digging cannot replace fitting through the hole or seeing inside it. |
+| Dino Lab, taller grass, fruit reach and tree shake | The higher grass levels and the fruit already count combined reach. More height is required for the higher grass. Shaking fruit down is a separate strength guideline. |
+| Dino Lab, rock climb and toughness, nut crack, log push, snow warmth and slope, bird noise, desert cooling | Existing stat checks count the relevant combinations, such as a beak or a horn for cracking a nut. Different ways to accomplish the same action already use the same threshold. |
 
 ## Art guide (art/)
 

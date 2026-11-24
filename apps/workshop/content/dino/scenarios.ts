@@ -4,11 +4,11 @@
  * Default model stats: speed 3, jump 1, reach 1, climb 1, swim 1, strength 2, bite 1, crunch 2, dig 1, size 3,
  * stealth 4, toughness 2, warmth 4, loudness 1 (see stats.ts + variants.ts).
  */
-import type { AspectId, Check, FacetDef, ScenarioDef, StatId, View } from '../../core/types';
+import type { AspectId, BasicCheck, Check, FacetDef, ScenarioDef, StatId, View } from '../../core/types';
 
 const atLeast = (stat: StatId, min: number): Check => ({ kind: 'statMin', stat, min });
 const atMost = (stat: StatId, max: number): Check => ({ kind: 'statMax', stat, max });
-const tag = (t: string): Check => ({ kind: 'tag', tag: t });
+const tag = (t: string): BasicCheck => ({ kind: 'tag', tag: t });
 
 /** `table[i]` = checks for level i + 1; levels past the end use the last entry. */
 function facet(id: string, table: Check[][], hintAspect: AspectId, minTier: number, views: View[] = ['side']): FacetDef {
@@ -53,7 +53,11 @@ export const DINO_SCENARIOS: readonly ScenarioDef[] = [
     facet('burrow.dark', [[tag('glow')]], 'extra', 3),
   ]),
   scenario('tallGrass', 'Find the nest in the tall grass', 0, [
-    facet('tallGrass.peek', [[tag('pose:stand')], [atLeast('reach', 5)], [atLeast('reach', 9)]], 'move', 0),
+    facet('tallGrass.peek', [
+      [{ kind: 'anyOf', options: [[tag('pose:stand')], [tag('longNeck')], [tag('tallBody')]] }],
+      [atLeast('reach', 5)],
+      [atLeast('reach', 9)],
+    ], 'move', 0),
     facet('tallGrass.sneak', [[tag('camo:grass')]], 'extra', 3),
   ]),
   scenario('tallTree', 'Get the fruit from a tall tree', 0, [

@@ -115,24 +115,28 @@ export function refreshBoard(cat: WorkshopCatalog, p0: WorkshopProgress): Worksh
     usedKeys.add(challengeKey(c));
   };
   const countOwned = (): number => [...costs.values()].filter((cost) => cost === 0).length;
+  const nextPractice = (): Challenge | null => {
+    const id = cat.id + '-g' + p.genSeq;
+    const practice = practiceChallenge(cat, id, hashSeed(id), tierOf(p.firstWins), budget.owned, p.model, p.lastWin, usedKeys);
+    if (practice) {
+      p.genSeq++;
+      costs.set(id, 0);
+    }
+    return practice;
+  };
 
   if (countOwned() === 0) {
     const toReplace = costs.size === size ? [...costs.keys()].at(-1) : undefined;
-    const owned = nextCard('owned');
+    const owned = nextCard('owned') ?? nextPractice();
     if (owned) {
       if (toReplace) costs.delete(toReplace);
       add(owned);
     }
   }
   while (costs.size < size) {
-    const authored = nextCard('purchase') ?? nextCard('owned');
-    if (authored) { add(authored); continue; }
-    const id = cat.id + '-g' + p.genSeq;
-    const practice = practiceChallenge(cat, id, hashSeed(id), tierOf(p.firstWins), budget.owned, p.model, p.lastWin, usedKeys);
-    if (!practice) break;
-    p.genSeq++;
-    costs.set(id, 0);
-    add(practice);
+    const challenge = nextCard('purchase') ?? nextCard('owned') ?? nextPractice();
+    if (!challenge) break;
+    add(challenge);
   }
 
   p.active = [...costs.keys()];

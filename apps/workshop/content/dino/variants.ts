@@ -79,8 +79,8 @@ export const DINO_VARIANTS: readonly Variant[] = [
   // size: medium*, small* (fits small holes, hides), then big, huge
   v('size.medium', 'Medium', {}, ['size:medium'], 'Default size.'),
   v('size.small', 'Small', { size: -2, stealth: 2, strength: -1, speed: 1, jump: 1, climb: 1, reach: -1 }, ['size:small'], 'Fits small holes, hides well, weaker.'),
-  v('size.big', 'Big', { size: 2, strength: 2, reach: 2, toughness: 1, warmth: 1, loudness: 1, stealth: -2, jump: -1, climb: -1 }, ['size:big'], 'Strong and tall, easy to spot.'),
-  v('size.huge', 'Huge', { size: 4, strength: 4, reach: 3, toughness: 2, warmth: 2, loudness: 2, bite: 1, stealth: -3, speed: -1, jump: -2, climb: -2 }, ['size:huge'], 'Very strong and tall, very easy to spot, heavy.'),
+  v('size.big', 'Big', { size: 2, strength: 2, reach: 2, toughness: 1, warmth: 1, loudness: 1, stealth: -2, jump: -1, climb: -1 }, ['size:big', 'tallBody'], 'Strong and tall, easy to spot.'),
+  v('size.huge', 'Huge', { size: 4, strength: 4, reach: 3, toughness: 2, warmth: 2, loudness: 2, bite: 1, stealth: -3, speed: -1, jump: -2, climb: -2 }, ['size:huge', 'tallBody'], 'Very strong and tall, very easy to spot, heavy.'),
   // extras: feathers*, frill*, then glow (glowing spots, dark caves), camo (leaf pattern, hides), stripes (tall grass)
   v('extra.feathers', 'Feathers', { warmth: 3 }, ['feathers'], 'Default: warm and fluffy (too hot in the desert).'),
   v('extra.frill', 'Neck Frill', { loudness: 2, toughness: 1 }, ['frill'], 'Shakes with a loud rattle; scares off pesky birds.'),

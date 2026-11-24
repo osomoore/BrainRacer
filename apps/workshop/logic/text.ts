@@ -66,7 +66,10 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
       for (const r of READING_LEVELS) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
       requirements.push({
         id: `s${si}r${ri}`, facet: fs.facet, level: fs.level,
-        checks: (def?.check(fs.level) ?? []).map((c) => ({ ...c })), text, hint: { aspect: hintAspect, text: hint },
+        checks: (def?.check(fs.level) ?? []).map((check) => check.kind === 'anyOf'
+          ? { ...check, options: check.options.map((option) => option.map((item) => ({ ...item }))) }
+          : { ...check }),
+        text, hint: { aspect: hintAspect, text: hint },
       });
     });
     return { scenario: st.scenario, view: allSide ? 'side' : 'top', params, requirements };

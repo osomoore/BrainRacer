@@ -65,7 +65,7 @@ const lev = (s: string): Record<ReadingLevel, string[]> =>
 
 const FACET_PHRASES: FacetPhrases[] = SCENARIOS.flatMap((s) => s.facets.map((f) => ({
   facet: f.id,
-  requirement: f.levels.map((l) => lev(`Need ${f.id} at level ${l}`)),
+  requirement: f.levels.map((l) => lev(`Need ${f.id} level ${l}`)),
   hint: lev(`Look at the ${f.hintAspect} for ${f.id}`),
 })));
 

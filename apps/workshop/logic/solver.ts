@@ -3,7 +3,7 @@
  * (optionally) changes as few aspects as possible from a reference build. Branch and bound over aspects,
  * with variants collapsed by their effect on the relevant stats/tags; aspects that cannot matter are fixed.
  */
-import type { Check, Model, VariantId, WorkshopCatalog } from '../core/types';
+import type { BasicCheck, Check, Model, VariantId, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { partTag } from './stats';
 
@@ -29,6 +29,22 @@ interface Group { contrib: number[]; mask: number; variant: VariantId; cost: num
 const MAX_TAGS = 30;
 
 export function solve(cat: WorkshopCatalog, checks: readonly Check[], avail: ReadonlySet<VariantId>, opts: SolveOptions = {}): Solution | null {
+  const alternatives = checks.find((check) => check.kind === 'anyOf');
+  if (!alternatives) return solveConjunction(cat, checks as readonly BasicCheck[], avail, opts);
+
+  // Each complete branch describes one build, including all the other requirements.
+  const remaining = checks.filter((check) => check !== alternatives);
+  let best: Solution | null = null;
+  for (const option of alternatives.options) {
+    const candidate = solve(cat, [...remaining, ...option], avail, { ...opts, costLimit: best?.cost ?? opts.costLimit });
+    if (!candidate) continue;
+    best = candidate;
+    if (opts.stopAtFirst || candidate.cost === 0) break;
+  }
+  return best;
+}
+
+function solveConjunction(cat: WorkshopCatalog, checks: readonly BasicCheck[], avail: ReadonlySet<VariantId>, opts: SolveOptions): Solution | null {
   const ix = index(cat);
   const ref = opts.ref ?? null;
 

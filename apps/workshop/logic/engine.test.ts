@@ -9,6 +9,7 @@ import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
 import { deepFreeze } from './testing/helpers';
 import { flatChecks } from './util';
 import { challengeKey } from './generator';
+import { resolveSpec } from './text';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -333,6 +334,11 @@ describe('generator rules', () => {
       const facets = c.stages.flatMap((s) => s.requirements.map((r) => r.facet));
       expect(new Set(facets).size).toBe(facets.length);
       for (const s of c.stages) {
+        if (s.scenario === 'practice') {
+          expect(s.view).toBe('side');
+          expect(s.requirements.every((r) => r.facet.startsWith('practice.'))).toBe(true);
+          continue;
+        }
         const sc = C.scenarios.find((x) => x.id === s.scenario)!;
         for (const r of s.requirements) expect(sc.facets.some((f) => f.id === r.facet)).toBe(true);
         const allSide = s.requirements.every((r) => sc.facets.find((f) => f.id === r.facet)!.views.includes('side'));
@@ -429,15 +435,10 @@ describe('text', () => {
   });
   it('clamps the level index into the phrase array', () => {
     const short: WorkshopCatalog = { ...C, facetPhrases: C.facetPhrases.map((f) => ({ ...f, requirement: f.requirement.slice(0, 1) })) };
-    const e = createEngine(pair(short));
-    let p = e.refreshBoard('race', e.newProgress('race'));
-    for (let i = 0; i < 6; i++) {
-      const ch = p.active.map((id) => p.challenges[id]).find((c) => !p.completed[c.id])!;
-      const build = affordableBuild(p, ch, short);
-      p = buyBuild(p, build, e);
-      p = e.recordWin('race', p, ch.id, build, i).progress;
-    }
-    for (const c of Object.values(p.challenges)) for (const s of c.stages) for (const r of s.requirements) expect(r.text.hard).toContain('level 1');
+    const challenge = resolveSpec(short, {
+      stages: [{ scenario: 'mud', facets: [{ facet: 'mud.grip', level: 3 }] }],
+    }, { id: 'clamp', source: 'generated', tier: 2, seed: 1 });
+    expect(challenge.stages[0].requirements[0].text.hard).toContain('level 1');
   });
 });
 

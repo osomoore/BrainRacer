@@ -79,7 +79,7 @@ export interface FacetDef {
   id: FacetId;
   /** Difficulty settings the generator may pick (e.g. mud depth 1..3). Starters use explicit levels. */
   levels: readonly number[];
-  /** All checks must pass for the requirement to be satisfied. Pure, deterministic. */
+  /** All checks must pass for the requirement to be satisfied. Use an any-of check for alternative fixes. */
   check(level: number): Check[];
   /** The aspect a hint points at (the most natural fix). */
   hintAspect: AspectId;
@@ -152,11 +152,14 @@ export interface StarterSpec {
 /** The player's build: one variant per aspect. */
 export type Model = Record<AspectId, VariantId>;
 
-export type Check =
+export type BasicCheck =
   | { kind: 'statMin'; stat: StatId; min: number }
   | { kind: 'statMax'; stat: StatId; max: number }
   | { kind: 'tag'; tag: string }
   | { kind: 'noTag'; tag: string };
+
+/** A check can also pass when one complete option passes. The enclosing checks still all apply. */
+export type Check = BasicCheck | { kind: 'anyOf'; options: ReadonlyArray<readonly BasicCheck[]> };
 
 export interface ComputedModel {
   stats: Record<StatId, number>;
@@ -169,6 +172,7 @@ export interface Requirement {
   id: string;
   facet: FacetId;
   level: number;
+  /** A conjunction of checks, with any-of checks kept as one choice among complete options. */
   checks: Check[];
   text: Leveled;
   hint: { aspect: AspectId; text: Leveled };

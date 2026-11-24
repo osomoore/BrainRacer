@@ -3,6 +3,7 @@
  * Finds one model, using only `allowed` variants, that passes every check.
  */
 import type { Check, Model, VariantId, WorkshopCatalog } from '../../core/types';
+import { allPass } from '../../logic/stats';
 
 export function computeStats(cat: WorkshopCatalog, model: Model): { stats: Record<string, number>; tags: Set<string> } {
   const stats: Record<string, number> = {};
@@ -19,15 +20,7 @@ export function computeStats(cat: WorkshopCatalog, model: Model): { stats: Recor
 }
 
 export function passes(cat: WorkshopCatalog, model: Model, checks: readonly Check[]): boolean {
-  const { stats, tags } = computeStats(cat, model);
-  return checks.every((c) => {
-    switch (c.kind) {
-      case 'statMin': return stats[c.stat] >= c.min;
-      case 'statMax': return stats[c.stat] <= c.max;
-      case 'tag': return tags.has(c.tag);
-      case 'noTag': return !tags.has(c.tag);
-    }
-  });
+  return allPass(checks, computeStats(cat, model));
 }
 
 export function defaultModel(cat: WorkshopCatalog): Model {
@@ -40,8 +33,9 @@ export function starterSet(cat: WorkshopCatalog): Set<VariantId> {
 
 /** Depth-first search with stat bounds. Returns a passing model or null. */
 export function solve(cat: WorkshopCatalog, checks: readonly Check[], allowed: ReadonlySet<VariantId>): Model | null {
-  const statIds = [...new Set(checks.flatMap((c) => (c.kind === 'statMin' || c.kind === 'statMax' ? [c.stat] : [])))];
-  const tagIds = [...new Set(checks.flatMap((c) => (c.kind === 'tag' || c.kind === 'noTag' ? [c.tag] : [])))];
+  const basicChecks = checks.flatMap((check) => check.kind === 'anyOf' ? check.options.flat() : [check]);
+  const statIds = [...new Set(basicChecks.flatMap((c) => (c.kind === 'statMin' || c.kind === 'statMax' ? [c.stat] : [])))];
+  const tagIds = [...new Set(basicChecks.flatMap((c) => (c.kind === 'tag' || c.kind === 'noTag' ? [c.tag] : [])))];
   // Options per aspect, deduplicated by what the checks can see (keeps the search tiny).
   const opts = cat.aspects.map((a) => {
     const seen = new Set<string>();

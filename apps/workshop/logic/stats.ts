@@ -28,6 +28,7 @@ export function checkPasses(check: Check, cm: ComputedModel): boolean {
     case 'statMax': return (cm.stats[check.stat] ?? 0) <= check.max;
     case 'tag': return cm.tags.has(check.tag);
     case 'noTag': return !cm.tags.has(check.tag);
+    case 'anyOf': return check.options.some((option) => allPass(option, cm));
   }
 }
 

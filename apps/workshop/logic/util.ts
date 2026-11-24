@@ -7,6 +7,7 @@ export function hashSeed(s: string): number {
   return (h >>> 0) || 1;
 }
 
+/** Combine the challenge's checks while preserving each any-of group's alternatives. */
 export function flatChecks(c: Pick<Challenge, 'stages'>): Check[] {
   return c.stages.flatMap((s) => s.requirements.flatMap((r) => r.checks));
 }

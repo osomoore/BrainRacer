@@ -2,7 +2,7 @@
  * Race Shop phrase banks, written for beginning readers (kids 5-9 sounding out words).
  * Each requirement sentence is shown alone under the scenario title: it names the FIX, not the story.
  * Easy: <= 6 short, common words, may name the aspect. Medium: <= 8 words, no part names. Hard: <= 12 plain words.
- * Never name an exact variant (see catalog.test.ts). Scenario intros are dropped: every intro is empty.
+ * Alternative fixes may name parts directly. Scenario intros are empty.
  */
 import type { FacetPhrases, ReadingLevel, ScenarioPhrases } from '../../core/types';
 
@@ -78,7 +78,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     L(['A giant log! Push hard.', 'Push the huge log.'], ['Push hard to move the huge log.', 'The log is giant, so push hard.'], ['The log is huge, so your car must push very hard.', 'Pick a strong front that can move a giant log.']),
   ], L(['Try new bumpers.', 'Look at the front.'], ['Think about what touches the log first.', 'The front does the pushing.'], ['Think about the front of your car.', 'The front part decides how well you push.']), ['big', 'heavy', 'powerful', 'huge']),
   fp('river.cross', [
-    L(['Drive through deep water.', 'Get air in deep water.'], ['Drive through the deep water.', 'The car needs air under water.'], ['Your car must get air while it drives in deep water.', 'Pick a part that helps you drive through water.']),
+    L(['Use floaties or a snorkel.', 'Pick a snorkel or floaties.'], ['Use a snorkel or floaties to cross.', 'Cross with floaties or use a snorkel.'], ['Use a snorkel to go under or floaties to stay up.', 'Floaties keep you up, or a snorkel lets you drive under.']),
     L(['The river is deep. Float.', 'Make the car float.'], ['The river is very deep, so float.', 'Float across like a boat.'], ['The river is very deep, so your car must float.', 'Pick a part that keeps the car on top of the water.']),
   ], L(['Look at the extra.', 'Try a new extra.'], ['Think about what helps in water.', 'An extra part can help.'], ['Think about a part made for water.', 'Which extra part would help in a river?']), ['deep', 'wide']),
   fp('wobbly.weight', [
@@ -116,13 +116,13 @@ export const RACE_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
   sp('jump', ['Long Jump', 'Big Ramp', 'Canyon Leap'], L([], [], [])),
   sp('turn', ['Sharp Turn', 'Twisty Road', 'Zigzag Track'], L([], [], [])),
   sp('hill', ['Steep Hill', 'Mountain Climb', 'Up, Up, Up'], L([], [], [])),
-  sp('fog', ['Bright Color', 'Foggy Road', 'Duck Crossing'], L([], [], [])),
+  sp('fog', ['Foggy Road', 'Thick Fog', 'Duck Crossing'], L([], [], [])),
   sp('lowBridge', ['Low Bridge', 'Duck Under', 'Squeeze Under'], L([], [], [])),
   sp('narrow', ['Narrow Path', 'Skinny Alley', 'Between the Trees'], L([], [], [])),
   sp('delivery', ['Big Delivery', 'Delivery Day', 'Box Hauler'], L([], [], [])),
   sp('snow', ['Snowy Pass', 'Snow Day', 'Icy Road'], L([], [], [])),
   sp('rocks', ['Rocky Road', 'Bumpy Trail', 'Forest Trail'], L([], [], [])),
-  sp('river', ['River Crossing', 'Splash Across', 'Deep Water'], L([], [], [])),
+  sp('river', ['River Crossing', 'Water Ahead', 'Deep Water'], L([], [], [])),
   sp('wobbly', ['Wobbly Bridge', 'Creaky Crossing', 'Rope Bridge'], L([], [], [])),
   sp('beach', ['Beach Trip', 'Long Drive', 'Seaside Road'], L([], [], [])),
   sp('parade', ['Parade Day', 'Color Parade', 'Party Parade'], L([], [], [])),

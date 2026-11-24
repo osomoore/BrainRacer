@@ -1,6 +1,6 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
 import { READING_LEVELS } from '../core/types';
-import type { Check, WorkshopCatalog } from '../core/types';
+import type { Check, ReadingLevel, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
 import { solve, solvable } from './solver';
 import { allPass, computeModel, defaultModel } from './stats';
@@ -9,6 +9,7 @@ import { flatChecks } from './util';
 import { WS_RULES } from '../config';
 
 const MIN_TIER0_STARTER_ONLY_FACETS = 3;
+const GUIDELINE_WORD_LIMIT: Record<ReadingLevel, number> = { easy: 6, medium: 8, hard: 12 };
 
 export function validateCatalog(cat: WorkshopCatalog): string[] {
   const out: string[] = [];
@@ -61,17 +62,30 @@ export function validateCatalog(cat: WorkshopCatalog): string[] {
   const allVariants = new Set(cat.variants.map((v) => v.id));
   const starterVariants = new Set(ix.starterIds);
   let tier0StarterOnly = 0;
-  const checkRefs = (where: string, checks: Check[]): void => {
+  const checkRefs = (where: string, checks: readonly Check[]): void => {
     for (const c of checks) {
+      if (c.kind === 'anyOf') {
+        if (c.options.length < 2) err(`${where}: any-of check needs at least 2 options`);
+        c.options.forEach((option, i) => {
+          const optionLabel = `${where} option ${i + 1}`;
+          if (!option.length) err(`${optionLabel}: no checks`);
+          checkRefs(optionLabel, option);
+          if (!solvable(cat, option, allVariants)) err(`${optionLabel}: not solvable even with every variant`);
+        });
+      }
       if ((c.kind === 'statMin' || c.kind === 'statMax') && !ix.statDef.has(c.stat)) err(`${where}: unknown stat "${c.stat}"`);
       if ((c.kind === 'tag' || c.kind === 'noTag') && !allTags.has(c.tag)) err(`${where}: no variant has tag "${c.tag}"`);
     }
   };
-  const sentences = (where: string, rec: Readonly<Record<string, readonly string[] | undefined>> | undefined): void => {
+  const sentences = (where: string, rec: Readonly<Record<string, readonly string[] | undefined>>, guideline = false): void => {
     for (const r of READING_LEVELS) {
       const arr = rec?.[r];
       if (!arr || arr.length < 2) err(`${where} [${r}]: needs >= 2 sentences`);
       else if (arr.some((s) => !s || !s.trim())) err(`${where} [${r}]: empty sentence`);
+      if (guideline) for (const line of arr ?? []) {
+        const limit = GUIDELINE_WORD_LIMIT[r];
+        if (line.trim().split(/\s+/).length > limit) err(`${where} [${r}]: guideline exceeds ${limit} words: "${line}"`);
+      }
     }
   };
   for (const sc of cat.scenarios) {
@@ -90,7 +104,7 @@ export function validateCatalog(cat: WorkshopCatalog): string[] {
       if (!ph) err(`facet ${f.id}: no facetPhrases`);
       else {
         if (ph.requirement.length < f.levels.length) err(`facet ${f.id}: ${ph.requirement.length} requirement phrase rows for ${f.levels.length} levels`);
-        ph.requirement.forEach((row, i) => sentences(`facet ${f.id} requirement[${i}]`, row));
+        ph.requirement.forEach((row, i) => sentences(`facet ${f.id} requirement[${i}]`, row, true));
         sentences(`facet ${f.id} hint`, ph.hint);
       }
       for (const lv of f.levels) {

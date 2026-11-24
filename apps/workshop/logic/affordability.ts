@@ -3,7 +3,7 @@ import { available } from './available';
 import { purchaseCosts } from './shop';
 import { solve } from './solver';
 
-/** Each build uses one part per aspect. Either offer at a station costs the same for its next purchase. */
+/** Find the cheapest complete build across all options, including zero-cost owned solutions. */
 export function affordability(cat: WorkshopCatalog, progress: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides'>) {
   const owned = available(cat, progress);
   const prices = purchaseCosts(cat, progress);

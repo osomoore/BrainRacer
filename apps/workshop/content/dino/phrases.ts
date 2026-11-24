@@ -2,8 +2,8 @@
  * Dino Lab phrase banks, written for beginning readers (kids 5-9 sounding out words).
  * requirement[levelIndex] = sentences per reading level (level index = facet level - 1). Exactly 2 per reading level.
  * Each sentence is shown alone under a scenario title, so it names the FIX (the quality the dino needs), not the story.
- * Easy: at most 6 short, common words. May name the aspect (legs, teeth, claws...) but never a variant name.
- * Medium: at most 8 words. Hard: at most 12 words, still plain. Medium/Hard never name a variant (see catalog.test.ts).
+ * Easy: at most 6 short, common words. Medium: at most 8. Hard: at most 12.
+ * Alternative fixes may name parts directly.
  * Use plain words (big, small, long, short, fast, slow, strong, soft, high, low, thin, wide, hide, grip);
  * no hard words (traction, terrain, obstacle, clearance, navigate, accelerate, conceal, durable...) and no idioms.
  * Later facet levels get stronger wording ("very", "super", "biggest"). Hints: 2 per reading level, same word limits.
@@ -143,16 +143,16 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
   ['dark', 'light', 'glow']),
   // ------------------------------------------------------------------ tall grass
   fp('tallGrass.peek', [
-    L(['Stand up to see the nest.', 'Be tall to see.'],
-      ['Your dino must see over the grass.', 'Make your dino stand tall.'],
-      ['Make your dino tall enough to see over the grass.', 'Stand up and look over the grass to find the nest.']),
+    L(['Stand, long neck, or big body.', 'Big body, long neck, or stand.'],
+      ['Stand up, use long neck or big body.', 'Get big, stand up, or use long neck.'],
+      ['Stand up, grow a long neck, or get a big body.', 'Use a big body or long neck, or stand up tall.']),
     L(['See over very tall grass.', 'Be much taller.'],
       ['The grass is very tall, so be taller.', 'Make your dino tall enough for this grass.'],
       ['Make your dino tall enough to see over the very tall grass.', 'Stand up high so your head is above the grass.']),
     L(['Be the tallest dino.', 'See over the tallest grass.'],
       ['The grass is huge, so be super tall.', 'Make your dino as tall as can be.'],
       ['Make your dino the tallest it can be to see the nest.', 'Only a super tall dino can see over grass this high.']),
-  ], L(['Try a different way to move.', 'Can your dino stand up?'],
+  ], L(['Try a different way to move.', 'Look at head and size.'],
        ['Think about how your dino holds its body.', 'A low dino cannot see far.'],
        ['Think about how high your dino can hold its head.', 'A dino close to the ground cannot see far.']),
   ['tall', 'high', 'see']),
@@ -356,7 +356,7 @@ export const DINO_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
   sp('ferns', ['Fern Hide', 'Hide and Seek', 'Sniff Sniff'], L([], [], [])),
   sp('ledge', ['High Ledge', 'Jump Up', 'Rock Hop'], L([], [], [])),
   sp('burrow', ['Small Hole', 'Burrow Visit', 'Tunnel Time'], L([], [], [])),
-  sp('tallGrass', ['Find the Nest', 'Tall Grass', 'Peek-a-Boo'], L([], [], [])),
+  sp('tallGrass', ['Tall Grass', 'High Grass', 'Hidden Nest'], L([], [], [])),
   sp('tallTree', ['Fruit Tree', 'Snack Up High', 'Tall Tree'], L([], [], [])),
   sp('rocks', ['Big Rocks', 'Rock Climb', 'Up We Go'], L([], [], [])),
   sp('river', ['River Crossing', 'Splash', 'Fishy River'], L([], [], [])),

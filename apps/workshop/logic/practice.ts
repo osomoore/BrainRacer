@@ -26,7 +26,7 @@ export function practiceChallenge(
       };
     });
     return {
-      id, workshop: cat.id, title: variants.map((part) => part.name).join(' + '),
+      id, workshop: cat.id, title: variants.length === 1 ? 'One-Part Build' : 'Two-Part Build',
       intro: { easy: intro, medium: intro, hard: intro },
       stages: [{ scenario: 'practice', view: 'side', params: {}, requirements }],
       tier, source: 'generated', seed, genVersion: WS_RULES.genVersion,

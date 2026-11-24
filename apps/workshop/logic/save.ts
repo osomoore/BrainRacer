@@ -27,7 +27,7 @@ function repairModel(cat: WorkshopCatalog, raw: unknown, fallback: Model): Model
   return out;
 }
 
-function validCheck(value: unknown): boolean {
+function validBasicCheck(value: unknown): boolean {
   if (!isObj(value)) return false;
   switch (value.kind) {
     case 'statMin': return typeof value.stat === 'string' && isNum(value.min);
@@ -36,6 +36,12 @@ function validCheck(value: unknown): boolean {
     case 'noTag': return typeof value.tag === 'string';
     default: return false;
   }
+}
+
+function validCheck(value: unknown): boolean {
+  if (!isObj(value) || value.kind !== 'anyOf') return validBasicCheck(value);
+  return Array.isArray(value.options) && value.options.length >= 2
+    && value.options.every((option) => Array.isArray(option) && option.length > 0 && option.every(validBasicCheck));
 }
 
 function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Challenge {

@@ -41,7 +41,8 @@ describe('dino catalog structure', () => {
     for (const { f } of facets) {
       expect(aspects.has(f.hintAspect)).toBe(true);
       expect([...f.levels]).toEqual([...f.levels].sort((a, b) => a - b));
-      for (const L of f.levels) for (const c of f.check(L)) {
+      for (const L of f.levels) for (const c of f.check(L).flatMap((check) =>
+        check.kind === 'anyOf' ? check.options.flat() : [check])) {
         if (c.kind === 'statMin' || c.kind === 'statMax') expect(stats.has(c.stat), `${f.id} ${c.stat}`).toBe(true);
         else expect(tags.has(c.tag), `${f.id} ${c.tag}`).toBe(true);
       }
@@ -138,7 +139,11 @@ describe('dino phrases', () => {
 
   const allSentences = () => [
     ...cat.facetPhrases.flatMap((p) => [
-      ...p.requirement.flatMap((row) => READING_LEVELS.flatMap((r) => row[r].map((t) => ({ r, t, id: p.facet })))),
+      ...p.requirement.flatMap((row, i) => {
+        const { f } = facetById.get(p.facet)!;
+        const hasOptions = f.check(f.levels[i]).some((check) => check.kind === 'anyOf');
+        return READING_LEVELS.flatMap((r) => row[r].map((t) => ({ r, t, id: p.facet, hasOptions })));
+      }),
       ...READING_LEVELS.flatMap((r) => p.hint[r].map((t) => ({ r, t, id: `${p.facet} hint` }))),
     ]),
     ...cat.scenarioPhrases.flatMap((p) => READING_LEVELS.flatMap((r) => p.intro[r].map((t) => ({ r, t, id: `${p.scenario} intro` })))),
@@ -153,8 +158,10 @@ describe('dino phrases', () => {
     }
   });
 
-  it('Medium and Hard never name a variant', () => {
-    for (const { r, t, id } of allSentences()) {
+  it('Medium and Hard may name variants when listing alternative fixes', () => {
+    for (const sentence of allSentences()) {
+      const { r, t, id } = sentence;
+      if ('hasOptions' in sentence && sentence.hasOptions) continue;
       if (r === 'easy') continue;
       for (const n of bannedNames) {
         const re = new RegExp(`\\b${n.replace(/\s+/g, '\\s+')}\\b`, 'i');

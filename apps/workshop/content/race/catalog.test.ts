@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Check, FacetDef, Model, VariantId } from '../../core/types';
 import { READING_LEVELS } from '../../core/types';
+import { allPass } from '../../logic/stats';
 import { RACE_CATALOG as C, RACE_SCENE_NOTES } from './catalog';
 
-// ---- tiny local helpers (independent of logic/) ----
+// ---- helpers for checking content balance ----
 const byId = new Map(C.variants.map((v) => [v.id, v]));
 const aspectIds = C.aspects.map((a) => a.id);
 const defaultModel: Model = Object.fromEntries(C.aspects.map((a) => [a.id, a.starters[0]]));
@@ -23,15 +24,7 @@ function compute(model: Model) {
   return { stats, tags };
 }
 function passes(model: Model, checks: Check[]): boolean {
-  const { stats, tags } = compute(model);
-  return checks.every((c) => {
-    switch (c.kind) {
-      case 'statMin': return (stats[c.stat] ?? 0) >= c.min;
-      case 'statMax': return (stats[c.stat] ?? 0) <= c.max;
-      case 'tag': return tags.has(c.tag);
-      case 'noTag': return !tags.has(c.tag);
-    }
-  });
+  return allPass(checks, compute(model));
 }
 /** Fewest changed aspects from the default model that pass `checks` with the given pool (null = unsolvable). */
 function minFix(checks: Check[], pool: (a: string) => VariantId[], maxChanges = 6): string[] | null {
@@ -88,7 +81,8 @@ describe('race catalog structure', () => {
   it('only checks stats and tags that exist', () => {
     const statIds = new Set(C.stats.map((s) => s.id));
     const allTags = new Set(C.variants.flatMap((v) => v.tags));
-    for (const f of facets) for (const l of f.levels) for (const c of f.check(l)) {
+    for (const f of facets) for (const l of f.levels) for (const c of f.check(l).flatMap((check) =>
+      check.kind === 'anyOf' ? check.options.flat() : [check])) {
       if (c.kind === 'statMin' || c.kind === 'statMax') expect(statIds.has(c.stat), `${f.id} ${c.stat}`).toBe(true);
       else expect(allTags.has(c.tag), `${f.id} ${c.tag}`).toBe(true);
     }
@@ -203,12 +197,16 @@ describe('race phrases', () => {
     expect(/[^\x20-\x7e]/.test(JSON.stringify(C.facetPhrases) + JSON.stringify(C.scenarioPhrases))).toBe(false);
   });
 
-  it('never names a variant; Medium/Hard requirements avoid part words', () => {
+  it('keeps single-option guidelines and hints from naming variants', () => {
     for (const p of C.facetPhrases) {
-      for (const row of p.requirement) for (const r of READING_LEVELS) for (const s of row[r]) {
-        expect(allVariantText(s), s).toEqual([]);
-        if (r === 'easy') continue;
-        for (const w of [...DISTINCT, ...ASPECT_WORDS]) expect(hasWord(s, w), `${s} [${w}]`).toBe(false);
+      const facet = facetById.get(p.facet)!;
+      for (const [i, row] of p.requirement.entries()) {
+        if (facet.check(facet.levels[i]).some((check) => check.kind === 'anyOf')) continue;
+        for (const r of READING_LEVELS) for (const s of row[r]) {
+          expect(allVariantText(s), s).toEqual([]);
+          if (r === 'easy') continue;
+          for (const w of [...DISTINCT, ...ASPECT_WORDS]) expect(hasWord(s, w), `${s} [${w}]`).toBe(false);
+        }
       }
       for (const r of READING_LEVELS) for (const s of p.hint[r]) {
         expect(allVariantText(s), s).toEqual([]);

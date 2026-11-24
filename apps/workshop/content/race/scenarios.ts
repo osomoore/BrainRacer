@@ -2,11 +2,11 @@
  * Race Shop scenarios and facets. Thresholds per facet level live in the tables below (content data, not tunables).
  * Stat scale: see stats.ts (default car around 3, max 10).
  */
-import type { AspectId, Check, FacetDef, ScenarioDef, StatId, View } from '../../core/types';
+import type { AspectId, BasicCheck, Check, FacetDef, ScenarioDef, StatId, View } from '../../core/types';
 
 const atLeast = (stat: StatId, min: number): Check => ({ kind: 'statMin', stat, min });
 const atMost = (stat: StatId, max: number): Check => ({ kind: 'statMax', stat, max });
-const tag = (t: string): Check => ({ kind: 'tag', tag: t });
+const tag = (t: string): BasicCheck => ({ kind: 'tag', tag: t });
 
 /** Pick the checks for a level; unknown levels clamp to the nearest defined one. */
 function byLevel(table: Record<number, Check[]>): (level: number) => Check[] {
@@ -83,7 +83,10 @@ export const RACE_SCENARIOS: readonly ScenarioDef[] = [
   },
   {
     id: 'river', label: 'River crossing (deep stream, then a wide river)', minTier: 2, facets: [
-      facet('river.cross', 'extra', SIDE, 2, { 1: [tag('snorkel')], 2: [tag('canFloat')] }),
+      facet('river.cross', 'extra', SIDE, 2, {
+        1: [{ kind: 'anyOf', options: [[tag('snorkel')], [tag('canFloat')]] }],
+        2: [tag('canFloat')],
+      }),
     ],
   },
   {

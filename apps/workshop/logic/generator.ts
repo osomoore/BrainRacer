@@ -37,6 +37,7 @@ function checksKey(checks: readonly Check[]): string {
     switch (check.kind) {
       case 'statMin': return JSON.stringify([check.kind, check.stat, check.min]);
       case 'statMax': return JSON.stringify([check.kind, check.stat, check.max]);
+      case 'anyOf': return JSON.stringify([check.kind, [...new Set(check.options.map(checksKey))].sort()]);
       default: return JSON.stringify([check.kind, check.tag]);
     }
   }))].sort());
