@@ -4,12 +4,14 @@
  * Fail: the dull car fades into the fog; the ducks do not notice it, the car honks (note puffs) twice, nobody moves, a duckling falls asleep.
  */
 import Phaser from 'phaser';
-import { PAL, bakeKey, circ, fl, prop } from '../common/draw';
+import { PAL, bakeKey, prop } from '../common/draw';
+import { addFog } from '../common/fogFx';
 import { along } from '../common/fx';
 import { planStage, racePlayer } from '../common/phases';
 import { P } from '../common/props';
 import { SideStage } from '../common/side';
 import { T, TopStage } from '../common/top';
+import { WS_FOG } from '../../config';
 import type { StageContext } from '../types';
 
 function glowTexture(ctx: StageContext): string {
@@ -20,26 +22,13 @@ function glowTexture(ctx: StageContext): string {
   });
 }
 
-/** Soft fog: a translucent veil plus a few drifting wisps, in screen space. */
-function addFog(ctx: StageContext, parent: Phaser.GameObjects.Container, alpha: number): void {
-  const { w, h } = ctx.size;
-  const veil = ctx.scene.add.rectangle(0, 0, w, h, 0xe3eaee, alpha).setOrigin(0, 0);
-  parent.add(veil);
-  const key = bakeKey(ctx.scene, 'fog:wisp', 64, 64, (g) => { fl(g, 'rgba(240,246,250,1)', circ(32, 32, 30)); });
-  for (let i = 0; i < 6; i++) {
-    const wisp = ctx.scene.add.image(ctx.rng.range(0, w), ctx.rng.range(h * 0.35, h * 0.9), key).setScale(ctx.rng.range(5, 9), ctx.rng.range(2, 3.5)).setAlpha(alpha * 0.55);
-    parent.add(wisp);
-    void ctx.tween({ targets: wisp, x: wisp.x + (i % 2 ? 160 : -160), duration: 6000 + i * 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-  }
-}
-
 export default racePlayer('fog', async (ctx) => {
   const plan = planStage(ctx, ['fog.bright']);
   const bright = plan.ok;
   const rig = ctx.rig;
   const glowKey = glowTexture(ctx);
   const sc = ctx.scene;
-  const carAlpha = bright ? 1 : 0.28;
+  const carAlpha = bright ? 1 : WS_FOG.dullCarAlpha;
 
   if (ctx.stage.view === 'top') {
     const S = new TopStage(ctx, { carMaxLateral: 130 });
@@ -60,7 +49,7 @@ export default racePlayer('fog', async (ctx) => {
     S.car.setPosition(-S.carLen, ry + rw * 0.22).setRotation(0);
     if (bright) { const gl = sc.add.image(0, 0, glowKey).setScale(4.2).setBlendMode(Phaser.BlendModes.ADD); rig.root.addAt(gl, 0); }
     rig.root.setAlpha(carAlpha);
-    addFog(ctx, S.layers.front, bright ? 0.28 : 0.6);
+    addFog(ctx, S.layers.back, S.layers.front, bright);
     const eng = ctx.audio.loop('engine', { volume: 0.4 });
     rig.play('drive');
     await along(ctx, 2600, (t) => { S.car.x = -S.carLen + (carX + S.carLen) * t; }, 'Sine.easeOut');
@@ -84,7 +73,7 @@ export default racePlayer('fog', async (ctx) => {
   S.place(200);
   if (bright) { const gl = sc.add.image(0, -rig.height * 0.4, glowKey).setScale(3.6).setBlendMode(Phaser.BlendModes.ADD); rig.root.addAt(gl, 0); }
   rig.root.setAlpha(carAlpha);
-  addFog(ctx, S.overlay, bright ? 0.26 : 0.6);
+  addFog(ctx, S.backdrop, S.overlay, bright);
   const eng = ctx.audio.loop('engine', { volume: 0.4 });
   rig.play('drive');
   await S.driveTo(carStop, 2600, 'Sine.easeOut');
