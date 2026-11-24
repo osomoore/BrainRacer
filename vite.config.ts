@@ -23,7 +23,12 @@ function buildTime(): string {
 export default defineConfig({
   base: './',
   cacheDir: '.vite-cache',
-  server: { port: 5173, watch: { ignored: ['**/.worktrees/**'] } },
+  // Ignore only this checkout's nested .worktrees: a glob would also match the root of a server started inside a worktree.
+  server: {
+    port: 5173,
+    watch: { ignored: [page('./.worktrees/').replace(/\\/g, '/') + '**'] },
+    headers: { 'Cache-Control': 'no-store' },
+  },
   build: {
     chunkSizeWarningLimit: 4000,
     // Multi-page site: launcher + one page per game (all at the root, relative paths).
