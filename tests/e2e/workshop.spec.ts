@@ -92,7 +92,9 @@ test('keyboard 1P: join, new profile, reading level, workshop, room placeholder,
 
   await key(page, 'Space'); // Race Shop
   await screens(page).toBe('room');
-  await key(page, 'Escape'); // placeholder Back
+  await key(page, 'Escape'); // open leave confirmation
+  await key(page, 'KeyA'); // KB1 left selects Yes from the default No
+  await key(page, 'Space');
   await screens(page).toBe('pickWorkshop');
 
   // The save survives a reload: the profile now goes straight to the workshop picker.

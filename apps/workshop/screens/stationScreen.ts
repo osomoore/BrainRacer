@@ -20,6 +20,7 @@ import { roomBackdrop } from './room/backdrop';
 import { aspectIconTexture, starTexture } from './room/icons';
 import { roomLayout } from './room/layout';
 import { currentProgress } from './room/progress';
+import { guardBackAfterPreview, isBackGuarded } from './backGuard';
 import { cameraTarget, clampIndex, stationLayout, stripXs, windowStart, withVariant } from './station/layout';
 import { swatchTexture } from './station/swatch';
 
@@ -243,10 +244,11 @@ const stationScreen: ScreenFactory = (): Screen => {
         refresh();
         preview();
       };
-      const leave = () => {
-        if (busy) return;
+      const leave = (viaBack = true) => {
+        if (busy || (viaBack && isBackGuarded(ctx, scene.time.now))) return;
         busy = true;
         ctx.audio.sfx('back');
+        if (viaBack) guardBackAfterPreview(ctx, scene.time.now);
         ctx.go('room', { from: aspect });
       };
       const apply = () => {
@@ -271,7 +273,7 @@ const stationScreen: ScreenFactory = (): Screen => {
           }
           return;
         }
-        if (variant === installed) { leave(); return; }
+        if (variant === installed) { leave(false); return; }
         busy = true;
         const next = engine.setPart(ws, progress, aspect, variant);
         const cur = ctx.save();

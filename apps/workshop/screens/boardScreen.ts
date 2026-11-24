@@ -19,12 +19,15 @@ import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
 import { boardLayout, detailFonts, type BoardLayout, type BoxC } from './board/layout';
 import { PartPreview } from './board/PartPreview';
+import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './board/focusChoice';
+import { guardBackAfterPreview, isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
 
 const STAGE_COLORS = [0xffd23f, 0x7fd6ff, 0xffa3b8, 0xb8e986, 0xd5b8ff];
-/** Selection survives the run/results screen swap, but is scoped to this pane session. */
-const boardReturn = new WeakMap<object, { challengeId: string; cardPage: number; textPage: number; workshop: string; profileId: string | undefined; adminMode: boolean }>();
+/** Selection survives screen swaps and is scoped by pane, profile, workshop, and admin state. */
+interface BoardReturn { challengeId?: string; selectedIndex: number; textPage: number; focus?: BoardFocusKey }
+const boardReturn = new WeakMap<object, Map<string, BoardReturn>>();
 let canvasCtx: CanvasRenderingContext2D | null | undefined;
 const measure: Measure = (text, size) => {
   if (canvasCtx === undefined) canvasCtx = document.createElement('canvas').getContext('2d');
@@ -59,6 +62,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   let partMode = false;
   let returnFocus: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
+  let sessionReturnKey = '';
 
   const ws = () => ctx.workshop ?? 'race';
   const wide = () => ctx.layout === 'wide';
@@ -165,6 +169,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   const buildDetail = () => {
     kill(detailObjs);
     textPager = undefined;
+    testBtn = undefined;
     const scene = ctx.scene;
     const c = challenge();
     if (!c) return;
@@ -203,22 +208,47 @@ const boardScreen: ScreenFactory = (): Screen => {
 
     const test = new Button(scene, {
       x: L.testBtn.x, y: L.testBtn.y, w: L.testBtn.w, h: L.testBtn.h, label: 'Test it!', fontSize: 64, color: COLORS.green, textColor: COLORS.paper,
-      badge: promptLabel(ctx.input, 'confirm'), onClick: () => startRun(c.id),
+      badge: promptLabel(ctx.input, 'confirm'), onClick: () => startRun(c.id, 'test'),
     });
     detailObjs.push(test);
     testBtn = test;
   };
 
-  function startRun(id: string): void {
+  function focusKey(button: Button | undefined): BoardFocusKey | undefined {
+    if (!button) return undefined;
+    const card = cardBtns.indexOf(button);
+    if (card >= 0) return `card:${ids()[cardPage * L.perPage + card]}`;
+    if (cardPager?.prev === button) return 'cardPrev';
+    if (cardPager?.next === button) return 'cardNext';
+    if (textPager?.prev === button) return 'textPrev';
+    if (textPager?.next === button) return 'textNext';
+    if (newBtn === button) return 'newChallenges';
+    if (testBtn === button) return 'test';
+    if (backBtn === button) return 'back';
+    return undefined;
+  }
+
+  function saveReturn(challengeId?: string, focus = focusKey(partMode ? returnFocus : group.focused)): void {
+    const selectedId = challenge()?.id;
+    challengeId ??= focus?.startsWith('card:') ? focus.slice(5) : selectedId;
+    const records = boardReturn.get(ctx) ?? new Map<string, BoardReturn>();
+    records.set(sessionReturnKey, {
+      challengeId, selectedIndex: restoreChallengeIndex(ids(), challengeId, sel),
+      textPage: challengeId === selectedId ? textPage : 0, focus,
+    });
+    boardReturn.set(ctx, records);
+  }
+
+  function startRun(id: string, focus: BoardFocusKey): void {
     if (busy) return;
-    boardReturn.set(ctx, { challengeId: id, cardPage, textPage, workshop: ws(), profileId: ctx.profileId, adminMode: ctx.adminMode });
+    saveReturn(id, focus);
     busy = true;
     ctx.audio.sfx('select');
     ctx.go('run', { challengeId: id });
   }
 
   // ------------------------------------------------------------ focus / modes
-  function setFocusables(): void {
+  function setFocusables(restore?: BoardReturn): void {
     const list: Button[] = [...cardBtns];
     if (cardPager) list.push(...cardPager.buttons);
     if (newBtn) list.push(newBtn);
@@ -226,9 +256,18 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (testBtn) list.push(testBtn);
     list.push(backBtn);
     group.set(list);
-    const keep = lastFocus && list.includes(lastFocus) ? lastFocus : undefined;
-    if (keep) group.focus(keep);
-    else group.focus(cardBtns[Math.max(0, sel - cardPage * L.perPage)] ?? list[0]);
+    const selectedCard = cardBtns[sel - cardPage * L.perPage];
+    let target: Button | undefined = lastFocus && list.includes(lastFocus) ? lastFocus : selectedCard;
+    if (restore) {
+      const available = new Map<BoardFocusKey, Button>();
+      for (const button of list) {
+        const key = focusKey(button);
+        if (key && button.isEnabled) available.set(key, button);
+      }
+      const key = chooseBoardFocus(restore.focus, [...available.keys()], focusKey(selectedCard));
+      if (key) target = available.get(key);
+    }
+    group.focus(target ?? list[0]);
     lastFocus = group.focused;
   }
 
@@ -241,10 +280,10 @@ const boardScreen: ScreenFactory = (): Screen => {
     setFocusables();
   }
 
-  function refreshAll(): void {
+  function refreshAll(restore?: BoardReturn): void {
     buildCards();
     buildDetail();
-    setFocusables();
+    setFocusables(restore);
   }
 
   function enterPartMode(from: Button | undefined, first = true): void {
@@ -255,16 +294,24 @@ const boardScreen: ScreenFactory = (): Screen => {
     ctx.audio.sfx('select');
   }
 
-  function leavePartMode(): void {
+  function leavePartMode(fromBack = false): void {
     partMode = false;
     partPreview?.clear();
     group.focus(returnFocus ?? cardBtns[0]);
     lastFocus = group.focused;
+    if (fromBack) guardBackAfterPreview(ctx, ctx.scene.time.now);
     ctx.audio.sfx('back');
   }
 
+  const handleBack = () => {
+    if (isBackGuarded(ctx, ctx.scene.time.now)) return;
+    if (partMode) leavePartMode(true);
+    else leave();
+  };
+
   const leave = () => {
     if (busy) return;
+    saveReturn();
     busy = true;
     ctx.audio.sfx('back');
     ctx.go('room', { from: 'center' });
@@ -282,25 +329,25 @@ const boardScreen: ScreenFactory = (): Screen => {
   return {
     create(c) {
       ctx = c;
+      sessionReturnKey = `${ws()}|${ctx.profileId ?? ''}|${ctx.adminMode ? 'admin' : 'player'}`;
       const scene = ctx.scene;
       ctx.audio.music(ws() === 'race' ? 'raceShop' : 'dinoLab');
       readProgress();
       L = boardLayout(ctx.layout, ctx.adminMode);
-      const savedReturn = boardReturn.get(ctx);
-      const restore = savedReturn && savedReturn.workshop === ws() && savedReturn.profileId === ctx.profileId && savedReturn.adminMode === ctx.adminMode ? savedReturn : undefined;
-      boardReturn.delete(ctx);
+      const records = boardReturn.get(ctx);
+      const restore = records?.get(sessionReturnKey);
+      records?.delete(sessionReturnKey);
       if (restore) {
-        const restoredIndex = progress.active.indexOf(restore.challengeId);
-        sel = restoredIndex >= 0 ? restoredIndex : Math.min(restore.cardPage * L.perPage, Math.max(0, progress.active.length - 1));
+        sel = restoreChallengeIndex(ids(), restore.challengeId, restore.selectedIndex);
         cardPage = Math.floor(sel / L.perPage);
-        textPage = restoredIndex >= 0 ? restore.textPage : 0;
+        textPage = ids()[sel] === restore.challengeId ? restore.textPage : 0;
       }
       const RL = roomLayout(ctx.layout, []);
       const bg = roomBackdrop(scene, ws(), ctx.layout, RL.floorY);
       staticObjs.push(scene.add.image(0, 0, bg.key).setOrigin(0).setDepth(-900));
       staticObjs.push(scene.add.rectangle(0, 0, L.size.w, L.size.h, 0xffffff, 0.45).setOrigin(0).setDepth(-850));
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
-      backBtn = new Button(scene, { x: L.back.x, y: L.back.y, w: L.back.w, h: L.back.h, label: 'Back', fontSize: 52, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick: () => leave() });
+      backBtn = new Button(scene, { x: L.back.x, y: L.back.y, w: L.back.w, h: L.back.h, label: 'Back', fontSize: 52, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick: handleBack });
       staticObjs.push(backBtn);
       if (ctx.adminMode) {
         newBtn = new Button(scene, { x: L.newBtn.x, y: L.newBtn.y, w: L.newBtn.w, h: L.newBtn.h, label: 'New Challenges', fontSize: 48, color: COLORS.blue, textColor: COLORS.paper, onClick: () => rebuildAdmin() });
@@ -308,7 +355,7 @@ const boardScreen: ScreenFactory = (): Screen => {
       }
       buildModel();
       buildPartPreview();
-      refreshAll();
+      refreshAll(restore);
     },
     update() {
       for (const a of ctx.input.poll()) {
@@ -317,15 +364,20 @@ const boardScreen: ScreenFactory = (): Screen => {
         if (partMode) {
           const prev = wide() ? 'up' : 'left', next = wide() ? 'down' : 'right', out = wide() ? 'right' : 'down';
           if (a === prev || a === next) { partPreview?.step(a === next ? 1 : -1); ctx.audio.sfx('select'); }
-          else if (a === out || a === 'back') leavePartMode();
+          else if (a === out) leavePartMode();
+          else if (a === 'back') handleBack();
           continue;
         }
         if (partPreview && ((wide() && a === 'left' && (f === cardBtns[0] || f === testBtn)) || (!wide() && a === 'up' && f && cardBtns.includes(f)))) {
           enterPartMode(f);
           continue;
         }
-        if (a === 'back') { leave(); continue; }
-        if (a === 'confirm' && f && cardBtns.includes(f)) { startRun(ids()[cardPage * L.perPage + cardBtns.indexOf(f)]); continue; }
+        if (a === 'back') { handleBack(); continue; }
+        if (a === 'confirm' && f && cardBtns.includes(f)) {
+          const id = ids()[cardPage * L.perPage + cardBtns.indexOf(f)];
+          startRun(id, `card:${id}`);
+          continue;
+        }
         group.handle(a);
       }
       const f = group.focused;
@@ -336,6 +388,7 @@ const boardScreen: ScreenFactory = (): Screen => {
       }
     },
     destroy() {
+      if (!busy && group) saveReturn();
       group?.destroy();
       cardPager?.destroy(); textPager?.destroy();
       cardPager = undefined; textPager = undefined;

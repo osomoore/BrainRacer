@@ -17,6 +17,9 @@ export interface PartPreviewOptions {
 
 interface Box { cx: number; cy: number; w: number; h: number }
 
+/** The same symmetric easing runs the focus tween in either direction. */
+const partZoomEase = (v: number): number => Phaser.Math.Easing.Sine.InOut(v);
+
 export class PartPreview {
   private readonly order: AspectId[];
   private readonly darkRing: Phaser.GameObjects.Image;
@@ -98,10 +101,9 @@ export class PartPreview {
   /** Hides the highlight, the name and the arrows, and zooms back out to the whole vehicle. */
   clear(): void {
     this.selected = undefined;
-    this.restBox = undefined;
-    this.zoomTo(this.rest.x, this.rest.y, this.rest.s);
+    this.labelBg.setVisible(false); this.label.setVisible(false);
+    this.zoomTo(this.rest.x, this.rest.y, this.rest.s, true);
     this.arrows.prev.setVisible(false); this.arrows.next.setVisible(false);
-    this.darkRing.setVisible(false); this.ring.setVisible(false); this.labelBg.setVisible(false); this.label.setVisible(false);
   }
 
   /** Enters part selection on the first component. */
@@ -133,8 +135,10 @@ export class PartPreview {
     const radius = Math.min(30, h / 3, w / 3);
     this.darkRing.setTexture(ringTexture(this.scene, w, h, 0x17172e, 24, radius)).setVisible(true);
     this.ring.setTexture(ringTexture(this.scene, w, h, 0xffd23f, 10, radius)).setVisible(true);
+    for (const highlight of [this.darkRing, this.ring, this.labelBg, this.label]) highlight.setAlpha(1);
     this.restBox = box;
-    this.zoomTo(V.x - (box.cx - x0) * z, V.y - (box.cy - y0) * z, s0 * z);
+    this.targetScale = s0 * z;
+    this.zoomTo(V.x - (box.cx - x0) * z, V.y - (box.cy - y0) * z, this.targetScale);
 
     const aspect = this.aspects.find((a) => a.id === id);
     const variantId = this.options.model[id];
@@ -149,17 +153,33 @@ export class PartPreview {
   }
 
   /** Animate the vehicle to a root transform; the rings follow the selected part (textures are sized for the end state). */
-  private zoomTo(x: number, y: number, s: number): void {
+  private zoomTo(x: number, y: number, s: number, reverse = false): void {
     this.zoomTween?.stop();
     const root = this.rig.root;
     const from = { x: root.x, y: root.y, s: root.scaleX };
-    this.targetScale = s;
+    if (Math.abs(from.x - x) < 0.001 && Math.abs(from.y - y) < 0.001 && Math.abs(from.s - s) < 0.001) {
+      if (reverse) {
+        this.restBox = undefined;
+        this.darkRing.setVisible(false); this.ring.setVisible(false);
+      }
+      return;
+    }
     const t = { v: 0 };
     this.zoomTween = this.scene.tweens.add({
-      targets: t, v: 1, duration: WS_PARTVIEW.zoomMs, ease: 'Sine.easeInOut',
+      targets: t, v: 1, duration: WS_PARTVIEW.zoomMs,
+      ease: partZoomEase,
       onUpdate: () => {
         root.setPosition(from.x + (x - from.x) * t.v, from.y + (y - from.y) * t.v).setScale(from.s + (s - from.s) * t.v);
+        if (reverse) {
+          const alpha = 1 - t.v;
+          this.darkRing.setAlpha(alpha); this.ring.setAlpha(alpha);
+        }
         this.placeRings();
+      },
+      onComplete: () => {
+        if (!reverse) return;
+        this.restBox = undefined;
+        this.darkRing.setVisible(false).setAlpha(1); this.ring.setVisible(false).setAlpha(1);
       },
     });
   }
