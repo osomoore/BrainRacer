@@ -1,0 +1,163 @@
+/**
+ * Adventure Workshop tunables. Packages may ADD keys inside their own section only.
+ * No magic numbers in screens/logic: put them here.
+ */
+
+export const STAGE = { w: 1920, h: 1080 } as const;
+
+// ---------------------------------------------------------------- engine (apps/workshop/logic)
+export const WS_RULES = {
+  /** Offered challenges on the board. */
+  boardSize: 3,
+  /** Admin Mode sandbox challenge count. */
+  adminBoardSize: 10,
+  /** Failed attempts on one challenge before its hint shows. */
+  hintAfterFails: 3,
+  /** New challenges: every solution must differ from the last winning build in at least this many aspects (relaxed to 1 if impossible, never 0). */
+  minChangedAspects: 2,
+  /** Completed challenges kept in the save (oldest dropped first, active ones never). */
+  maxSavedChallenges: 60,
+  /** Generator: first-time wins per tier step (tier = min(maxTier, floor(firstWins / winsPerTier))). */
+  winsPerTier: 3,
+  maxTier: 6,
+  /** Generator attempts before giving up on one board slot (then a completed challenge fills it). */
+  genAttempts: 200,
+  genVersion: 1,
+  /** Chance that a new challenge is preferred to need the most recently unlocked variant. */
+  newestChance: 0.4,
+  /** Generator shape per tier (index = tier, last row repeats): stage count range and requirements-per-stage range. */
+  tierTable: [
+    { stages: [1, 1], reqs: [1, 1] },
+    { stages: [1, 1], reqs: [1, 2] },
+    { stages: [1, 2], reqs: [1, 1] },
+    { stages: [2, 2], reqs: [1, 2] },
+    { stages: [2, 3], reqs: [1, 2] },
+  ] as ReadonlyArray<{ stages: readonly [number, number]; reqs: readonly [number, number] }>,
+} as const;
+
+// ---------------------------------------------------------------- shell / UI (apps/workshop/shell, ui)
+export const WS_UI = {
+  /** Minimum gameplay text size (projector rule). */
+  minFont: 40,
+  font: '"Trebuchet MS", "Arial Rounded MT Bold", Arial, sans-serif',
+  colors: {
+    ink: 0x1b1b3a,
+    paper: 0xffffff,
+    yellow: 0xffd23f,
+    green: 0x2fb84f,
+    red: 0xe8232a,
+    blue: 0x2b8cff,
+    focus: 0xffd23f,
+    p1: 0xff5a5f,
+    p2: 0x2bb3ff,
+  },
+  /** Minimum tap target (px) for any button a kid presses. */
+  tapMin: 120,
+  radius: 28,
+  maxPlayers: 2,
+  /** Pane divider width in 2-player mode. */
+  dividerW: 12,
+  /** Reading-level sample sentences (profile creation / reading screens). */
+  readingSamples: {
+    easy: 'The red car can go.',
+    medium: 'Build a car that can cross the muddy field.',
+    hard: 'Equip your vehicle with enough traction to cross slippery ground.',
+  },
+  /** Public-beta notice on the title screen (grown-ups read it; never shown during runs). */
+  beta: {
+    line1: 'Under construction — progress may be lost.',
+    line2: 'Thanks for testing! Tell us what you think.',
+    y: 895, w: 1500, h: 124, fill: 0xfff4c2,
+  },
+} as const;
+
+// ---------------------------------------------------------------- admin (apps/workshop/shell/admin)
+export const WS_ADMIN = {
+  /** Mobile gear gate: a x b with both factors in [min, max]. */
+  gateMin: 6,
+  gateMax: 9,
+  gateMaxDigits: 3,
+  /** Grown-up screen text size (>= 36 px) and list metrics. */
+  font: 40,
+  rowH: 84,
+  visibleRows: 9,
+  /** Mobile gear icon: faint visible size and the larger invisible tap area (px). */
+  gearSize: 56,
+  gearHit: 150,
+  gearAlpha: 0.35,
+} as const;
+
+// ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
+export const WS_ROOM = {
+  /** Character walk speed, px/s. */
+  walkSpeed: 520,
+  /** Seconds between footstep sounds while walking, and the walk bob height (px). */
+  stepSec: 0.27,
+  bobPx: 12,
+  /** Character height (px). */
+  charH: 150,
+  /** Side-view model scale in the room (before fitting into the model area) per layout. */
+  modelScale: { wide: 1.5, tall: 0.95 },
+  /** Station sign size per layout (px). */
+  signSize: { wide: { w: 300, h: 170 }, tall: { w: 230, h: 160 } },
+  /** Station screen: camera zoom tween, sparkle burst before returning to the room (ms), max total scale. */
+  stationZoomMs: 550,
+  stationConfirmMs: 650,
+  stationMaxScale: 4.2,
+  /** Bumpers station: empty world px kept beyond both bumpers, and the screen-side margin (px), so front AND rear show. */
+  stationBumperPadPx: 70,
+  stationBumperMarginPx: 90,
+  /** Station screen swatches: visible count per layout, swatch size (px). */
+  swatchVisible: { wide: 5, tall: 3 },
+  swatchSize: { wide: 250, tall: 220 },
+  /** Board: side-view model scale (wide / tall), detail font sizes tried from large to small (px). */
+  boardModelScale: { wide: 1.05, tall: 0.7 },
+  detailFontsWide: [52, 48, 44, 40],
+  detailFontsTall: [48, 44, 40],
+  detailLineGap: 1.28,
+} as const;
+
+// ---------------------------------------------------------------- runs (apps/workshop/run)
+export const WS_RUN = {
+  /** Target length of one stage animation, seconds (keep runs short so kids retry a lot). */
+  stageSec: 7,
+  /** Fake camera roll between side and top views, seconds. */
+  viewRollSec: 0.7,
+  /** Quick wipe between two stages with the same view, seconds. */
+  wipeSec: 0.45,
+  /** How long a failure gag is held at the end, ms. */
+  failHoldMs: 1500,
+  /** Pause after a success celebration before the car leaves, ms. */
+  winHoldMs: 700,
+  /** Fixed physics step (cosmetic physics only; never decides pass/fail). */
+  physicsHz: 60,
+} as const;
+
+// ---------------------------------------------------------------- art (apps/workshop/art)
+export const WS_ART = {
+  /** Side-view model height in the room at scale 1 (medium size), px. */
+  modelSideH: 300,
+  /** Art reviewer: body opacity on the springs sheet so the springs show through. */
+  reviewSpringsBodyAlpha: 0.35,
+  /** Art reviewer: wheel opacity on the springs sheet so springs behind the wheels show. */
+  reviewSpringsWheelAlpha: 0.4,
+  /** Extra ride height of the race car body over its wheels (side view), px; springs lengthen to match. */
+  raceRideRaise: 9,
+} as const;
+
+// ---------------------------------------------------------------- audio (apps/workshop/audio)
+export const WS_AUDIO = {
+  musicVolume: 0.5,
+  sfxVolume: 0.8,
+  /** Music crossfade between tracks, seconds. */
+  musicFadeSec: 1.2,
+  /** Music level (fraction) while a sting plays, and the ramps around it. */
+  duckLevel: 0.25,
+  duckAttackSec: 0.08,
+  duckReleaseSec: 0.6,
+  /** Polyphony limits for one-shot sfx. */
+  maxVoicesPerSfx: 4,
+  maxVoicesTotal: 16,
+  /** Ignore the same sfx retriggered within this many seconds. */
+  minReplayGapSec: 0.03,
+} as const;

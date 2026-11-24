@@ -1,0 +1,11 @@
+# Workshop art reviewer
+
+Run `npm run art:review` from the repository root. It captures every current Race Shop and Dino Lab catalogue aspect from `WorkshopParts` (each sheet includes side and top views), adds the current dino beak profiles, and opens the grader at `http://localhost:5198/tools/art-review/grade.html` in the normal browser profile. Captures and the generated live catalog are in ignored `shots/`; no screenshots are committed. Vite stays open on port 5198 (override with `--port N` or `ART_REVIEW_PORT`); press Ctrl+C in that terminal when finished.
+
+Ratings and comments save as you edit in this browser under `adventure-workshop.art-review.v1`. Use **Copy all feedback** or **Download JSON** to export an array of `{ workshop, aspect, variant, name, grade, comment }` entries (`grade` is 1–5 or `null`). This export shape and storage key are kept stable for existing reviews.
+
+**Only changed since I graded.** Each capture fingerprints every variant's side and top pixels (labels excluded) into `shots/review-catalog.js`; idle animation is frozen (`&freeze=1`) so identical art gives identical hashes. Saving a grade or comment stores the variant's hash in that report. Tick **Only changed since I graded** to list just variants that were never graded or whose picture changed since you graded them ("7 to review of 96"); when nothing is left you see "Nothing new to review". Changed variants are badged "changed" even with the box off and still show your earlier grade and comment. **Still good, keep my feedback** accepts a changed picture without regrading. Reports saved before fingerprints existed count as changed; **Mark all graded as up to date** baselines them once. Exports keep the same shape (no hash). `--no-open` skips opening the browser after capture.
+
+For a shapes-only capture (useful while reviewing code art before ComfyUI paint), run `npm run art:review -- --shapes`. The default captures the current runtime, including painted assets when available. Captures are regenerated each run and reflect the branch's current variant names and beak profiles.
+
+`node tools/art-review/check-grading.cjs` runs a small Edge check against the open reviewer, covering persistence and JSON export. The page is also usable directly at the URL above after a capture.

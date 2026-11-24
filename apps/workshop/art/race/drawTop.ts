@@ -1,0 +1,283 @@
+/** Race car, TOP view (nose at +x, centre = origin). Same look tables as the side view. */
+import { OL, OUTLINE, type PartSpec, type Shape, drawShapes, ellipsePath, polyPath, roundedPolyPath, rrectPath } from '../bake';
+import { darken, lighten } from '../geom';
+import { BUMPER, ENGINE, EXTRA, JEEP_SPARE, PAINT, rackLuggage, RACE_WINDOW, RACE_WINDOW_DARK, ROCKET_NOZZLE_X, WHEEL } from './looks';
+import { rainbowFill } from './drawSide';
+import { bodyHalfWidth, raceGeom, type RaceLooks, topOutline } from './geometry';
+
+type G = CanvasRenderingContext2D;
+const circle = (g: G, x: number, y: number, r: number) => ellipsePath(g, x, y, r, r);
+
+/** Body seen from above with glass. */
+export function bodyTop(l: RaceLooks, paintId: string, ids: { body: string; shape: string }): PartSpec {
+  const paint = PAINT[paintId] ?? PAINT['paint.blue'];
+  const b = l.body, s = l.shape;
+  const W = b.len + 100, H = b.hw * 2 + 60;
+  return {
+    key: `ws:r:tbody:${ids.body}:${ids.shape}:${paintId}`, w: W, h: H, ox: W / 2, oy: H / 2,
+    draw: (g) => {
+      const out = topOutline(b, s);
+      const bandFill = paint.bands && rainbowFill(paint.bands, b.len, -H / 2, H / 2);
+      const fill = bandFill || ((c: G) => {
+        const gr = c.createLinearGradient(0, -b.hw, 0, b.hw);
+        gr.addColorStop(0, lighten(paint.main, 0.15)); gr.addColorStop(0.5, paint.main); gr.addColorStop(1, paint.dark);
+        c.fillStyle = gr;
+        c.fill();
+      });
+      const { cabin, cabinTopRange } = raceGeom(l);
+      const c0 = cabin[0].x, c1 = cabin[3].x;
+      const widthAt = (x: number) => bodyHalfWidth(b, s, (x + b.len / 2) / b.len);
+      const curvedGlass = s.rc >= 20;
+      const cw = b.hw * ((b.kind === 'sports' ? 0.66 : 0.77) + (curvedGlass ? 0.05 : 0));
+      const cabinWidthAt = (x: number) => curvedGlass
+        ? Math.max(5, widthAt(x) * (cw / b.hw))
+        : Math.max(5, Math.min(cw, widthAt(x) - 5));
+      const sh: Shape[] = [{
+        path: (c) => roundedPolyPath(c, out, 3 + s.r * 0.4), fill,
+        detail: (c) => {
+          c.strokeStyle = paint.accent;
+          c.lineWidth = 6;
+          for (const sign of [-1, 1]) {
+            c.beginPath();
+            for (let i = 2; i <= 18; i++) {
+              const x = b.len * (i / 20 - 0.5);
+              c.lineTo(x, sign * (widthAt(x) - 10));
+            }
+            c.stroke();
+          }
+        },
+      }];
+      if (b.bedH > 0) sh.push({ path: (c) => rrectPath(c, -b.len / 2 + 8, -b.hw * 0.78, c0 + b.len / 2 - 14, b.hw * 1.56, 6), fill: '#2f3140', noStroke: true, detail: (c) => { c.fillStyle = '#c98a4b'; c.fillRect(-b.len / 2 + 30, -22, 40, 44); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(-b.len / 2 + 48, -22, 5, 44); } });
+      drawShapes(g, sh, OL);
+      // cabin: rear window, roof, windshield
+      const [roofX0, roofX1] = cabinTopRange;
+      const glass = (pts: { x: number; y: number }[]) => {
+        const gr = g.createLinearGradient(0, -cw, 0, cw);
+        gr.addColorStop(0, RACE_WINDOW); gr.addColorStop(1, RACE_WINDOW_DARK);
+        g.fillStyle = gr; g.beginPath();
+        if (curvedGlass) roundedPolyPath(g, pts, 8);
+        else polyPath(g, pts);
+        g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 3.5; g.stroke();
+      };
+      const cabinEdge = (a: number, z: number, inset: number) => {
+        const steps = curvedGlass ? Math.max(1, Math.ceil((z - a) / 10)) : 1;
+        return Array.from({ length: steps + 1 }, (_, i) => {
+          const x = a + (z - a) * i / steps;
+          return { x, y: -Math.max(2, cabinWidthAt(x) - inset) };
+        });
+      };
+      const bothEdges = (edge: ReturnType<typeof cabinEdge>) => [...edge, ...edge.map(({ x, y }) => ({ x, y: -y })).reverse()];
+      const roofEdge = curvedGlass
+        ? cabinEdge(c0, c1, 0)
+        : [c0, roofX0, roofX1, c1].map((x) => ({ x, y: -cabinWidthAt(x) }));
+      drawShapes(g, [{
+        path: (c) => roundedPolyPath(c, bothEdges(roofEdge), 7 + s.rc * 0.42),
+        fill: bandFill || lighten(paint.main, 0.1),
+      }], 4);
+      if (c1 - roofX1 > 7) glass(bothEdges(cabinEdge(roofX1, c1 - 4, 5)));
+      if (roofX0 - c0 > 7) glass(bothEdges(cabinEdge(c0 + 4, roofX0, 5)));
+      // lights
+      g.fillStyle = '#fff7b0'; g.strokeStyle = OUTLINE; g.lineWidth = 3;
+      const nose = b.len / 2 - 18, noseY = Math.min(b.hw * 0.55, Math.max(8, widthAt(nose + 6) - 12));
+      for (const sy of [-1, 1]) { g.beginPath(); ellipsePath(g, nose, sy * noseY, 6, 8); g.fill(); g.stroke(); }
+      g.fillStyle = '#ff3b3b';
+      const tail = -b.len / 2 + 11, tailY = Math.min(b.hw * 0.55, Math.max(8, widthAt(tail) - 10));
+      for (const sy of [-1, 1]) { g.beginPath(); rrectPath(g, tail - 3, sy * tailY - 7, 7, 14, 3); g.fill(); g.stroke(); }
+      if (b.spare) {
+        const spare = JEEP_SPARE;
+        const x = -b.len / 2 + spare.offset - spare.depth / 2;
+        drawShapes(g, [{
+          path: (c) => rrectPath(c, x, -spare.diameter / 2, spare.depth, spare.diameter, 6),
+          fill: spare.rubber,
+          detail: (c) => {
+            c.fillStyle = spare.tread;
+            for (let y = -spare.diameter / 2 + 8; y < spare.diameter / 2; y += 9) c.fillRect(x, y, spare.depth, 3);
+          },
+        }], OL);
+      }
+    },
+  };
+}
+
+export function wheelTop(id: string): PartSpec {
+  const w = WHEEL[id] ?? WHEEL['wheels.road'];
+  const L = w.r * 2 + 8, T = w.topW + 8;
+  const padding = w.tread === 'lugs' ? 22 : 14;
+  return {
+    key: `ws:r:twheel:${id}`, w: L + padding, h: T + padding, ox: (L + padding) / 2, oy: (T + padding) / 2,
+    draw: (g) => {
+      const sh: Shape[] = [];
+      if (w.tread === 'lugs') {
+        for (const y of [-T / 2, T / 2]) {
+          for (let x = -L / 2 + 14; x <= L / 2 - 14; x += 12) {
+            sh.push({ path: (c) => rrectPath(c, x - 4, y - 5, 8, 10, 3), fill: w.treadColor });
+          }
+        }
+        for (const x of [-L / 2, L / 2]) {
+          for (const y of [-7, 7]) {
+            sh.push({ path: (c) => rrectPath(c, x - 5, y - 4, 10, 8, 3), fill: w.treadColor });
+          }
+        }
+      }
+      sh.push({ path: (c) => rrectPath(c, -L / 2, -T / 2, L, T, Math.min(12, T / 2)), fill: w.tire });
+      drawShapes(g, sh, 4.5);
+      g.save(); g.beginPath(); rrectPath(g, -L / 2, -T / 2, L, T, Math.min(12, T / 2)); g.clip();
+      g.strokeStyle = w.tread === 'slick' && w.stripe ? w.stripe : w.treadColor; g.lineWidth = 4;
+      if (w.tread === 'slick') { g.beginPath(); g.moveTo(-L / 2, 0); g.lineTo(L / 2, 0); g.stroke(); }
+      else if (w.tread === 'zigzag') {
+        const chains: Shape[] = [];
+        for (let x = -L / 2 + 9; x < L / 2; x += 17) {
+          chains.push({ path: (c) => rrectPath(c, x - 3, -T / 2, 6, T, 2), fill: w.treadColor });
+          for (const y of [-T / 2 + 6, T / 2 - 6]) {
+            chains.push({ path: (c) => circle(c, x, y, 2.8), fill: '#f8fcff' });
+          }
+        }
+        drawShapes(g, chains, 1.6);
+      } else {
+        const step = w.tread === 'monster' ? 22 : w.tread === 'lugs' ? 14 : 10;
+        for (let x = -L / 2 + 6; x < L / 2; x += step) { g.beginPath(); g.moveTo(x, -T / 2 + 3); g.lineTo(x, T / 2 - 3); g.stroke(); }
+      }
+      g.restore();
+    },
+  };
+}
+
+export function engineTop(id: string): PartSpec {
+  const e = ENGINE[id] ?? ENGINE['engine.small'];
+  return {
+    key: `ws:r:teng:${id}`, w: 80, h: 80, ox: 40, oy: 40,
+    draw: (g) => {
+      const sh: Shape[] = [];
+      switch (e.kind) {
+        case 'vent': sh.push({ path: (c) => rrectPath(c, -22, -14, 44, 28, 6), fill: e.accent, detail: (c) => { c.strokeStyle = e.accent2; c.lineWidth = 3; for (let i = -12; i <= 12; i += 8) { c.beginPath(); c.moveTo(i, -12); c.lineTo(i, 12); c.stroke(); } } }); break;
+        case 'scoop': sh.push({ path: (c) => rrectPath(c, -30, -24, 60, 48, 10), fill: e.accent, detail: (c) => { c.fillStyle = e.accent2; c.fillRect(-4, -18, 30, 36); c.strokeStyle = '#8d97a6'; c.lineWidth = 2.5; for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(0, -12 + i * 8); c.lineTo(24, -12 + i * 8); c.stroke(); } } }); break;
+        case 'leaf': sh.push({ path: (c) => circle(c, 0, 0, 24), fill: '#e8f9ee' }); sh.push({ path: (c) => { c.moveTo(-14, 10); c.quadraticCurveTo(-18, -18, 14, -16); c.quadraticCurveTo(18, 14, -14, 10); c.closePath(); }, fill: e.accent }); break;
+        case 'turbo': sh.push({ path: (c) => circle(c, 6, 0, 22), fill: e.accent, detail: (c) => { c.strokeStyle = e.accent2; c.lineWidth = 4; c.beginPath(); c.arc(6, 0, 12, 0.5, 5.2); c.stroke(); } }); for (const y of [-26, 26]) sh.push({ path: (c) => circle(c, -22, y * 0.8, 8), fill: '#c3c9d4', detail: (c) => { c.fillStyle = '#222'; c.beginPath(); circle(c, -22, y * 0.8, 4); c.fill(); } }); break;
+        case 'bolt':
+          sh.push({ path: (c) => rrectPath(c, -25, -22, 50, 44, 7), fill: '#c3c9d4' });
+          sh.push({ path: (c) => rrectPath(c, -19, -17, 34, 32, 5), fill: e.accent2, detail: (c) => { c.fillStyle = '#f4fbff'; c.fillRect(-13, -11, 7, 10); c.fillRect(0, -11, 7, 10); } });
+          g.lineCap = 'round'; g.lineWidth = 4;
+          g.strokeStyle = '#ee3b3b'; g.beginPath(); g.moveTo(-10, -17); g.quadraticCurveTo(-24, -29, -7, -31); g.stroke();
+          g.strokeStyle = '#3d7fd0'; g.beginPath(); g.moveTo(5, -17); g.quadraticCurveTo(22, -26, 22, -10); g.stroke();
+          break;
+      }
+      drawShapes(g, sh, 4);
+    },
+  };
+}
+
+export function exhaustTop(id: string, hw: number): PartSpec | null {
+  const e = ENGINE[id] ?? ENGINE['engine.small'];
+  if (e.pipes === 0) return null;
+  const len = 14 + e.pipeW;
+  return {
+    key: `ws:r:tpipe:${id}:${hw}`, w: len + 30, h: 90, ox: len + 20, oy: 45,
+    draw: (g) => {
+      const sh: Shape[] = [];
+      const ys = e.pipes === 1 ? [0] : [-hw * 0.4, hw * 0.4];
+      for (const y of ys) sh.push({ path: (c) => rrectPath(c, -len, y - e.pipeW / 2, len + 4, e.pipeW, e.pipeW / 2), fill: '#b5bdca', detail: (c) => { c.fillStyle = e.accent; c.fillRect(-len, y - 20, 6, 40); } });
+      drawShapes(g, sh, 3.5);
+    },
+  };
+}
+
+export function bumperTop(id: string, hw: number): PartSpec {
+  const bl = BUMPER[id] ?? BUMPER['bumpers.small'];
+  const span = hw * 2 * (bl.kind === 'pusher' ? 1 : 0.92);
+  const T = bl.depth * 0.9 + 6;
+  return {
+    key: `ws:r:tbumper:${id}:${hw}`, w: T + 40, h: span + 30, ox: 14, oy: (span + 30) / 2,
+    draw: (g) => {
+      const sh: Shape[] = [{ path: (c) => rrectPath(c, -2, -span / 2, T, span, bl.kind === 'rubber' ? 14 : 6), fill: bl.kind === 'chrome' ? '#eef2f8' : bl.color, detail: (c) => { if (bl.kind === 'pusher') { c.strokeStyle = '#2a2a34'; c.lineWidth = 5; for (let y = -span / 2 + 14; y < span / 2; y += 16) { c.beginPath(); c.moveTo(-2, y); c.lineTo(T, y); c.stroke(); } } if (bl.kind === 'rubber') { c.fillStyle = '#ffd21f'; c.fillRect(T - 8, -span / 2, 5, span); } } }];
+      drawShapes(g, sh, 4);
+    },
+  };
+}
+
+export function rackTop(len: number, wid: number, bagCount = 2): PartSpec {
+  const ex = EXTRA['extra.roofRack'];
+  return {
+    key: `ws:r:track:${Math.round(len)}:${Math.round(wid)}:${bagCount}`, w: len + 30, h: wid + 30, ox: (len + 30) / 2, oy: (wid + 30) / 2,
+    draw: (g) => {
+      const sh: Shape[] = [{ path: (c) => rrectPath(c, -len / 2, -wid / 2, len, wid, 6), fill: '#00000000', noStroke: false }];
+      drawShapes(g, sh, 4);
+      g.strokeStyle = ex.color; g.lineWidth = 6;
+      for (const x of [-len / 2 + 4, len / 2 - 4]) { g.beginPath(); g.moveTo(x, -wid / 2); g.lineTo(x, wid / 2); g.stroke(); }
+      drawShapes(g, rackLuggage(len, bagCount).map(({ x, width, depth, color }) => {
+        const h = wid * depth;
+        return {
+          path: (c: G) => rrectPath(c, x, -h / 2, width, h, 5),
+          fill: color,
+          detail: (c) => {
+            c.fillStyle = 'rgba(255,255,255,0.45)';
+            c.fillRect(x + width * 0.27, -h / 2, 5, h);
+            c.fillRect(x + width * 0.67, -h / 2, 5, h);
+          },
+        } satisfies Shape;
+      }), 4);
+    },
+  };
+}
+
+export function rocketTop(): PartSpec {
+  const ex = EXTRA['extra.rocket'];
+  return {
+    key: 'ws:r:trocket', w: 150, h: 82, ox: 138, oy: 41,
+    draw: (g) => {
+      const sh: Shape[] = [
+        { path: (c) => { c.moveTo(-96, -20); c.lineTo(-112, -32); c.lineTo(-70, -18); c.closePath(); }, fill: ex.color2 },
+        { path: (c) => { c.moveTo(-96, 20); c.lineTo(-112, 32); c.lineTo(-70, 18); c.closePath(); }, fill: ex.color2 },
+        { path: (c) => rrectPath(c, ROCKET_NOZZLE_X, -12, 14, 24, 4), fill: '#4b4f63' },
+        { path: (c) => { c.moveTo(-96, -20); c.lineTo(-34, -22); c.quadraticCurveTo(-4, -18, 4, 0); c.quadraticCurveTo(-4, 18, -34, 22); c.lineTo(-96, 20); c.closePath(); }, fill: '#f2f2f8', detail: (c) => { c.fillStyle = ex.color2; c.fillRect(-60, -24, 14, 48); c.beginPath(); c.moveTo(-26, -24); c.quadraticCurveTo(-4, -18, 6, 0); c.quadraticCurveTo(-4, 18, -26, 24); c.closePath(); c.fill(); } },
+      ];
+      drawShapes(g, sh, 4.5);
+    },
+  };
+}
+
+export function floatTop(len: number): PartSpec {
+  const ex = EXTRA['extra.floats'];
+  return {
+    key: `ws:r:tfloat:${Math.round(len)}`, w: len + 30, h: 56, ox: (len + 30) / 2, oy: 28,
+    draw: (g) => {
+      drawShapes(g, [{ path: (c) => rrectPath(c, -len / 2, -15, len, 30, 15), fill: ex.color2, detail: (c) => { c.fillStyle = ex.color; for (let x = -len / 2; x < len / 2; x += 44) c.fillRect(x, -20, 22, 40); } }], 4.5);
+    },
+  };
+}
+
+export function spoilerTop(hw: number, paintId = 'paint.blue'): PartSpec {
+  const paint = PAINT[paintId] ?? PAINT['paint.blue'];
+  const span = hw * 2 + 10;
+  return {
+    key: `ws:r:tspoiler:${hw}:${paintId}`, w: 70, h: span + 30, ox: 35, oy: (span + 30) / 2,
+    draw: (g) => {
+      const edge = span / 2;
+      const sh: Shape[] = [{
+        path: (c) => roundedPolyPath(c, [
+          { x: -22, y: -edge }, { x: 16, y: -edge + 2 }, { x: 13, y: 0 },
+          { x: 16, y: edge - 2 }, { x: -22, y: edge }, { x: -18, y: 0 },
+        ], 6),
+        fill: paint.main,
+      }];
+      for (const y of [-edge + 1, edge - 10]) sh.push({ path: (c) => rrectPath(c, -23, y, 37, 9, 3), fill: paint.light });
+      drawShapes(g, sh, 4.5);
+    },
+  };
+}
+
+export function snorkelTop(): PartSpec {
+  const ex = EXTRA['extra.snorkel'];
+  return { key: 'ws:r:tsnorkel', w: 50, h: 50, ox: 25, oy: 25, draw: (g) => drawShapes(g, [{ path: (c) => circle(c, 0, 0, 11), fill: ex.color, detail: (c) => { c.fillStyle = ex.color3; c.beginPath(); circle(c, 0, 0, 5); c.fill(); } }], 4) };
+}
+
+export function winchTop(): PartSpec {
+  const ex = EXTRA['extra.winch'];
+  return {
+    key: 'ws:r:twinch', w: 90, h: 70, ox: 30, oy: 35,
+    draw: (g) => {
+      drawShapes(g, [{ path: (c) => rrectPath(c, -24, -26, 48, 52, 8), fill: ex.color }, { path: (c) => rrectPath(c, -10, -20, 20, 40, 6), fill: ex.color2, detail: (c) => { c.strokeStyle = ex.color3; c.lineWidth = 3; for (let y = -14; y < 18; y += 7) { c.beginPath(); c.moveTo(-10, y); c.lineTo(10, y); c.stroke(); } } }], 4.5);
+      g.strokeStyle = '#c3c9d4'; g.lineWidth = 4; g.beginPath(); g.arc(40, 0, 7, 0, 6.3); g.stroke();
+      g.fillStyle = darken(ex.color, 0); g.beginPath(); g.moveTo(24, 0); g.lineTo(33, 0); g.stroke();
+    },
+  };
+}

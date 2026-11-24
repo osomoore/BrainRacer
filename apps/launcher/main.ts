@@ -61,6 +61,7 @@ h1{margin:0;position:absolute;top:70px;width:100%;text-align:center;font:900 140
 .tile svg{display:block;width:100%;height:400px}
 .tile .name{position:absolute;bottom:0;left:0;right:0;height:140px;display:flex;align-items:center;justify-content:center;
   font:900 58px "Arial Black",Arial,sans-serif;background:#14213d}
+.ribbon.beta{background:#ffd23f;color:#14213d}
 .ribbon{position:absolute;top:24px;left:50%;transform:translateX(-50%);padding:6px 36px;border-radius:40px;white-space:nowrap;background:#ff6b6b;border:5px solid #14213d;font:900 44px "Arial Black",Arial,sans-serif;color:#fff}
 .prompt{position:absolute;top:935px;width:700px;text-align:center;font:bold 64px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:24px}
 .badge{display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;background:#2ecc40;
@@ -84,7 +85,7 @@ function start(): void {
     el.className = 'tile';
     el.dataset.game = g.id;
     el.style.left = `${xs[i] ?? 150}px`;
-    el.innerHTML = `${ART[g.id]}<div class="name">${g.title}</div>${g.ready ? '' : '<div class="ribbon">Coming soon</div>'}`;
+    el.innerHTML = `${ART[g.id]}<div class="name">${g.title}</div>${g.ready ? '' : '<div class="ribbon">Coming soon</div>'}${g.beta ? '<div class="ribbon beta">BETA</div>' : ''}`;
     el.addEventListener('click', () => { sel = i; render(); goToGame(g.id); });
     stage.appendChild(el);
     return el;

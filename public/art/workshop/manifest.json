@@ -1,0 +1,516 @@
+{
+ "version": 1,
+ "model": "realcartoonXL_v6.safetensors",
+ "entries": {
+  "ws:bg:dinolab": {
+   "file": "ws_bg_dinolab.png",
+   "w": 1024,
+   "h": 576,
+   "specHash": "01bb5c4b5d4ab7",
+   "srcHash": "",
+   "shapeHash": "",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1258292977
+  },
+  "ws:bg:garage": {
+   "file": "ws_bg_garage.png",
+   "w": 1024,
+   "h": 576,
+   "specHash": "0f378e7f3a4485",
+   "srcHash": "",
+   "shapeHash": "",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2321443991
+  },
+  "ws:d:head:head.crest:color.orange:extra.feathers:n": {
+   "file": "ws_d_head_head.crest_color.orange_extra.feathers_n.png",
+   "w": 351,
+   "h": 477,
+   "specHash": "05969358f1955c",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "1e06a56dba452d1c",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 379521102
+  },
+  "ws:d:head:head.horned:color.orange:extra.feathers:n": {
+   "file": "ws_d_head_head.horned_color.orange_extra.feathers_n.png",
+   "w": 354,
+   "h": 456,
+   "specHash": "09ac9db5c9cf3f",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "5df02492beae5f78",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1588778587
+  },
+  "ws:d:head:head.longNeck:color.orange:extra.feathers:n": {
+   "file": "ws_d_head_head.longNeck_color.orange_extra.feathers_n.png",
+   "w": 315,
+   "h": 324,
+   "specHash": "09dc09755016c7",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "defb5492a4be3c92",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 4029492576
+  },
+  "ws:d:head:head.round:color.blue:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.blue_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "0202ba9855c305",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "de753c74a6d1615e",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3118542347
+  },
+  "ws:d:head:head.round:color.green:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.green_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "0a0fcd76b74f1d",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "74cf318933fabc7b",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3590866520
+  },
+  "ws:d:head:head.round:color.orange:extra.feathers:Short and curved": {
+   "file": "ws_d_head_head.round_color.orange_extra.feathers_Short_and_curved.png",
+   "w": 363,
+   "h": 360,
+   "specHash": "1a1baceb4eb980",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "883fcf4d0bddc310",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 375588832
+  },
+  "ws:d:head:head.round:color.orange:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.orange_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "11bffbdd42383c",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "b52395f10cbc1c4e",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2286925839
+  },
+  "ws:d:head:head.round:color.orange:extra.frill:n": {
+   "file": "ws_d_head_head.round_color.orange_extra.frill_n.png",
+   "w": 342,
+   "h": 255,
+   "specHash": "1c671b30e98662",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "de737fb79c5c3ed7",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1382284544
+  },
+  "ws:d:head:head.round:color.purple:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.purple_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "0070b270cbbc61",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "e67949ed3498bb9f",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3369987998
+  },
+  "ws:d:head:head.round:color.sandy:extra.feathers:n": {
+   "file": "ws_d_head_head.round_color.sandy_extra.feathers_n.png",
+   "w": 342,
+   "h": 360,
+   "specHash": "0762331ce42399",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "0b1f877b1087c0cd",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 229897980
+  },
+  "ws:d:thead:head.crest:color.orange:extra.feathers:n": {
+   "file": "ws_d_thead_head.crest_color.orange_extra.feathers_n.png",
+   "w": 366,
+   "h": 319,
+   "specHash": "040e7823475bb0",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "5535e311b6e75423",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 377139507
+  },
+  "ws:d:thead:head.longNeck:color.orange:extra.feathers:n": {
+   "file": "ws_d_thead_head.longNeck_color.orange_extra.feathers_n.png",
+   "w": 330,
+   "h": 296,
+   "specHash": "00b893590a43da",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "526ad39f07845489",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 32181000
+  },
+  "ws:d:thead:head.rex:color.orange:extra.feathers:n": {
+   "file": "ws_d_thead_head.rex_color.orange_extra.feathers_n.png",
+   "w": 468,
+   "h": 390,
+   "specHash": "1155606810d015",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "ed3f9d690690df47",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1827826459
+  },
+  "ws:d:thead:head.round:color.orange:extra.feathers:Short and curved": {
+   "file": "ws_d_thead_head.round_color.orange_extra.feathers_Short_and_curved.png",
+   "w": 378,
+   "h": 326,
+   "specHash": "05c7d6dfd7064e",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "8cb8298cd7b45e37",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 152157770
+  },
+  "ws:d:thead:head.round:color.orange:extra.feathers:n": {
+   "file": "ws_d_thead_head.round_color.orange_extra.feathers_n.png",
+   "w": 357,
+   "h": 326,
+   "specHash": "0f3f6c1e56edc0",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "245fc9359a9c61c3",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 827336845
+  },
+  "ws:d:thead:head.round:color.orange:extra.frill:n": {
+   "file": "ws_d_thead_head.round_color.orange_extra.frill_n.png",
+   "w": 357,
+   "h": 326,
+   "specHash": "048f7515b32067",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "cf75cdaaaf31205a",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1541133632
+  },
+  "ws:d:thead:head.round:color.orange:extra.glow:n": {
+   "file": "ws_d_thead_head.round_color.orange_extra.glow_n.png",
+   "w": 357,
+   "h": 326,
+   "specHash": "0d5d524aae9101",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "a36a1a5906eb464a",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 4023621566
+  },
+  "ws:d:thead:head.round:color.orange:extra.stripes:n": {
+   "file": "ws_d_thead_head.round_color.orange_extra.stripes_n.png",
+   "w": 357,
+   "h": 326,
+   "specHash": "0b469ac8fe5806",
+   "srcHash": "b5e48846c0e5e9bb",
+   "shapeHash": "b49fb3cfaf5d6816",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3011336115
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.blue:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.blue_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "170620eae13e37",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "8648d8f627835e59",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1793072898
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.green:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.green_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "06cf9ef1231889",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "d6a386cee3927445",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3136462563
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.orange:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.orange_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "1cc6ecc1b04452",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "a92f16b2b3d62288",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1472592492
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.purple:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.purple_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "0e3dbeca7d9ab8",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "da3c608a735d6c27",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1216795452
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.sandy:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.sandy_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "1e1759008d0407",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "6bd81db8cc79f3a8",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1873946125
+  },
+  "ws:d:torso:body.round:head.round:crawl:color.spotted:extra.feathers": {
+   "file": "ws_d_torso_body.round_head.round_crawl_color.spotted_extra.feathers.png",
+   "w": 514,
+   "h": 375,
+   "specHash": "0943056ea802ae",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "40aa3e7e019de40c",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2858415297
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.blue:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.blue_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "09746eae02d509",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "7a6d5134c3c37d17",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2731884488
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.green:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.green_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "1423bf208b54b7",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "5020b08620e7c74e",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 722926693
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.orange:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.orange_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "0217a68dd08a26",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "4a562c2ef6b63b90",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2348714062
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.purple:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.purple_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "169c34c663ad3b",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "0c7e6727ea5fb147",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3381408930
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.sandy:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.sandy_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "131018ef887c2b",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "4b03174735448f34",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3682429963
+  },
+  "ws:d:ttorso:body.round:head.round:crawl:color.spotted:extra.feathers": {
+   "file": "ws_d_ttorso_body.round_head.round_crawl_color.spotted_extra.feathers.png",
+   "w": 490,
+   "h": 273,
+   "specHash": "0f55f62f56cdf9",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "23c54e30354b3797",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1581563423
+  },
+  "ws:r:body:body.car:shape.boxy:paint.black:38:16": {
+   "file": "ws_r_body_body.car_shape.boxy_paint.black_38_16.png",
+   "w": 642,
+   "h": 291,
+   "specHash": "0a166f805050fe",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "d9e07a221d1e4c8b",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1332207339
+  },
+  "ws:r:body:body.car:shape.boxy:paint.green:38:16": {
+   "file": "ws_r_body_body.car_shape.boxy_paint.green_38_16.png",
+   "w": 642,
+   "h": 291,
+   "specHash": "156edc26288e47",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "8518c5231d82c545",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1968927875
+  },
+  "ws:r:body:body.car:shape.boxy:paint.rainbow:38:16": {
+   "file": "ws_r_body_body.car_shape.boxy_paint.rainbow_38_16.png",
+   "w": 642,
+   "h": 291,
+   "specHash": "034a4f81cd6a79",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "97dae36d89e61d3d",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3617589778
+  },
+  "ws:r:body:body.car:shape.boxy:paint.red:38:16": {
+   "file": "ws_r_body_body.car_shape.boxy_paint.red_38_16.png",
+   "w": 642,
+   "h": 291,
+   "specHash": "18f3c57e358cad",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "9b8d18d4b43c03fb",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1429178583
+  },
+  "ws:r:body:body.car:shape.boxy:paint.yellow:38:16": {
+   "file": "ws_r_body_body.car_shape.boxy_paint.yellow_38_16.png",
+   "w": 642,
+   "h": 291,
+   "specHash": "0b8ab7c4c324ae",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "f3e578e569061305",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 875285400
+  },
+  "ws:r:body:body.jeep:shape.boxy:paint.blue:38:16": {
+   "file": "ws_r_body_body.jeep_shape.boxy_paint.blue_38_16.png",
+   "w": 627,
+   "h": 297,
+   "specHash": "0b230d0d860975",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "3ecbfbf483237100",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3677762124
+  },
+  "ws:r:body:body.sports:shape.boxy:paint.blue:38:16": {
+   "file": "ws_r_body_body.sports_shape.boxy_paint.blue_38_16.png",
+   "w": 687,
+   "h": 240,
+   "specHash": "1edea19251a208",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "20531f30f54df6ec",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2566243363
+  },
+  "ws:r:body:body.truck:shape.boxy:paint.blue:38:16": {
+   "file": "ws_r_body_body.truck_shape.boxy_paint.blue_38_16.png",
+   "w": 717,
+   "h": 294,
+   "specHash": "1298cfd0155211",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "5367ab9b435da579",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3265038397
+  },
+  "ws:r:body:body.van:shape.boxy:paint.blue:38:16": {
+   "file": "ws_r_body_body.van_shape.boxy_paint.blue_38_16.png",
+   "w": 672,
+   "h": 327,
+   "specHash": "077d91b78383b3",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "72b5c714097d0aa7",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2961453511
+  },
+  "ws:r:tbody:body.car:shape.boxy:paint.black": {
+   "file": "ws_r_tbody_body.car_shape.boxy_paint.black.png",
+   "w": 660,
+   "h": 276,
+   "specHash": "11058b534d2a01",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "9bd10cc25868d749",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 233031843
+  },
+  "ws:r:tbody:body.car:shape.boxy:paint.green": {
+   "file": "ws_r_tbody_body.car_shape.boxy_paint.green.png",
+   "w": 660,
+   "h": 276,
+   "specHash": "118f537f5c61cc",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "359a316f5cf99619",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2965163459
+  },
+  "ws:r:tbody:body.car:shape.boxy:paint.rainbow": {
+   "file": "ws_r_tbody_body.car_shape.boxy_paint.rainbow.png",
+   "w": 660,
+   "h": 276,
+   "specHash": "0e21f97d664dd5",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "ba9ef07dfcef0096",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1724787746
+  },
+  "ws:r:tbody:body.car:shape.boxy:paint.red": {
+   "file": "ws_r_tbody_body.car_shape.boxy_paint.red.png",
+   "w": 660,
+   "h": 276,
+   "specHash": "0256f9f39717e6",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "3ae768daac78cba7",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1782091079
+  },
+  "ws:r:tbody:body.car:shape.boxy:paint.yellow": {
+   "file": "ws_r_tbody_body.car_shape.boxy_paint.yellow.png",
+   "w": 660,
+   "h": 276,
+   "specHash": "059453c4999155",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "d9662eb8ecbc6f28",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 4234684968
+  },
+  "ws:r:tbody:body.jeep:shape.boxy:paint.blue": {
+   "file": "ws_r_tbody_body.jeep_shape.boxy_paint.blue.png",
+   "w": 645,
+   "h": 282,
+   "specHash": "048893dbbc3bfb",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "c5bbcf84cc0e02ef",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 3926290184
+  },
+  "ws:r:tbody:body.sports:shape.boxy:paint.blue": {
+   "file": "ws_r_tbody_body.sports_shape.boxy_paint.blue.png",
+   "w": 705,
+   "h": 276,
+   "specHash": "161310ecb0c664",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "93c7e2877e5d7aaf",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 1124655883
+  },
+  "ws:r:tbody:body.truck:shape.boxy:paint.blue": {
+   "file": "ws_r_tbody_body.truck_shape.boxy_paint.blue.png",
+   "w": 735,
+   "h": 288,
+   "specHash": "1899af8b863ec9",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "cb4a877ded245917",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 499452181
+  },
+  "ws:r:tbody:body.van:shape.boxy:paint.blue": {
+   "file": "ws_r_tbody_body.van_shape.boxy_paint.blue.png",
+   "w": 690,
+   "h": 288,
+   "specHash": "1e6436a57650a7",
+   "srcHash": "1c9c8fa90392c84c",
+   "shapeHash": "cab5d32eadc21e3f",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 4073725603
+  },
+  "ws:tex:skin": {
+   "file": "ws_tex_skin.png",
+   "w": 512,
+   "h": 512,
+   "specHash": "15ffd75839fcdd",
+   "srcHash": "",
+   "shapeHash": "",
+   "model": "realcartoonXL_v6.safetensors",
+   "seed": 2661766487
+  }
+ }
+}

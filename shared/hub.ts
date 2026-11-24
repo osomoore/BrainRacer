@@ -18,11 +18,13 @@ export interface GameInfo {
   page: string;
   /** False = launcher shows the tile but marks it "Coming soon" (still openable). */
   ready: boolean;
+  /** True = launcher shows a "BETA" ribbon (public test, progress may be lost). */
+  beta?: true;
 }
 
 export const GAMES: readonly GameInfo[] = [
   { id: 'racer', title: 'Brain Racer', page: 'racer.html', ready: true },
-  { id: 'workshop', title: 'Adventure Workshop', page: 'workshop.html', ready: false },
+  { id: 'workshop', title: 'Adventure Workshop', page: 'workshop.html', ready: true, beta: true },
 ];
 
 /** Launcher page, relative to the site root. */
