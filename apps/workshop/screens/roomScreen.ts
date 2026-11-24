@@ -5,6 +5,7 @@
  */
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
+import { playWorkshopSfx } from '../audio';
 import { WS_BUDDIES, WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
@@ -46,6 +47,7 @@ const roomScreen: ScreenFactory = (): Screen => {
   const walkThen = (stand: Point, then: () => void) => {
     if (busy) return;
     busy = true;
+    ctx.audio.sfx('select');
     walk(stand, then);
   };
 
@@ -99,8 +101,8 @@ const roomScreen: ScreenFactory = (): Screen => {
       L.stations.forEach((st, i) => {
         const def = cat.aspects.find((a) => a.id === st.aspect)!;
         const b = new Button(scene, { x: st.x, y: st.y, w: st.w, h: st.h, color: cardColor(i), onClick: () => {
-          if (!busy) peekAt(st);
-          ctx.audio.sfx('select');
+          if (busy) return;
+          peekAt(st);
           walkThen(st.stand, () => ctx.go('station', { aspect: st.aspect }));
         } });
         const icon = scene.add.image(0, -36, aspectIconTexture(scene, ws, st.aspect)).setScale(0.85);
@@ -109,8 +111,8 @@ const roomScreen: ScreenFactory = (): Screen => {
         signs.push(b);
       });
       const buddies = new Button(scene, { ...L.buddyStation, color: cardColor(signs.length), onClick: () => {
-        if (!busy) peekAt(L.buddyStation);
-        ctx.audio.sfx('select');
+        if (busy) return;
+        peekAt(L.buddyStation);
         walkThen(L.buddyStation.stand, () => ctx.go('buddyStation'));
       } });
       buddies.add([
@@ -125,12 +127,15 @@ const roomScreen: ScreenFactory = (): Screen => {
         onClick: () => {
           if (busy) return;
           busy = true;
-          ctx.audio.sfx('select');
+          ctx.audio.sfx('boing', { volume: 0.55, rate: 1.3 });
           buddyTween?.remove();
           buddyTween = scene.tweens.add({
             targets: buddyPose, y: buddyPose.y - L.buddy.size * 0.55, angle: -12,
             duration: WS_BUDDIES.hopMs, ease: 'Quad.easeOut', yoyo: true,
-            onComplete: () => walk(L.board.stand, () => ctx.go('board')),
+            onComplete: () => {
+              playWorkshopSfx(ctx.audio, 'land', { volume: 0.45, rate: 1.2 });
+              walk(L.board.stand, () => ctx.go('board'));
+            },
           });
         },
       });
@@ -206,6 +211,14 @@ const roomScreen: ScreenFactory = (): Screen => {
         if (a === 'back') {
           if (isBackGuarded(ctx, ctx.scene.time.now)) continue;
           requestLeave();
+          return;
+        }
+        if (a === 'confirm') {
+          const target = group.focused;
+          if (target?.isEnabled) {
+            target.pulse();
+            target.activate();
+          }
           return;
         }
         group.handle(a);

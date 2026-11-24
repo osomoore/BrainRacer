@@ -65,7 +65,7 @@ export default scenario('canyon', async (a) => {
     await a.arc(land, a.gy, 150 + gap * 0.08, Math.max(1800, gap * 3.2), 0.12);
     flap();
     a.root.setScale(a.dir * a.rs, a.rs);
-    a.sfx('thud', { volume: 0.5 });
+    a.sfx('land', { volume: 0.5 });
     void a.dust(a.root.x, a.gy, 3, 0.9);
     await a.hop(46, 380);
     f1.box.setScale(f1.box.scaleX, 1);

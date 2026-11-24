@@ -234,6 +234,8 @@ export const WS_AUDIO = {
   maxVoicesTotal: 16,
   /** Ignore the same sfx retriggered within this many seconds. */
   minReplayGapSec: 0.03,
+  /** Ground contacts follow the walk and run bob cycles in the dino rig. */
+  dinoStepMs: { walk: 380, run: 210 },
 } as const;
 
 // ---------------------------------------------------------------- fog look (apps/workshop/run/common/fogFx.ts)

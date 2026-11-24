@@ -49,7 +49,10 @@ export default scenario('river', async (a) => {
   a.play('crouch');
   await a.wait(300);
   const sink = swimFail ? rigH * 0.55 : rigH * 0.3;
-  const splash = (x: number, big = 1): void => { a.sfx('splash'); void a.burst('drop', x, surface, { n: Math.round(8 * big), spread: 240, up: 320, gravity: 900, ms: 800, scale: 1 }); };
+  const splash = (x: number, big = 1): void => {
+    a.sfx('splash', { volume: big, rate: big < 1 ? 1.2 : 1 });
+    void a.burst('drop', x, surface, { n: Math.round(8 * big), spread: 240, up: 320, gravity: 900, ms: 800, scale: 1 });
+  };
   await a.arc(rx0 + rigW * 0.35, a.gy + sink, 130, 650, 0.2);
   splash(a.root.x);
   a.play('walk');

@@ -251,7 +251,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         if (viaBack) guardBackAfterPreview(ctx, scene.time.now);
         ctx.go('room', { from: aspect });
       };
-      const apply = () => {
+      const apply = (cue: 'equip' | 'buy' = 'equip') => {
         if (busy) return;
         const variant = options[index];
         if (index >= owned.length) {
@@ -269,6 +269,7 @@ const stationScreen: ScreenFactory = (): Screen => {
             playWorkshopSfx(ctx.audio, 'notEnough');
             open(`You have ${currentProgress(ctx, ws).wallet} ${currency}. You need ${priceOf(cat, variant)}.`, true, () => {});
           } else {
+            ctx.audio.sfx('select');
             open(`Pay ${priceOf(cat, variant)} ${currency}?`, false, () => buy(variant));
           }
           return;
@@ -278,8 +279,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         const next = engine.setPart(ws, progress, aspect, variant);
         const cur = ctx.save();
         ctx.commit({ ...cur, workshops: { ...cur.workshops, [ws]: next } });
-        ctx.audio.sfx('pop');
-        ctx.audio.sfx('sparkle');
+        playWorkshopSfx(ctx.audio, cue);
         rig?.play('happy');
         const star = starTexture(scene, 56);
         for (let i = 0; i < 12; i++) {
@@ -313,9 +313,8 @@ const stationScreen: ScreenFactory = (): Screen => {
           swatches = buildSwatches();
           refresh();
           preview();
-          playWorkshopSfx(ctx.audio, 'buy');
           objs.push(showBanner(scene, { x: L.stage.cx, y: topH + 76, text: 'Bought!', color: 0xa8e6a1, ms: 900 }));
-          apply(); // buying also equips the new variant, like pressing "Use it!"
+          apply('buy'); // buying also equips the new variant, like pressing "Use it!"
         }
       };
 
