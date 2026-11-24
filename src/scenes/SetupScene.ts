@@ -8,11 +8,10 @@ import { isRaceMap, loadSettings, saveSettings, savedSecondPlayer } from '../cor
 import type { CarKind, GuideKind, InputDevice, JbqSettings, PlayerId, PlayerSettings, QuestionTypes, RacerProfileId, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
-import { JoinPanel, ROW_CAR, ROW_GUIDE, ROW_RACER, type PanelView } from '../ui/menu/JoinPanel';
+import { JoinPanel, type PanelView } from '../ui/menu/JoinPanel';
 import { AdminGate, ensureGearTexture } from '../ui/menu/AdminGate';
 import { MenuButton } from '../ui/menu/MenuButton';
-import { ageLabel } from '../ui/menu/newRacerLogic';
-import { changeJbq, CHIP_KEYS, jbqLimitNote, jbqPointsLabel, jbqScopeLabel, moveChip, moveRow, ROW_POINTS, ROW_QUESTIONS, ROW_SCOPE, toggleChip, visibleRow } from '../ui/menu/questionPick';
+import { changeJbq, CHIP_KEYS, jbqLimitNote, jbqPointsLabel, jbqScopeLabel, moveChip, moveRow, ROW_CAR, ROW_DONE, ROW_GUIDE, ROW_POINTS, ROW_QUESTIONS, ROW_RACER, ROW_SCOPE, toggleChip, visibleRow } from '../ui/menu/questionPick';
 import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
 import { isMobile } from '../../shared/device';
@@ -34,6 +33,7 @@ export class SetupScene extends Phaser.Scene {
   private cfg!: Settings & { players: SetupPlayer[] };
   private slots: JoinSlot[] = [];
   private cursors: number[] = [];
+  private questionCursors: (number | undefined)[] = [];
   /** Focused Math / Reading / JBQ chip per player. */
   private chipFocus: number[] = [];
   private isNew: boolean[] = [];
@@ -61,7 +61,7 @@ export class SetupScene extends Phaser.Scene {
     this.mobile = isMobile();
     this.maxPlayers = this.mobile ? 1 : MAX_PLAYERS;
     this.gate = undefined;
-    this.leaving = false; this.slots = []; this.cursors = []; this.chipFocus = []; this.isNew = []; this.panels = []; this.newPanel = undefined;
+    this.leaving = false; this.slots = []; this.cursors = []; this.questionCursors = []; this.chipFocus = []; this.isNew = []; this.panels = []; this.newPanel = undefined;
     const reg = this.registry.get(REG.settings) as Settings | undefined;
     const fresh = !!data.device || !reg?.players?.length;
     const base = fresh ? loadSettings() : reg!;
@@ -91,7 +91,7 @@ export class SetupScene extends Phaser.Scene {
       reg!.players.slice(0, this.maxPlayers).forEach((p) => {
         if (!p.device) return;
         this.slots = claimSlot(this.slots, p.device);
-        this.cursors.push(ROW_RACER); this.chipFocus.push(0); this.isNew.push(false);
+        this.cursors.push(ROW_RACER); this.questionCursors.push(undefined); this.chipFocus.push(0); this.isNew.push(false);
         this.cfg.players.push(p as SetupPlayer);
       });
       this.slots = this.slots.map((s) => ({ ...s, ready: data.keepReady === true && !this.mobile }));
@@ -163,6 +163,7 @@ export class SetupScene extends Phaser.Scene {
     const p = newJoinPlayer(i, device, prev, savedPlayers[0]?.car, ids, taken, ids[i]);
     this.slots = claimSlot(this.slots, device);
     this.cursors.push(ROW_RACER);
+    this.questionCursors.push(undefined);
     this.chipFocus.push(0);
     // No free profile (a fresh device, or all taken): the player starts on "New Profile" and makes their racer.
     this.isNew.push(p.profile === undefined);
@@ -172,7 +173,7 @@ export class SetupScene extends Phaser.Scene {
 
   private removePlayer(i: number) {
     this.slots = leaveSlot(this.slots, i);
-    this.cursors.splice(i, 1); this.chipFocus.splice(i, 1); this.isNew.splice(i, 1); this.cfg.players.splice(i, 1);
+    this.cursors.splice(i, 1); this.questionCursors.splice(i, 1); this.chipFocus.splice(i, 1); this.isNew.splice(i, 1); this.cfg.players.splice(i, 1);
     this.refreshAvailability();
     this.syncAssign();
   }
@@ -209,12 +210,6 @@ export class SetupScene extends Phaser.Scene {
   }
 
   // ───────────────────────── view ─────────────────────────
-  /** One short line under the racer name: age band and level (race length is the Admin Race time row; the card is too narrow for it). */
-  private hintText(p: SetupPlayer, slot: number): string {
-    if (this.isNew[slot]) return 'Make your racer!';
-    return `Age ${ageLabel(p.difficulty)}`;
-  }
-
   private refreshAll() {
     const c = this.cfg;
     this.modeLabel.setVisible(c.developerMode === true);
@@ -225,16 +220,20 @@ export class SetupScene extends Phaser.Scene {
       if (!s) { panel.render(null); return; }
       const p = c.players[i];
       const { car, guide } = this.loadout(i);
+      const qCursor = this.questionCursors[i];
+      const basics = p.jbq.points === 'basics';
       const view: PanelView = {
         device: s.device,
         family: s.device.type === 'gamepad' ? services.input.controllerFamily?.(s.device) : undefined,
         racer: this.isNew[i] ? 'New Profile' : racerName(c, playerRacer(p, i, c)),
-        hint: this.hintText(p, i),
         car: carName(car), guide: guideName(guide), carKind: car, guideKind: guide,
-        chipsOn: CHIP_KEYS.map((k) => p.questionTypes[k]), chipFocus: this.chipFocus[i],
-        jbqPoints: jbqPointsLabel(p.jbq.points), jbqScope: jbqScopeLabel(p.jbq.points, p.jbq.scope), jbqBasics: p.jbq.points === 'basics',
-        jbqLimit: jbqLimitNote(p.jbq.points, this.slots.length),
-        cursor: this.isNew[i] ? ROW_RACER : visibleRow(this.cursors[i], p.questionTypes.jbq, p.jbq.points === 'basics'), ready: s.ready,
+        questions: qCursor === undefined ? undefined : {
+          chipsOn: CHIP_KEYS.map((k) => p.questionTypes[k]), chipFocus: this.chipFocus[i],
+          jbqPoints: jbqPointsLabel(p.jbq.points), jbqScope: jbqScopeLabel(p.jbq.points, p.jbq.scope), jbqBasics: basics,
+          jbqLimit: jbqLimitNote(p.jbq.points, this.slots.length),
+          cursor: visibleRow(qCursor, p.questionTypes.jbq, basics),
+        },
+        cursor: this.cursors[i], ready: s.ready,
         newProfile: this.isNew[i],
       };
       panel.render(view);
@@ -245,7 +244,7 @@ export class SetupScene extends Phaser.Scene {
   private refreshBottom() {
     const ready = allReady(this.slots);
     const first = this.slots[0]?.device;
-    const showNext = ready || (this.mobile && this.slots.length > 0);
+    const showNext = ready || (this.mobile && this.slots.length > 0 && this.questionCursors[0] === undefined);
     this.nextBtn.setVisible(showNext);
     this.nextBtn.setSelected(showNext, hexNum(PLAYER_COLORS[0]));
     this.statusText.setVisible(!showNext && !this.mobile);
@@ -262,8 +261,10 @@ export class SetupScene extends Phaser.Scene {
     if (this.newPanel) { this.updateNewPanel(); return; }
     if (time < this.inputBlockedUntil) return;
     const hadPlayers = this.slots.length > 0;
+    // Both keyboard layouts use Backspace. Closing a submenu takes priority over leaving or unreadying another keyboard slot.
+    const keyboardQuestionsOpen = this.slots.some((s, p) => s.device.type === 'keyboard' && this.questionCursors[p] !== undefined);
     for (let p = 0; p < this.slots.length; p++) {
-      if (this.handle(p as PlayerId, time)) return;
+      if (this.handle(p as PlayerId, time, keyboardQuestionsOpen)) return;
     }
     if (this.slots.length < this.maxPlayers) {
       const d = services.input.pollJoin(this.slots.map((s) => s.device));
@@ -284,12 +285,18 @@ export class SetupScene extends Phaser.Scene {
   }
 
   /** Returns true if the scene is being left (or the list of players changed). */
-  private handle(p: PlayerId, time: number): boolean {
+  private handle(p: PlayerId, time: number, keyboardQuestionsOpen: boolean): boolean {
     const inp = services.input.get(p);
+    const questionCursor = this.questionCursors[p];
+    if (questionCursor !== undefined) {
+      this.handleQuestions(p, inp, questionCursor);
+      return false;
+    }
+    const back = inp.back && !(keyboardQuestionsOpen && this.slots[p].device.type === 'keyboard');
     const locked = isLocked(this.slots, p);
     if (locked) {
       // Ready panels ignore the D-pad. Only P1 may continue; everyone else's confirm does nothing.
-      if (inp.back) { this.slots = setReady(this.slots, p, false); services.audio.sfx('menuMove'); this.refreshAll(); return false; }
+      if (back) { this.slots = setReady(this.slots, p, false); services.audio.sfx('menuMove'); this.refreshAll(); return false; }
       const comboHeld = inp.brake > 0.5 && inp.throttle > 0.5;
       if ((inp.confirm || (inp.pause && !comboHeld)) && canAdvance(this.slots, p) && time - this.lastChangeAt >= NEXT_GRACE_MS) {
         this.goNext();
@@ -299,13 +306,12 @@ export class SetupScene extends Phaser.Scene {
     }
     const cur = this.cursors[p];
     if (inp.navY && !this.isNew[p]) { // New Profile shows only the racer row
-      const pq = this.cfg.players[p].questionTypes, basics = this.cfg.players[p].jbq.points === 'basics';
-      const n = moveRow(visibleRow(cur, pq.jbq, basics), inp.navY > 0 ? 1 : -1, pq.jbq, basics);
+      const n = Phaser.Math.Wrap(cur + (inp.navY > 0 ? 1 : -1), ROW_RACER, ROW_QUESTIONS + 1);
       if (n !== cur) { this.cursors[p] = n; services.audio.sfx('menuMove'); this.refreshAll(); }
     }
     if (inp.navX) this.change(p, this.cursors[p], inp.navX > 0 ? 1 : -1);
     if (inp.confirm) {
-      if (this.cursors[p] === ROW_QUESTIONS && !this.isNew[p]) { this.change(p, ROW_QUESTIONS, 0); return false; } // A toggles the focused chip; Ready is on the other rows
+      if (this.cursors[p] === ROW_QUESTIONS) { this.showQuestions(p, true); return false; }
       if (this.isNew[p]) { this.openNewPanel(p); return true; }
       this.slots = setReady(this.slots, p, true);
       this.lastChangeAt = time;
@@ -313,7 +319,7 @@ export class SetupScene extends Phaser.Scene {
       this.refreshAll();
       return false;
     }
-    if (inp.back) {
+    if (back) {
       services.audio.sfx('menuMove');
       if (this.mobile) { this.leaving = true; this.scene.start(SCENE.title); return true; }
       this.removePlayer(p);
@@ -326,7 +332,19 @@ export class SetupScene extends Phaser.Scene {
   /** Tap/click on a player card row: same actions as the controller (arrows change the value, the body opens New Profile or cycles). */
   private tapRow(p: PlayerId, row: number, dir: -1 | 0 | 1) {
     if (this.leaving || this.gate || this.newPanel || p >= this.slots.length || isLocked(this.slots, p)) return;
+    if (this.questionCursors[p] !== undefined) {
+      if (row === ROW_DONE) this.showQuestions(p, false);
+      else if (row === ROW_POINTS || row === ROW_SCOPE) {
+        const { questionTypes, jbq } = this.cfg.players[p];
+        if (visibleRow(row, questionTypes.jbq, jbq.points === 'basics') !== row) return;
+        this.questionCursors[p] = row;
+        this.changeQuestion(p, row, dir || 1);
+      }
+      return;
+    }
+    if (row > ROW_QUESTIONS) return;
     if (this.isNew[p] && row !== ROW_RACER) return;
+    if (row === ROW_QUESTIONS) { this.showQuestions(p, true); return; }
     this.cursors[p] = row;
     if (dir === 0 && row === ROW_RACER && this.isNew[p]) { this.openNewPanel(p); return; }
     this.change(p, row, dir || 1);
@@ -334,49 +352,78 @@ export class SetupScene extends Phaser.Scene {
 
   /** Tap on a Math / Reading / JBQ chip: focus it and flip it. */
   private tapChip(p: PlayerId, chip: number) {
-    if (this.leaving || this.newPanel || p >= this.slots.length || isLocked(this.slots, p)) return;
-    if (this.isNew[p]) return;
-    this.cursors[p] = ROW_QUESTIONS;
+    if (this.leaving || this.gate || this.newPanel || this.questionCursors[p] === undefined) return;
+    this.questionCursors[p] = ROW_QUESTIONS;
     this.chipFocus[p] = chip;
-    this.change(p, ROW_QUESTIONS, 0);
+    this.changeQuestion(p, ROW_QUESTIONS, 0);
   }
 
   /** Mobile NEXT: a new profile opens the name flow first, otherwise the card counts as Ready and we go on. */
   private mobileNext() {
-    if (this.leaving || this.gate || this.newPanel || !this.slots.length) return;
+    if (this.leaving || this.gate || this.newPanel || !this.slots.length || this.questionCursors[0] !== undefined) return;
     if (this.isNew[0]) { this.openNewPanel(0); return; }
     this.slots = setReady(this.slots, 0, true);
     this.goNext();
   }
 
-  /** `dir` 0 on the Questions row = toggle the focused chip; -1/+1 there moves the chip focus. */
-  private change(p: number, row: number, dir: 1 | -1 | 0) {
-    const c = this.cfg;
-    const ps = c.players[p];
-    const cycle = <T,>(list: readonly T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + (dir || 1), 0, list.length)];
-    const panel = this.panels[p];
-    let target;
-    if (row === ROW_QUESTIONS) {
-      if (dir === 0) {
-        const next = toggleChip(ps.questionTypes, this.chipFocus[p]);
-        if (next === ps.questionTypes) { services.audio.sfx('menuMove'); return; } // the last chip on stays on
-        ps.questionTypes = next;
-        if (!next.jbq) this.cursors[p] = ROW_QUESTIONS;
-        this.saveQuestions(p);
-      } else this.chipFocus[p] = moveChip(this.chipFocus[p], dir);
+  private showQuestions(p: PlayerId, open: boolean) {
+    this.questionCursors[p] = open ? ROW_QUESTIONS : undefined;
+    services.audio.sfx(open ? 'menuSelect' : 'menuMove');
+    this.refreshAll();
+  }
+
+  private handleQuestions(p: PlayerId, inp: ReturnType<typeof services.input.get>, cursor: number) {
+    const { questionTypes, jbq } = this.cfg.players[p];
+    const basics = jbq.points === 'basics';
+    const row = visibleRow(cursor, questionTypes.jbq, basics);
+    if (inp.back || (inp.confirm && row === ROW_DONE)) {
+      this.showQuestions(p, false);
+      return;
+    }
+    if (inp.navY) {
+      this.questionCursors[p] = moveRow(row, inp.navY > 0 ? 1 : -1, questionTypes.jbq, basics);
       services.audio.sfx('menuMove');
       this.refreshAll();
-      return;
-    } else if (row === ROW_POINTS || row === ROW_SCOPE) {
-      if (dir === 0) return;
+    } else if (inp.navX && row !== ROW_DONE) {
+      this.changeQuestion(p, row, inp.navX > 0 ? 1 : -1);
+    } else if (inp.confirm && row === ROW_QUESTIONS) {
+      this.changeQuestion(p, row, 0);
+    }
+  }
+
+  private changeQuestion(p: PlayerId, row: number, dir: -1 | 0 | 1) {
+    const ps = this.cfg.players[p];
+    if (row === ROW_QUESTIONS) {
+      if (dir) this.chipFocus[p] = moveChip(this.chipFocus[p], dir);
+      else {
+        const next = toggleChip(ps.questionTypes, this.chipFocus[p]);
+        if (next !== ps.questionTypes) {
+          ps.questionTypes = next;
+          this.saveQuestions(p);
+        }
+      }
+    } else if (dir && (row === ROW_POINTS || row === ROW_SCOPE)) {
       ps.jbq = changeJbq(ps.jbq, row, dir);
       this.saveQuestions(p);
-      target = row === ROW_POINTS ? panel.pointsRow : panel.scopeRow;
-    } else if (row === ROW_RACER) {
+      const panel = this.panels[p];
+      (row === ROW_POINTS ? panel.pointsRow : panel.scopeRow).bump(dir);
+    }
+    services.audio.sfx('menuMove');
+    this.refreshAll();
+  }
+
+  /** Cycles a racer, car, or buddy. */
+  private change(p: number, row: number, dir: 1 | -1) {
+    const c = this.cfg;
+    const ps = c.players[p];
+    const cycle = <T,>(list: readonly T[], v: T) => list[Phaser.Math.Wrap(list.indexOf(v) + dir, 0, list.length)];
+    const panel = this.panels[p];
+    let target;
+    if (row === ROW_RACER) {
       const takenByOthers = c.players
         .map((o, k) => (k === p || this.isNew[k] ? undefined : playerRacer(o, k, c)))
         .filter(Boolean) as RacerProfileId[];
-      const next = nextRacer(racerIds(c), takenByOthers, racerIds(c).length < NEW_RACER.maxCustomRacers, this.isNew[p] ? 'new' : playerRacer(ps, p, c) ?? 'new', dir || 1);
+      const next = nextRacer(racerIds(c), takenByOthers, racerIds(c).length < NEW_RACER.maxCustomRacers, this.isNew[p] ? 'new' : playerRacer(ps, p, c) ?? 'new', dir);
       if (next === 'new') this.isNew[p] = true;
       else { this.isNew[p] = false; c.players[p] = applyRacerProfile({ ...ps, profile: next }, p, c) as SetupPlayer; }
       this.refreshAvailability();
@@ -396,7 +443,7 @@ export class SetupScene extends Phaser.Scene {
     target.bump(dir);
   }
 
-  /** Saves a player's question choices to their racer profile right away (a New Profile player keeps them in the session until the profile is made). */
+  /** Saves a player's question choices to their racer profile right away. */
   private saveQuestions(p: number) {
     if (this.isNew[p]) return;
     const ps = this.cfg.players[p];
@@ -449,7 +496,7 @@ export class SetupScene extends Phaser.Scene {
     this.refreshAvailability();
     // Selected, not ready: the player now picks questions / car / buddy and confirms to be Ready.
     this.slots = setReady(this.slots, p, false);
-    this.cursors[p] = ROW_QUESTIONS; this.chipFocus[p] = 0;
+    this.cursors[p] = ROW_CAR; this.chipFocus[p] = 0;
     this.lastChangeAt = this.time.now;
     services.audio.sfx('menuSelect');
     this.refreshAll();

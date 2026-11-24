@@ -1,9 +1,9 @@
-/** Phaser-free rules for the Join screen's QUESTIONS rows (Math / Reading / JBQ chips, JBQ points and scope). */
+/** Phaser-free rules for the Questions submenu (Math / Reading / JBQ chips, JBQ points and scope). */
 import type { JbqLevel, JbqScope, JbqSettings, QuestionTypes } from '../../core/types';
 import { jbqAllowed, jbqMaxPlayers, jbqRange, jbqToday } from '../../challenge/jbqScope';
 import { toggleQuestionType } from './newRacerLogic';
 
-export const ROW_RACER = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUESTIONS = 3, ROW_POINTS = 4, ROW_SCOPE = 5;
+export const ROW_RACER = 0, ROW_CAR = 1, ROW_GUIDE = 2, ROW_QUESTIONS = 3, ROW_POINTS = 4, ROW_SCOPE = 5, ROW_DONE = 6;
 
 export const CHIP_KEYS = ['math', 'reading', 'jbq'] as const satisfies readonly (keyof QuestionTypes)[];
 export const CHIP_LABEL: Record<(typeof CHIP_KEYS)[number], string> = { math: 'Math', reading: 'Reading', jbq: 'JBQ' };
@@ -14,10 +14,10 @@ const SCOPE_LABEL: Record<JbqScope, string> = { week: 'Week', month: 'Month', al
 
 /** Rows in navigation order (top to bottom); the JBQ rows only exist while JBQ is on. */
 export function rowOrder(jbqOn: boolean, basics = false): number[] {
-  if (!jbqOn) return [ROW_RACER, ROW_QUESTIONS, ROW_CAR, ROW_GUIDE];
+  if (!jbqOn) return [ROW_QUESTIONS, ROW_DONE];
   return basics
-    ? [ROW_RACER, ROW_QUESTIONS, ROW_POINTS, ROW_CAR, ROW_GUIDE]
-    : [ROW_RACER, ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE, ROW_CAR, ROW_GUIDE];
+    ? [ROW_QUESTIONS, ROW_POINTS, ROW_DONE]
+    : [ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE, ROW_DONE];
 }
 
 /** Next row up/down (wraps), skipping hidden rows. A cursor on a hidden row counts as the Questions row. */

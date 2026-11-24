@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }, info) => {
 const HARD_TABLES = { difficulty: 'hard', questionTypes: { math: true, reading: true, jbq: false }, roundSec: 180 };
 
 const BTN_A = 0;
-const PAD_DOWN = 13, PAD_RIGHT = 15;
+const PAD_UP = 12, PAD_DOWN = 13, PAD_RIGHT = 15;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -46,8 +46,13 @@ test('gamepads: two players customize and receive different questions', async ({
     const setup = window.__game.scene.getScene('Setup') as any;
     return setup.cfg.players.map((p: any) => ({ q: p.questionTypes, jbq: p.jbq, profile: p.profile }));
   });
-  // P1 (Kim): Questions row, move to the JBQ chip and switch it on; points + scope rows appear and cycle.
-  await tapPad(page, 0, PAD_DOWN);
+  // P1 (Kim): open Questions, then switch on JBQ.
+  await tapPad(page, 0, PAD_UP);
+  await tapPad(page, 0, BTN_A);
+  await expect.poll(() => page.evaluate(() => {
+    const { panels } = window.__game.scene.getScene('Setup') as any;
+    return panels.slice(0, 2).map((p: any) => [p.loadoutGroup.visible, p.questionsGroup.visible, p.ready]);
+  })).toEqual([[false, true, false], [true, false, false]]);
   await tapPad(page, 0, PAD_RIGHT);
   await tapPad(page, 0, PAD_RIGHT);
   await tapPad(page, 0, BTN_A);
@@ -60,41 +65,43 @@ test('gamepads: two players customize and receive different questions', async ({
   await tapPad(page, 0, PAD_RIGHT);  // week -> month
   st = await state();
   expect(st[0].jbq).toEqual({ points: 20, scope: 'month' });
-  // The change is savedProfiles to Kim's racer profile right away.
+  // The change is saved to Kim's racer profile right away.
   const savedProfiles = await page.evaluate(() => (window.__game.registry.get('settings') as any).racerProfiles);
   expect(savedProfiles.p3.questionTypes.jbq).toBe(true);
   expect(savedProfiles.p3.jbq).toEqual({ points: 20, scope: 'month' });
-  await tapPad(page, 0, PAD_DOWN); await tapPad(page, 0, PAD_DOWN); // Car, Buddy.
-  for (let i = 0; i < 3; i++) await tapPad(page, 1, PAD_DOWN); // P2 has no JBQ rows: Questions, Car, Buddy.
+  await tapPad(page, 0, PAD_DOWN); // Done
+  await tapPad(page, 0, BTN_A);    // back to Questions on the main card
+  await tapPad(page, 0, PAD_UP);   // Buddy
+  await tapPad(page, 1, PAD_DOWN); // Car
 
   const previews = await page.evaluate(() => {
     type Column = {
       racerRow: Phaser.GameObjects.Container;
       carRow: Phaser.GameObjects.Container;
       guideRow: Phaser.GameObjects.Container;
-      hint: Phaser.GameObjects.Text;
-      scopeRow: Phaser.GameObjects.Container;
       carObj: Phaser.GameObjects.Container;
       guideObj: Phaser.GameObjects.Image;
+      questionsBtn: Phaser.GameObjects.Container;
+      questionsGroup: Phaser.GameObjects.Container;
     };
     const setup = window.__game.scene.getScene('Setup') as unknown as { panels: Column[] };
-    return setup.panels.slice(0, 2).map(({ racerRow, carRow, guideRow, hint, scopeRow, carObj, guideObj }, i) => {
+    return setup.panels.slice(0, 2).map(({ racerRow, carRow, guideRow, carObj, guideObj, questionsBtn, questionsGroup }) => {
       const car = carObj.getBounds(), buddy = guideObj.getBounds();
       return {
-        text: hint.text,
+        questionsOpen: questionsGroup.visible,
         carWidth: car.width,
         buddyHeight: buddy.height,
-        fits: racerRow.getBounds().bottom < hint.getBounds().top &&
-          (i !== 0 || scopeRow.getBounds().bottom < car.top) && car.bottom < carRow.getBounds().top &&
-          carRow.getBounds().bottom < buddy.top && buddy.bottom < guideRow.getBounds().top,
+        fits: racerRow.getBounds().bottom < car.top && car.bottom < carRow.getBounds().top &&
+          carRow.getBounds().bottom < buddy.top && buddy.bottom < guideRow.getBounds().top &&
+          guideRow.getBounds().bottom < questionsBtn.getBounds().top,
       };
     });
   });
-  expect(previews[0].text).toContain('Hard');
-  expect(previews[1].text).not.toContain('Hard');
-  expect(previews.every((preview) => preview.fits)).toBe(true);
-  expect(previews[1].carWidth).toBeGreaterThan(previews[0].carWidth * 1.5);
-  expect(previews[1].buddyHeight).toBeGreaterThan(previews[0].buddyHeight * 1.5);
+  for (const preview of previews) {
+    expect(preview).toMatchObject({ questionsOpen: false, fits: true });
+    expect(preview.carWidth).toBeGreaterThan(150);
+    expect(preview.buddyHeight).toBeGreaterThan(74);
+  }
 
   await tapPad(page, 0, BTN_A); // P1 ready (locks the panel)
   await tapPad(page, 1, BTN_A); // P2 ready
@@ -359,10 +366,8 @@ test('Setup on a fresh device: the first player makes their racer (name, age, se
   await tapPad(page, 0, BTN_A);     // age 0-5 (Easy): creates the racer and selects it
   await page.waitForTimeout(900);
   expect(await page.evaluate(() => { const sc = (window as any).__game.scene; const st = sc.getScene('Setup'); return { active: sc.isActive('Setup'), track: sc.isActive('TrackSelect'), ready: st.panels[0].ready, isNew: st.isNew[0], q: st.panels[0].questionsGroup.visible }; }))
-    .toMatchObject({ active: true, track: false, ready: false, isNew: false, q: true }); // created, selected, NOT ready, rows visible
+    .toMatchObject({ active: true, track: false, ready: false, isNew: false, q: false }); // created and selected on the main card
   await page.screenshot({ path: 'test-results/menus-newracer-after.png' });
-  await tapPad(page, 0, PAD_DOWN);  // off the Questions row (A there toggles a chip)
-  await page.waitForTimeout(200);
   await tapPad(page, 0, BTN_A);     // Ready
   await page.waitForTimeout(700);
   await tapPad(page, 0, BTN_A);     // Next

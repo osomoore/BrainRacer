@@ -50,4 +50,29 @@ test('fresh device: a phone player makes a profile by tapping only', async ({ pa
   expect(profiles.map((p) => p.name)).toEqual(['SAM']);
   const racer = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('brainracer.settings.v1') ?? '{}').racerProfiles ?? {}) as { difficulty: string; roundSec: number }[]);
   expect(racer[0]).toMatchObject({ difficulty: 'normal', roundSec: 300 });
+
+  await tapLogical(page, 960, 836); // Questions
+  await tapLogical(page, 800, 540); // Math off
+  await tapLogical(page, 1120, 540); // JBQ on
+  await tapLogical(page, 960, 628); // 10 -> 20 points
+  await tapLogical(page, 960, 716); // Week -> Month
+  await tapLogical(page, 960, 836); // Done
+  await tapLogical(page, 960, 836); // reopen
+  expect(await page.evaluate(() => {
+    const st = (window.__game.scene.getScene('Setup') as any);
+    const { questionTypes, jbq } = st.cfg.players[0];
+    return { open: st.panels[0].questionsGroup.visible, questionTypes, jbq };
+  })).toEqual({ open: true, questionTypes: { math: false, reading: true, jbq: true }, jbq: { points: 20, scope: 'month' } });
+
+  await page.reload();
+  await waitScene(page, 'Title');
+  await tapLogical(page, 960, 500);
+  await waitScene(page, 'Setup');
+  await page.waitForTimeout(400);
+  await tapLogical(page, 960, 836);
+  expect(await page.evaluate(() => {
+    const st = (window.__game.scene.getScene('Setup') as any);
+    const { questionTypes, jbq } = st.cfg.players[0];
+    return { open: st.panels[0].questionsGroup.visible, questionTypes, jbq };
+  })).toEqual({ open: true, questionTypes: { math: false, reading: true, jbq: true }, jbq: { points: 20, scope: 'month' } });
 });
