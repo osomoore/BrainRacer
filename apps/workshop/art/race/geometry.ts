@@ -2,7 +2,7 @@
 import type { Model } from '../../core/types';
 import { WS_ART } from '../../config';
 import { type Pt, lerp, topAt } from '../geom';
-import { BODY, BUMPER, type BodyLook, JEEP_SPARE, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, SPRING_BOB_MAX, SPRING_INSET, SPRING_TUCK, WHEEL, type WheelLook, WINCH_SCALE } from './looks';
+import { BODY, BUMPER, type BodyLook, JEEP_SPARE, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, SPRING_BOB_MAX, SPRING_TUCK, WHEEL, type WheelLook, WINCH_SCALE } from './looks';
 
 export interface RaceLooks {
   body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; rackBags: number;
@@ -160,7 +160,7 @@ export function topOutline(b: BodyLook, s: ShapeLook, n = 28): Pt[] {
 /** Distances (px, up from the hub) of a coil spring's top and bottom ends when drawn with length H (see springSide). */
 export function springExtent(id: string, H: number): { top: number; bottom: number } {
   const sp = SPRING[id] ?? SPRING['springs.soft'];
-  const pitch = (H - 6) / sp.turns;
+  const pitch = springPitch(id, H);
   const coilTop = 4 + (sp.turns - 1) * pitch + pitch * 0.55 + (sp.thick + 6) / 2;
   return { top: Math.max(coilTop, sp.shock ? H : 0), bottom: 4 - (sp.thick + 6) / 2 };
 }
@@ -181,20 +181,52 @@ export function springEnds(id: string, H: number, geo: RaceGeom, bob = 0): { top
   return { top: geo.hubY - bob - e.top * k, bottom: geo.hubY - bob - e.bottom * k };
 }
 
+/** Coil pitch (px) for a spring of length H. */
+export function springPitch(id: string, H: number): number {
+  const sp = SPRING[id] ?? SPRING['springs.soft'];
+  return (H - 6) / sp.turns;
+}
+
+/** How far (px) the coil top sits inside the body for a spring of length H: at least two coil pitches, never less than SPRING_TUCK. */
+export function springTuck(id: string, H: number): number {
+  return Math.max(SPRING_TUCK, 2 * springPitch(id, H));
+}
+
+/** Half width (px) of a spring's coil plus shock, as drawn. */
+/** Smallest gap (px) kept between the spring top and the body silhouette above it, at rest and at full bob. */
+export const SPRING_POKE_MARGIN = 2;
+
+export function springHalfWidth(id: string): number {
+  const sp = SPRING[id] ?? SPRING['springs.soft'];
+  return sp.width / 2 + sp.thick / 2 + 2;
+}
+
+/** Highest point (smallest y) of the body silhouette across a spring's width at axle x, so nothing of the spring pokes above it. */
+export function bodyTopAtAxle(id: string, geo: RaceGeom, axle: number): number {
+  const hw = springHalfWidth(id);
+  let top = Infinity;
+  for (let x = axle - hw; x <= axle + hw; x += 2) top = Math.min(top, geo.topY(x));
+  return Math.min(top, geo.topY(axle + hw));
+}
+
 /**
- * Spring length H: the coil top ends SPRING_TUCK inside the body above its lower edge (so it is hidden there), never
- * lower than the lower edge at full bob, and no higher than SPRING_INSET below the chassis top. The bottom end sits at
- * the hub, behind the tire. The visible middle is whatever gap there is between tire and body.
+ * Spring length H: the coil top ends springTuck(H) inside the body above its lower edge (so it is hidden there), never
+ * lower than the lower edge at full bob, and no higher than SPRING_INSET below the body top at the axle (the shock top
+ * is the spring length H, so it is covered by the same cap). The bottom end sits at the hub, behind the tire. The
+ * visible middle is whatever gap there is between tire and body.
  */
 export function springHeight(id: string, geo: RaceGeom, axle: number): number {
   const edge = bodyLowerEdge(geo) - geo.rideRaise;
-  const ceil = geo.chassisTop(axle) - geo.rideRaise + SPRING_INSET;
+  const ceil = bodyTopAtAxle(id, geo, axle) - geo.rideRaise + SPRING_POKE_MARGIN;
   const ok = (H: number, want: number, bob: number) => springEnds(id, H, geo, bob).top <= want;
-  const solve = (want: number, bob: number) => { let H = 20; while (H < 400 && !ok(H, want, bob)) H++; return H; };
-  // Bobbing lifts the body by bob but the coil top by less, so the rest pose is the tightest case for hiding the top.
-  const wanted = solve(edge - SPRING_TUCK, 0);
-  const lowest = solve(edge - 2, 0);
-  let highest = lowest;
-  while (highest < 400 && springEnds(id, highest + 1, geo, SPRING_BOB_MAX).top >= ceil) highest++;
-  return Math.max(lowest, Math.min(wanted, highest));
+  // The tuck grows with H (longer coils have longer pitches), so search for the first H whose top clears its own tuck.
+  let wanted = 20;
+  while (wanted < 400 && !ok(wanted, edge - springTuck(id, wanted), 0)) wanted++;
+  // The cap wins over the tuck: where the body is too thin at the axle for both, the top stays out of sight above the
+  // body's lower edge (inside the body) with less tuck, never poking above the silhouette. Larger H raises the top, so
+  // the cap is the largest H whose top still clears the body top when the body is at full bob (body and spring both ride up;
+  // the spring scales up a little more than the body, so bob is checked in the body frame).
+  let highest = 20;
+  while (highest < 400 && springEnds(id, highest + 1, geo, SPRING_BOB_MAX).top + SPRING_BOB_MAX >= ceil) highest++;
+  return Math.min(wanted, highest);
 }
