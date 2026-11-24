@@ -5,8 +5,8 @@ import type { RigAnim } from '../../core/runtime';
 import type { Model, View } from '../../core/types';
 import { partImage } from '../bake';
 import { BaseRig } from '../rigBase';
-import { BUMPER, ROCKET_NOZZLE_X, ROCKET_SCALE, SPRING, SPRING_INSET, SPRING_TUCK, WINCH_SCALE } from './looks';
-import { type RaceGeom, type RaceLooks, raceGeom, raceLooks, winchMount } from './geometry';
+import { BUMPER, ROCKET_NOZZLE_X, ROCKET_SCALE, WINCH_SCALE } from './looks';
+import { type RaceGeom, type RaceLooks, raceGeom, raceLooks, springHeight, winchMount } from './geometry';
 import * as S from './drawSide';
 import * as T from './drawTop';
 
@@ -144,12 +144,9 @@ export class RaceRig extends BaseRig {
       wc.setPosition(ax, geo.hubY).setScale(geo.wheelRadius / L.wheel.r);
       P.wheels.push(wi);
     }
-    const sp = SPRING[m.springs] ?? SPRING['springs.soft'];
-    // The coil runs up into the body (SPRING_TUCK past its nominal height) but stops SPRING_INSET short of the chassis
-    // top at its axle, so no spring top shows in the wheel arch and none pokes out of low bodies.
-    const H0 = sp.lift + WS_ART.raceRideRaise + 26 + SPRING_TUCK + (m.springs === 'springs.bouncy' ? 6 : 0);
+    // Coil top hidden inside the body, bottom behind the tire; lengths come from the real arch/chassis geometry.
     for (const ax of [geo.frontAxle, geo.rearAxle]) {
-      const H = Math.max(sp.lift + 20, Math.min(H0, geo.hubY - geo.chassisTop(ax) + WS_ART.raceRideRaise - SPRING_INSET));
+      const H = springHeight(m.springs, geo, ax);
       const img = partImage(sc, S.springSide(m.springs, Math.round(H)), ax, geo.hubY);
       this.springG.add(img);
       this.springs.push({ img, h: Math.round(H) });

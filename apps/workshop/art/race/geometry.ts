@@ -2,7 +2,7 @@
 import type { Model } from '../../core/types';
 import { WS_ART } from '../../config';
 import { type Pt, lerp, topAt } from '../geom';
-import { BODY, BUMPER, type BodyLook, JEEP_SPARE, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, WHEEL, type WheelLook, WINCH_SCALE } from './looks';
+import { BODY, BUMPER, type BodyLook, JEEP_SPARE, SHAPE, type ShapeLook, SIZE_SCALE, SPRING, SPRING_BOB_MAX, SPRING_INSET, SPRING_TUCK, WHEEL, type WheelLook, WINCH_SCALE } from './looks';
 
 export interface RaceLooks {
   body: BodyLook; shape: ShapeLook; wheel: WheelLook; lift: number; scale: number; wheelScale: number; rackBags: number;
@@ -144,4 +144,46 @@ export function topOutline(b: BodyLook, s: ShapeLook, n = 28): Pt[] {
   }
   const down = up.map((p) => ({ x: p.x, y: -p.y })).reverse();
   return [...up, ...down];
+}
+
+/** Distances (px, up from the hub) of a coil spring's top and bottom ends when drawn with length H (see springSide). */
+export function springExtent(id: string, H: number): { top: number; bottom: number } {
+  const sp = SPRING[id] ?? SPRING['springs.soft'];
+  const pitch = (H - 6) / sp.turns;
+  const coilTop = 4 + (sp.turns - 1) * pitch + pitch * 0.55 + (sp.thick + 6) / 2;
+  return { top: Math.max(coilTop, sp.shock ? H : 0), bottom: 4 - (sp.thick + 6) / 2 };
+}
+
+/** Radius of the tire including its tread (monster lugs stick out past the rim radius). */
+export function tireRadius(l: RaceLooks, geo: RaceGeom): number {
+  return geo.wheelRadius * (l.wheel.tread === 'monster' ? (l.wheel.r + 14) / l.wheel.r : 1);
+}
+
+/** y (rest pose, body-local, before the ride raise) of the body's lower edge at the axle: the underside or the wheel arch. */
+export function bodyLowerEdge(geo: RaceGeom): number {
+  return Math.min(geo.bottom, geo.hubY - geo.wheelRadius - 4);
+}
+
+/** World y of a spring's top and bottom end at body bob `bob` (matches rig.render: the group rides up by bob, scaled by 1 + bob / H). */
+export function springEnds(id: string, H: number, geo: RaceGeom, bob = 0): { top: number; bottom: number } {
+  const e = springExtent(id, H), k = 1 + bob / H;
+  return { top: geo.hubY - bob - e.top * k, bottom: geo.hubY - bob - e.bottom * k };
+}
+
+/**
+ * Spring length H: the coil top ends SPRING_TUCK inside the body above its lower edge (so it is hidden there), never
+ * lower than the lower edge at full bob, and no higher than SPRING_INSET below the chassis top. The bottom end sits at
+ * the hub, behind the tire. The visible middle is whatever gap there is between tire and body.
+ */
+export function springHeight(id: string, geo: RaceGeom, axle: number): number {
+  const edge = bodyLowerEdge(geo) - WS_ART.raceRideRaise;
+  const ceil = geo.chassisTop(axle) - WS_ART.raceRideRaise + SPRING_INSET;
+  const ok = (H: number, want: number, bob: number) => springEnds(id, H, geo, bob).top <= want;
+  const solve = (want: number, bob: number) => { let H = 20; while (H < 400 && !ok(H, want, bob)) H++; return H; };
+  // Bobbing lifts the body by bob but the coil top by less, so the rest pose is the tightest case for hiding the top.
+  const wanted = solve(edge - SPRING_TUCK, 0);
+  const lowest = solve(edge - 2, 0);
+  let highest = lowest;
+  while (highest < 400 && springEnds(id, highest + 1, geo, SPRING_BOB_MAX).top >= ceil) highest++;
+  return Math.max(lowest, Math.min(wanted, highest));
 }
