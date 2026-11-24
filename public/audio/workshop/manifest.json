@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "ce42f3e5201455cc",
+ "sourceHash": "e19cb918552e67e3",
  "files": {
   "music:raceShop": {
    "file": "music/raceShop.ogg",
@@ -96,71 +96,71 @@
    "file": "sfx/click.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 2440,
+   "length": 3209,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.07625
+   "seconds": 0.10028125
   },
   "sfx:select": {
    "file": "sfx/select.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 8919,
+   "length": 8433,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.27871875
+   "seconds": 0.26353125
   },
   "sfx:back": {
    "file": "sfx/back.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 8399,
+   "length": 7355,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.26246875
+   "seconds": 0.22984375
   },
   "sfx:step": {
    "file": "sfx/step.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 3382,
+   "length": 3642,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.1056875
+   "seconds": 0.1138125
   },
   "sfx:whoosh": {
    "file": "sfx/whoosh.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 14374,
+   "length": 8896,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.4491875
+   "seconds": 0.278
   },
   "sfx:pop": {
    "file": "sfx/pop.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 3441,
+   "length": 3889,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.10753125
+   "seconds": 0.12153125
   },
   "sfx:sparkle": {
    "file": "sfx/sparkle.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 23430,
+   "length": 16863,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.7321875
+   "seconds": 0.52696875
   },
   "sfx:engine": {
    "file": "sfx/engine.ogg",
@@ -176,41 +176,41 @@
    "file": "sfx/engineRev.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 40422,
+   "length": 28080,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 1.2631875
+   "seconds": 0.8775
   },
   "sfx:skid": {
    "file": "sfx/skid.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 21397,
+   "length": 14498,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.66865625
+   "seconds": 0.4530625
   },
   "sfx:splat": {
    "file": "sfx/splat.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 14684,
+   "length": 11526,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.458875
+   "seconds": 0.3601875
   },
   "sfx:splash": {
    "file": "sfx/splash.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 16207,
+   "length": 15666,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.50646875
+   "seconds": 0.4895625
   },
   "sfx:spin": {
    "file": "sfx/spin.ogg",
@@ -226,201 +226,221 @@
    "file": "sfx/boing.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 23803,
+   "length": 13556,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.74384375
+   "seconds": 0.423625
   },
   "sfx:thud": {
    "file": "sfx/thud.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 8405,
+   "length": 5174,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.26265625
+   "seconds": 0.1616875
   },
   "sfx:honk": {
    "file": "sfx/honk.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 13558,
+   "length": 12341,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.4236875
+   "seconds": 0.38565625
   },
   "sfx:crash": {
    "file": "sfx/crash.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 15041,
+   "length": 10408,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.47003125
+   "seconds": 0.32525
   },
   "sfx:quack": {
    "file": "sfx/quack.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 14062,
+   "length": 14550,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.4394375
+   "seconds": 0.4546875
   },
   "sfx:stomp": {
    "file": "sfx/stomp.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 13080,
+   "length": 7131,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.40875
+   "seconds": 0.22284375
   },
   "sfx:roar": {
    "file": "sfx/roar.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 41473,
+   "length": 26999,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 1.29603125
+   "seconds": 0.84371875
   },
   "sfx:chomp": {
    "file": "sfx/chomp.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 9787,
+   "length": 7509,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.30584375
+   "seconds": 0.23465625
   },
   "sfx:gulp": {
    "file": "sfx/gulp.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 11864,
+   "length": 10710,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.37075
+   "seconds": 0.3346875
   },
   "sfx:burp": {
    "file": "sfx/burp.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 14880,
+   "length": 14979,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.465
+   "seconds": 0.46809375
   },
   "sfx:rustle": {
    "file": "sfx/rustle.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 18939,
+   "length": 10525,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.59184375
+   "seconds": 0.32890625
   },
   "sfx:flap": {
    "file": "sfx/flap.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 14897,
+   "length": 7762,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.46553125
+   "seconds": 0.2425625
   },
   "sfx:sniff": {
    "file": "sfx/sniff.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 12279,
+   "length": 8977,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.38371875
+   "seconds": 0.28053125
   },
   "sfx:giggle": {
    "file": "sfx/giggle.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 18952,
+   "length": 17253,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.59225
+   "seconds": 0.53915625
   },
   "sfx:wobble": {
    "file": "sfx/wobble.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 24728,
+   "length": 16126,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.77275
+   "seconds": 0.5039375
   },
   "sfx:cheer": {
    "file": "sfx/cheer.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 39222,
+   "length": 22980,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 1.2256875
+   "seconds": 0.718125
   },
   "sfx:sad": {
    "file": "sfx/sad.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 38992,
+   "length": 16906,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 1.2185
+   "seconds": 0.5283125
   },
   "sfx:buy": {
    "file": "sfx/buy.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 13422,
+   "length": 12961,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.4194375
+   "seconds": 0.40503125
   },
   "sfx:notEnough": {
    "file": "sfx/notEnough.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 8175,
+   "length": 8083,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.25546875
+   "seconds": 0.25259375
   },
   "sfx:payout": {
    "file": "sfx/payout.ogg",
    "kind": "sfx",
    "sampleRate": 32000,
-   "length": 19148,
+   "length": 18387,
    "channels": 1,
    "copies": 1,
    "loop": false,
-   "seconds": 0.598375
+   "seconds": 0.57459375
+  },
+  "sfx:equip": {
+   "file": "sfx/equip.ogg",
+   "kind": "sfx",
+   "sampleRate": 32000,
+   "length": 11090,
+   "channels": 1,
+   "copies": 1,
+   "loop": false,
+   "seconds": 0.3465625
+  },
+  "sfx:land": {
+   "file": "sfx/land.ogg",
+   "kind": "sfx",
+   "sampleRate": 32000,
+   "length": 5131,
+   "channels": 1,
+   "copies": 1,
+   "loop": false,
+   "seconds": 0.16034375
   }
  }
 }
