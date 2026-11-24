@@ -39,6 +39,18 @@ export interface BoardLayout {
 
 const PER_PAGE = 3;
 
+/** Wallet badge (WS_WALLET, centre y 80) ends near y 121; the zoom viewport's top edge must start below it. */
+const BADGE_CLEAR = 134;
+/** Clip margin above and below the vehicle inside the zoom viewport. */
+const VIEW_PAD = 16;
+/** Part label: gap under the viewport, half its height (40 px text) and its bottom edge incl. shadow, relative to its centre. */
+const LABEL_GAP = 8;
+const LABEL_HALF = 29;
+const LABEL_BOTTOM = 33;
+/** Wide: the vehicle stands on WIDE_GROUND, so its viewport top is BADGE_CLEAR. */
+const WIDE_VEH_H = 250;
+const WIDE_GROUND = BADGE_CLEAR + VIEW_PAD + WIDE_VEH_H;
+
 export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   const size = paneSize(kind);
   if (kind === 'wide') {
@@ -56,11 +68,14 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     const btnY = panelBottom - 20 - btnH / 2;
     return {
       kind, size,
-      model: { x: 330, groundY: 375, maxW: 450, maxH: 250 },
+      model: { x: 330, groundY: WIDE_GROUND, maxW: 450, maxH: WIDE_VEH_H },
       partPreview: {
-        x: 330, y: 375, maxW: 450, maxH: 250, labelX: 330, labelY: 465, labelW: 560,
-        view: { x: 330, y: 255, w: 450, h: 280 },
-        arrows: { prev: { x: 600, y: 215, angle: 0 }, next: { x: 600, y: 300, angle: 180 } },
+        x: 330, y: WIDE_GROUND, maxW: 450, maxH: WIDE_VEH_H, labelX: 330, labelY: WIDE_GROUND + VIEW_PAD + LABEL_GAP + LABEL_HALF, labelW: 560,
+        view: { x: 330, y: WIDE_GROUND - WIDE_VEH_H / 2, w: 450, h: WIDE_VEH_H + 2 * VIEW_PAD },
+        arrows: {
+          prev: { x: 600, y: WIDE_GROUND - WIDE_VEH_H / 2 - 40, angle: 0 },
+          next: { x: 600, y: WIDE_GROUND - WIDE_VEH_H / 2 + 45, angle: 180 },
+        },
       },
       cards, perPage: PER_PAGE,
       pager: { x: rx + rw / 2 - 250, y: 305, gap: 130 },
@@ -77,13 +92,15 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   // Narrow pane: one view. Vehicle + part walk on top, three challenge tabs, the selected challenge's text below,
   // and a bottom row with Back, "Test it!" and (Admin Mode, more than one page) the card pager.
   const mt = 10;
-  // The wallet badge sits at (480, 80) and its bottom edge is near y 120: keep the vehicle's top below it.
-  const mh = admin ? 310 : 370;
-  const ground = admin ? 245 : 290;
-  const maxH = admin ? 120 : 165;
-  const labelY = admin ? 285 : 335;
-  const newBtn = { x: size.w / 2, y: mt + mh + 10 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
-  const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : mt + mh + 15;
+  // Vertical stack: the zoom viewport's top edge sits below the wallet badge (bottom edge near y 121, see WS_WALLET),
+  // then the label under the viewport, then (admin) the New button, the three tabs, the detail panel and the bottom row.
+  const maxH = admin ? 110 : 165;
+  const ground = BADGE_CLEAR + VIEW_PAD + maxH;
+  const labelY = ground + VIEW_PAD + LABEL_GAP + LABEL_HALF;
+  const labelBottom = labelY + LABEL_BOTTOM;
+  const modelBottom = labelBottom + 5;
+  const newBtn = { x: size.w / 2, y: labelBottom + 10 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
+  const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : labelBottom + 10;
   const tabH = WS_UI.tapMin;
   const gapX = 10;
   const tabW = (size.w - 60 - 2 * gapX) / 3;
@@ -92,14 +109,15 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   const panelBottom = size.h - 135;
   const rowY = size.h - 62;
   const textPagerY = panelBottom - 50;
-  const textTop = panelTop + 100;
+  const textTop = panelTop + 80;
+  const mh = modelBottom - mt;
   return {
     kind, size,
     model: { x: size.w / 2, groundY: ground, maxW: 420, maxH },
     modelPanel: { x: size.w / 2, y: mt + mh / 2, w: size.w - 20, h: mh },
     partPreview: {
       x: size.w / 2, y: ground, maxW: 420, maxH, labelX: size.w / 2, labelY, labelW: 560,
-      view: { x: size.w / 2, y: ground - maxH / 2, w: 520, h: maxH + 40 },
+      view: { x: size.w / 2, y: ground - maxH / 2, w: 520, h: maxH + 2 * VIEW_PAD },
       arrows: { prev: { x: size.w / 2 - 330, y: ground - maxH / 2, angle: -90 }, next: { x: size.w / 2 + 330, y: ground - maxH / 2, angle: 90 } },
     },
     cards, perPage: PER_PAGE,
@@ -108,7 +126,7 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     back: { x: 125, y: rowY, w: 200, h: WS_UI.tapMin },
     panel: { x: size.w / 2, y: (panelTop + panelBottom) / 2, w: size.w - 40, h: panelBottom - panelTop },
     testBtn: { x: 405, y: rowY, w: 340, h: WS_UI.tapMin },
-    textArea: { x: 50, y: textTop, w: size.w - 100, h: textPagerY - 45 - textTop },
+    textArea: { x: 50, y: textTop, w: size.w - 100, h: textPagerY - 40 - textTop },
     textPager: { x: size.w / 2, y: textPagerY, gap: 150 },
     title: { x: 50, y: panelTop + 50, size: 56, maxW: size.w - 100 },
     compactCards: false,
