@@ -48,3 +48,12 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
   - The art reviewer and Vite in `.worktrees` don't pick up file changes, so restart them after merges.
   - The empty folder `.worktrees\ws-baseline` is left over (locked); delete it.
   - Finished Codex worktrees `codex-c1` … `codex-c24` can be removed when the user says so.
+
+## Buddy system (user spec 2026-11-24; jobs C29–C31)
+- Buddies use Brain Racer's existing buddy collection, graphics and animations (C29 moves them into `shared/`).
+- Each player starts with one buddy (Brain Racer's default). Workshop buddy collection and progress are SEPARATE from Brain Racer's.
+- Buddies follow the player around the workshop and playfully interact with stations and activities (e.g. inspecting parts being changed).
+- During challenges they react to events: running ahead, pushing a struggling model, helping search, celebrating or reacting to failures. Purely visual; never affects outcomes.
+- A buddy progress bar on the side of the main workshop screen fills 0→10, +1 per completed challenge; a question mark at the end is the next unlockable buddy. Filling it unlocks a new buddy (seeded random from the still-locked ones) and resets the bar.
+- A dedicated workshop station lets players pick from their unlocked buddies.
+- Jobs: C29 shared buddy art move · C30 save/progress bar/unlock/buddy station · C31 behaviors in room and runs.
