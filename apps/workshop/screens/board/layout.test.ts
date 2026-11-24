@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WS_UI } from '../../config';
+import { WS_PARTVIEW, WS_UI } from '../../config';
 import { rectsOverlap } from '../room/layout';
 import { boardLayout } from './layout';
 
@@ -18,6 +18,14 @@ describe('boardLayout', () => {
       const p = L.partPreview;
       expect(p.labelX - p.labelW / 2).toBeGreaterThanOrEqual(0);
       expect(p.labelX + p.labelW / 2).toBeLessThanOrEqual(L.size.w);
+      // the zoom viewport ends above the label, and both arrows sit inside the pane without covering the viewport
+      expect(p.view.y + p.view.h / 2).toBeLessThan(p.labelY - 29);
+      const half = WS_PARTVIEW.arrowSize / 2;
+      for (const a of [p.arrows.prev, p.arrows.next]) {
+        expect(a.x - half).toBeGreaterThanOrEqual(0);
+        expect(a.x + half).toBeLessThanOrEqual(L.size.w);
+        expect(a.x + half <= p.view.x - p.view.w / 2 || a.x - half >= p.view.x + p.view.w / 2).toBe(true);
+      }
     });
     it(`${kind}${admin ? ' admin' : ''}: text area is inside the panel and above the buttons`, () => {
       const t = L.textArea;

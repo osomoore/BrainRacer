@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stepPart } from './partWalk';
+import { partWalkOrder, stepPart } from './partWalk';
 
 describe('part walk', () => {
   it('wraps both directions through catalog parts', () => {
@@ -12,5 +12,10 @@ describe('part walk', () => {
     expect(stepPart(undefined, ['body', 'wheels'], 1)).toBe('body');
     expect(stepPart(undefined, ['body', 'wheels'], -1)).toBe('wheels');
     expect(stepPart(undefined, [], 1)).toBeUndefined();
+  });
+
+  it('skips aspects with nothing to see (gears)', () => {
+    expect(partWalkOrder(['wheels', 'engine', 'gears', 'springs'])).toEqual(['wheels', 'engine', 'springs']);
+    expect(partWalkOrder(['teeth', 'body'])).toEqual(['teeth', 'body']);
   });
 });

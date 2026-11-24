@@ -173,6 +173,17 @@ for (const [ws, players, first, second] of [['race', 1, 'Wheels', 'Engine'], ['d
   });
 }
 
+test('board race: the part walk skips Gears and shows both cycle arrows', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 1, ws: 'race', screen: 'board' });
+  const partLabel = async () => (await paneTexts(page)).find((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint')) ?? '';
+  await key(page, 'KeyA');
+  const seen = new Set<string>();
+  for (let i = 0; i < 12; i++) { seen.add((await partLabel()).split(':')[0]); await key(page, 'KeyS'); }
+  expect(seen.has('Wheels') && seen.has('Engine')).toBe(true);
+  expect(seen.has('Gears')).toBe(false);
+});
+
 test('board: B returns to the room (character at the board)', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, screen: 'board' });
