@@ -43,3 +43,28 @@ describe('hitRect', () => {
     expect(hitRect({ x: 100, y: 100, w: 50, h: 50 }, 126, 100)).toBe(false);
   });
 });
+
+describe('letter grid edges', () => {
+  // Real wide layout: 13 columns of 120 px keys, then SPACE / DELETE / DONE.
+  const rects = (): FocusRect[] => {
+    const key = 120, gap = 12, out: FocusRect[] = [];
+    for (let i = 0; i < 26; i++) out.push({ x: (i % 13) * (key + gap) + key / 2, y: Math.floor(i / 13) * (key + gap) + key / 2, w: key, h: key });
+    const span = (c: number, n: number) => ({ x: c * (key + gap) + (n * key + (n - 1) * gap) / 2, y: 2 * (key + gap) + key / 2, w: n * key + (n - 1) * gap, h: key });
+    out.push(span(0, 4), span(4, 4), span(8, 5));
+    return out;
+  };
+  it('Right on SPACE / DELETE stays in the bottom row', () => {
+    expect(moveFocus(rects(), 26, 'right')).toBe(27);
+    expect(moveFocus(rects(), 27, 'right')).toBe(28);
+    expect(moveFocus(rects(), 28, 'left')).toBe(27);
+  });
+  it('bottom row wraps within itself', () => {
+    expect(moveFocus(rects(), 28, 'right', true)).toBe(26);
+    expect(moveFocus(rects(), 26, 'left', true)).toBe(28);
+  });
+  it('Up and Down between letters and the wide keys line up by column', () => {
+    expect(moveFocus(rects(), 0, 'down')).toBe(13);
+    expect(moveFocus(rects(), 13, 'down')).toBe(26);
+    expect(moveFocus(rects(), 28, 'up')).toBe(23);
+  });
+});
