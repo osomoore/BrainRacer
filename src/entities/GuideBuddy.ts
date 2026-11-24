@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { buddyBob, buddyPulse, buddyWobble, dinoFlapTexture } from '../../shared/buddies/animation';
 import { guideArt } from '../art/loadoutKeys';
 import { UNLOCK_GUIDES } from '../config/collectibles';
 import { DEPTH, GUIDE } from '../config/gameConfig';
@@ -7,7 +8,6 @@ import type { RaceContext } from '../core/race';
 import type { GuideKind, PlayerId, Vec2 } from '../core/types';
 import { stepFly, type FlyState } from './guideMath';
 
-const FLAP = [0, 1, 2, 1];
 const wrapPi = (a: number) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
 
 interface Puff {
@@ -40,7 +40,6 @@ export class GuideBuddy {
   private flashT = 0;
   private happy = false;
   private calm = false;
-  private dinoFrame = -1;
 
   constructor(private readonly ctx: RaceContext, private readonly player: PlayerId, kind: GuideKind) {
     const s = ctx.scene;
@@ -80,7 +79,7 @@ export class GuideBuddy {
     const t = this.t;
     stepFly(this.fly, target, { x: car.vx, y: car.vy }, dt, GUIDE);
     // gentle hover bob on top of the flight
-    const bob = Math.sin(t * Math.PI * 2 * GUIDE.bobHz) * GUIDE.bobAmp;
+    const bob = buddyBob(t, GUIDE.bobHz, GUIDE.bobAmp);
     const hx = this.fly.x + Math.cos(t * 2.1) * GUIDE.bobAmp * 0.5;
     const hy = this.fly.y + bob;
 
@@ -99,19 +98,19 @@ export class GuideBuddy {
 
     if (this.isDino) {
       const fps = this.happy ? GUIDE.dinoFlapFpsHappy : GUIDE.dinoFlapFps;
-      const fi = FLAP[Math.floor(t * fps) % 4];
-      if (fi !== this.dinoFrame) { this.dinoFrame = fi; this.body.setTexture(TEX.buddyDino[fi]); }
+      const texture = dinoFlapTexture(t, fps);
+      if (this.body.texture.key !== texture) this.body.setTexture(texture);
       this.body
         .setRotation(this.heading).setScale(sc, sc * (1 - Math.abs(this.bank) * 0.22));
       this.glow.setScale(1.1 + (this.happy ? 0.3 : 0)).setAlpha(0.5 + 0.12 * Math.sin(t * 6));
     } else {
-      const pulse = 1 + 0.13 * Math.sin(t * GUIDE.starBlinkHz) + (this.happy ? 0.12 * Math.sin(t * 14) : 0);
+      const pulse = buddyPulse(t, GUIDE.starBlinkHz, this.happy);
       this.flashT -= dt;
       if (this.flashT < -GUIDE.starFlashEverySec) this.flashT = 0.1;
       if (this.calm && !GUIDE.boostTwinkle) { this.flashT = 0; if (this.body.isTinted) this.body.clearTint(); }
       else if (this.flashT > 0) this.body.setTintFill(0xffffff); else if (this.body.isTinted) this.body.clearTint();
       // stay upright on screen: cancel the view rotation, plus a friendly wobble
-      this.body.setRotation(-this.ctx.camera.viewRotation(this.player) + Math.sin(t * 3) * 0.18).setScale(sc * pulse);
+      this.body.setRotation(-this.ctx.camera.viewRotation(this.player) + buddyWobble(t)).setScale(sc * pulse);
       const tw = 0.5 + 0.35 * Math.sin(t * GUIDE.starBlinkHz) ** 2 + (this.flashT > 0 ? 0.3 : 0);
       this.glow.setScale(1.25 * pulse + (this.happy ? 0.4 : 0)).setAlpha(Math.min(1, tw));
     }

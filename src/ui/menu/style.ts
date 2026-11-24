@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { carArt } from '../../art/loadoutKeys';
-import { UNLOCK_GUIDES, UNLOCK_VEHICLES } from '../../config/collectibles';
-import type { CarKind, ControllerFamily, GuideKind, InputDevice } from '../../core/types';
+import { UNLOCK_VEHICLES } from '../../config/collectibles';
+import type { CarKind, ControllerFamily, InputDevice } from '../../core/types';
 
+export { buddyName as guideName } from '../../../shared/buddies/catalog';
 export { FONT_HEAD, FONT_BODY, MIN_TEXT, MENU, hexNum, bigText, arrowShape, drawArrow, drawJoinPanelFrame } from '../../../shared/ui/menu/style';
 export type { BigTextOpts, Selectable } from '../../../shared/ui/menu/style';
 
@@ -28,11 +29,6 @@ export function carName(kind: CarKind): string {
   if (kind === 'dino') return 'Dino-Car';
   if (kind === 'kart') return 'Red Kart';
   return UNLOCK_VEHICLES[kind].name;
-}
-export function guideName(kind: GuideKind): string {
-  if (kind === 'dino') return 'Flying Dino';
-  if (kind === 'star') return 'Twinkle Star';
-  return UNLOCK_GUIDES[kind].name;
 }
 export function deviceLabel(d: InputDevice, family?: ControllerFamily): string {
   if (d.type === 'gamepad') {

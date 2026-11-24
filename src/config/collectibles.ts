@@ -1,3 +1,4 @@
+import { UNLOCK_BUDDIES } from '../../shared/buddies/catalog';
 import type { RaceMap } from '../core/types';
 import { specFromRatings, type VehicleRatings } from '../entities/vehicleStats';
 
@@ -121,24 +122,8 @@ export const WORLD_VEHICLES = {
 export type WorldVehicle = (typeof WORLD_VEHICLES)[keyof typeof WORLD_VEHICLES][number];
 export const WORLD_VEHICLE_IDS: readonly WorldVehicle[] = Object.values(WORLD_VEHICLES).flat();
 
-export const UNLOCK_GUIDES = {
-  fairy: { name: 'Fairy', glow: 0xff8bed },
-  bumblebee: { name: 'Bumblebee', glow: 0xffda5b },
-  owl: { name: 'Night Owl', glow: 0xe2b0ff },
-  rocket: { name: 'Rocket', glow: 0xff9259 },
-  bombBuddy: { name: 'Bomb Buddy', glow: 0xffb349 },
-  cloudPuff: { name: 'Cloud Puff', glow: 0xb7eaff },
-  firefly: { name: 'Firefly', glow: 0xe8ff83 },
-  jelly: { name: 'Jelly', glow: 0x96f4ff },
-  puffCub: { name: 'Puff Cub', glow: 0xc6ff8f },
-  sporeSprout: { name: 'Spore Sprout', glow: 0xffb4ea },
-  squareSnowman: { name: 'Square Snowman', glow: 0xbafaff },
-  ember: { name: 'Ember', glow: 0xffb670 },
-  sugarSprite: { name: 'Sugar Sprite', glow: 0xffa7d9 },
-  crownSquire: { name: 'Crown Squire', glow: 0xffe17f },
-  paperPlane: { name: 'Paper Plane', glow: 0xb8eeff },
-  yarnBall: { name: 'Yarn Ball', glow: 0xffbd9f },
-} as const;
+/** Legacy racer alias; the shared buddy catalog owns names and glow values. */
+export const UNLOCK_GUIDES = UNLOCK_BUDDIES;
 
 export type UnlockGuide = keyof typeof UNLOCK_GUIDES;
 export const UNLOCK_GUIDE_IDS = Object.keys(UNLOCK_GUIDES) as UnlockGuide[];
