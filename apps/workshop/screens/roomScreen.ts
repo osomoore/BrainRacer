@@ -13,7 +13,8 @@ import { FocusGroup } from '../ui/FocusGroup';
 import { cardColor } from '../ui/screenChrome';
 import { COLORS, makeText } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
-import { buddyBar, buddyCelebration, buddyImage } from './room/buddyDisplay';
+import { buddyBar, buddyCelebration, buddyImage, flyBuddy } from './room/buddyDisplay';
+import { boardPerch } from './room/buddyFlight';
 import { Character } from './room/Character';
 import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
@@ -78,26 +79,16 @@ const roomScreen: ScreenFactory = (): Screen => {
       const buddyPose = { ...home, angle: 0 };
       objs.push(buddy.setDepth(110).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
       animateBuddyIdle(scene, buddy, buddyPose);
-      const drift = (at: Point, lean = 0) => {
+      const drift = (at: Point, lean = 0, pointAt?: Point) => {
         buddyTween?.remove();
-        if (at.x !== buddyPose.x) buddy.setFlipX(at.x < buddyPose.x);
-        buddyTween = scene.tweens.add({
-          targets: buddyPose, ...at, angle: 0, duration: WS_BUDDIES.driftMs, ease: 'Sine.easeOut',
-          onComplete: () => {
-            if (!lean) return;
-            buddy.setFlipX(lean < 0);
-            buddyTween = scene.tweens.add({
-              targets: buddyPose, angle: lean, y: at.y + Math.abs(lean),
-              duration: WS_BUDDIES.peekMs, ease: 'Sine.easeInOut', yoyo: true,
-            });
-          },
-        });
+        buddyTween = flyBuddy(scene, buddy, buddyPose, at, pointAt ? { pointAt } : { endAngle: lean, endFlipX: lean ? lean < 0 : at.x < buddyPose.x ? true : at.x > buddyPose.x ? false : buddy.flipX });
       };
-      const peekAt = (st: { x: number; stand: Point }) => {
+      const peekAt = (st: { x: number; y: number; stand: Point }) => {
         const offset = L.buddy.size / 2;
         const side = Math.sign(st.stand.x - st.x);
-        drift({ x: st.stand.x + side * offset, y: st.stand.y - offset }, side > 0 ? -18 : 18);
+        drift({ x: st.stand.x + side * offset, y: st.stand.y - offset }, 0, { x: st.x, y: st.y });
       };
+      const peekBoard = () => drift(boardPerch(L.board, L.buddy.size), 0, { x: L.board.x, y: L.board.y });
 
       // stations
       const signs: Button[] = [];
@@ -161,6 +152,7 @@ const roomScreen: ScreenFactory = (): Screen => {
         const focused = group.focused;
         if (focused === lastFocus) return;
         lastFocus = focused;
+        if (focused === board) { peekBoard(); return; }
         const st = focused && stops[stationButtons.indexOf(focused)];
         if (!st) { drift(home); return; }
         peekAt(st);

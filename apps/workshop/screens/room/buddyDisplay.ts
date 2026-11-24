@@ -3,6 +3,7 @@ import { animateBuddyIdle, BUDDY_KINDS, buddyTexture, type BuddyKind } from '../
 import { WS_BUDDIES } from '../../config';
 import type { WorkshopBuddies } from '../../core/types';
 import { COLORS, makeText, roundedTexture } from '../../ui/style';
+import { facesLeft, flightPose, pointAngle } from './buddyFlight';
 import type { Rect } from './layout';
 
 export function buddyImage(scene: Phaser.Scene, kind: BuddyKind, x: number, y: number, size: number): Phaser.GameObjects.Image {
@@ -37,4 +38,30 @@ export function buddyCelebration(scene: Phaser.Scene, x: number, y: number, kind
   const image = buddyImage(scene, kind, 0, 32, 132);
   animateBuddyIdle(scene, image);
   return scene.add.container(x, y, [panel, title, image]).setDepth(700).setName('buddy-celebration');
+}
+
+export interface BuddyPose { x: number; y: number; angle: number }
+
+/**
+ * Flies the buddy along a curved, gently looping path to `to`, tilting along the path and ending pointing at `pointAt`
+ * (or at a fixed `endAngle`). Returns the tween so the caller can cancel it.
+ */
+export function flyBuddy(
+  scene: Phaser.Scene, buddy: Phaser.GameObjects.Image, pose: BuddyPose, to: { x: number; y: number },
+  target: { pointAt?: { x: number; y: number }; endAngle?: number; endFlipX?: boolean },
+): Phaser.Tweens.Tween {
+  const from = { x: pose.x, y: pose.y };
+  const endFlipX = target.pointAt ? facesLeft(to, target.pointAt, buddy.flipX) : target.endFlipX ?? (to.x < from.x ? true : to.x > from.x ? false : buddy.flipX);
+  const endAngle = target.pointAt ? pointAngle(to, target.pointAt, endFlipX) : target.endAngle ?? 0;
+  const side = Math.random() < 0.5 ? 1 : -1;
+  const progress = { t: 0 };
+  return scene.tweens.add({
+    targets: progress, t: 1, duration: WS_BUDDIES.driftMs, ease: 'Sine.easeInOut',
+    onUpdate: () => {
+      const p = flightPose(from, to, progress.t, { side, endFlipX, endAngle });
+      pose.x = p.x; pose.y = p.y; pose.angle = p.angle;
+      buddy.setFlipX(p.flipX);
+    },
+    onComplete: () => { pose.x = to.x; pose.y = to.y; pose.angle = endAngle; buddy.setFlipX(endFlipX); },
+  });
 }

@@ -105,9 +105,11 @@ export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as
 export const WS_BUDDIES = {
   winsPerUnlock: 10,
   celebrationMs: 2200,
-  driftMs: 480,
+  driftMs: 720,
   peekMs: 240,
   hopMs: 175,
+  /** Room flight: curved, gently looping path; the buddy tilts along it and then points at its target. */
+  fly: { arc: 0.22, loop: 0.1, maxOffsetPx: 130, maxTiltDeg: 55, settleFrom: 0.7, flipDeadPx: 24, pointNudgePx: 14 },
   run: {
     size: { wide: 150, tall: 110 },
     leadMs: 1150,
