@@ -71,6 +71,40 @@ export function stripeMarks(box: Box, seed: number, partSalt: number) {
   }));
 }
 
+/** The overhead skull clips both ends of each band against the same silhouette. */
+function drawMirroredStripes(g: G, box: Box, patternSeed: number, partSalt: number, color: string): void {
+  const height = box.y1 - box.y0;
+  const center = (box.y1 + box.y0) / 2;
+  const edge = height / 2 + 4;
+  g.fillStyle = color;
+  for (const { x, length, width, bend } of stripeMarks(box, patternSeed, partSalt)) {
+    const left = x - width / 2, right = x + width / 2;
+    const waist = x + bend;
+    g.beginPath();
+    if (length >= height * 0.65) {
+      const inside = width * 0.22;
+      const curve = edge * 0.48;
+      g.moveTo(left, center - edge);
+      g.quadraticCurveTo(left, center - curve, waist - inside, center);
+      g.quadraticCurveTo(left, center + curve, left, center + edge);
+      g.lineTo(right, center + edge);
+      g.quadraticCurveTo(right, center + curve, waist + inside, center);
+      g.quadraticCurveTo(right, center - curve, right, center - edge);
+      g.closePath();
+    } else {
+      const gap = height / 2 - length * 0.64;
+      const curve = (edge + gap) / 2;
+      for (const side of [-1, 1]) {
+        g.moveTo(left, center + side * edge);
+        g.quadraticCurveTo(left, center + side * curve, waist, center + side * gap);
+        g.quadraticCurveTo(right, center + side * curve, right, center + side * edge);
+        g.closePath();
+      }
+    }
+    g.fill();
+  }
+}
+
 export function crestFill(sk: SkinSpec, start: number, end: number, topView = false): (g: G) => void {
   return (g) => {
     const color = g.createLinearGradient(topView ? start : 0, topView ? 0 : start, topView ? end : 0, topView ? 0 : end);
@@ -236,7 +270,7 @@ export function drawFrill(g: G, x: number, y: number, rx: number, ry: number, lo
 }
 
 /** Fill callback for the current clipped path. */
-export function skinFill(sk: SkinSpec, box: Box, seed: number, patternSeed = hashStr(sk.key)): (g: G) => void {
+export function skinFill(sk: SkinSpec, box: Box, seed: number, patternSeed = hashStr(sk.key), mirrorStripes = false): (g: G) => void {
   return (g) => {
     const { look: L } = sk;
     const gr = g.createLinearGradient(0, box.y0, 0, box.y1);
@@ -263,7 +297,8 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, patternSeed = has
         g.beginPath(); g.arc(x, y, 8 * radius, 0, Math.PI * 2); g.fill();
       }
     }
-    skinMarks(g, sk, box, seed, patternSeed);
+    if (mirrorStripes && sk.pattern === 'stripes' && sk.ex) drawMirroredStripes(g, box, patternSeed, seed, sk.ex.c1);
+    else skinMarks(g, sk, box, seed, patternSeed);
   };
 }
 

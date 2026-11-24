@@ -1,5 +1,5 @@
 /**
- * Art review sheet. `workshop.html?dev=WorkshopParts[&workshop=dino][&aspect=teeth][&page=random|beaks][&seed=3]`
+ * Art review sheet. `workshop.html?dev=WorkshopParts[&workshop=dino][&aspect=size&head=head.horned&extra=extra.feathers][&page=random|beaks][&seed=3]`
  * Keys: Left/Right = aspect, Up/Down or 1/2 = workshop, R = random combos page / reseed, A = aspect page.
  * Every variant of the aspect is drawn on the default model, side view on top and top view below.
  * Race attachments: &page=jeep|winch&body=body.truck&size=size.tiny compares every wheel on that build.
@@ -99,7 +99,8 @@ export default class WorkshopParts extends Phaser.Scene {
         const variant = cat.variants.find((v) => v.aspect === aspect && v.id === q.get(aspect));
         if (variant) base[aspect] = variant.id;
       }
-      if (q.get('extra') === 'extra.feathers') base.extra = 'extra.feathers';
+      const extra = cat.variants.find((v) => v.aspect === 'extra' && v.id === q.get('extra'));
+      if (extra) base.extra = extra.id;
     }
     const attachment = this.random ? null : q.get('page');
     if (this.workshop === 'race' && (attachment === 'jeep' || attachment === 'winch')) {
