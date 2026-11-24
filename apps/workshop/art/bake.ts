@@ -4,7 +4,7 @@
  */
 import type Phaser from 'phaser';
 import { type Pt, darken } from './geom';
-import { applyPainted, paintedImage, watchPainted } from './paint/painted';
+import { paintTexture } from './paint/painted';
 
 export const Q = 1.5;
 export const OUTLINE = '#1b1b3a';
@@ -12,7 +12,7 @@ export const OUTLINE = '#1b1b3a';
 export const OL = 5;
 
 export interface PartSpec {
-  /** Unique cache key (must include every look parameter that changes the pixels). */
+  /** Texture cache and paint manifest key (includes every look parameter that changes the pixels). */
   key: string;
   /** Texture size in design units. */
   w: number;
@@ -27,8 +27,7 @@ export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   if (scene.textures.exists(spec.key)) return;
   const tex = scene.textures.createCanvas(spec.key, Math.ceil(spec.w * Q), Math.ceil(spec.h * Q));
   if (!tex) return;
-  const painted = paintedImage(spec.key);
-  if (painted && applyPainted(tex, painted)) return; // ComfyUI-painted art for this key (art/paint)
+  if (paintTexture(tex)) return;
   const g = tex.getContext();
   g.save();
   g.scale(Q, Q);
@@ -38,7 +37,6 @@ export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   spec.draw(g);
   g.restore();
   tex.refresh();
-  watchPainted(spec.key, tex);
 }
 
 /** Bake (if needed) and add an Image whose origin is the part origin, at design scale. */

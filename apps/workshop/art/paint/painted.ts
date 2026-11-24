@@ -1,8 +1,7 @@
 /**
  * Painted art runtime (the ComfyUI paint pass output, see docs/WORKSHOP_ART_PIPELINE.md).
- * `public/art/workshop/manifest.json` lists key -> png. `bake.ts` asks `paintedImage(key)` before drawing a shape
- * texture; if the painted image is not loaded yet the shape is drawn and `watchPainted` upgrades the texture the
- * moment the image arrives (so bare dev scenes without the boot scene work too). `?art=shapes` disables all of it.
+ * `public/art/workshop/manifest.json` maps texture keys to PNGs. The baker uses the same canvas texture for
+ * shapes and painted art, so a late paint upgrade keeps all existing sprites, frames and origins.
  * URLs are relative to the page (the site may be served from a sub-path).
  */
 import type Phaser from 'phaser';
@@ -15,6 +14,7 @@ const images = new Map<string, HTMLImageElement>();
 const watching = new Map<string, Phaser.Textures.CanvasTexture[]>();
 let started: Promise<void> | null = null;
 let manifest: PaintedManifest | null = null;
+let finished = false;
 
 /** `?art=shapes` forces the code-drawn shapes (to compare with the painted look). */
 export function paintedEnabled(): boolean {
@@ -23,32 +23,30 @@ export function paintedEnabled(): boolean {
 }
 
 export function paintedManifest(): PaintedManifest | null { return manifest; }
-export function paintedImage(key: string): HTMLImageElement | null { return images.get(key) ?? null; }
-
-function fits(img: HTMLImageElement, tex: Phaser.Textures.CanvasTexture): boolean {
-  const c = tex.getSourceImage() as HTMLCanvasElement;
-  return img.naturalWidth === c.width && img.naturalHeight === c.height;
-}
 
 /** Replace a baked shape texture's pixels with the painted image (same size only). */
-export function applyPainted(tex: Phaser.Textures.CanvasTexture, img: HTMLImageElement): boolean {
-  if (!fits(img, tex)) return false;
-  const g = tex.getContext();
+function applyPainted(tex: Phaser.Textures.CanvasTexture, img: HTMLImageElement): boolean {
   const c = tex.getSourceImage() as HTMLCanvasElement;
+  if (img.naturalWidth !== c.width || img.naturalHeight !== c.height) return false;
+  const g = tex.getContext();
   g.clearRect(0, 0, c.width, c.height);
   g.drawImage(img, 0, 0);
   tex.refresh();
   return true;
 }
 
-/** Called by bake.ts after drawing a shape: upgrade it later when its painted image loads. */
-export function watchPainted(key: string, tex: Phaser.Textures.CanvasTexture): void {
-  if (!paintedEnabled()) return;
-  if (manifest && !manifest.entries[key]) return;
+/** Paint a baked texture by its registered key. Return false when the baker should draw the fallback now. */
+export function paintTexture(tex: Phaser.Textures.CanvasTexture): boolean {
+  if (!paintedEnabled()) return false;
+  const key = tex.key;
+  const im = images.get(key);
+  if (im) return applyPainted(tex, im);
+  if (finished || (manifest && !Object.hasOwn(manifest.entries, key))) return false;
   const list = watching.get(key) ?? [];
   list.push(tex);
   watching.set(key, list);
   void startPaintedArt();
+  return false;
 }
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
@@ -79,6 +77,10 @@ export function startPaintedArt(): Promise<void> {
         watching.delete(key);
       }));
     } catch { /* offline or no art: code shapes */ }
+    finally {
+      finished = true;
+      watching.clear();
+    }
   })();
   return started;
 }
@@ -91,8 +93,9 @@ export function paintedReady(timeoutMs = 4000): Promise<void> {
 
 /** Painted texture key for prompt-only art (backdrops, textures): the key itself when its image is loaded into the scene. */
 export function ensurePaintedTexture(scene: Phaser.Scene, key: string): string | null {
+  if (!paintedEnabled()) return null;
   if (scene.textures.exists(key)) return key;
-  const im = paintedImage(key);
+  const im = images.get(key);
   if (!im) return null;
   scene.textures.addImage(key, im);
   return key;
