@@ -383,11 +383,11 @@ for (const mood of ['happy', 'giggle', 'oops', 'scared', 'sleep'] as const) {
     for (const x of [58, 88, 120, 150]) { stroke(g, [[x, 118], [x + (x < 100 ? -12 : 12), 144]], INK, 7); }
     stroke(g, [[168, 70], [186, 36], [196, 30]], INK, 4); stroke(g, [[158, 66], [168, 30], [178, 24]], INK, 4);
     oval(g, 196, 30, 6, 6, '#ffd23f', 3); oval(g, 178, 24, 6, 6, '#ffd23f', 3);
-    oval(g, 150, 92, 46, 42, '#ffb347', 5);
     g.beginPath(); g.ellipse(88, 92, 70, 58, 0, Math.PI, 0); g.lineTo(18, 92); g.closePath();
     g.fillStyle = '#e8423a'; g.fill(); g.lineWidth = 5; g.strokeStyle = INK; g.stroke();
     oval(g, 88, 112, 70, 14, '#2a2a4a', 4);
     for (const [x, y] of [[56, 70], [90, 52], [120, 74], [76, 88]] as const) oval(g, x, y, 9, 9, INK, 0);
+    oval(g, 150, 92, 46, 42, '#ffb347', 5); // head on top of the shell
     critterFace(g, 156, 84, 9, mood);
   });
 }
@@ -444,6 +444,8 @@ def('friend2:a', 130, 170, 65, 166, (g) => friend(g, '#8f9bff', false));
 def('friend2:b', 130, 170, 65, 166, (g) => friend(g, '#8f9bff', true));
 function friend(g: G, c: string, up: boolean): void {
   poly(g, [[28, 120], [4, 130], [22, 142]], c, 4);
+  // back legs (a second, darker pair set behind and flanking the front ones)
+  oval(g, 26, 148, 12, 15, darken(c, 0.25), 4); oval(g, 90, 148, 12, 15, darken(c, 0.25), 4);
   oval(g, 56, 104, 30, 36, c, 5); oval(g, 56, 114, 18, 22, lighten(c, 0.5), 0);
   oval(g, 46, 150, 12, 16, darken(c, 0.1), 4); oval(g, 70, 150, 12, 16, darken(c, 0.1), 4);
   stroke(g, [[46, 100], [34, 116]], INK, 12); stroke(g, [[46, 100], [34, 116]], c, 7);

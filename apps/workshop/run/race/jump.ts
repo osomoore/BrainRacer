@@ -113,8 +113,9 @@ export default racePlayer('jump', async (ctx) => {
     return;
   }
   // pass: two gentle boings and roll on
-  for (const h of [34, 16]) {
-    await Promise.all([S.squash(1.1, 0.88, 90), along(ctx, 300, (t) => { S.car.y = -Math.sin(t * Math.PI) * h; })]);
+  for (const [h, roll] of [[34, 150], [16, 80]]) {
+    const bx = S.car.x;
+    await Promise.all([S.squash(1.1, 0.88, 90), along(ctx, 300, (t) => { S.car.y = -Math.sin(t * Math.PI) * h; S.car.x = bx + roll * t; })]);
     ctx.audio.sfx('boing', { volume: 0.45, rate: 1.4 });
   }
   S.car.y = 0;

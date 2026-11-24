@@ -16,6 +16,7 @@ import type { StageContext } from '../types';
 import { Fx, along } from './fx';
 import { type Ctx2D, PAL, bakeKey, bakeTemp, circ, darken, fl, hashKey, ol, prop, spec } from './draw';
 import { P } from './props';
+import { WS_RUN } from '../../config';
 
 export interface HillLayer { color: string; h: number; f: number; waves?: number; seed?: number; dy?: number }
 export interface SideOpts {
@@ -64,6 +65,9 @@ export class SideStage {
   private time = 0;
   private readonly upd: (t: number, dt: number) => void;
   private dead = false;
+  private lastX = 0;
+  /** Smoothed car speed in world units per second (used to coast to a stop before the cheer). */
+  private vx = 0;
 
   constructor(readonly ctx: StageContext, readonly opts: SideOpts) {
     this.scene = ctx.scene;
@@ -159,12 +163,24 @@ export class SideStage {
 
   /** Happy stop: celebrate with sparkles. */
   async cheer(ms = 900, sound = true): Promise<void> {
+    await this.coast();
     this.ctx.rig.play('celebrate');
     if (sound) this.ctx.audio.sfx('cheer', { volume: 0.7 });
     const p = this.ctx.rig.anchor('roof');
     this.fx.burst(this.layers.front, 'sparkle', this.car.x + p.x, this.car.y + p.y - 20);
     this.ctx.audio.sfx('sparkle');
     await this.ctx.wait(ms);
+  }
+
+  /** If the car is still rolling, let it decelerate smoothly to a stop (no-op when it is already standing). */
+  async coast(): Promise<void> {
+    const v = Math.min(WS_RUN.coastMaxSpeed, this.vx);
+    if (v < WS_RUN.coastMinSpeed) return;
+    const ms = Math.min(WS_RUN.coastMaxMs, Math.max(350, v * 1.6));
+    const x0 = this.car.x, dist = v * ms / 2000;
+    this.ctx.rig.play('drive');
+    await along(this.ctx, ms, (t) => this.setCarX(x0 + dist * t), 'Quad.easeOut');
+    this.vx = 0;
   }
 
   /** Dust puffs at the wheels. */
@@ -302,6 +318,8 @@ export class SideStage {
   private tick(dt: number): void {
     if (this.dead) return;
     this.time += dt;
+    if (dt > 0) { this.vx += ((this.car.x - this.lastX) / dt - this.vx) * 0.6; }
+    this.lastX = this.car.x;
     if (this.follow) {
       const t = this.targetCam();
       this.camX += (t - this.camX) * Math.min(1, dt * 7);
