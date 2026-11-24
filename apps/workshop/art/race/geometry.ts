@@ -201,12 +201,15 @@ export function springHalfWidth(id: string): number {
   return sp.width / 2 + sp.thick / 2 + 2;
 }
 
-/** Highest point (smallest y) of the body silhouette across a spring's width at axle x, so nothing of the spring pokes above it. */
+/**
+ * Lowest top (largest y) of the body silhouette across a spring's width at axle x: the spring must be covered at every
+ * x it spans, so on a slanted cabin edge the lowest side limits it (the highest side would let it poke out past the slope).
+ */
 export function bodyTopAtAxle(id: string, geo: RaceGeom, axle: number): number {
   const hw = springHalfWidth(id);
-  let top = Infinity;
-  for (let x = axle - hw; x <= axle + hw; x += 2) top = Math.min(top, geo.topY(x));
-  return Math.min(top, geo.topY(axle + hw));
+  let top = -Infinity;
+  for (let x = axle - hw; x <= axle + hw; x += 2) top = Math.max(top, geo.topY(x));
+  return Math.max(top, geo.topY(axle + hw));
 }
 
 /**

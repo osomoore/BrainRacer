@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WS_ART } from '../../config';
 import { RACE_VARIANTS } from '../../content/race/variants';
-import { bodyLowerEdge, bodyTopAtAxle, raceGeom, raceLooks, SPRING_POKE_MARGIN, springEnds, springHeight, springPitch, tireRadius } from './geometry';
+import { bodyLowerEdge, bodyTopAtAxle, raceGeom, raceLooks, SPRING_POKE_MARGIN, springEnds, springHalfWidth, springHeight, springPitch, tireRadius } from './geometry';
 import { SPRING_BOB_MAX, SPRING_INSET } from './looks';
 
 const ids = (aspect: string) => RACE_VARIANTS.filter((v) => v.aspect === aspect).map((v) => v.id);
@@ -61,7 +61,11 @@ describe('race springs', () => {
         const look = raceLooks(model), geo = raceGeom(look);
         for (const ax of [geo.frontAxle, geo.rearAxle]) {
           const H = Math.round(springHeight(springs, geo, ax));
-          const bodyTop = bodyTopAtAxle(springs, geo, ax) - geo.rideRaise;
+          // Independent of bodyTopAtAxle: the lowest body top over the spring's whole width (a slanted cabin edge must cover both sides).
+          const hw = springHalfWidth(springs);
+          let bodyTop = -Infinity;
+          for (let x = ax - hw; x <= ax + hw; x += 1) bodyTop = Math.max(bodyTop, geo.topY(x));
+          bodyTop -= geo.rideRaise;
           for (const bob of [0, SPRING_BOB_MAX / 2, SPRING_BOB_MAX]) {
             // Both the body and the spring ride up by bob, so compare in the body's frame (the bob cancels except for the spring's own scale).
             const top = springEnds(springs, H, geo, bob).top + bob;
