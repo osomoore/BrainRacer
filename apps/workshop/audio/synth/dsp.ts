@@ -45,6 +45,27 @@ export function normalizePeak(channels: readonly Float32Array[], target: number)
   return g;
 }
 
+/** Match average level across cues, bending only the loudest peaks for Opus headroom. */
+export function normalizeMusic(channels: readonly Float32Array[], rmsTarget: number, peakLimit: number): void {
+  let energy = 0;
+  let count = 0;
+  for (const channel of channels) {
+    for (const sample of channel) energy += sample * sample;
+    count += channel.length;
+  }
+  if (energy === 0) return;
+  const gain = rmsTarget / Math.sqrt(energy / count);
+  const knee = peakLimit * .8;
+  const headroom = peakLimit - knee;
+  for (const channel of channels) {
+    for (let i = 0; i < channel.length; i++) {
+      const sample = channel[i] * gain;
+      const excess = Math.abs(sample) - knee;
+      channel[i] = excess <= 0 ? sample : Math.sign(sample) * (knee + headroom * Math.tanh(excess / headroom));
+    }
+  }
+}
+
 /** Short fade in/out (samples) to avoid clicks on one-shots. */
 export function fadeEdges(ch: Float32Array, inSamples: number, outSamples: number): void {
   for (let i = 0; i < inSamples && i < ch.length; i++) ch[i] *= i / inSamples;

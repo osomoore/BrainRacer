@@ -222,9 +222,13 @@ export const WS_ART = {
 // ---------------------------------------------------------------- audio (apps/workshop/audio)
 export const WS_AUDIO = {
   musicVolume: 0.5,
+  /** Workshop-room beds by workshop. */
+  sceneMusic: { race: 'raceShop', dino: 'dinoLab' },
+  /** Challenge-run cues by workshop. */
+  runMusic: { race: 'raceRun', dino: 'dinoRun' },
   sfxVolume: 0.8,
   /** Music crossfade between tracks, seconds. */
-  musicFadeSec: 1.2,
+  musicFadeSec: 0.65,
   /** Music level (fraction) while a sting plays, and the ramps around it. */
   duckLevel: 0.25,
   duckAttackSec: 0.08,

@@ -14,7 +14,7 @@ export function playWorkshopSfx(audio: WorkshopAudio, name: WsAudioSfx, opts?: {
 
 const record = <T extends string>(r: Record<T, true>): T[] => Object.keys(r) as T[];
 
-export const WS_MUSIC_NAMES: readonly WsMusic[] = record<WsMusic>({ raceShop: true, dinoLab: true, title: true });
+export const WS_MUSIC_NAMES: readonly WsMusic[] = record<WsMusic>({ raceShop: true, dinoLab: true, title: true, raceRun: true, dinoRun: true });
 export const WS_STING_NAMES: readonly WsSting[] = record<WsSting>({ success: true, fail: true, unlock: true });
 export const WS_SFX_NAMES: readonly WsAudioSfx[] = record<WsAudioSfx>({
   click: true, select: true, back: true, step: true, whoosh: true, pop: true, sparkle: true,

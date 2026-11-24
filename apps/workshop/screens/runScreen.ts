@@ -7,6 +7,7 @@
 import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
 import type { RunResult } from '../core/types';
+import { WS_AUDIO } from '../config';
 import { engine } from '../logic';
 import { playRun, type RunHandle } from '../run/runner';
 import { currentProgress } from './room/progress';
@@ -76,6 +77,7 @@ const runScreen: ScreenFactory = (): Screen => {
       const progress = ws ? currentProgress(ctx, ws) : undefined;
       const challenge = progress?.challenges[challengeId];
       if (!ws || !progress?.active.includes(challengeId) || !challenge) { ctx.go('board'); return; }
+      ctx.audio.music(WS_AUDIO.runMusic[ws]);
       result = engine.evaluate(ws, progress.model, challenge);
       try {
         handle = playRun({
