@@ -183,3 +183,20 @@ export const WS_AUDIO = {
   /** Ignore the same sfx retriggered within this many seconds. */
   minReplayGapSec: 0.03,
 } as const;
+
+// ---------------------------------------------------------------- fog look (apps/workshop/run/common/fogFx.ts)
+export const WS_FOG = {
+  /** Default look without a `&fog=a|b|c|d` dev query: a = drifting bands, b = depth haze, c = patchy clouds, d = mix. */
+  defaultLook: 'd',
+  /** Strength multiplier when the car is bright (pass) vs dull (fail, the fog swallows it). */
+  brightMul: 0.8,
+  dullMul: 1.25,
+  /** Drifting band layers (far to near): drift speed px/s, alpha, vertical centre as screen fraction. */
+  bands: { layers: 3, speed: [10, 20, 34], alpha: [0.2, 0.28, 0.34], yFrac: [0.58, 0.72, 0.86] },
+  /** Depth haze: alpha at the top and at the horizon, where the clear zone starts (gradient fraction). */
+  haze: { top: 0.55, horizon: 0.72, clearFrom: 0.8, color: '#e6ecf0' },
+  /** Patchy clouds: count, alpha, drift speed px/s, scale range. */
+  clouds: { count: 6, alpha: 0.5, speed: [24, 48], scale: [1.6, 2.8] },
+  /** Dull car alpha in the fog fail (fades but stays findable). */
+  dullCarAlpha: 0.42,
+} as const;
