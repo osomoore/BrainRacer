@@ -484,3 +484,32 @@ test('Dino Lab: aborting runs early leaves no orphaned tweens behind', async ({ 
   for (let i = 0; i < 5; i++) await abort();
   expect(await tweenCount()).toBeLessThanOrEqual(base);
 });
+
+for (const ws of ['race', 'dino'] as const) for (const players of [1, 2] as const) for (const via of ['New Tests', 'Back'] as const) {
+  test(`${ws} ${players}P: after a failed test, ${via} returns to the same selected challenge`, async ({ page }) => {
+    await boot(page);
+    await enter(page, { players, ws, reading: 'medium' });
+    // the last failing challenge on the page, so the default selection (the first card) is not accidentally right
+    const pick = await page.evaluate((ws) => {
+      const w = (window as any).__ws;
+      const p = w.engine.progressOf(w.contexts()[0].save(), ws);
+      const idx = p.active.map((id: string, i: number) => (w.engine.evaluate(ws, p.model, p.challenges[id]).passed ? -1 : i)).filter((i: number) => i >= 0).pop() as number;
+      return { idx, id: p.active[idx] as string, text: p.challenges[p.active[idx]].stages[0].requirements[0].text.medium as string };
+    }, ws);
+    expect(pick.idx).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < pick.idx; i++) await key(page, 'KeyD');
+    await page.waitForTimeout(300);
+    expect(await paneTexts(page)).toContain(pick.text);
+    await key(page, 'Space'); // A on the card starts its test
+    await expectScreens(page, players === 2 ? 'run,board' : 'run');
+    await skipToResults(page);
+    expect((await saved(page, 'p1', ws)).fails[pick.id]).toBe(1);
+    if (via === 'New Tests') { await key(page, 'KeyA'); await key(page, 'Space'); } else await key(page, 'Escape');
+    await expectScreens(page, players === 2 ? 'board,board' : 'board');
+    await page.waitForTimeout(400);
+    const texts = await paneTexts(page);
+    expect(texts, 'the failed challenge is still selected').toContain(pick.text);
+    expect(texts).toContain('Test it!');
+    await shot(page, `board-return-${ws}-${players}p`);
+  });
+}
