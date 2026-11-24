@@ -73,6 +73,9 @@ const activeChallenges = (page: Page, id = 'p1', ws = 'race') =>
     return (p.active as string[]).map((c) => p.challenges[c]) as { title: string; intro: Record<string, string>; stages: { requirements: { text: Record<string, string> }[] }[] }[];
   }, { id, ws });
 
+const roomBuddyX = (page: Page, pane = 0) => page.evaluate((index) =>
+  (window as any).__ws.panes[index].children.getByName('workshop-buddy').x as number, pane);
+
 test('room: walk to a station, pick another part, it is saved and the room reopens', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, data: { from: 'wheels' } });
@@ -94,6 +97,9 @@ test('room: walk to a station, pick another part, it is saved and the room reope
   await key(page, 'Space'); // Use it!
   await expectScreens(page, 'room');
   expect((await storedModel(page, 'p1', 'race')).wheels).toBe('wheels.mud');
+  // On return it approaches the model from the right, instead of following the still-focused Wheels sign.
+  await expect.poll(() => roomBuddyX(page)).toBeLessThan(1440);
+  expect(await roomBuddyX(page)).toBeGreaterThan(960);
 });
 
 test('station: Back leaves the part as it was', async ({ page }) => {
@@ -254,6 +260,10 @@ test('2P split: both panes show the room, each in its own player colour, and mov
   }
   const geo = await page.evaluate(() => (window as any).__ws.contexts().map((c: any) => [c.layout, c.size.w]));
   expect(geo).toEqual([['tall', 960], ['tall', 960]]);
+  const [p1Home, p2Home] = await Promise.all([roomBuddyX(page, 0), roomBuddyX(page, 1)]);
+  await key(page, 'KeyW');
+  await expect.poll(async () => Math.abs(await roomBuddyX(page, 0) - p1Home)).toBeGreaterThan(20);
+  expect(await roomBuddyX(page, 1)).toBe(p2Home);
   await key(page, 'Escape'); // KB1 only: pane 0 leaves, pane 1 stays in the room
   await expectScreens(page, 'pickWorkshop,room');
 });

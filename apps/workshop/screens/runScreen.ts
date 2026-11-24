@@ -81,6 +81,7 @@ const runScreen: ScreenFactory = (): Screen => {
         handle = playRun({
           scene: ctx.scene, origin: { x: 0, y: 0 }, size: ctx.size, workshop: ws, model: progress.model,
           challenge, result, audio: ctx.audio, buildRig: ctx.buildRig, seed: challenge.seed,
+          buddy: progress.buddies.selected,
         });
       } catch (e) {
         console.error('run failed to start', e);

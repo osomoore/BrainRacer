@@ -34,6 +34,8 @@ export interface StageContext {
   readonly audio: WorkshopAudio;
   /** Seeded from challenge seed + stage index. Cosmetic variety only. */
   readonly rng: Rng;
+  /** Optional visual cue while the scene is looking for something. */
+  buddySearch?(active: boolean): void;
   /** Resolves after ms (scene-time based, respects pause). */
   wait(ms: number): Promise<void>;
   /** Promise wrapper around scene.tweens.add. */

@@ -26,15 +26,22 @@ const roomScreen: ScreenFactory = (): Screen => {
   let rig: ModelRig | undefined;
   let celebration: Phaser.GameObjects.Container | undefined;
   let celebrationTimer: Phaser.Time.TimerEvent | undefined;
+  let updateBuddyFocus: (() => void) | undefined;
+  let buddyTween: Phaser.Tweens.Tween | undefined;
   let busy = false;
   const objs: Phaser.GameObjects.GameObject[] = [];
   const tweens: Phaser.Tweens.Tween[] = [];
 
-  const walkThen = (stand: Point, then: () => void) => {
-    if (busy || !character) return;
-    busy = true;
+  const walk = (stand: Point, then: () => void) => {
+    if (!character) return;
     if (dist(character.position, stand) < 2) { then(); return; }
     character.walkTo(stand, then);
+  };
+
+  const walkThen = (stand: Point, then: () => void) => {
+    if (busy) return;
+    busy = true;
+    walk(stand, then);
   };
 
   return {
@@ -66,15 +73,38 @@ const roomScreen: ScreenFactory = (): Screen => {
       objs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 40, 0x000000, 0.22).setDepth(90));
       rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(100);
       rig.play('idle');
-      const buddy = buddyImage(scene, progress.buddies.selected, L.buddy.x, L.buddy.y - L.buddy.size / 2, L.buddy.size);
+      const home = { x: L.buddy.x, y: L.buddy.y - L.buddy.size / 2 };
+      const buddy = buddyImage(scene, progress.buddies.selected, home.x, home.y, L.buddy.size);
+      const buddyPose = { ...home, angle: 0 };
       objs.push(buddy.setDepth(110).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
-      animateBuddyIdle(scene, buddy);
+      animateBuddyIdle(scene, buddy, buddyPose);
+      const drift = (at: Point, lean = 0) => {
+        buddyTween?.remove();
+        if (at.x !== buddyPose.x) buddy.setFlipX(at.x < buddyPose.x);
+        buddyTween = scene.tweens.add({
+          targets: buddyPose, ...at, angle: 0, duration: WS_BUDDIES.driftMs, ease: 'Sine.easeOut',
+          onComplete: () => {
+            if (!lean) return;
+            buddy.setFlipX(lean < 0);
+            buddyTween = scene.tweens.add({
+              targets: buddyPose, angle: lean, y: at.y + Math.abs(lean),
+              duration: WS_BUDDIES.peekMs, ease: 'Sine.easeInOut', yoyo: true,
+            });
+          },
+        });
+      };
+      const peekAt = (st: { x: number; stand: Point }) => {
+        const offset = L.buddy.size / 2;
+        const side = Math.sign(st.stand.x - st.x);
+        drift({ x: st.stand.x + side * offset, y: st.stand.y - offset }, side > 0 ? -18 : 18);
+      };
 
       // stations
       const signs: Button[] = [];
       L.stations.forEach((st, i) => {
         const def = cat.aspects.find((a) => a.id === st.aspect)!;
         const b = new Button(scene, { x: st.x, y: st.y, w: st.w, h: st.h, color: cardColor(i), onClick: () => {
+          if (!busy) peekAt(st);
           ctx.audio.sfx('select');
           walkThen(st.stand, () => ctx.go('station', { aspect: st.aspect }));
         } });
@@ -84,6 +114,7 @@ const roomScreen: ScreenFactory = (): Screen => {
         signs.push(b);
       });
       const buddies = new Button(scene, { ...L.buddyStation, color: cardColor(signs.length), onClick: () => {
+        if (!busy) peekAt(L.buddyStation);
         ctx.audio.sfx('select');
         walkThen(L.buddyStation.stand, () => ctx.go('buddyStation'));
       } });
@@ -97,8 +128,15 @@ const roomScreen: ScreenFactory = (): Screen => {
         x: L.board.x, y: L.board.y, w: L.board.w, h: L.board.h, color: COLORS.yellow,
         label: 'Test', fontSize: 64,
         onClick: () => {
+          if (busy) return;
+          busy = true;
           ctx.audio.sfx('select');
-          walkThen(L.board.stand, () => ctx.go('board'));
+          buddyTween?.remove();
+          buddyTween = scene.tweens.add({
+            targets: buddyPose, y: buddyPose.y - L.buddy.size * 0.55, angle: -12,
+            duration: WS_BUDDIES.hopMs, ease: 'Quad.easeOut', yoyo: true,
+            onComplete: () => walk(L.board.stand, () => ctx.go('board')),
+          });
         },
       });
       const starL = scene.add.image(-L.board.w / 2 + 52, 0, starTexture(scene, 64)).setAngle(-12);
@@ -116,6 +154,23 @@ const roomScreen: ScreenFactory = (): Screen => {
       const from = data.from;
       const fi = L.stations.findIndex((st) => st.aspect === from);
       group.focus(from === 'buddies' ? buddies : fi >= 0 ? signs[fi] : board);
+      const stops = [...L.stations, L.buddyStation];
+      const stationButtons = [...signs, buddies];
+      let lastFocus: Button | undefined;
+      updateBuddyFocus = () => {
+        const focused = group.focused;
+        if (focused === lastFocus) return;
+        lastFocus = focused;
+        const st = focused && stops[stationButtons.indexOf(focused)];
+        if (!st) { drift(home); return; }
+        peekAt(st);
+      };
+      if (data.partChanged) {
+        lastFocus = group.focused;
+        drift({ x: L.model.x + rig.width * s / 2 + L.buddy.size * 0.25, y: home.y - L.buddy.size * 0.25 }, -24);
+      } else {
+        updateBuddyFocus();
+      }
 
       const celebrateNext = () => {
         const kind = ctx.takeBuddyUnlock(ws);
@@ -139,11 +194,14 @@ const roomScreen: ScreenFactory = (): Screen => {
         if (a === 'back') { ctx.audio.sfx('back'); ctx.go('pickWorkshop'); return; }
         group.handle(a);
       }
+      if (!busy) updateBuddyFocus?.();
     },
     destroy() {
       group?.destroy();
       celebrationTimer?.remove(false);
       celebration?.destroy();
+      buddyTween?.remove();
+      updateBuddyFocus = undefined;
       tweens.forEach((t) => t.remove());
       tweens.length = 0;
       rig?.destroy();

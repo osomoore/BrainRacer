@@ -10,6 +10,7 @@
  * player uses the generic fallback. Pass/fail is decided in `result`; nothing here depends on physics or frame rate.
  */
 import Phaser from 'phaser';
+import { bakeBuddyTextures, type BuddyKind } from '../../../shared/buddies';
 import { WS_RUN } from '../config';
 import { Rng } from '../core/rng';
 import type { BuildRig, ModelRig, WorkshopAudio, WsSfx } from '../core/runtime';
@@ -18,6 +19,7 @@ import { engine } from '../logic';
 import { puffTexture } from './common/fx';
 import { genericPlayer } from './common/generic';
 import { type StageStep, planRun } from './common/plan';
+import { runBuddy } from './common/runBuddy';
 import type { ScenarioPlayer, StageContext } from './types';
 
 export interface RunOpts {
@@ -32,6 +34,7 @@ export interface RunOpts {
   audio: WorkshopAudio;
   buildRig: BuildRig;
   seed: number;
+  buddy?: BuddyKind;
 }
 
 export interface RunHandle {
@@ -52,6 +55,7 @@ export function playerFor(workshop: WorkshopId, scenario: string): ScenarioPlaye
 
 export function playRun(o: RunOpts): RunHandle {
   const { scene, size } = o;
+  if (o.buddy) bakeBuddyTextures(scene);
   const root = scene.add.container(o.origin.x, o.origin.y);
   const prevTween = scene.tweens.timeScale, prevTime = scene.time.timeScale;
   let dead = false;
@@ -168,8 +172,10 @@ export function playRun(o: RunOpts): RunHandle {
   const done = (async () => {
     let prevLayer: Phaser.GameObjects.Container | null = null;
     let prevRig: ModelRig | null = null;
+    let buddy: ReturnType<typeof runBuddy> | undefined;
     for (const step of steps) {
       if (dead) return;
+      buddy?.stop();
       quiet();
       setDots(step.index);
       const layer = scene.add.container(0, 0);
@@ -181,17 +187,35 @@ export function playRun(o: RunOpts): RunHandle {
       layer.add(rig.root);
       rig.root.setPosition(step.stage.view === 'side' ? size.w * 0.2 : size.w * 0.5, step.stage.view === 'side' ? Math.round(size.h * 0.78) : size.h * 0.5);
       const gate = transition(prevLayer, layer, step);
-      const ctx = makeCtx(step, layer, rig, gate);
+      let ctx = makeCtx(step, layer, rig, gate);
+      if (o.buddy) {
+        const display = buddy = runBuddy(ctx, o.buddy, o.origin);
+        const play = rig.play.bind(rig);
+        rig.play = (anim) => { play(anim); display.rigAnim(anim); };
+        ctx = {
+          ...ctx,
+          buddySearch: display.search,
+          audio: {
+            ...audio,
+            sfx(name, opts) {
+              audio.sfx(name, opts);
+              if (name === 'sad' && !step.result.passed) display.finish();
+            },
+          },
+        };
+      }
       const player = playerFor(o.workshop, step.stage.scenario);
       const playing = Promise.resolve().then(() => player.play(ctx));
       await gate;
       if (dead) return;
+      buddy?.start();
       if (prevLayer) { layers.delete(prevLayer); prevLayer.destroy(); }
       if (prevRig) { rigs.delete(prevRig); prevRig.destroy(); }
       try { await playing; } catch (e) { if (!dead) console.error('run player failed', step.stage.scenario, e); }
       if (dead) return;
       prevLayer = layer; prevRig = rig;
     }
+    buddy?.finish();
     setDots(nStages);
   })();
 

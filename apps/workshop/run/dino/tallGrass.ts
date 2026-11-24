@@ -38,6 +38,7 @@ export default scenario('tallGrass', async (a) => {
   const startX = a.W * 0.28;
   await a.walkTo(startX, 1500, 'walk');
   a.sfx('rustle');
+  if (peek) a.ctx.buddySearch?.(true);
 
   if (peek && peekFail) {
     // lost in the grass: back and forth in circles, question mark
@@ -49,6 +50,7 @@ export default scenario('tallGrass', async (a) => {
       if (i === 1) void a.floatIcon('p:question', a.pt('headTop').x, a.pt('headTop').y - 30, 1.2, 70, 1500);
     }
     a.play('idle');
+    a.ctx.buddySearch?.(false);
     a.sfx('wobble');
     void a.floatIcon('p:question', a.pt('headTop').x + 20, a.pt('headTop').y - 30, 1.3, 70, 1500);
     await a.hold(1500);
@@ -64,6 +66,7 @@ export default scenario('tallGrass', async (a) => {
     a.fore.add(arrow);
     a.loop({ targets: arrow, y: arrow.y - 24, duration: 280, yoyo: true, ease: 'Sine.easeInOut' });
     await a.wait(700);
+    a.ctx.buddySearch?.(false);
   }
   if (sneak) {
     const big = makeBig(a);

@@ -289,7 +289,7 @@ const stationScreen: ScreenFactory = (): Screen => {
             scale: 1.1, alpha: 0, angle: 180, duration: WS_ROOM.stationConfirmMs, ease: 'Quad.easeOut',
           }));
         }
-        timer = scene.time.delayedCall(WS_ROOM.stationConfirmMs, () => ctx.go('room', { from: aspect }));
+        timer = scene.time.delayedCall(WS_ROOM.stationConfirmMs, () => ctx.go('room', { from: aspect, partChanged: true }));
       };
       const buy = (variant: string) => {
         if (busy) return;

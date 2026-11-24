@@ -104,6 +104,17 @@ export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as
 export const WS_BUDDIES = {
   winsPerUnlock: 10,
   celebrationMs: 2200,
+  driftMs: 480,
+  peekMs: 240,
+  hopMs: 175,
+  run: {
+    size: { wide: 96, tall: 76 },
+    leadMs: 1150,
+    slowHoldMs: 280,
+    movingPxSec: 150,
+    slowPxSec: 85,
+    followRate: 10,
+  },
   room: {
     wide: { signX: 1450, signY: 110, barX: 405, barW: 64, buddyX: 1490, buddySize: 112 },
     tall: { signX: 480, signY: 192, barX: 284, barW: 52, buddyX: 678, buddySize: 76 },

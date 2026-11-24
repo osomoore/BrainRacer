@@ -82,6 +82,7 @@ export default racePlayer('night', async (ctx) => {
       rig.play('idle');
       const glow = p.pass ? null : sc.add.image(0, -rig.height * 0.4, bakeKey(sc, 'night:glow', 256, 256, (g) => { const gr = g.createRadialGradient(128, 128, 10, 128, 128, 126); gr.addColorStop(0, 'rgba(255,240,150,0.9)'); gr.addColorStop(1, 'rgba(255,240,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); })).setScale(3.4).setBlendMode(Phaser.BlendModes.ADD);
       cone!.setVisible(true);
+      ctx.buddySearch?.(true);
       const target = Math.atan2(-rig.height * 0.4 + 110, S.car.x - seekerX - 30);
       if (p.pass) {
         await along(ctx, 2200, (t) => { cone!.rotation = -0.5 + t * 1.0; }, 'Sine.easeInOut');
@@ -98,6 +99,7 @@ export default racePlayer('night', async (ctx) => {
         ctx.audio.sfx('giggle', { volume: 0.6 });
         await ctx.wait(1700);
       }
+      ctx.buddySearch?.(false);
     },
   });
   eng();

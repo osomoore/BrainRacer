@@ -112,6 +112,17 @@ async function useSolution(page: Page, pane: number, ws: Ws, challengeId: string
 const goRun = (page: Page, pane: number, challengeId: string) =>
   page.evaluate(({ pane, challengeId }) => (window as any).__ws.contexts()[pane].go('run', { challengeId }), { pane, challengeId });
 
+const visibleRunBuddies = (page: Page, pane: number) => page.evaluate((index) => {
+  const scene = (window as any).__ws.panes[index];
+  const keys: string[] = [];
+  const visit = (obj: any) => {
+    if (obj.name === 'run-buddy' && obj.visible) keys.push(obj.texture.key);
+    obj.list?.forEach(visit);
+  };
+  scene.children.list.forEach(visit);
+  return keys;
+}, pane);
+
 /** Opens the run, waits past the input guard, skips with B. */
 async function skipToResults(page: Page, back = 'Escape', pane = 0): Promise<void> {
   const want = (await screens(page)).map((s, i) => (i === pane ? 'results' : s)).join(',');
@@ -367,12 +378,22 @@ test('2P: both panes run at once and each results screen belongs to its own play
   const failId = (await pickChallenge(page, 0, 'race', false))!;
   const winId = (await pickChallenge(page, 1, 'race', false))!;
   await useSolution(page, 1, 'race', winId);
+  await page.evaluate(() => {
+    const ctx = (window as any).__ws.contexts()[1];
+    const save = ctx.save();
+    save.workshops.race.buddies = { unlocked: ['dino', 'star'], selected: 'star', progress: 0 };
+    ctx.commit(save);
+  });
   await goRun(page, 0, failId);
   await goRun(page, 1, winId);
   await expectScreens(page, 'run,run');
   await page.waitForTimeout(550);
+  await expect.poll(() => visibleRunBuddies(page, 0)).toEqual([expect.stringMatching(/^buddy_dino_/)]);
+  await expect.poll(() => visibleRunBuddies(page, 1)).toEqual(['buddy_star']);
   await key(page, 'Escape'); // KB1 = pane 0 only
   await expectScreens(page, 'results,run');
+  expect(await visibleRunBuddies(page, 0)).toEqual([]);
+  expect(await visibleRunBuddies(page, 1)).toEqual(['buddy_star']);
   await key(page, 'Backspace'); // KB2 = pane 1
   await expectScreens(page, 'results,results');
   await page.waitForTimeout(600);
@@ -400,6 +421,7 @@ test('Dino Lab: a run plays through (fast-forward) and reaches the results', asy
   await goRun(page, 0, id);
   await expectScreens(page, 'run');
   await page.waitForTimeout(550);
+  await expect.poll(() => visibleRunBuddies(page, 0)).toEqual([expect.stringMatching(/^buddy_dino_/)]);
   await key(page, 'Space');
   await expectScreens(page, 'results', 60_000);
   await page.waitForTimeout(600);

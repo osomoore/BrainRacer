@@ -101,6 +101,8 @@ export interface ScreenData {
   result?: RunResult;
   /** Room: where the character stands when the room opens (station aspect, 'buddies' or 'center'). */
   from?: AspectId | 'center';
+  /** Room: a station just equipped a part. */
+  partChanged?: boolean;
 }
 
 export interface PaneContext {

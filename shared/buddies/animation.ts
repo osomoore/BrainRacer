@@ -20,20 +20,25 @@ export function buddyWobble(elapsedSec: number): number {
 }
 
 /** Animate a buddy image around its current pose. Updates stop when the image is destroyed. */
-export function animateBuddyIdle(scene: Phaser.Scene, image: Phaser.GameObjects.Image): void {
+export function animateBuddyIdle(
+  scene: Phaser.Scene, image: Phaser.GameObjects.Image, pose?: { x: number; y: number; angle: number },
+): void {
   const { y, rotation, scaleX, scaleY } = image;
   const isDino = BUDDY_DINO_FRAMES.some(key => key === image.texture.key);
   let elapsedSec = 0;
 
   function update(_time: number, delta: number): void {
     elapsedSec += delta / 1000;
-    image.y = y + buddyBob(elapsedSec, 1.4, 9);
+    if (pose) image.x = pose.x;
+    image.y = (pose?.y ?? y) + buddyBob(elapsedSec, 1.4, 9);
+    const tilt = pose ? pose.angle * Math.PI / 180 : rotation;
     if (isDino) {
+      image.setRotation(tilt);
       const key = dinoFlapTexture(elapsedSec, 10);
       if (image.texture.key !== key) image.setTexture(key);
     } else {
       const pulse = buddyPulse(elapsedSec, 8, false);
-      image.setScale(scaleX * pulse, scaleY * pulse).setRotation(rotation + buddyWobble(elapsedSec));
+      image.setScale(scaleX * pulse, scaleY * pulse).setRotation(tilt + buddyWobble(elapsedSec));
     }
   }
 
