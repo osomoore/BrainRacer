@@ -232,16 +232,6 @@
    "model": "realcartoonXL_v6.safetensors",
    "seed": 4023621566
   },
-  "ws:d:thead:head.round:color.orange:extra.stripes:n": {
-   "file": "ws_d_thead_head.round_color.orange_extra.stripes_n.png",
-   "w": 357,
-   "h": 326,
-   "specHash": "0b469ac8fe5806",
-   "srcHash": "b5e48846c0e5e9bb",
-   "shapeHash": "b49fb3cfaf5d6816",
-   "model": "realcartoonXL_v6.safetensors",
-   "seed": 3011336115
-  },
   "ws:d:torso:body.round:head.round:crawl:color.blue:extra.feathers": {
    "file": "ws_d_torso_body.round_head.round_crawl_color.blue_extra.feathers.png",
    "w": 514,
