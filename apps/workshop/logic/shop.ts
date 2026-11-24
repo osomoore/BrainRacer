@@ -13,9 +13,12 @@ function aspectOrder(cat: WorkshopCatalog, aspect: AspectId): VariantId[] {
   return [a.starters[1], ...cat.unlockOrder.filter((id) => variants.get(id)?.aspect === aspect)];
 }
 
-function cost(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): number {
-  const boughtInAspect = p.bought.filter((id) => index(cat).variantById.get(id)?.aspect === aspect).length;
-  return WS_RULES.basePrice + WS_RULES.priceStep * boughtInAspect;
+/** Fixed price of a variant: basePrice + priceStep x its index in its aspect's shop order (2, 4, 6 ...). Owned starters are free (0). */
+export function priceOf(cat: WorkshopCatalog, variant: VariantId): number {
+  const aspect = index(cat).variantById.get(variant)?.aspect;
+  if (!aspect) return 0;
+  const i = aspectOrder(cat, aspect).indexOf(variant);
+  return i < 0 ? 0 : WS_RULES.basePrice + WS_RULES.priceStep * i;
 }
 
 /** Prices for every currently purchasable offer, regardless of wallet balance. */
@@ -28,6 +31,8 @@ export function purchaseCosts(cat: WorkshopCatalog, p: ShopProgress): Map<Varian
 /** Up to the next two ordinary variants at a station; admin-open parts are omitted. */
 export function shopOffers(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): ShopOffer[] {
   const ordered = aspectOrder(cat, aspect).filter((id) => !p.bought.includes(id) && p.overrides[id] !== 'open' && p.overrides[id] !== 'locked');
-  const price = cost(cat, p, aspect);
-  return ordered.slice(0, WS_RULES.offersPerAspect).map((variant) => ({ variant, price, affordable: p.wallet >= price }));
+  return ordered.slice(0, WS_RULES.offersPerAspect).map((variant) => {
+    const price = priceOf(cat, variant);
+    return { variant, price, affordable: p.wallet >= price };
+  });
 }

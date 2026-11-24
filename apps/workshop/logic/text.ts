@@ -44,9 +44,8 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
   const title = titles.length <= 1 ? (titles[0] ?? 'Challenge')
     : titles.length === 2 ? `${titles[0]} & ${titles[1]}` : `${titles[0]} Adventure`;
 
-  const firstPhrases = spec.stages[0] ? ix.scenarioPhrases.get(spec.stages[0].scenario) : undefined;
-  const intro = {} as Leveled;
-  for (const r of READING_LEVELS) intro[r] = pick(rng, firstPhrases?.intro[r], '');
+  // No intro or story text: the title names the problem, each requirement names the fix.
+  const intro: Leveled = { easy: '', medium: '', hard: '' };
 
   const stages: Stage[] = spec.stages.map((st, si) => {
     const requirements: Requirement[] = [];

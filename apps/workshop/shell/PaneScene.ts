@@ -3,11 +3,12 @@
  * a 960x1080 half in 2P); screens draw in pane-local coordinates. Implements PaneContext and the screen stack.
  */
 import Phaser from 'phaser';
-import { STAGE } from '../config';
+import { STAGE, WS_RULES } from '../config';
 import type { Screen, ScreenData, ScreenId } from '../core/runtime';
 import { buildRig } from '../art';
 import type { ReadingLevel, PlayerSave, WorkshopId } from '../core/types';
 import { engine } from '../logic';
+import { currencyBadge } from '../ui/CurrencyBadge';
 import { backdropTexture } from '../ui/style';
 import type { ShellPaneInput } from '../ui/input';
 import type { ShellPaneContext } from './paneContext';
@@ -21,6 +22,7 @@ interface HistoryEntry { id: string; data: ScreenData }
 export class PaneScene extends Phaser.Scene {
   private count: 1 | 2 = 1;
   private screen?: Screen;
+  private wallet?: ReturnType<typeof currencyBadge>;
   private pending?: { id: string; data: ScreenData; push: boolean };
   private history: HistoryEntry[] = [];
   private current: HistoryEntry = { id: 'profile', data: {} };
@@ -80,9 +82,10 @@ export class PaneScene extends Phaser.Scene {
         if (shell.adminMode()) {
           const ws = pane.workshopId;
           if (ws && save.workshops[ws]) shell.sandboxes.set(id, ws, save.workshops[ws]!);
-          return;
+        } else {
+          shell.store.setPlayer(id, save);
         }
-        shell.store.setPlayer(id, save);
+        pane.updateWallet();
       },
       reading(): ReadingLevel { return ctx.save().reading; },
       setProfile(id) {
@@ -128,9 +131,37 @@ export class PaneScene extends Phaser.Scene {
     this.screen = screen;
     this.ctx.input.text(); // drop typed text left over from the previous screen (e.g. the Enter that opened this one)
     screen.create(this.ctx, data);
+    this.mountWallet(id);
+  }
+
+  private mountWallet(id: string): void {
+    const ws = this.workshopId;
+    if (!ws) return;
+    const wide = this.ctx.layout === 'wide';
+    const { w } = this.ctx.size;
+    const positions: Record<string, [number, number]> = {
+      room: [wide ? 420 : w / 2, 80],
+      station: [w - 126, wide ? 296 : 340],
+      board: wide ? [132, 80] : [345, 1018],
+      run: [126, 80],
+      results: [w - 126, 80],
+    };
+    const at = positions[id];
+    if (!at) return;
+    this.wallet = currencyBadge(this, ws, ...at, '');
+    this.wallet.root.setDepth(10_001);
+    this.updateWallet();
+  }
+
+  private updateWallet(): void {
+    if (!this.wallet || !this.workshopId) return;
+    const amount = this.ctx.save().workshops[this.workshopId]?.wallet ?? WS_RULES.startWallet;
+    this.wallet.label.setText(String(amount));
   }
 
   private unmount(): void {
+    this.wallet?.root.destroy();
+    this.wallet = undefined;
     const s = this.screen;
     this.screen = undefined;
     try { s?.destroy(); } catch (e) { console.error('screen destroy failed', e); }

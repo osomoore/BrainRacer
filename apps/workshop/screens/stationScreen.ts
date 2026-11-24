@@ -1,13 +1,16 @@
 /**
  * station: the configuration menu for ONE aspect (data.aspect). The camera zooms on that part of the model; a strip
- * of swatches scrolls through every available variant and the model previews the highlighted one live. A (or the
- * "Use it!" button) installs it, saves, sparkles and returns to the room; B returns without changing anything.
+ * of swatches shows owned parts and the next shop offers. The model previews the highlighted part live.
  */
 import Phaser from 'phaser';
 import { buildDetail } from '../art';
+import { ensureCurrencyIcon, ensurePriceTagIcon } from '../art/icons';
+import { playWorkshopSfx } from '../audio';
 import { WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
+import { priceOf } from '../logic/shop';
+import { showBanner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { promptLabel } from '../ui/input';
 import { cardColor } from '../ui/screenChrome';
@@ -38,6 +41,7 @@ const stationScreen: ScreenFactory = (): Screen => {
   let moveBy: (d: number) => void = () => {};
   let doApply: () => void = () => {};
   let doLeave: () => void = () => {};
+  let cleanSwatches: () => void = () => {};
 
   return {
     create(c, data) {
@@ -48,8 +52,10 @@ const stationScreen: ScreenFactory = (): Screen => {
       const springsCloseup = ws === 'race' && aspect === 'springs';
       const cat = engine.catalog(ws);
       const aspectDef = cat.aspects.find((a) => a.id === aspect) ?? cat.aspects[0];
-      const progress = currentProgress(ctx, ws);
-      const options = engine.availableFor(ws, progress, aspect);
+      let progress = currentProgress(ctx, ws);
+      let owned = engine.availableFor(ws, progress, aspect);
+      let offers = ctx.adminMode ? [] : engine.shopOffers(ws, progress, aspect);
+      let options = [...owned, ...offers.map((offer) => offer.variant)];
       const installed = progress.model[aspect];
       const nameOf = (id: string) => cat.variants.find((v) => v.id === id)?.name ?? id;
       let index = Math.max(0, options.indexOf(installed));
@@ -86,7 +92,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         if (springsCloseup) {
           // Measure unscaled previews once so swapping springs keeps the wheel and raised body in the same frame.
           const bounds = modelRig.root.getBounds();
-          for (const option of options) {
+          for (const { id: option } of cat.variants.filter((v) => v.aspect === aspect)) {
             if (option === installed) continue;
             modelRig.setModel(withVariant(progress.model, aspect, option));
             Phaser.Geom.Rectangle.Union(bounds, modelRig.root.getBounds(), bounds);
@@ -136,21 +142,34 @@ const stationScreen: ScreenFactory = (): Screen => {
       const aspectText = makeText(scene, L.aspect.x + 40, L.aspect.y, aspectDef.label, { size: L.aspect.size, color: COLORS.yellow, stroke: COLORS.ink }).setDepth(12);
       const aspectIcon = scene.add.image(L.aspect.x - aspectText.width / 2 - 34, L.aspect.y, aspectIconTexture(scene, ws, aspect)).setScale(0.8).setDepth(12);
       const nameText = makeText(scene, L.name.x, L.name.y, '', { size: L.name.size, color: COLORS.paper, stroke: COLORS.ink }).setDepth(12);
-      objs.push(aspectText, aspectIcon, nameText);
+      const status = makeText(scene, L.size.w / 2, topH - 25, '', { size: 40, color: COLORS.yellow, stroke: COLORS.ink }).setDepth(12);
+      const currency = ws === 'race' ? 'coins' : 'Bio Juice';
+      const needMore = `You need more ${currency}`;
+      objs.push(aspectText, aspectIcon, nameText, status);
 
       // ---- swatches
-      const swatches = options.map((v, i) => {
-        const b = new Button(scene, { x: 0, y: L.strip.y, w: L.strip.swatch, h: L.strip.swatch, color: cardColor(i + 2), onClick: () => {
+      let swatches: Button[] = [];
+      const buildSwatches = () => options.map((v, i) => {
+        const offer = offers[i - owned.length];
+        const b = new Button(scene, { x: 0, y: L.strip.y, w: L.strip.swatch, h: L.strip.swatch, color: offer ? (offer.affordable ? 0xffe4b8 : 0xe3dce5) : cardColor(i + 2), onClick: () => {
           if (busy) return;
           if (i === index) apply(); else select(i);
         } });
         const swatchSize = L.strip.swatch - 24;
         const detailSwatch = buildDetail(scene, ws, withVariant(progress.model, aspect, v), aspect);
         if (detailSwatch) {
-          fitDetail(detailSwatch, 0, 0, swatchSize, swatchSize);
+          fitDetail(detailSwatch, 0, offer ? -20 : 0, swatchSize, offer ? swatchSize - 56 : swatchSize);
           b.add(detailSwatch);
         } else {
-          b.add(scene.add.image(0, 0, swatchTexture(ctx, ws, progress.model, aspect, v, swatchSize)));
+          const size = offer ? swatchSize - 36 : swatchSize;
+          b.add(scene.add.image(0, offer ? -20 : 0, swatchTexture(ctx, ws, progress.model, aspect, v, size)));
+        }
+        if (offer) {
+          const y = L.strip.swatch / 2 - 30;
+          const tag = scene.add.image(0, y, ensurePriceTagIcon(scene)).setDisplaySize(150, 74);
+          const coin = scene.add.image(-11, y, ensureCurrencyIcon(scene, ws)).setDisplaySize(48, 48);
+          const price = makeText(scene, 29, y, String(priceOf(cat, v)), { size: 40, color: COLORS.ink });
+          b.add([tag, coin, price]);
         }
         if (v === installed) {
           const chip = scene.add.image(0, L.strip.swatch / 2 - 30, roundedTexture(scene, 150, 56, COLORS.green, { radius: 28, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(56, 0));
@@ -159,7 +178,6 @@ const stationScreen: ScreenFactory = (): Screen => {
         b.setDepth(14);
         return b;
       });
-      objs.push(...swatches);
       const arrow = (x: number, label: string, dir: number) => {
         const b = new Button(scene, { x, y: L.strip.y, w: L.strip.arrowW, h: 150, label, fontSize: 72, color: COLORS.yellow, onClick: () => { if (!busy) select(index + dir); } });
         b.setDepth(14);
@@ -175,11 +193,14 @@ const stationScreen: ScreenFactory = (): Screen => {
       objs.push(use, back);
 
       const refresh = () => {
-        const start = windowStart(options.length, index, L.strip.visible);
-        const xs = stripXs(L.strip.xs, options.length);
+        const ownedSlots = L.strip.visible - offers.length;
+        const visibleOwned = Math.min(owned.length, ownedSlots);
+        const xs = stripXs(L.strip.xs, visibleOwned + offers.length);
+        const start = windowStart(owned.length, Math.min(index, owned.length - 1), ownedSlots);
         swatches.forEach((b, i) => {
-          const slot = i - start;
-          const vis = slot >= 0 && slot < L.strip.visible;
+          const isOffer = i >= owned.length;
+          const slot = isOffer ? visibleOwned + i - owned.length : i - start;
+          const vis = isOffer || (slot >= 0 && slot < visibleOwned);
           b.setVisible(vis);
           if (vis) b.x = xs[slot];
           b.setFocused(i === index && !ctx.input.touch);
@@ -190,6 +211,9 @@ const stationScreen: ScreenFactory = (): Screen => {
         left.setEnabled(index > 0).setVisible(options.length > 1);
         right.setEnabled(index < options.length - 1).setVisible(options.length > 1);
         const v = options[index];
+        const offer = offers[index - owned.length];
+        use.setLabel(offer ? `Buy for ${priceOf(cat, v)}` : 'Use it!');
+        status.setText(offer && !offer.affordable ? needMore : '');
         nameText.setText(nameOf(v) + (v === installed ? '  ✓' : ''));
         nameText.setFontSize(L.name.size);
         fitText(nameText, L.name.maxW);
@@ -225,6 +249,28 @@ const stationScreen: ScreenFactory = (): Screen => {
       const apply = () => {
         if (busy) return;
         const variant = options[index];
+        if (index >= owned.length) {
+          const purchase = engine.purchase(ws, currentProgress(ctx, ws), aspect, variant);
+          if (purchase.status !== 'bought') {
+            playWorkshopSfx(ctx.audio, 'notEnough');
+            use.pulse();
+            return;
+          }
+          const save = ctx.save();
+          progress = purchase.progress;
+          ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: progress } });
+          owned = engine.availableFor(ws, progress, aspect);
+          offers = engine.shopOffers(ws, progress, aspect);
+          options = [...owned, ...offers.map((offer) => offer.variant)];
+          index = owned.indexOf(variant);
+          swatches.forEach((b) => b.destroy());
+          swatches = buildSwatches();
+          refresh();
+          preview();
+          playWorkshopSfx(ctx.audio, 'buy');
+          objs.push(showBanner(scene, { x: L.stage.cx, y: topH + 76, text: 'Bought!', color: 0xa8e6a1, ms: 900 }));
+          return;
+        }
         if (variant === installed) { leave(); return; }
         busy = true;
         const next = engine.setPart(ws, progress, aspect, variant);
@@ -247,6 +293,8 @@ const stationScreen: ScreenFactory = (): Screen => {
       };
 
       moveBy = (d) => select(index + d); doApply = apply; doLeave = leave;
+      swatches = buildSwatches();
+      cleanSwatches = () => swatches.forEach((b) => b.destroy());
       refresh();
     },
     update() {
@@ -259,6 +307,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       }
     },
     destroy() {
+      cleanSwatches();
       timer?.remove(false);
       tweens.forEach((t) => t.remove());
       tweens.length = 0;

@@ -77,10 +77,9 @@ const roomScreen: ScreenFactory = (): Screen => {
       });
 
       // challenge board
-      const unfinished = progress.active.filter((id) => !progress.completed[id]).length;
       const board = new Button(scene, {
         x: L.board.x, y: L.board.y, w: L.board.w, h: L.board.h, color: COLORS.yellow,
-        label: 'Challenges', sub: unfinished > 0 ? `${unfinished} to try` : 'All done!', fontSize: 64,
+        label: 'Test', fontSize: 64,
         onClick: () => {
           ctx.audio.sfx('select');
           walkThen(L.board.stand, () => ctx.go('board'));

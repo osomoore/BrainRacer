@@ -9,6 +9,18 @@ Read `CLAUDE.md` first: it holds the project conventions and rules, and they app
 - Before every commit: `npm run typecheck && npm test`. Before declaring a feature done: `npm run e2e` (it does a full production build, which also catches file-encoding problems that typecheck and tests miss).
 - Files must be UTF-8. On Windows PowerShell, `Set-Content`/`Out-File` can write Windows-1252 and silently break `vite build` (this happened in session 2 with a "…" character). Prefer your editor's file writes, or pass `-Encoding utf8`.
 
+## Token budget and sub-agents (delegated jobs)
+When Claude hands you a job (e.g. a `docs/CODEX_JOBS.md` entry), the user's Codex quota is shared and limited:
+- **Model choice:** Sol is for drawing art and shapes only (painted/code-drawn artwork, part silhouettes). Everything else goes to a
+  lower-tier sub-agent: UI layout and screen code, moving or renaming files, import rewrites, test runs, builds, screenshots,
+  searches. Keep the top model for design decisions and reviewing the helpers' work.
+- **Checks:** run typecheck, `npm test` and at most the one e2e spec your job touches, then commit. Don't loop on screenshots or the
+  full e2e suite; Claude runs those after your hand-back and sends fixes back to you. This replaces the "`npm run e2e` before
+  declaring done" rule above for delegated jobs.
+- **Budget:** stop at about 15% of the 5-hour window used by this job (or 90% of the whole window, whichever comes first): commit WIP
+  (`WIP:` message), write a "Resume from here" note under the job, and stop.
+- **Report** which sub-agents/models you used for what, in your final hand-back.
+
 ## Environment quick facts
 - Windows, Node 24. Use `npm test`, not `npx vitest` (the wrapper fixes a drive-letter-case bug).
 - After cloning or after adding scene images: `npm run assets` (regenerates `src/data/scenes.json` and copies PNGs to `public/scenes/`).

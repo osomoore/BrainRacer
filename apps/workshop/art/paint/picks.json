@@ -30,7 +30,8 @@
   "pick": 1382284544
  },
  "ws:d:head:head.round:color.orange:extra.glow:n": {
-  "pick": 2391337371
+  "pick": 2778614288,
+  "patternSeed": 3006936943
  },
  "ws:d:head:head.round:color.orange:extra.stripes:n": {
   "pick": 1122073265
@@ -42,14 +43,14 @@
   "pick": 856525289
  },
  "ws:d:head:head.round:color.spotted:extra.feathers:n": {
-  "pick": 2645341755
+  "pick": 3659245981,
+  "patternSeed": 40298416
  },
  "ws:d:thead:head.crest:color.orange:extra.feathers:n": {
   "pick": 377139507
  },
  "ws:d:thead:head.horned:color.orange:extra.feathers:n": {
-  "pick": "more",
-  "comment": "Issue: The horns are going under the eyeballs.  They need to start further back and/or angle differently."
+  "pick": 2897893621
  },
  "ws:d:thead:head.longNeck:color.orange:extra.feathers:n": {
   "pick": 32181000
@@ -73,7 +74,13 @@
   "pick": 4023621566
  },
  "ws:d:thead:head.round:color.orange:extra.stripes:n": {
-  "pick": "more",
-  "comment": "Stripes when viewed from overhead like here should be symmetrical, either crossing entirely or ending on both sides, not starting on one side and ending on the other."
+  "pick": 2384708806,
+  "patternSeed": 595714515
+ },
+ "ws:r:body:body.jeep:shape.boxy:paint.blue:38:16": {
+  "pick": 3051134815
+ },
+ "ws:r:tbody:body.jeep:shape.boxy:paint.blue": {
+  "pick": 2285758649
  }
 }

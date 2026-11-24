@@ -76,7 +76,7 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   variants of that aspect (from the aspect's unlock order) for sale with a price tag; buying one reveals the next.
   Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
   (optionally the missing amount as a number).
-- **Price = 2 + 2 x (variants already bought in that aspect)**: 2, 4, 6 ... Tunables in config.
+- Each variant has a fixed price from its place in its aspect's shop order: 2, 4, 6 … (basePrice + priceStep × index). Prices never change.
 - **Fresh start:** 1 owned variant per aspect (the first starter), wallet 4 (two 2-cost buys). Save version is bumped;
   old beta saves are reset (no migration).
 - **Board = 3 challenges.** Target mix: 1 solvable with owned variants only + 2 that need purchases the player can
@@ -144,7 +144,7 @@ shared code lives in `shared/`.
   spend re-checks the board. Save capped at `maxSavedChallenges` for non-won challenges, active ones never dropped.
 - **Win**: pays `2 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
   the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. Nothing unlocks.
-  Variants are bought with `purchase` (price 2 + 2 x bought in that aspect).
+  Variants are bought with `purchase` (fixed price from the variant's place in its aspect's shop order).
 - **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
 - **Overrides** change availability; `refreshBoard` then drops active challenges that became unsolvable and refills.
 - **Saves** (version bumped for the currency system): `localStorage` `workshop.players.v1` = `Record<profileId, PlayerSave>`, `workshop.device.v1` = `DeviceSave`. Per workshop: wallet, bought variants, success history.

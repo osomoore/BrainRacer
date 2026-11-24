@@ -10,6 +10,10 @@ Open work not yet turned into Codex jobs. When an item becomes a job, move it to
   the cursor (touch / controller) over its parts, and the hovered part's name pops up. Remove the long list of part words (too
   much reading for kids).
 - **Back buttons:** there are none yet (Esc / B only). Every screen needs a visible back control, especially on touch.
+- **Admin button and screen:** a visible admin button that opens one screen for the admin things. Today admin is only reachable by
+  hotkey (F9, LT+RT+Start, mobile gear with a multiplication gate) and the existing panel holds reading level, per-variant
+  Auto/Open/Locked, Regenerate challenges, Admin Mode and reset. The user will say what else belongs there. Claude proposes adding
+  "Reset this player (fresh start)" and "+10 currency" (already in the C23 job), a profile list, and a reset for the whole device.
 - **Scoreboard / trophy screen** for past successes (later feature; successes are already kept in the save).
 
 ### Art, review round 3 (`feedback/workshop-art-feedback_3.json`)

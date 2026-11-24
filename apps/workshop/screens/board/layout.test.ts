@@ -9,14 +9,13 @@ describe('boardLayout', () => {
     const L = boardLayout(kind, admin);
     it(`${kind}${admin ? ' admin' : ''}: three cards, tappable, inside the pane`, () => {
       expect(L.cards).toHaveLength(3);
-      for (const b of [...L.cards, L.back, L.testBtn, L.loadBtn, L.newBtn]) {
-        expect(Math.min(b.w, b.h)).toBeGreaterThanOrEqual(100);
+      for (const b of [...L.cards, L.back, L.testBtn, L.newBtn]) {
+        expect(Math.min(b.w, b.h)).toBeGreaterThanOrEqual(WS_UI.tapMin);
         expect(b.x - b.w / 2).toBeGreaterThanOrEqual(0);
         expect(b.x + b.w / 2).toBeLessThanOrEqual(L.size.w);
         expect(b.y - b.h / 2).toBeGreaterThanOrEqual(0);
         expect(b.y + b.h / 2).toBeLessThanOrEqual(L.size.h);
       }
-      expect(L.testBtn.h).toBeGreaterThanOrEqual(WS_UI.tapMin);
     });
     it(`${kind}${admin ? ' admin' : ''}: text area is inside the panel and above the buttons`, () => {
       const t = L.textArea;
@@ -34,7 +33,6 @@ describe('boardLayout', () => {
       expect(lastRow).toBeLessThanOrEqual(L.back.y - L.back.h / 2);
       for (const c of L.cards) expect(rectsOverlap(c, L.panel)).toBe(false);
       if (admin) expect(rectsOverlap(L.newBtn, L.panel)).toBe(false);
-      expect(rectsOverlap(L.testBtn, L.loadBtn)).toBe(false);
       expect(L.model.x + L.model.maxW / 2).toBeLessThan(L.panel.x - L.panel.w / 2);
     }
   });

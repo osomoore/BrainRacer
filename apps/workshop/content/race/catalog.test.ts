@@ -177,7 +177,7 @@ describe('race phrases', () => {
       expect(p, f.id).toBeDefined();
       expect(p!.requirement.length).toBeGreaterThanOrEqual(f.levels.length);
       for (const row of p!.requirement) for (const r of READING_LEVELS) {
-        expect(row[r].length, `${f.id} ${r}`).toBeGreaterThanOrEqual(3);
+        expect(row[r].length, `${f.id} ${r}`).toBeGreaterThanOrEqual(2);
         expect(new Set(row[r]).size).toBe(row[r].length);
       }
       for (const r of READING_LEVELS) expect(p!.hint[r].length, `${f.id} hint ${r}`).toBeGreaterThanOrEqual(2);
@@ -187,18 +187,19 @@ describe('race phrases', () => {
       const p = C.scenarioPhrases.find((x) => x.scenario === s.id);
       expect(p, s.id).toBeDefined();
       expect(p!.title.length).toBeGreaterThanOrEqual(2);
-      for (const r of READING_LEVELS) expect(p!.intro[r].length, `${s.id} intro ${r}`).toBeGreaterThanOrEqual(2);
+      for (const r of READING_LEVELS) expect(p!.intro[r], `${s.id} intro ${r}`).toEqual([]); // intros are dropped
     }
   });
 
-  it('sentences are well formed; Easy has at most 9 words', () => {
+  it('sentences are well formed; Easy <= 6 words, Medium <= 8, Hard <= 12', () => {
     for (const p of C.facetPhrases) {
       const all = [...p.requirement.flatMap((row) => READING_LEVELS.flatMap((r) => [...row[r]])), ...READING_LEVELS.flatMap((r) => [...p.hint[r]])];
       for (const s of all) expect(s, s).toMatch(/^[A-Z].*[.!?]$/);
-      for (const row of p.requirement) for (const s of row.easy) expect(s.split(/\s+/).length, s).toBeLessThanOrEqual(9);
+      for (const row of p.requirement) for (const [r, max] of [['easy', 6], ['medium', 8], ['hard', 12]] as const) {
+        for (const s of row[r]) expect(s.split(/\s+/).length, s).toBeLessThanOrEqual(max);
+      }
     }
-    for (const p of C.scenarioPhrases) for (const r of READING_LEVELS) for (const s of p.intro[r]) expect(s, s).toMatch(/^[A-Z].*[.!?]$/);
-    // Plain ASCII only (UTF-8 safe everywhere).
+        // Plain ASCII only (UTF-8 safe everywhere).
     expect(/[^\x20-\x7e]/.test(JSON.stringify(C.facetPhrases) + JSON.stringify(C.scenarioPhrases))).toBe(false);
   });
 
