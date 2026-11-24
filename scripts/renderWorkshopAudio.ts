@@ -3,7 +3,8 @@
  * apps/workshop/audio/synth (muted headless Edge on the dev scene apps/workshop/dev/AudioRenderWorkshop.ts), encodes Ogg Opus
  * with ffmpeg into public/audio/workshop/ plus manifest.json (lengths, loop info, source hash).
  *
- * Needs: ffmpeg on PATH, Microsoft Edge (Playwright channel 'msedge'). Dev server on port 5193.
+ * Needs: ffmpeg on PATH, Microsoft Edge (Playwright channel 'msedge'). Starts a private Vite server by default;
+ * set WORKSHOP_AUDIO_RENDER_URL to reuse an existing workshop dev server instead.
  */
 import { chromium, type Browser } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
@@ -18,7 +19,7 @@ import { workshopAudioSourceHash } from './workshopAudioHash';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'audio', 'workshop');
-const PORT = 5193;
+const DEFAULT_PORT = 5193;
 const MUSIC_KBPS = 56;
 const SFX_KBPS = 40;
 /** Loops are encoded as this many back-to-back copies; the runtime uses the middle one (no codec edge artifacts at the seam). */
@@ -58,15 +59,18 @@ async function main(): Promise<void> {
   let vite: ViteDevServer | undefined;
   let browser: Browser | undefined;
   try {
-    vite = await createServer({
-      root, cacheDir: join(tmp, 'vite'), logLevel: 'silent',
-      server: { port: PORT, strictPort: true, watch: null, hmr: false },
-    });
-    await vite.listen();
+    const renderUrl = process.env.WORKSHOP_AUDIO_RENDER_URL ?? `http://localhost:${DEFAULT_PORT}`;
+    if (!process.env.WORKSHOP_AUDIO_RENDER_URL) {
+      vite = await createServer({
+        root, cacheDir: join(tmp, 'vite'), logLevel: 'silent',
+        server: { port: DEFAULT_PORT, strictPort: true, watch: null, hmr: false },
+      });
+      await vite.listen();
+    }
     browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--mute-audio'] });
     const page = await browser.newPage();
     page.on('pageerror', (e) => console.error('[page error]', e.message));
-    await page.goto(`http://localhost:${PORT}/workshop.html?dev=AudioRenderWorkshop`);
+    await page.goto(`${renderUrl.replace(/\/$/, '')}/workshop.html?dev=AudioRenderWorkshop`);
     await page.waitForFunction(() => '__wsAudioRender' in window, null, { timeout: 90000 });
     const jobs = await page.evaluate(() => (window as unknown as W).__wsAudioRender.jobs());
 

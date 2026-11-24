@@ -1,5 +1,6 @@
 /** Recipes for every WsSfx and WsSting (offline, mono). Silly and friendly: nothing harsh, nothing scary. */
-import type { WsSfx, WsSting } from '../../core/runtime';
+import type { WsSting } from '../../core/runtime';
+import type { WsAudioSfx } from '../manifest';
 import { chime, midiHz, type Voice } from './voice';
 
 export const SFX_SR = 32000;
@@ -19,7 +20,7 @@ const tri = 'triangle' as const;
 const saw = 'sawtooth' as const;
 const sq = 'square' as const;
 
-export const SFX_RECIPES: Record<WsSfx, Recipe> = {
+export const SFX_RECIPES: Record<WsAudioSfx, Recipe> = {
   // ---- UI
   click: { sec: 0.2, peak: 0.6, play: (v) => {
     v.tone({ type: tri, pitch: [[0, 1500], [0.05, 900]], t: 0, dur: 0.06, vol: 0.8, attack: 0.002 });
@@ -48,6 +49,26 @@ export const SFX_RECIPES: Record<WsSfx, Recipe> = {
   } },
   sparkle: { sec: 1.0, peak: 0.5, play: (v) => {
     [84, 88, 91, 96, 100, 103].forEach((m, i) => chime(v, i * 0.07, m, 0.45, 0.5));
+  } },
+  buy: { sec: 0.52, peak: 0.5, play: (v) => {
+    // A warm two-note coin chime with a tiny bubbly lift.
+    v.tone({ type: tri, pitch: [[0, midiHz(76)], [0.07, midiHz(84)]], t: 0, dur: 0.22, vol: 0.6, attack: 0.004 });
+    v.tone({ type: sine, pitch: [[0, midiHz(88)], [0.06, midiHz(96)]], t: 0.12, dur: 0.24, vol: 0.28, attack: 0.003 });
+    v.tone({ type: sine, pitch: [[0, 760], [0.08, 1120], [0.18, 920]], t: 0.27, dur: 0.16, vol: 0.22, attack: 0.004 });
+  } },
+  notEnough: { sec: 0.38, peak: 0.38, play: (v) => {
+    // Soft, low-volume downward pair: clear feedback without a harsh buzzer.
+    v.tone({ type: sine, pitch: [[0, midiHz(69)], [0.08, midiHz(67)]], t: 0, dur: 0.14, vol: 0.58, attack: 0.015 });
+    v.tone({ type: tri, pitch: [[0, midiHz(64)]], t: 0.12, dur: 0.14, vol: 0.18, attack: 0.018 });
+  } },
+  payout: { sec: 0.72, peak: 0.42, play: (v) => {
+    // Three gentle counting ticks that rise slightly in pitch and finish with a light ping.
+    [0, 0.13, 0.26].forEach((t, i) => {
+      const f = midiHz([72, 76, 79][i]);
+      v.tone({ type: sine, pitch: [[0, f * 0.72], [0.025, f]], t, dur: 0.075, vol: 0.58, attack: 0.002 });
+      v.tone({ type: tri, pitch: [[0, f]], t, dur: 0.06, vol: 0.17, attack: 0.002 });
+    });
+    v.tone({ type: sine, pitch: [[0, midiHz(84)]], t: 0.42, dur: 0.2, vol: 0.27, attack: 0.004 });
   } },
 
   // ---- car

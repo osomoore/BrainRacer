@@ -1,6 +1,6 @@
 {
  "version": 1,
- "sourceHash": "f9cba46fbf70822d",
+ "sourceHash": "4804668988c640b0",
  "files": {
   "music:raceShop": {
    "file": "music/raceShop.ogg",
@@ -367,6 +367,36 @@
    "copies": 1,
    "loop": false,
    "seconds": 1.2185
+  },
+  "sfx:buy": {
+   "file": "sfx/buy.ogg",
+   "kind": "sfx",
+   "sampleRate": 32000,
+   "length": 13422,
+   "channels": 1,
+   "copies": 1,
+   "loop": false,
+   "seconds": 0.4194375
+  },
+  "sfx:notEnough": {
+   "file": "sfx/notEnough.ogg",
+   "kind": "sfx",
+   "sampleRate": 32000,
+   "length": 8175,
+   "channels": 1,
+   "copies": 1,
+   "loop": false,
+   "seconds": 0.25546875
+  },
+  "sfx:payout": {
+   "file": "sfx/payout.ogg",
+   "kind": "sfx",
+   "sampleRate": 32000,
+   "length": 19148,
+   "channels": 1,
+   "copies": 1,
+   "loop": false,
+   "seconds": 0.598375
   }
  }
 }

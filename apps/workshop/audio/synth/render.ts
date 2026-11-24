@@ -1,7 +1,7 @@
 /** Browser-side render API driven by scripts/renderWorkshopAudio.ts (through the AudioRenderWorkshop dev scene). */
 import * as Tone from 'tone';
-import { WS_LOOP_SFX, WS_MUSIC_NAMES, WS_STING_NAMES, WS_SFX_NAMES, type WsAudioKind } from '../manifest';
-import type { WsMusic, WsSfx, WsSting } from '../../core/runtime';
+import { WS_LOOP_SFX, WS_MUSIC_NAMES, WS_STING_NAMES, WS_SFX_NAMES, type WsAudioKind, type WsAudioSfx } from '../manifest';
+import type { WsMusic, WsSting } from '../../core/runtime';
 import { fadeEdges, foldTail, makeSeamlessLoop, normalizePeak, trimSilenceLength } from './dsp';
 import { MUSIC_SR, renderScore } from './music';
 import { SCORES, loopBeats, loopSeconds } from './scores';
@@ -67,7 +67,7 @@ export const api = {
       return { kind: 'music', name: job.name, sampleRate: MUSIC_SR, length: sampleLen, channels: 2, loop: true,
         seconds: sampleLen / MUSIC_SR, bpm: score.bpm, lengthBeats: loopBeats(score) };
     }
-    const recipe = job.kind === 'sting' ? STING_RECIPES[job.name as WsSting] : SFX_RECIPES[job.name as WsSfx];
+    const recipe = job.kind === 'sting' ? STING_RECIPES[job.name as WsSting] : SFX_RECIPES[job.name as WsAudioSfx];
     const ch = await renderRecipe(recipe);
     normalizePeak([ch], recipe.peak);
     rendered.set(id, [ch]);
