@@ -6,6 +6,7 @@ import type Phaser from 'phaser';
 import { WS_ROOM, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import type { Challenge, WorkshopProgress } from '../core/types';
+import { ensureCurrencyIcon } from '../art/icons';
 import { engine } from '../logic';
 import { newAdminChallenges } from '../shell/adminMode';
 import { Button } from '../ui/Button';
@@ -20,11 +21,15 @@ import { buildBlocks, planDetail, type Measure } from './board/cardText';
 import { boardLayout, detailFonts, type BoardLayout, type BoxC } from './board/layout';
 import { PartPreview } from './board/PartPreview';
 import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './board/focusChoice';
+import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from './board/reward';
 import { guardBackAfterPreview, isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
 
 const STAGE_COLORS = [0xffd23f, 0x7fd6ff, 0xffa3b8, 0xb8e986, 0xd5b8ff];
+/** Card footer pill (stage count + reward) height and inner margin from the card edge. */
+const FOOTER_H = 54;
+const CARD_PAD = 8;
 /** Selection survives screen swaps and is scoped by pane, profile, workshop, and admin state. */
 interface BoardReturn { challengeId?: string; selectedIndex: number; textPage: number; focus?: BoardFocusKey }
 const boardReturn = new WeakMap<object, Map<string, BoardReturn>>();
@@ -123,20 +128,24 @@ const boardScreen: ScreenFactory = (): Screen => {
         },
       });
       const stages = c.stages.length;
+      const reward = challengeReward(c);
       if (L.compactCards) {
         const t = makeText(scene, -slot.w / 2 + 30, 0, c.title, { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
         fitText(t, slot.w - 330);
         b.add(t);
-        if (stages > 1) addChip(b, slot.w / 2 - 150, 0, `${stages} stages`);
-      } else if (!wide()) { // narrow tab: the title only (stage count is in the detail below)
-        const t = makeText(scene, 0, 0, c.title, { size: 44, wrap: slot.w - 24 });
-        for (let size = 40; t.height > slot.h - 16 && size >= 32; size -= 4) t.setFontSize(size);
+        addFooter(b, slot.h / 2 - 40, stages, reward);
+      } else if (!wide()) { // narrow tab: the title, then the reward footer (stage count is in the detail below)
+        const footerY = slot.h / 2 - CARD_PAD - FOOTER_H / 2;
+        const titleBox = slot.h - 2 * CARD_PAD - FOOTER_H - CARD_PAD;
+        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: 44, wrap: slot.w - 24 });
+        for (let size = 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
         b.add(t);
+        addFooter(b, footerY, 1, reward);
       } else {
         const t = makeText(scene, 0, stages > 1 ? -28 : 0, c.title, { size: 48, wrap: slot.w - 30 });
         if (t.height > 120) t.setFontSize(40);
         b.add(t);
-        if (stages > 1) addChip(b, 0, slot.h / 2 - 40, `${stages} stages`);
+        addFooter(b, slot.h / 2 - 40, stages, reward);
       }
       cardBtns.push(b);
       cardObjs.push(b);
@@ -157,12 +166,27 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (idx >= 0 && idx < cardBtns.length) ring.setPosition(L.cards[idx].x, L.cards[idx].y).setVisible(true); else ring.setVisible(false);
   }
 
-  function addChip(b: Button, x: number, y: number, text: string): void {
+  /** Card footer: one white pill centred on (0, y) with the stage count (when several stages) and the reward coins. */
+  function addFooter(b: Button, y: number, stages: number, reward: number): void {
     const scene = ctx.scene;
-    const t = makeText(scene, x, y, text, { size: 40, color: COLORS.ink });
-    const w = Math.ceil(t.width) + 40, h = 54;
-    const bg = scene.add.image(x, y, roundedTexture(scene, w, h, 0xffffff, { radius: 27, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0));
-    b.add([bg, t]);
+    const pad = 20, gap = 24, icon = 48, iconGap = 6;
+    const showStages = stages > 1;
+    const stageText = `${stages} stages`;
+    const stageW = showStages ? stageTextWidth(stageText, measure) : 0;
+    const rewardW = icon + iconGap + rewardTextWidth(reward, measure);
+    const w = pad * 2 + stageW + (showStages ? gap : 0) + rewardW;
+    const h = FOOTER_H;
+    const objs: Phaser.GameObjects.GameObject[] = [
+      scene.add.image(0, y, roundedTexture(scene, w, h, 0xffffff, { radius: 27, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0)),
+    ];
+    let x = -w / 2 + pad;
+    if (showStages) {
+      objs.push(makeText(scene, x, y, stageText, { size: 40, color: COLORS.ink, align: 'left', origin: [0, 0.5] }));
+      x += stageW + gap;
+    }
+    objs.push(scene.add.image(x + icon / 2, y, ensureCurrencyIcon(scene, ws())).setDisplaySize(icon, icon));
+    objs.push(makeText(scene, x + icon + iconGap, y, rewardLabel(reward), { size: 40, color: COLORS.ink, align: 'left', origin: [0, 0.5] }));
+    b.add(objs);
   }
 
   // ------------------------------------------------------------ detail

@@ -38,6 +38,8 @@ export interface BoardLayout {
 }
 
 const PER_PAGE = 3;
+/** Extra tab height (narrow layout) so a two-line title and the reward footer both fit. */
+const TAB_FOOTER_EXTRA = 50;
 
 /** Wallet badge (WS_WALLET, centre y 80) ends near y 121; the zoom viewport's top edge must start below it. */
 const BADGE_CLEAR = 134;
@@ -101,7 +103,8 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   const modelBottom = labelBottom + 5;
   const newBtn = { x: size.w / 2, y: labelBottom + 10 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
   const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : labelBottom + 10;
-  const tabH = WS_UI.tapMin;
+  // Room under the tab title for the reward footer pill (see boardScreen addFooter): titles keep two lines.
+  const tabH = WS_UI.tapMin + TAB_FOOTER_EXTRA;
   const gapX = 10;
   const tabW = (size.w - 60 - 2 * gapX) / 3;
   const cards = [0, 1, 2].map((i) => ({ x: 30 + tabW / 2 + i * (tabW + gapX), y: tabTop + tabH / 2, w: tabW, h: tabH }));
