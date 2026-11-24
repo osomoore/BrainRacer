@@ -175,10 +175,10 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
   ['steep', 'grip', 'climb']),
   fp('rocks.tough', ['Falling Stones', 'Falling Rocks'], [
     rows(['Get Armor Plates.', 'Get Armor Plates so stones bounce off.', 'Give your dino Armor Plates so falling stones bounce off.'],
-      ['A Spiked Tail makes you tough.', 'Armor Plates or a Spiked Tail are tough.', 'Pick Armor Plates or a Spiked Tail so stones bounce off.']),
+      ['A Spiked Tail makes you strong.', 'Armor Plates or a Spiked Tail are tough.', 'Pick Armor Plates or a Spiked Tail so stones bounce off.']),
     rows(['Armor Plates and a Spiked Tail.', 'Get Armor Plates and a Spiked Tail.', 'Big rocks fall here, so get Armor Plates and a Spiked Tail.'],
       ['Armor Plates and the Huge size.', 'Use Armor Plates and the Huge size.', 'Pick Armor Plates and the Huge size so big rocks bounce off.']),
-  ], L(['Try a different body.', 'Be tough.'],
+  ], L(['Try a different body.', 'Be strong.'],
        ['Think about what protects your dino.', 'Its back needs more cover.'],
        ["Think about which parts could cover your dino's back.", 'Soft skin cannot stop a falling rock.']),
   ['tough', 'rocks', 'stones']),

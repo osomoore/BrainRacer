@@ -42,7 +42,7 @@ export function partPhrases(variants: readonly Variant[], words: PartWords): Rec
 
 /** Failure lines for practice cards (both workshops). */
 export const PRACTICE_FAIL: LeveledPhrases = tri(
-  'This test was all about {parts}.',
+  'This test needed {parts}.',
   'This test was checking for {parts}. Try again!',
   'The test was checking for {parts}, so put that part on and try again.',
 );
