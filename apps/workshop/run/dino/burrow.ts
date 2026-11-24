@@ -83,7 +83,7 @@ export default scenario('burrow', async (a) => {
     a.play('dizzy');
     await a.arc(a.root.x - 330, a.gy, 120, 800, 0);
     void a.dust(a.root.x, a.gy, 4, 1);
-    a.sfx('thud');
+    a.sfx('land');
     await a.tw({ targets: a.root, scaleY: a.rs * 0.85, scaleX: a.dir * a.rs * 1.1, duration: 100, yoyo: true });
     await a.tw({ targets: friend.box, scaleX: 0, scaleY: 0, duration: 250, delay: 300 });
     await a.hold(1200);

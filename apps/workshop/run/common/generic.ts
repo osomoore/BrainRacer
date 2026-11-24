@@ -18,7 +18,7 @@ export function genericPlayer(workshop: WorkshopId, scenario: string): ScenarioP
       S.place(200);
       const walk = ctx.workshop === 'dino' ? 'walk' : 'drive';
       ctx.rig.play(walk);
-      ctx.audio.sfx('engine', { volume: 0.4 });
+      ctx.audio.sfx(walk === 'walk' ? 'step' : 'engine', { volume: 0.4 });
       if (ok) {
         await S.driveTo(2200, WS_RUN.stageSec * 600);
         await S.cheer();

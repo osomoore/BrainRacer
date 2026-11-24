@@ -10,7 +10,9 @@
  * Deterministic: all randomness comes from ctx.rng; pass/fail is never decided here.
  */
 import type Phaser from 'phaser';
-import type { ModelRig, RigAnim, WsSfx } from '../../../core/runtime';
+import { playWorkshopSfx, type WsAudioSfx } from '../../../audio/manifest';
+import { WS_AUDIO } from '../../../config';
+import type { ModelRig, RigAnim } from '../../../core/runtime';
 import type { StageContext } from '../../types';
 import { facetLevel, failedFacet, stageFacets } from './layout';
 import { ensure, image } from './paint';
@@ -171,7 +173,9 @@ export class Act {
     return this.tw({ targets: o, x: { from: x0 - amp, to: x0 + amp }, duration: ms, yoyo: true, repeat: times, onComplete: () => { o.x = x0; } });
   }
 
-  sfx(name: WsSfx, opts?: { volume?: number; rate?: number; pan?: number }): void { this.ctx.audio.sfx(name, opts); }
+  sfx(name: WsAudioSfx, opts?: { volume?: number; rate?: number; pan?: number }): void {
+    playWorkshopSfx(this.ctx.audio, name, opts);
+  }
 
   // ------------------------------------------------------------ the dino
   get root(): Phaser.GameObjects.Container { return this.rig.root; }
@@ -194,9 +198,21 @@ export class Act {
 
   /** Walk / run to x (and face the way it goes). The gait keeps going until another play(). */
   async walkTo(x: number, ms: number, anim: RigAnim = 'walk', ease = 'Linear'): Promise<void> {
+    const moving = x !== this.root.x;
     this.face(x >= this.root.x ? 1 : -1);
     this.play(anim);
-    await this.tw({ targets: this.root, x, duration: ms, ease });
+    const gait = anim === 'walk' || anim === 'run' ? anim : undefined;
+    const stepMs = gait && WS_AUDIO.dinoStepMs[gait];
+    let lastContact = 0;
+    await this.tw({
+      targets: this.root, x, duration: ms, ease,
+      onUpdate: moving && stepMs ? (tween) => {
+        const contact = Math.floor(tween.elapsed / stepMs);
+        if (contact === lastContact) return;
+        lastContact = contact;
+        this.sfx('step', { volume: 0.56, rate: (gait === 'run' ? 1.12 : 0.86) + (contact % 2) * 0.08 });
+      } : undefined,
+    });
   }
 
   /** Squash, spring up `h` px (ground-relative) and land; optionally travelling to x. Cosmetic only. */

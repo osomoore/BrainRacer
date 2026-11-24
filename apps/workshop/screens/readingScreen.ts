@@ -12,6 +12,10 @@ const readingScreen: ScreenFactory = (): Screen => {
   let ctx: ShellPaneContext;
   let group: FocusGroup;
   const objs: Phaser.GameObjects.GameObject[] = [];
+  const backToProfiles = () => {
+    ctx.audio.sfx('back');
+    ctx.go('profile');
+  };
   return {
     create(c: PaneContext) {
       ctx = c as ShellPaneContext;
@@ -25,7 +29,7 @@ const readingScreen: ScreenFactory = (): Screen => {
         }
         ctx.go('pickWorkshop');
       });
-      const back = addBackButton(ctx, () => ctx.go('profile'));
+      const back = addBackButton(ctx, backToProfiles);
       objs.push(...buttons, back);
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
       group.set([...buttons, back]);
@@ -34,7 +38,7 @@ const readingScreen: ScreenFactory = (): Screen => {
     },
     update() {
       for (const a of ctx.input.poll()) {
-        if (a === 'back') ctx.go('profile');
+        if (a === 'back') backToProfiles();
         else group.handle(a);
       }
     },

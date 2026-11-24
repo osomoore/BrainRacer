@@ -4,6 +4,7 @@
  * Pass: speed trail, big arc, lands, boings twice, flags wave. Fail speed: short arc, drops into the hay pit and bounces on it.
  * Fail landing: lands with a thud, wheels splay (squash), boings up, spins once, dizzy stars.
  */
+import { playWorkshopSfx } from '../../audio/manifest';
 import { along } from '../common/fx';
 import { planStage, racePlayer } from '../common/phases';
 import { P } from '../common/props';
@@ -94,7 +95,7 @@ export default racePlayer('jump', async (ctx) => {
 
   // landed on the far side
   S.car.y = 0;
-  ctx.audio.sfx('thud', { volume: 0.8 });
+  playWorkshopSfx(ctx.audio, 'land', { volume: 0.8 });
   S.dust(8);
   if (landFail) {
     eng();
@@ -103,7 +104,7 @@ export default racePlayer('jump', async (ctx) => {
     ctx.audio.sfx('boing', { volume: 0.8 });
     await along(ctx, 750, (t) => { S.car.y = -Math.sin(t * Math.PI) * 230; S.car.rotation = t * Math.PI * 2; }, 'Sine.easeInOut');
     S.car.rotation = 0; S.car.y = 0;
-    ctx.audio.sfx('thud', { volume: 0.6 });
+    playWorkshopSfx(ctx.audio, 'land', { volume: 0.6 });
     S.dust(6);
     await S.squash(1.25, 0.75, 100);
     rig.play('dizzy');

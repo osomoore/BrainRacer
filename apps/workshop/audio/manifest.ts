@@ -5,7 +5,7 @@
 import type { WorkshopAudio, WsMusic, WsSfx, WsSting } from '../core/runtime';
 
 export type WsCurrencySfx = 'buy' | 'notEnough' | 'payout';
-export type WsAudioSfx = WsSfx | WsCurrencySfx;
+export type WsAudioSfx = WsSfx | WsCurrencySfx | 'equip' | 'land';
 
 /** Play any workshop one-shot through the current narrow shared API. Keep the single compatibility cast here. */
 export function playWorkshopSfx(audio: WorkshopAudio, name: WsAudioSfx, opts?: { volume?: number; rate?: number; pan?: number }): void {
@@ -22,7 +22,7 @@ export const WS_SFX_NAMES: readonly WsAudioSfx[] = record<WsAudioSfx>({
   honk: true, crash: true, quack: true,
   stomp: true, roar: true, chomp: true, gulp: true, burp: true, rustle: true, flap: true, sniff: true,
   giggle: true, wobble: true, cheer: true, sad: true,
-  buy: true, notEnough: true, payout: true,
+  buy: true, notEnough: true, payout: true, equip: true, land: true,
 });
 /** Sfx rendered as seamless loops (played with `loop()`); they also work as one-shots. */
 export const WS_LOOP_SFX: readonly WsSfx[] = ['engine', 'spin'];

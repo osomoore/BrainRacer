@@ -28,7 +28,7 @@ export default scenario('ledge', async (a) => {
   if (pass) {
     a.play('run');
     await a.arc(land, a.gy - H, H * 0.5 + 140, 1000, 0.35);
-    a.sfx('thud', { volume: 0.7 });
+    a.sfx('land', { volume: 0.7 });
     void a.dust(a.root.x, a.root.y, 4, 1);
     a.play('happy');
     stopWave();
@@ -50,7 +50,7 @@ export default scenario('ledge', async (a) => {
   await a.tw({ targets: a.root, y: a.gy, duration: 1000, ease: 'Sine.easeIn', scaleY: { from: a.rs, to: a.rs * 0.94 } });
   a.root.scaleY = a.rs;
   void a.dust(a.root.x, a.gy, 3, 0.8);
-  a.sfx('thud', { volume: 0.5 });
+  a.sfx('land', { volume: 0.5 });
   a.play('tumble');
   await a.tw({ targets: a.root, x: a.root.x - 220, duration: 1250, ease: 'Sine.easeOut' });
   a.play('dizzy');

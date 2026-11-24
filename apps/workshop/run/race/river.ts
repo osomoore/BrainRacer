@@ -52,8 +52,10 @@ export default racePlayer('river', async (ctx) => {
       const f = S.put('front', P.fish(), S.car.x + roof.x, S.car.y + roof.y - 20, 1.2);
       f.y = 40;
       await S.hop(f, S.car.x + roof.x, S.car.y + roof.y - 10, 500, 120);
+      ctx.audio.sfx('pop', { volume: 0.48, rate: 1.25 });
       await ctx.wait(300);
       await S.hop(f, S.car.x + 400, 60, 600, 160);
+      ctx.audio.sfx('splash', { volume: 0.45, rate: 1.4 });
     }
     eng();
     await S.cheer(700);
@@ -71,9 +73,11 @@ export default racePlayer('river', async (ctx) => {
     fish.setVisible(false);
     const f = S.put('front', P.fish(), S.car.x + roof.x + 100, 30, 1.4);
     await S.hop(f, S.car.x + roof.x + 30, S.car.y + roof.y + 40, 600, 60);
+    ctx.audio.sfx('pop', { volume: 0.42, rate: 1.4 });
   } else {
     const fr = S.put('front', P.frog(), S.car.x + roof.x + 200, 0, 1.4);
     await S.hop(fr, S.car.x + roof.x, S.car.y + roof.y - 8, 700, 120);
+    ctx.audio.sfx('pop', { volume: 0.46, rate: 1.1 });
     fr.setDepth(5);
   }
   ctx.audio.sfx('sad', { volume: 0.5 });

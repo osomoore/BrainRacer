@@ -19,6 +19,11 @@ const pickWorkshopScreen: ScreenFactory = (): Screen => {
   let group: FocusGroup;
   const objs: Phaser.GameObjects.GameObject[] = [];
 
+  const backToProfiles = () => {
+    ctx.audio.sfx('back');
+    ctx.go('profile');
+  };
+
   const pick = (id: WorkshopId) => {
     ctx.setWorkshop(id);
     const save = ctx.save();
@@ -44,7 +49,7 @@ const pickWorkshopScreen: ScreenFactory = (): Screen => {
         b.add([icon, makeText(ctx.scene, 0, wide ? 210 : 120, t.label, { size: wide ? 96 : 76, color: COLORS.ink })]);
         return b;
       });
-      const back = addBackButton(ctx, () => ctx.go('profile'));
+      const back = addBackButton(ctx, backToProfiles);
       objs.push(...tiles, back);
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
       group.set([...tiles, back]);
@@ -53,7 +58,7 @@ const pickWorkshopScreen: ScreenFactory = (): Screen => {
     },
     update() {
       for (const a of ctx.input.poll()) {
-        if (a === 'back') ctx.go('profile');
+        if (a === 'back') backToProfiles();
         else group.handle(a);
       }
     },

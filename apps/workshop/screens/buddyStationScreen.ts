@@ -2,6 +2,7 @@
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures, BUDDY_KINDS, buddyName, buddyTexture, type BuddyKind } from '../../../shared/buddies';
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
+import { playWorkshopSfx } from '../audio';
 import { engine } from '../logic';
 import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -60,7 +61,7 @@ const buddyStationScreen: ScreenFactory = (): Screen => {
         const updated = engine.setBuddy(progress, kind);
         const save = ctx.save();
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: updated } });
-        ctx.audio.sfx('pop');
+        playWorkshopSfx(ctx.audio, 'equip');
         ctx.go('room', { from: 'buddies' });
       };
 
