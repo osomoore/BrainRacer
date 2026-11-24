@@ -249,7 +249,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   - Add an e2e check that the title screen's text objects don't overlap (bounds intersection) in wide and tall layouts.
 - **Done when:** screenshots at 1920×1080, 390×844 and 844×390 show no overlaps and a readable notice; workshop e2e passes.
 
-## C17 — Painted scenery actually shows in runs · `OPEN`
+## C17 — Painted scenery actually shows in runs · `DONE (codex/c17)`
 - **Parallel-safe with C16.** No ComfyUI, no user review needed.
 - **Port:** 5222.
 - **Why:** C14/C15 added paint jobs for run scenery (`ws:dino-run:*` and the Race Shop prop keys), but nothing proves a
