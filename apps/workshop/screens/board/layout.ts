@@ -4,6 +4,14 @@ import { paneSize, type LayoutKind } from '../room/layout';
 
 export interface BoxC { x: number; y: number; w: number; h: number }
 
+export interface PartPreviewLayout {
+  x: number; y: number; maxW: number; maxH: number; labelX: number; labelY: number; labelW: number;
+  /** Clipped zoom viewport (center-based). */
+  view: BoxC;
+  /** Cycle arrows: previous / next centre, rotation (deg, 0 = up). */
+  arrows: { prev: { x: number; y: number; angle: number }; next: { x: number; y: number; angle: number } };
+}
+
 export interface BoardLayout {
   kind: LayoutKind;
   size: { w: number; h: number };
@@ -11,7 +19,7 @@ export interface BoardLayout {
   modelPanel?: BoxC;
   model: { x: number; groundY: number; maxW: number; maxH: number };
   /** Composed rig and the highlighted-part name label shown with challenge detail. */
-  partPreview: { x: number; y: number; maxW: number; maxH: number; labelX: number; labelY: number; labelW: number };
+  partPreview: PartPreviewLayout;
   cards: BoxC[];
   /** Cards per page. */
   perPage: number;
@@ -48,8 +56,12 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     const btnY = panelBottom - 20 - btnH / 2;
     return {
       kind, size,
-      model: { x: 330, groundY: 345, maxW: 580, maxH: 290 },
-      partPreview: { x: 330, y: 345, maxW: 580, maxH: 290, labelX: 330, labelY: 440, labelW: 440 },
+      model: { x: 330, groundY: 375, maxW: 450, maxH: 250 },
+      partPreview: {
+        x: 330, y: 375, maxW: 450, maxH: 250, labelX: 330, labelY: 465, labelW: 560,
+        view: { x: 330, y: 255, w: 450, h: 280 },
+        arrows: { prev: { x: 600, y: 215, angle: 0 }, next: { x: 600, y: 300, angle: 180 } },
+      },
       cards, perPage: PER_PAGE,
       pager: { x: rx + rw / 2 - 250, y: 305, gap: 130 },
       newBtn: { x: rx + rw - 230, y: 305, w: 440, h: WS_UI.tapMin },
@@ -84,7 +96,11 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     kind, size,
     model: { x: size.w / 2, groundY: ground, maxW: 420, maxH },
     modelPanel: { x: size.w / 2, y: mt + mh / 2, w: size.w - 20, h: mh },
-    partPreview: { x: size.w / 2, y: ground, maxW: 420, maxH, labelX: size.w / 2, labelY, labelW: 480 },
+    partPreview: {
+      x: size.w / 2, y: ground, maxW: 420, maxH, labelX: size.w / 2, labelY, labelW: 560,
+      view: { x: size.w / 2, y: ground - maxH / 2, w: 520, h: maxH + 40 },
+      arrows: { prev: { x: size.w / 2 - 330, y: ground - maxH / 2, angle: -90 }, next: { x: size.w / 2 + 330, y: ground - maxH / 2, angle: 90 } },
+    },
     cards, perPage: PER_PAGE,
     pager: { x: 770, y: rowY, gap: 50 },
     newBtn,

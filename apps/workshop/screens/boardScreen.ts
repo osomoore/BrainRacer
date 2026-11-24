@@ -94,10 +94,10 @@ const boardScreen: ScreenFactory = (): Screen => {
     destroyPartPreview();
     if (!rig) return;
     const cat = engine.catalog(ws());
-    const P = L.partPreview;
-    const bounds = { x: P.x, y: P.y, maxW: P.maxW, maxH: P.maxH };
-    const label = { x: P.labelX, y: P.labelY, w: P.labelW };
-    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, { bounds, label, model: progress.model, variants: cat.variants });
+    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, {
+      layout: L.partPreview, model: progress.model, variants: cat.variants,
+      onTap: (kind) => { if (!partMode) enterPartMode(group.focused, false); if (kind === 'arrow') ctx.audio.sfx('select'); },
+    });
   };
 
   // ------------------------------------------------------------ cards
@@ -247,11 +247,11 @@ const boardScreen: ScreenFactory = (): Screen => {
     setFocusables();
   }
 
-  function enterPartMode(from: Button | undefined): void {
+  function enterPartMode(from: Button | undefined, first = true): void {
     partMode = true;
     returnFocus = from;
     group.focus(undefined);
-    partPreview?.showFirst();
+    if (first) partPreview?.showFirst();
     ctx.audio.sfx('select');
   }
 
