@@ -92,6 +92,10 @@ export interface SpringLook {
   /** Shock absorber beside the coil. */
   shock: string | null;
 }
+/** Extra spring length that hides the coil top inside the body (springs are drawn behind it). */
+export const SPRING_TUCK = 60;
+/** Gap kept between the coil top and the chassis top line. */
+export const SPRING_INSET = 6;
 export const SPRING: Record<VariantId, SpringLook> = {
   'springs.soft': { lift: 16, coil: '#7fc4ff', coilDark: '#2d7cc4', turns: 4, width: 28, thick: 7, shock: null },
   'springs.sport': { lift: 6, coil: '#ff4d4d', coilDark: '#a01c28', turns: 6, width: 20, thick: 5, shock: '#ffd21f' },
