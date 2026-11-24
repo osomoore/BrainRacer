@@ -124,6 +124,16 @@ test.describe('split-pane shopping', () => {
       return { width: pane.ctx.size.w, amount: badge.list.find((o: any) => o.type === 'Text').text };
     }));
     expect(await balances()).toEqual([{ width: 960, amount: '4' }, { width: 960, amount: '4' }]);
+    // the equipped part's tile (marked "Now") is fully inside each pane on entry
+    const equipped = await page.evaluate(() => (window as any).__ws.panes.slice(0, 2).map((pane: any) => {
+      const tile = pane.children.list.find((o: any) => o.visible && o.list?.some((child: any) => child.text === '✓ Now'));
+      return tile ? { left: tile.x - 95, right: tile.x + 95, width: pane.ctx.size.w } : null;
+    }));
+    for (const e of equipped) {
+      expect(e).not.toBeNull();
+      expect(e.left).toBeGreaterThanOrEqual(0);
+      expect(e.right).toBeLessThanOrEqual(e.width);
+    }
 
     await tapPad(page, 0, 15);
     await tapPad(page, 0, 0);
