@@ -12,6 +12,7 @@ import { engine } from '../logic';
 import { priceOf } from '../logic/shop';
 import { showBanner } from '../ui/Banner';
 import { Button } from '../ui/Button';
+import { Confirm } from '../ui/Confirm';
 import { promptLabel } from '../ui/input';
 import { cardColor } from '../ui/screenChrome';
 import { COLORS, fitText, makeText, roundedOriginY, roundedTexture } from '../ui/style';
@@ -38,6 +39,7 @@ const stationScreen: ScreenFactory = (): Screen => {
   let rig: ModelRig | undefined;
   let detail: Phaser.GameObjects.Container | null = null;
   let busy = false;
+  let popup: Confirm | undefined;
   let moveBy: (d: number) => void = () => {};
   let doApply: () => void = () => {};
   let doLeave: () => void = () => {};
@@ -143,8 +145,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const aspectIcon = scene.add.image(L.aspect.x - aspectText.width / 2 - 34, L.aspect.y, aspectIconTexture(scene, ws, aspect)).setScale(0.8).setDepth(12);
       const nameText = makeText(scene, L.name.x, L.name.y, '', { size: L.name.size, color: COLORS.paper, stroke: COLORS.ink }).setDepth(12);
       const status = makeText(scene, L.size.w / 2, topH - 25, '', { size: 40, color: COLORS.yellow, stroke: COLORS.ink }).setDepth(12);
-      const currency = ws === 'race' ? 'coins' : 'Bio Juice';
-      const needMore = `You need more ${currency}`;
+      const currency = ws === 'race' ? 'Coins' : 'Bio Juice';
       objs.push(aspectText, aspectIcon, nameText, status);
 
       // ---- swatches
@@ -153,7 +154,9 @@ const stationScreen: ScreenFactory = (): Screen => {
         const offer = offers[i - owned.length];
         const b = new Button(scene, { x: 0, y: L.strip.y, w: L.strip.swatch, h: L.strip.swatch, color: offer ? (offer.affordable ? 0xffe4b8 : 0xe3dce5) : cardColor(i + 2), onClick: () => {
           if (busy) return;
-          if (i === index) apply(); else select(i);
+          if (popup) return;
+          if (i !== index) select(i);
+          if (i === index || i >= owned.length) apply();
         } });
         const swatchSize = L.strip.swatch - 24;
         const detailSwatch = buildDetail(scene, ws, withVariant(progress.model, aspect, v), aspect);
@@ -213,7 +216,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         const v = options[index];
         const offer = offers[index - owned.length];
         use.setLabel(offer ? `Buy for ${priceOf(cat, v)}` : 'Use it!');
-        status.setText(offer && !offer.affordable ? needMore : '');
+        status.setText('');
         nameText.setText(nameOf(v) + (v === installed ? '  ✓' : ''));
         nameText.setFontSize(L.name.size);
         fitText(nameText, L.name.maxW);
@@ -250,25 +253,22 @@ const stationScreen: ScreenFactory = (): Screen => {
         if (busy) return;
         const variant = options[index];
         if (index >= owned.length) {
-          const purchase = engine.purchase(ws, currentProgress(ctx, ws), aspect, variant);
-          if (purchase.status !== 'bought') {
+          const offer = offers[index - owned.length];
+          if (!offer || popup) return;
+          const open = (text: string, single: boolean, onYes: () => void) => {
+            popup = new Confirm(scene, {
+              cx: L.size.w / 2, cy: L.size.h / 2, w: Math.min(L.size.w - 80, 900), text, single, defaultYes: true,
+              audio: ctx.audio, touch: ctx.input.touch, depth: 500,
+              onYes: () => { popup = undefined; onYes(); },
+              onNo: () => { popup = undefined; },
+            });
+          };
+          if (!offer.affordable) {
             playWorkshopSfx(ctx.audio, 'notEnough');
-            use.pulse();
-            return;
+            open(`You need more ${currency}`, true, () => {});
+          } else {
+            open(`Pay ${priceOf(cat, variant)} ${currency}?`, false, () => buy(variant));
           }
-          const save = ctx.save();
-          progress = purchase.progress;
-          ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: progress } });
-          owned = engine.availableFor(ws, progress, aspect);
-          offers = engine.shopOffers(ws, progress, aspect);
-          options = [...owned, ...offers.map((offer) => offer.variant)];
-          index = owned.indexOf(variant);
-          swatches.forEach((b) => b.destroy());
-          swatches = buildSwatches();
-          refresh();
-          preview();
-          playWorkshopSfx(ctx.audio, 'buy');
-          objs.push(showBanner(scene, { x: L.stage.cx, y: topH + 76, text: 'Bought!', color: 0xa8e6a1, ms: 900 }));
           return;
         }
         if (variant === installed) { leave(); return; }
@@ -291,6 +291,30 @@ const stationScreen: ScreenFactory = (): Screen => {
         }
         timer = scene.time.delayedCall(WS_ROOM.stationConfirmMs, () => ctx.go('room', { from: aspect }));
       };
+      const buy = (variant: string) => {
+        if (busy) return;
+        {
+          const purchase = engine.purchase(ws, currentProgress(ctx, ws), aspect, variant);
+          if (purchase.status !== 'bought') {
+            playWorkshopSfx(ctx.audio, 'notEnough');
+            use.pulse();
+            return;
+          }
+          const save = ctx.save();
+          progress = purchase.progress;
+          ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: progress } });
+          owned = engine.availableFor(ws, progress, aspect);
+          offers = engine.shopOffers(ws, progress, aspect);
+          options = [...owned, ...offers.map((offer) => offer.variant)];
+          index = owned.indexOf(variant);
+          swatches.forEach((b) => b.destroy());
+          swatches = buildSwatches();
+          refresh();
+          preview();
+          playWorkshopSfx(ctx.audio, 'buy');
+          objs.push(showBanner(scene, { x: L.stage.cx, y: topH + 76, text: 'Bought!', color: 0xa8e6a1, ms: 900 }));
+        }
+      };
 
       moveBy = (d) => select(index + d); doApply = apply; doLeave = leave;
       swatches = buildSwatches();
@@ -299,6 +323,7 @@ const stationScreen: ScreenFactory = (): Screen => {
     },
     update() {
       for (const a of ctx.input.poll()) {
+        if (popup) { popup.handle(a); continue; }
         if (busy) continue;
         if (a === 'left') moveBy(-1);
         else if (a === 'right') moveBy(1);
@@ -307,6 +332,8 @@ const stationScreen: ScreenFactory = (): Screen => {
       }
     },
     destroy() {
+      popup?.destroy();
+      popup = undefined;
       cleanSwatches();
       timer?.remove(false);
       tweens.forEach((t) => t.remove());
