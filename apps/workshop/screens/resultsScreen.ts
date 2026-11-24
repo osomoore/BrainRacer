@@ -2,7 +2,7 @@
  * results: every requirement of the challenge at the player's reading level with a green check or red X,
  * grouped by stage (stage number badges when there is more than one stage; stages the run never reached are dimmed
  * but still marked), a currency payout after a win, the hint after
- * enough failed attempts, and Try again / Test / Workshop buttons.
+ * enough failed attempts, and Run again / New Tests / Workshop buttons (Run again only after a fail).
  *
  * Long checklists shrink the font (never below 40 px), then are paged (the payout and the hint stay on every page).
  * Input is ignored for a moment after the screen opens so a held A from the run does not press a button.
@@ -151,9 +151,12 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const bw = wide ? 460 : 270;
       const gapX = wide ? 500 : 300;
       const fs = wide ? 56 : 44;
-      const again = result.passed ? undefined : new Button(s, { x: w / 2 - gapX, y: by, w: bw, h: 140, label: 'Try again', fontSize: fs, color: COLORS.yellow, onClick: () => ctx.go('run', { challengeId }) });
-      const board = new Button(s, { x: result.passed ? w / 2 - gapX / 2 : w / 2, y: by, w: bw, h: 140, label: 'Test', fontSize: fs, color: 0xbfe3ff, onClick: toBoard });
-      const room = new Button(s, { x: w / 2 + (result.passed ? gapX / 2 : gapX), y: by, w: bw, h: 140, label: 'Workshop', fontSize: fs, color: 0xa8e6a1, onClick: () => ctx.go('room', { from: 'center' }) });
+      const labels = result.passed ? ['New Tests', 'Workshop'] : ['Run again', 'New Tests', 'Workshop'];
+      const xs = labels.map((_, i) => w / 2 + (i - (labels.length - 1) / 2) * gapX);
+      const make = (i: number, color: number, onClick: () => void) => new Button(s, { x: xs[i], y: by, w: bw, h: 140, label: labels[i], fontSize: fs, color, onClick });
+      const again = result.passed ? undefined : make(0, COLORS.yellow, () => ctx.go('run', { challengeId }));
+      const board = make(result.passed ? 0 : 1, 0xbfe3ff, toBoard);
+      const room = make(labels.length - 1, 0xa8e6a1, () => ctx.go('room', { from: 'center' }));
       const actions = again ? [again, board, room] : [board, room];
       objs.push(...actions);
       group = new FocusGroup({

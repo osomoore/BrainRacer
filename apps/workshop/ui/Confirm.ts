@@ -19,6 +19,8 @@ export interface ConfirmOpts {
   cx: number; cy: number; w: number;
   text: string; yes?: string; no?: string;
   defaultYes?: boolean;
+  /** One centred button (label = `yes`, default 'OK'); confirm and back both close it, calling onYes. */
+  single?: boolean;
   onYes: () => void; onNo?: () => void;
   audio?: WorkshopAudio; touch?: boolean;
   depth?: number;
@@ -28,7 +30,7 @@ export class Confirm {
   open = true;
   private readonly objs: Phaser.GameObjects.GameObject[] = [];
   private readonly group: FocusGroup;
-  private readonly onNo?: () => void;
+  private onNo?: () => void;
 
   constructor(scene: Phaser.Scene, o: ConfirmOpts) {
     this.onNo = o.onNo;
@@ -38,13 +40,15 @@ export class Confirm {
     const panel = scene.add.image(o.cx, o.cy, roundedTexture(scene, o.w, h, COLORS.paper, { radius: 40 })).setOrigin(0.5, roundedOriginY(h)).setDepth(depth + 1);
     const text = makeText(scene, o.cx, o.cy - 100, o.text, { size: 56, wrap: o.w - 80 }).setDepth(depth + 2);
     const bw = Math.min(360, (o.w - 120) / 2);
-    const yes = new Button(scene, { x: o.cx - bw / 2 - 20, y: o.cy + 110, w: bw, h: WS_UI.tapMin + 20, label: o.yes ?? 'Yes', color: COLORS.green, onClick: () => this.close(o.onYes) });
-    const no = new Button(scene, { x: o.cx + bw / 2 + 20, y: o.cy + 110, w: bw, h: WS_UI.tapMin + 20, label: o.no ?? 'No', color: COLORS.red, textColor: COLORS.paper, onClick: () => this.close(o.onNo) });
-    yes.setDepth(depth + 2); no.setDepth(depth + 2);
-    this.objs.push(dim, panel, text, yes, no);
+    const yes = new Button(scene, { x: o.single ? o.cx : o.cx - bw / 2 - 20, y: o.cy + 110, w: bw, h: WS_UI.tapMin + 20, label: o.yes ?? (o.single ? 'OK' : 'Yes'), color: COLORS.green, onClick: () => this.close(o.onYes) });
+    const no = o.single ? undefined : new Button(scene, { x: o.cx + bw / 2 + 20, y: o.cy + 110, w: bw, h: WS_UI.tapMin + 20, label: o.no ?? 'No', color: COLORS.red, textColor: COLORS.paper, onClick: () => this.close(o.onNo) });
+    yes.setDepth(depth + 2); no?.setDepth(depth + 2);
+    this.objs.push(dim, panel, text, yes);
+    if (no) this.objs.push(no);
+    if (o.single) this.onNo = o.onYes;
     this.group = new FocusGroup({ audio: o.audio, touch: o.touch });
-    this.group.set([yes, no]);
-    this.group.focus(o.defaultYes ? yes : no);
+    this.group.set(no ? [yes, no] : [yes]);
+    this.group.focus(o.defaultYes || !no ? yes : no);
   }
 
   handle(a: PaneAction): void {
