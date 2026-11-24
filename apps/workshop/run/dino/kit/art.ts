@@ -464,8 +464,12 @@ def('bigBody', 420, 260, 210, 256, (g) => {
   for (const x of [150, 200, 250, 300]) poly(g, [[x - 14, 38], [x, 14], [x + 14, 38]], '#ffd23f', 4);
 });
 def('bigLeg', 70, 150, 35, 12, (g) => { rrect(g, 8, 4, 54, 120, 24, '#8a5ce0', 5); oval(g, 34, 132, 32, 14, '#8a5ce0', 5); for (const x of [14, 34, 54]) oval(g, x, 142, 5, 5, '#fff', 2); });
+const BIG_HEAD_PAD = 40;
 for (const m of ['normal', 'sniff', 'lick', 'surprised', 'sneeze', 'shrug', 'laugh'] as const) {
-  def(`bigHead:${m}`, 300, 240, 60, 140, (g) => {
+  // Headroom: the spike tips (y -14) and the sneeze drops (x 306) were drawn outside the bake and got cut flat.
+  // Padding the bake and shifting the drawing by the same amount keeps the origin and the look identical.
+  def(`bigHead:${m}`, 330, 240 + BIG_HEAD_PAD, 60, 140 + BIG_HEAD_PAD, (g) => {
+    g.translate(0, BIG_HEAD_PAD);
     blob(g, [[0, 100], [20, 50], [90, 16], [180, 24], [264, 70], [284, 130], [250, 186], [150, 214], [50, 190]], BIG, 5);
     oval(g, 252, 112, 28, 22, '#ffb8d8', 4);
     oval(g, 246, 106, 7, 9, INK, 0); oval(g, 262, 106, 7, 9, INK, 0);
