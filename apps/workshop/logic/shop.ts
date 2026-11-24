@@ -13,12 +13,12 @@ function aspectOrder(cat: WorkshopCatalog, aspect: AspectId): VariantId[] {
   return [a.starters[1], ...cat.unlockOrder.filter((id) => variants.get(id)?.aspect === aspect)];
 }
 
-/** Fixed price of a variant: basePrice + priceStep x its index in its aspect's shop order (2, 4, 6 ...). Owned starters are free (0). */
+/** Fixed price of a variant: basePrice for index 0, then priceStep x index (2, 3, 6, 9, 12 ...). Owned starters are free (0). */
 export function priceOf(cat: WorkshopCatalog, variant: VariantId): number {
   const aspect = index(cat).variantById.get(variant)?.aspect;
   if (!aspect) return 0;
   const i = aspectOrder(cat, aspect).indexOf(variant);
-  return i < 0 ? 0 : WS_RULES.basePrice + WS_RULES.priceStep * i;
+  return i < 0 ? 0 : i === 0 ? WS_RULES.basePrice : WS_RULES.priceStep * i;
 }
 
 function unownedOrder(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): VariantId[] {

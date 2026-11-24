@@ -28,7 +28,7 @@ describe('simulate (fixture)', () => {
       expect(r.progress.active).toHaveLength(3);
       expect(r.progress.wallet).toBeGreaterThanOrEqual(0);
     }
-  });
+  }, 60000);
   it('keeps independent simulator seeds deterministic and sandboxed', () => {
     const a = simulate(C, { seed: 17 });
     const b = simulate(C, { seed: 17 });

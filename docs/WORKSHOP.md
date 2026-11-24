@@ -66,7 +66,7 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
 
 - **Wins pay currency instead of unlocking variants.** Race Shop: coins. Dino Lab: Bio Juice. Separate wallets per
   profile and per workshop.
-- **Payout = 2 x the number of requirements** in the challenge (1 req = 2, 2 = 4, 3 = 6 ...). "Harder" means more
+- **Payout = 1 x the number of requirements** in the challenge (1 req = 1, 2 = 2, 3 = 3 ...). "Harder" means more
   requirements (e.g. big springs AND mud tires; 3-4+ at higher tiers). Numbers are always even and small so young kids
   can add them.
 - **No replays.** A won challenge leaves the board for good and is never generated again (dedupe by its resolved
@@ -76,7 +76,7 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   variants of that aspect (from the aspect's unlock order) for sale with a price tag; buying one reveals the next.
   Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
   (optionally the missing amount as a number).
-- Each variant has a fixed price from its place in its aspect's shop order: 2, 4, 6 … (basePrice + priceStep × index). Prices never change.
+- Each variant has a fixed price from its place in its aspect's shop order: 2, 3, 6, 9, 12 … (basePrice for the first, then priceStep × index). Prices never change.
 - **Fresh start.** Each aspect starts with one owned variant and the wallet starts at 4. Version 2 saves keep their
   existing cards, which are re-categorized on load.
 - **Board of three.** The first deal includes one **Ready** card (solvable with owned parts), one **Affordable** card
@@ -146,7 +146,7 @@ shared code lives in `shared/`.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
   and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
   reorders the current cards. The save retains active cards and caps unfinished history at `maxSavedChallenges`.
-- **Win**: pays `2 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
+- **Win**: pays `1 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
   the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. Nothing unlocks.
   Variants are bought with `purchase` (fixed price from the variant's place in its aspect's shop order).
 - **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
@@ -182,7 +182,7 @@ shared code lives in `shared/`.
 | Race Shop, River Crossing (`river.cross`, level 1) | Snorkel to drive through the stream, or Floaties to cross on the surface. | Use floaties or a snorkel. |
 
 Both fixes count as one requirement on their respective cards. A build must satisfy every guideline, and the
-win pays two coins or two Bio Juice per requirement. The board compares the total cost of complete builds
+win pays one coin or one Bio Juice per requirement. The board compares the total cost of complete builds
 and uses the cheapest to determine the category. An owned route makes the card Ready. A practice card can serve
 as a Ready card when no authored card is eligible.
 Version 2 saves retain their resolved requirements, wording, and IDs. Newly offered cards use the updated catalog.

@@ -152,7 +152,7 @@ describe('starters and board', () => {
     const out = eng.recordWin('race', buyBuild(p, model), ch.id, model, 10);
     expect(out.firstWin).toBe(true);
     expect(out.progress.active).toHaveLength(3);
-    expect(out.payout).toBe(ch.stages.reduce((n, s) => n + s.requirements.length, 0) * 2);
+    expect(out.payout).toBe(ch.stages.reduce((n, s) => n + s.requirements.length, 0) * 1);
   });
   it('fills Ready first if completing a card leaves two Future cards', () => {
     const start = fresh();
@@ -221,7 +221,7 @@ describe('starters and board', () => {
     const build = affordableBuild(withChallenge, challenge);
     const prepared = buyBuild(withChallenge, build);
     const out = eng.recordWin('race', prepared, challenge.id, build, 1);
-    expect(out.payout).toBe(4);
+    expect(out.payout).toBe(2);
     const reloaded = eng.refreshBoard('race', {
       ...out.progress, active: [reversed.id, ...out.progress.active],
       challenges: { ...out.progress.challenges, [reversed.id]: reversed },
@@ -233,17 +233,17 @@ describe('starters and board', () => {
     const m = { ...start.model, wheels: 'wheels.mud' };
     const p = buyBuild(start, m);
     const w1 = eng.recordWin('race', p, 'st-mud', m, 5);
-    expect(w1).toMatchObject({ firstWin: true, payout: 2 });
-    expect(w1.progress.wallet).toBe(4);
+    expect(w1).toMatchObject({ firstWin: true, payout: 1 });
+    expect(w1.progress.wallet).toBe(3);
     expect(w1.progress.firstWins).toBe(1);
     expect(w1.progress.bought).toContain('wheels.mud');
     expect(w1.progress.lastWin).toEqual(m);
-    expect(w1.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 2, build: m });
+    expect(w1.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 1, build: m });
     const w2 = eng.recordWin('race', { ...w1.progress, fails: { 'st-mud': 2 } }, 'st-mud', m, 9);
     expect(w2.firstWin).toBe(false);
     expect(w2.payout).toBe(0);
     expect(w2.progress.firstWins).toBe(1);
-    expect(w2.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 2 });
+    expect(w2.progress.completed['st-mud']).toMatchObject({ wonAt: 5, payout: 1 });
     expect(w2.progress.wallet).toBe(w1.progress.wallet);
     expect(w2.progress.fails['st-mud']).toBe(2);
   });
@@ -251,7 +251,7 @@ describe('starters and board', () => {
     const p = eng.setOverride('race', fresh(), 'wheels.racing', 'open');
     const m = { ...p.model, wheels: 'wheels.mud' };
     const out = eng.recordWin('race', buyBuild(p, m), 'st-mud', m, 1);
-    expect(out.payout).toBe(2);
+    expect(out.payout).toBe(1);
   });
   it('ignores a win for an unknown challenge', () => {
     const p = fresh();
@@ -301,17 +301,18 @@ describe('starters and board', () => {
 
 describe('shop and currency', () => {
   const early = ['wheels.mud', 'wheels.racing', 'wheels.snow'];
+  const PRICES = [2, 3, 6];
   const variant = (id: string) => C.variants.find((v) => v.id === id)!;
 
-  it('offers the first three cards at prices 2, 4, and 6 with seeded availability', () => {
+  it('offers the first three cards at prices 2, 3, and 6 with seeded availability', () => {
     let p = eng.grantCurrency('race', { ...fresh(), wallet: 0 });
     expect(p.wallet).toBe(10);
     for (let i = 0; i < early.length; i++) {
       const offer = eng.shopOffers('race', p, 'wheels').find((o) => o.variant === early[i]);
-      expect(offer).toMatchObject({ variant: early[i], price: (i + 1) * 2, affordable: p.wallet >= (i + 1) * 2 });
+      expect(offer).toMatchObject({ variant: early[i], price: PRICES[i], affordable: p.wallet >= PRICES[i] });
       if (i < 2) p = eng.purchase('race', p, 'wheels', early[i]).progress;
     }
-    expect(p.wallet).toBe(4);
+    expect(p.wallet).toBe(5);
     expect(eng.shopOffers('race', p, 'wheels')).toEqual(eng.shopOffers('race', p, 'wheels'));
   });
 
@@ -320,13 +321,13 @@ describe('shop and currency', () => {
     for (const [i, id] of early.slice(0, 2).entries()) {
       const v = variant(id);
       const out = eng.purchase('race', p, v.aspect, id);
-      expect(out).toMatchObject({ status: 'bought', price: (i + 1) * 2 });
+      expect(out).toMatchObject({ status: 'bought', price: PRICES[i] });
       p = out.progress;
       expect(p.bought).toContain(id);
       expect(eng.available('race', p).has(id)).toBe(true);
       expect(eng.purchase('race', p, v.aspect, id).status).toBe('unavailable');
     }
-    expect(p.wallet).toBe(4);
+    expect(p.wallet).toBe(5);
     expect(eng.shopOffers('race', p, 'wheels').find((o) => o.variant === early[2])).toMatchObject({ price: 6, affordable: false });
     expect(eng.purchase('race', p, 'wheels', early[2]).status).toBe('unaffordable');
   });
@@ -372,9 +373,9 @@ describe('shop and currency', () => {
     expect(result!.cost).toBeLessThanOrEqual(p.wallet);
     expect(solveAffordable(C, checks, { ...p, wallet: 0 })).toBeNull();
     const combined = [...checks, ...flatChecks(p.challenges['st-mud'])];
-    // wheels.mud costs 2 and paint.red costs 4 (fixed shop order), so both together need 6.
-    expect(solveAffordable(C, combined, { ...p, wallet: 6 })?.cost).toBe(6);
-    expect(solveAffordable(C, combined, { ...p, wallet: 5 })).toBeNull();
+    // wheels.mud costs 2 and paint.red costs 3 (fixed shop order), so both together need 5.
+    expect(solveAffordable(C, combined, { ...p, wallet: 5 })?.cost).toBe(5);
+    expect(solveAffordable(C, combined, { ...p, wallet: 4 })).toBeNull();
   });
 
   it('resets purchased progress and wallet while preserving reading', () => {
@@ -409,6 +410,9 @@ describe('generator rules', () => {
       for (const s of c.stages) {
         if (s.scenario === 'practice') {
           expect(s.view).toBe('side');
+          const pool = new Set(C.scenarioPhrases.flatMap((sp) => sp.title));
+          expect(c.title).not.toMatch(/-?Part Build/);
+          for (const t of c.title.split(' & ')) expect(pool.has(t)).toBe(true);
           expect(s.requirements.every((r) => r.facet.startsWith('practice.'))).toBe(true);
           continue;
         }
