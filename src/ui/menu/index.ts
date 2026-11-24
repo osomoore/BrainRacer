@@ -5,7 +5,3 @@ export { JoinCard } from './JoinCard';
 export { PauseOverlay } from './PauseOverlay';
 export { LetterPicker } from './LetterPicker';
 export type { LetterPickerOpts, PickerResult } from './LetterPicker';
-export { drawJoinPanelFrame } from '../../../shared/ui/menu/style';
-export { JoinCard as SharedJoinCard, type JoinCardOptions } from '../../../shared/ui/menu/JoinCard';
-export { MenuButton as SharedMenuButton } from '../../../shared/ui/menu/MenuButton';
-export { OptionRow as SharedOptionRow, type OptionRowOpts } from '../../../shared/ui/menu/OptionRow';
