@@ -20,6 +20,7 @@ export class RaceRig extends BaseRig {
   private springs: { img: Img; h: number }[] = [];
   private springG!: Phaser.GameObjects.Container;
   private floatG!: Phaser.GameObjects.Container;
+  private mountG: Phaser.GameObjects.Container | null = null;
   private flame: Img | null = null;
   private L!: RaceLooks;
   private geo!: RaceGeom;
@@ -28,6 +29,8 @@ export class RaceRig extends BaseRig {
     super(scene, 'race', model, view);
     this.init();
   }
+
+  bodyMount(): Phaser.GameObjects.Container { return this.mountG!; }
 
   protected supports(a: RigAnim): boolean { return !['walk', 'run', 'chomp', 'crouch', 'stand', 'flap', 'wag'].includes(a); }
 
@@ -67,6 +70,8 @@ export class RaceRig extends BaseRig {
       exhaust: { x: geo.rear - 14, y: geo.bottom + 8 }, roof: { x: (geo.cabin[0].x + geo.cabin[3].x) / 2, y: geo.roofTop },
       front: { x: geo.front, y: midY }, back: { x: geo.rear, y: midY },
     };
+    this.mountG = sc.add.container(0, 0).setScale(1 / this.scale);
+    this.bodyG.add(this.mountG);
     const wheelId = m.wheels;
     if (this.view === 'side') this.constructSide(add, wheelId, midY);
     else this.constructTop(add, wheelId);

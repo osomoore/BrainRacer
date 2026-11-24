@@ -48,7 +48,7 @@ export default racePlayer('delivery', async (ctx) => {
   S.camX = 0;
   const roof = rig.anchor('roof');
   const tower = ctx.scene.add.container(roof.x, roof.y);
-  rig.root.add(tower);
+  (rig.bodyMount?.() ?? rig.root).add(tower);
   const slot = (i: number): { x: number; y: number } => ({ x: (i % 2) * 66 - 33, y: -6 - Math.floor(i / 2) * 63 });
   const placeBox = (i: number): ReturnType<typeof S.put> => {
     const b = ctx.scene.add.image(0, 0, pile[i].texture.key).setOrigin(0.5, 0.93).setScale(BOX_S);
