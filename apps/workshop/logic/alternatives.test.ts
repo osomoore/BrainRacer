@@ -32,14 +32,14 @@ describe('alternative challenge fixes', () => {
     expect(failure.stages[0].firstFail).toBe(requirement.id);
 
     const progress = { ...initial, active: [peek.id], challenges: { [peek.id]: peek }, bought: ['size.big'] };
-    expect(engine.recordWin('dino', progress, peek.id, options[2], 1)).toMatchObject({ firstWin: true, payout: 2 });
+    expect(engine.recordWin('dino', progress, peek.id, options[2], 1)).toMatchObject({ firstWin: true, payout: 1 });
   });
 
   it('selects the cheapest complete option, including owned parts and total cost constraints', () => {
     expect(solveAffordable(dino, peekChecks, initial)).toMatchObject({ cost: 2, build: { move: 'move.stand' } });
     const locked = { ...initial, overrides: { 'move.stand': 'locked' as const } };
-    expect(solveAffordable(dino, peekChecks, locked)?.cost).toBe(4);
-    expect(solveAffordable(dino, peekChecks, { ...locked, wallet: 3 })).toBeNull();
+    expect(solveAffordable(dino, peekChecks, locked)?.cost).toBe(3);
+    expect(solveAffordable(dino, peekChecks, { ...locked, wallet: 2 })).toBeNull();
     const owned = { ...locked, wallet: 0, bought: ['size.big'] };
     expect(solveAffordable(dino, peekChecks, owned)).toMatchObject({ cost: 0, build: { size: 'size.big' } });
 
@@ -47,9 +47,9 @@ describe('alternative challenge fixes', () => {
       { kind: 'noTag', tag: 'pose:stand' },
       { kind: 'tag', tag: 'diet:critters' },
     ];
-    // The stand option conflicts with another check. Buying a different fix and teeth costs 6 together.
+    // The stand option conflicts with another check. Buying a different fix and teeth costs 5 together.
     expect(solveAffordable(dino, [...peekChecks, ...extraChecks], initial)).toBeNull();
-    expect(solveAffordable(dino, [...peekChecks, ...extraChecks], { ...initial, wallet: 6 })?.cost).toBe(6);
+    expect(solveAffordable(dino, [...peekChecks, ...extraChecks], { ...initial, wallet: 5 })?.cost).toBe(5);
   });
 
   it('generates for an affordable alternative and rejects builds that already pass via any option', () => {
@@ -61,7 +61,7 @@ describe('alternative challenge fixes', () => {
     const options = {
       tier: 0, avail: budget.pool, current: progress.model, lastWin: null, minChanged: 2,
       newest: null, usedKeys: new Set<string>(), avoidScenarios: new Set<string>(), attempts: 1,
-      strictCurrent: true, accepts: (checks: readonly Check[]) => budget.solve(checks)?.cost === 4,
+      strictCurrent: true, accepts: (checks: readonly Check[]) => budget.solve(checks)?.cost === 3,
     };
     const generate = (params: Parameters<typeof generateChallenge>[4]) =>
       generateChallenge(catalog, 'test', 'generated', 1, params);

@@ -14,6 +14,16 @@ export function practiceChallenge(
   const parts = rng.shuffle(cat.variants.filter((part) => owned.has(part.id)
     && (allowCurrent || cat.variants.some((other) => other.aspect === part.aspect && other.id !== part.id && owned.has(other.id)))));
   const intro = '';
+  const titlePool = [...new Set(cat.scenarioPhrases.flatMap((sp) => sp.title).filter(Boolean))];
+  if (titlePool.length === 0) titlePool.push(...cat.scenarios.map((sc) => sc.label));
+  /** Real flavor titles from the content's scenario phrase titles; two parts join two different ones like a two-stage card. */
+  const flavorTitle = (n: number): string => {
+    const r = new Rng(seed ^ 0x2f6e2b1);
+    const first = titlePool[Math.floor(r.next() * titlePool.length)];
+    if (n === 1 || titlePool.length < 2) return first;
+    const rest = titlePool.filter((t) => t !== first);
+    return first + ' & ' + rest[Math.floor(r.next() * rest.length)];
+  };
   const make = (variants: Variant[]): Challenge => {
     const requirements = variants.map((part, i): Requirement => {
       const aspect = cat.aspects.find((a) => a.id === part.aspect);
@@ -30,7 +40,7 @@ export function practiceChallenge(
       };
     });
     return {
-      id, workshop: cat.id, title: variants.length === 1 ? 'One-Part Build' : 'Two-Part Build',
+      id, workshop: cat.id, title: flavorTitle(variants.length),
       intro: { easy: intro, medium: intro, hard: intro },
       stages: [{ scenario: 'practice', view: 'side', params: {}, requirements }],
       tier, source: 'generated', seed, genVersion: WS_RULES.genVersion,

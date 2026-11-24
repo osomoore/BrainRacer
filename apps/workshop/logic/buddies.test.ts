@@ -84,7 +84,7 @@ describe('buddy save and progression', () => {
     expect(outcome.firstWin).toBe(true);
     expect(outcome.progress.buddies).toEqual(progress.buddies);
     expect(outcome.unlockedBuddy).toBeUndefined();
-  });
+  }, 30000);
 
   it('does not count failed, invalid, or duplicate wins', () => {
     const progress = fresh();

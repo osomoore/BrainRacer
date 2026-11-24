@@ -7,11 +7,11 @@ import { priceOf, purchaseRoutes, shopOffers } from './shop';
 const rich = () => ({ ...newProgress(C), wallet: 100 });
 
 describe('fixed shop prices', () => {
-  it('prices each purchasable variant by its place in its aspect shop order: 2, 4, 6', () => {
+  it('prices each purchasable variant by its place in its aspect shop order: 2, 3, 6', () => {
     expect(WS_RULES.basePrice).toBe(2);
-    expect(WS_RULES.priceStep).toBe(2);
+    expect(WS_RULES.priceStep).toBe(3);
     expect(priceOf(C, 'wheels.mud')).toBe(2);
-    expect(priceOf(C, 'wheels.racing')).toBe(4);
+    expect(priceOf(C, 'wheels.racing')).toBe(3);
     expect(priceOf(C, 'wheels.snow')).toBe(6);
   });
 
@@ -22,7 +22,7 @@ describe('fixed shop prices', () => {
   it('shows the next two unowned variants with their fixed prices', () => {
     const p = rich();
     const offers = shopOffers(C, p, 'wheels');
-    expect(offers.map((o) => [o.variant, o.price])).toEqual([['wheels.mud', 2], ['wheels.racing', 4]]);
+    expect(offers.map((o) => [o.variant, o.price])).toEqual([['wheels.mud', 2], ['wheels.racing', 3]]);
   });
 
   it('includes the cheapest prerequisite purchases in a hidden variant’s route', () => {
@@ -41,7 +41,7 @@ describe('fixed shop prices', () => {
     let p = rich();
     p = purchase(C, p, 'wheels', 'wheels.mud').progress;
     const offers = shopOffers(C, p, 'wheels');
-    expect(offers.map((o) => [o.variant, o.price])).toEqual([['wheels.racing', 4], ['wheels.snow', 6]]);
+    expect(offers.map((o) => [o.variant, o.price])).toEqual([['wheels.racing', 3], ['wheels.snow', 6]]);
     for (const v of C.variants) expect(priceOf(C, v.id)).toBe(before[v.id]);
   });
 
@@ -56,9 +56,9 @@ describe('fixed shop prices', () => {
   });
 
   it('marks offers affordable from the wallet balance', () => {
-    const p = { ...newProgress(C), wallet: 3 };
+    const p = { ...newProgress(C), wallet: 2 };
     const offers = shopOffers(C, p, 'wheels');
     expect(offers.find((o) => o.variant === 'wheels.mud')).toMatchObject({ price: 2, affordable: true });
-    expect(offers.find((o) => o.variant === 'wheels.racing')).toMatchObject({ price: 4, affordable: false });
+    expect(offers.find((o) => o.variant === 'wheels.racing')).toMatchObject({ price: 3, affordable: false });
   });
 });

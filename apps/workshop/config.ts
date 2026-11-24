@@ -11,9 +11,10 @@ export const WS_RULES = {
   boardSize: 3,
   startWallet: 4,
   basePrice: 2,
-  priceStep: 2,
+  /** Price of the shop-order index i >= 1 is priceStep x i (index 0 costs basePrice): 2, 3, 6, 9, 12 ... */
+  priceStep: 3,
   offersPerAspect: 2,
-  payoutPerRequirement: 2,
+  payoutPerRequirement: 1,
   adminCurrencyGrant: 10,
   /** Admin Mode sandbox challenge count. */
   adminBoardSize: 10,
