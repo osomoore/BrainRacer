@@ -24,7 +24,7 @@ export interface Skeleton {
   armLen: number;
 }
 
-export function skeleton(l: DinoLooks, armLen: number): Skeleton {
+export function skeleton(l: DinoLooks, armLen: number, tinyArms = false): Skeleton {
   const { body: b, legs: lg, head: h, pose } = l;
   const rx = b.rx, ry = pose === 'swim' ? b.ry * 0.88 : b.ry;
   let cx = 0, cy = 0, rot = 0;
@@ -66,10 +66,21 @@ export function skeleton(l: DinoLooks, armLen: number): Skeleton {
     cx = 0; cy = -(lg.len + ry - 6);
     const ay = cy + ry * 0.45, len = -ay;
     for (const [x, front] of [[-rx * 0.52, false], [rx * 0.5, true]] as const) {
+      if (tinyArms && front) continue;
       legs.push({ x: x + 20, y: ay, len, far: true, front, rot: 0 });
       legs.push({ x, y: ay, len, far: false, front, rot: 0 });
     }
     headRot = 0.05;
+  }
+  if (tinyArms) {
+    // Both short arms attach at the chest. Show the far wrist past the silhouette.
+    const shoulder = rotPt({ x: rx * 0.77, y: ry * 0.31 }, rot);
+    const farShoulder = rotPt({ x: rx * 0.89, y: ry * 0.55 }, rot);
+    const swim = pose === 'swim';
+    arms.splice(0, arms.length,
+      { x: cx + shoulder.x, y: cy + shoulder.y, far: false, rot: swim ? 0.75 : 0.04 },
+      { x: cx + farShoulder.x, y: cy + farShoulder.y, far: true, rot: swim ? 0.53 : -0.19 },
+    );
   }
   tailBase = { x: cx + rotPt({ x: -rx * 0.88, y: ry * 0.05 }, rot).x, y: cy + rotPt({ x: -rx * 0.88, y: ry * 0.05 }, rot).y };
   neckBase = { x: cx + rotPt({ x: rx * 0.78, y: -ry * 0.22 }, rot).x, y: cy + rotPt({ x: rx * 0.78, y: -ry * 0.22 }, rot).y };

@@ -267,7 +267,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
   painted version in a run with the same position and size; with the real manifest the game looks unchanged; tests pass.
 
 
-## C18 — Dino shape fixes from review round 2 · `OPEN`
+## C18 — Dino shape fixes from review round 2 · `DONE (codex/c18)`
 - **Parallel-safe with C16, C17 and C19.** Shape (code) drawing only, no ComfyUI. Source: `feedback/workshop-art-feedback_2.json`.
 - **Port:** 5223.
 - **Scope:** `apps/workshop/art/dino/**` (shapes, looks, patterns, layering), `apps/workshop/dev/WorkshopParts.ts` and
@@ -291,6 +291,11 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** reviewer sheets (`?dev=WorkshopParts&art=shapes&freeze=1`) and `RigAnims` screenshots show each fix
   at side and top views for every head/size combo that the change touches; tests pass. List in the hand-back which paint
   keys are now stale (their voted paint hides the new shape).
+
+- **Hand-back:** The installed paint `ws:d:thead:head.round:color.orange:extra.stripes:n` still shows the old stripe
+  layout. Any previously generated Leaf Pattern or Tiger Stripes candidates need a fresh shape export before repainting.
+  Reviewer sheets accept `head=head.rex` and `size=size.huge` (or any other dino head and size IDs); use
+  `aspect=tail&extra=extra.feathers` to review the spiked and paddle tails.
 
 ## C19 — Race Shop attachment placement from review round 2 · `OPEN`
 - **Parallel-safe with C16, C17 and C18.** Shape (code) only, no ComfyUI.

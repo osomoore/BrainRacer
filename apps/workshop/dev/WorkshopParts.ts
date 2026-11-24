@@ -92,6 +92,14 @@ export default class WorkshopParts extends Phaser.Scene {
     this.clear();
     const cat = CATALOGS[this.workshop];
     const base: Model = Object.fromEntries(cat.aspects.map((a) => [a.id, a.starters[0]]));
+    const q = new URLSearchParams(location.search);
+    if (this.workshop === 'dino') {
+      for (const aspect of ['head', 'size']) {
+        const variant = cat.variants.find((v) => v.aspect === aspect && v.id === q.get(aspect));
+        if (variant) base[aspect] = variant.id;
+      }
+      if (q.get('extra') === 'extra.feathers') base.extra = 'extra.feathers';
+    }
     if (this.beaks) {
       const model = { ...base, teeth: 'teeth.beak' };
       this.label(960, 10, 'Dino Lab / Beak profiles', 40);
@@ -120,9 +128,10 @@ export default class WorkshopParts extends Phaser.Scene {
     const aspect = cat.aspects[this.aspectIdx];
     const vars = cat.variants.filter((v) => v.aspect === aspect.id);
     const compareSizes = aspect.id === 'size';
+    const aspectLabel = this.workshop === 'dino' && aspect.id === 'claws' ? 'Arms & Claws' : aspect.label;
     this.label(960, 10, compareSizes
       ? `${cat.title} / Size · same scale`
-      : `${cat.title} / ${aspect.label}   (arrows = aspect, 1/2 = workshop, R = random)`, 40);
+      : `${cat.title} / ${aspectLabel}   (arrows = aspect, 1/2 = workshop, R = random)`, 40);
     const gears = this.workshop === 'race' && aspect.id === 'gears';
     const springs = this.workshop === 'race' && aspect.id === 'springs';
     this.drawRow(vars.map((v) => {

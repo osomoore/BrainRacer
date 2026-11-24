@@ -4,7 +4,7 @@ import type { Model } from '../../core/types';
 import { drawShapes, ellipsePath, OL, OUTLINE, type PartSpec, type Shape } from '../bake';
 import { type Pt, artRng, hashStr, mix, tubeOutline } from '../geom';
 import picks from '../paint/picks.json';
-import { EXTRA, type ExtraLook, SKIN, type SkinLook } from './looks';
+import { EXTRA, type ExtraLook, SKIN, type SkinLook, type TailLook } from './looks';
 
 type G = CanvasRenderingContext2D;
 export type PatternKind = 'none' | 'camo' | 'stripes' | 'glow';
@@ -62,11 +62,12 @@ export function stripeMarks(box: Box, seed: number, partSalt: number) {
   const w = box.x1 - box.x0, h = box.y1 - box.y0;
   const rng = new Rng(seed ^ partSalt ^ hashStr('stripes'));
   const count = Math.max(2, Math.round(w / Math.max(23, h / 3)));
+  const pitch = w / count;
   return Array.from({ length: count }, (_, i) => ({
-    x: box.x0 + (i + rng.range(0.16, 0.84)) * w / count,
+    x: box.x0 + (i + rng.range(0.43, 0.57)) * pitch,
     length: h * rng.range(0.47, 0.91),
-    width: Math.min(w / count, 24) * rng.range(0.35, 0.75),
-    bend: rng.range(-14, 14),
+    width: pitch * rng.range(0.36, 0.49),
+    bend: pitch * rng.range(-0.08, 0.08),
   }));
 }
 
@@ -262,49 +263,59 @@ export function skinFill(sk: SkinSpec, box: Box, seed: number, patternSeed = has
         g.beginPath(); g.arc(x, y, 8 * radius, 0, Math.PI * 2); g.fill();
       }
     }
-    const ex = sk.ex;
-    if (sk.pattern === 'stripes' && ex) {
-      g.fillStyle = ex.c1;
-      for (const { x, length, width, bend } of stripeMarks(box, patternSeed, seed)) {
-        const y = box.y0 - 4;
-        g.beginPath();
-        g.moveTo(x - width / 2, y);
-        g.lineTo(x + width / 2, y);
-        g.quadraticCurveTo(x + width / 2 + bend, y + length * 0.47, x + bend, y + length);
-        g.quadraticCurveTo(x - width * 0.7 + bend, y + length * 0.52, x - width / 2, y);
-        g.fill();
-      }
-    } else if (sk.pattern === 'camo' && ex) {
-      for (const [i, { x, y, radius, angle }] of patternMarks('camo', box, patternSeed, seed).entries()) {
-        const length = 12 * radius;
-        g.save();
-        g.translate(x, y);
-        g.rotate(angle);
-        g.fillStyle = i % 2 ? ex.c1 : ex.c2;
-        g.beginPath();
-        g.moveTo(-length * 0.8, 0);
-        g.quadraticCurveTo(-length * 0.3, -length * 0.77, length, 0);
-        g.quadraticCurveTo(-length * 0.3, length * 0.68, -length * 0.8, 0);
-        g.fill();
-        g.strokeStyle = ex.c3;
-        g.lineWidth = 1.6;
-        g.beginPath();
-        g.moveTo(-length, 0);
-        g.lineTo(length * 0.7, 0);
-        g.stroke();
-        g.restore();
-      }
-    } else if (sk.pattern === 'glow' && ex) {
-      for (const { x, y, radius } of patternMarks('glow', box, patternSeed, seed)) {
-        for (const [color, scale] of [[ex.c1, 10], [ex.c2, 7], [ex.c3, 3]] as const) {
-          g.fillStyle = color;
-          g.beginPath(); g.arc(x, y, radius * scale, 0, Math.PI * 2); g.fill();
-        }
-      }
-    }
+    skinMarks(g, sk, box, seed, patternSeed);
   };
 }
 
+/** The belly uses the same seeded motifs, softened toward the belly colour. */
+export function skinMarks(g: G, sk: SkinSpec, box: Box, seed: number, patternSeed = hashStr(sk.key), belly = false): void {
+  const ex = sk.ex;
+  if (!ex) return;
+  const color = (mark: string) => belly ? mix(mark, sk.look.belly, 0.43) : mark;
+  if (sk.pattern === 'stripes' && !belly) {
+    g.fillStyle = ex.c1;
+    for (const { x, length, width, bend } of stripeMarks(box, patternSeed, seed)) {
+      const y = box.y0 - 4;
+      g.beginPath();
+      g.moveTo(x - width / 2, y);
+      g.lineTo(x + width / 2, y);
+      g.quadraticCurveTo(x + width / 2 + bend, y + length * 0.47, x + bend, y + length);
+      g.quadraticCurveTo(x - width * 0.7 + bend, y + length * 0.52, x - width / 2, y);
+      g.fill();
+    }
+  } else if (sk.pattern === 'camo') {
+    for (const [i, { x, y, radius, angle }] of patternMarks('camo', box, patternSeed, seed).entries()) {
+      const length = 12 * radius;
+      g.save();
+      g.translate(x, y);
+      g.rotate(angle);
+      g.fillStyle = color(i % 2 ? ex.c1 : ex.c2);
+      g.beginPath();
+      g.moveTo(-length * 0.8, 0);
+      g.quadraticCurveTo(-length * 0.3, -length * 1.08, length, 0);
+      g.quadraticCurveTo(-length * 0.3, length * 0.99, -length * 0.8, 0);
+      g.fill();
+      g.strokeStyle = color(ex.c3);
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.moveTo(-length, 0);
+      g.lineTo(length * 0.7, 0);
+      g.stroke();
+      g.restore();
+    }
+  } else if (sk.pattern === 'glow') {
+    for (const { x, y, radius } of patternMarks('glow', box, patternSeed, seed)) {
+      for (const [band, scale] of [[ex.c1, 10], [ex.c2, 7], [ex.c3, 3]] as const) {
+        g.fillStyle = color(band);
+        g.beginPath(); g.arc(x, y, radius * scale, 0, Math.PI * 2); g.fill();
+      }
+    }
+  }
+}
+
+export function tailFeathers(tail: TailLook, skin: SkinSpec): ExtraLook | null {
+  return skin.ex?.kind === 'feathers' && tail.kind !== 'spiked' && tail.kind !== 'paddle' ? skin.ex : null;
+}
 
 /** Shapes for a tube (polyline with per-point half widths): body polygon + two round caps. */
 export function tubeShapes(pts: readonly Pt[], hw: readonly number[], fill: (g: G) => void): Shape[] {
