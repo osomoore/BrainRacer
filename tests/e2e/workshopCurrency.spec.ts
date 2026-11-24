@@ -71,12 +71,8 @@ test('buy and install Mud Tires, then win Deep Mud for its payout', async ({ pag
   let progress = await saved(page);
   expect(progress.wallet).toBe(2);
   expect(progress.bought).toEqual(['wheels.mud']);
-  expect(progress.model.wheels).toBe('wheels.road');
-  expect(await visibleText(page)).toEqual(expect.arrayContaining(['2', '4', '6', 'Use it!']));
-  await key(page, 'Space');
+  expect(progress.model.wheels).toBe('wheels.mud'); // buying also equips
   await expectScreen(page, 'room');
-  progress = await saved(page);
-  expect(progress.model.wheels).toBe('wheels.mud');
 
   await page.evaluate((id) => (window as any).__ws.contexts()[0].go('run', { challengeId: id }), id);
   await expectScreen(page, 'run');
@@ -141,6 +137,19 @@ test.describe('split-pane shopping', () => {
   });
 });
 
+test('the wallet badge sits at the same spot on every screen', async ({ page }) => {
+  await boot(page); await enter(page);
+  const pos = async () => page.evaluate(() => { const b = (window as any).__ws.panes[0].children.getByName('workshop-wallet'); return b && [b.x, b.y]; });
+  const at: any[] = [];
+  for (const [screen, data] of [['room', {}], ['station', { aspect: 'wheels' }], ['board', {}], ['results', {}]] as const) {
+    await page.evaluate(({ screen, data }) => (window as any).__ws.contexts()[0].go(screen, data), { screen, data });
+    await page.waitForTimeout(500);
+    if (await pos()) at.push(await pos());
+  }
+  expect(at.length).toBeGreaterThanOrEqual(3);
+  for (const p of at) expect(p).toEqual(at[0]);
+});
+
 test('an unaffordable Bio Juice offer cannot be bought or installed', async ({ page }) => {
   await boot(page); await enter(page, 'dino');
   const before = await page.evaluate(() => {
@@ -153,9 +162,9 @@ test('an unaffordable Bio Juice offer cannot be bought or installed', async ({ p
   await expectScreen(page, 'station');
   await key(page, 'KeyD');
   await key(page, 'Space');
-  expect(await visibleText(page)).toContain('You need more Bio Juice');
+  expect(await visibleText(page)).toContain('You have 0 Bio Juice. You need 2.');
   await key(page, 'Space'); // OK closes the popup
-  expect(await visibleText(page)).not.toContain('You need more Bio Juice');
+  expect(await visibleText(page)).not.toContain('You have 0 Bio Juice. You need 2.');
   await expectScreen(page, 'station');
   expect(await saved(page, 'dino')).toEqual(before);
 });
