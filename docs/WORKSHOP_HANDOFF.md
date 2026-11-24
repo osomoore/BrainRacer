@@ -18,6 +18,7 @@ session needs on top of that: where things are, what is waiting, and the rules t
 - **Codex:** C13–C19 merged into `feature/workshop` (green: typecheck, 961 unit tests, workshop e2e 27/27). C20 (dino head
   fixes from head votes, 5225) and C21 (art-pick comment field, 5226) are written and ready for the user to start.
   Review and merge each when its branch marks it DONE; then run typecheck, `npm test`, workshop e2e.
+- **Codex (currency system):** C22-C24 written (design in WORKSHOP.md, Currency and shop); C23 waits for C22.
 - **User preference:** Claude quota is scarce, Codex resets. Write work as Codex jobs first; Claude sub-agents only when
   the user asks or something blocks.
 

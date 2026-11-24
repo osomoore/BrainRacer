@@ -60,6 +60,41 @@ the decisions made on top of it and how the code is split.
 - **Audio:** Race Shop music (garage/racing building), Dino Lab music (quirky lab), simple sfx during runs,
   success / fail / unlock stings. Pre-rendered Ogg files like Brain Racer (`public/audio/workshop/`).
 
+### Currency and shop (agreed 2026-11-23)
+
+Supersedes the earlier "a win unlocks the next variant" rule everywhere in this document.
+
+- **Wins pay currency instead of unlocking variants.** Race Shop: coins. Dino Lab: Bio Juice. Separate wallets per
+  profile and per workshop.
+- **Payout = 2 x the number of requirements** in the challenge (1 req = 2, 2 = 4, 3 = 6 ...). "Harder" means more
+  requirements (e.g. big springs AND mud tires; 3-4+ at higher tiers). Numbers are always even and small so young kids
+  can add them.
+- **No replays.** A won challenge leaves the board for good and is never generated again (dedupe by its resolved
+  requirement set). Old successes stay in the save for a future scoreboard/trophy screen (later feature, not built now;
+  listed in `WORKSHOP_FUTURE_VARIANTS.md`).
+- **Variants are bought at the aspect's station** in the workshop room. Each station always shows the next 2 unowned
+  variants of that aspect (from the aspect's unlock order) for sale with a price tag; buying one reveals the next.
+  Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
+  (optionally the missing amount as a number).
+- **Price = 2 + 2 x (variants already bought in that aspect)**: 2, 4, 6 ... Tunables in config.
+- **Fresh start:** 1 owned variant per aspect (the first starter), wallet 4 (two 2-cost buys). Save version is bumped;
+  old beta saves are reset (no migration).
+- **Board = 3 challenges.** Target mix: 1 solvable with owned variants only + 2 that need purchases the player can
+  afford right now. Affordable = solvable with owned variants plus purchases whose total cost <= current wallet (each
+  challenge judged on its own). When no owned-only challenge can exist (early game: one owned variant per aspect, so
+  the only build is the current model), fill with 3 affordable-purchase challenges; the owned-only slot returns once it
+  is possible. Never leave the board short; if generation truly fails, fall back to more owned-only challenges.
+  Existing rules stay: not solvable by `lastWin` nor by the current model; `minChangedAspects`.
+- **After any purchase or spend, re-check the board:** challenges that became unaffordable are replaced with new valid
+  ones; challenges that became owned-only solvable stay.
+- **Hand-picked starters:** kept only if they fit (each needs exactly one 2-cost purchase); otherwise dropped in favor
+  of generated ones (the C22 job decides and reports which).
+- **UI:** each player pane always shows its wallet (coin or juice-drop icon + number). Results shows "+N" with the icon
+  (fits the numbers-only popup rule). Buying has a short confirm and a sound.
+- **Admin:** Admin Mode keeps everything open and saves nothing. Per-player admin adds "Reset this player (fresh
+  start)" and "+10 currency" for testing.
+- **Two players:** fully separate wallets and boards (as now).
+
 ## Code map and ownership
 
 Everything is under `apps/workshop/` unless noted. **The workshop never imports from `src/`** (Brain Racer);
@@ -88,7 +123,7 @@ shared code lives in `shared/`.
 - **Checks**: `statMin`, `statMax`, `tag`, `noTag`. A requirement passes when all its checks pass.
 - **evaluate**: every requirement is evaluated (also those after a failing stage: `reached: false`).
   The run ends at the first stage with a failing requirement; `firstFail` = first failing requirement there.
-- **available variants** = starters ∪ earned ∪ `open` overrides − `locked` overrides; an aspect never ends up empty
+- **available variants** = owned (first starter per aspect + purchased) ∪ `open` overrides − `locked` overrides; an aspect never ends up empty
   (if every variant of an aspect is locked, its first starter stays available).
 - **Generator** (seeded by `genSeq`, which only increases):
   - Tier `t = min(maxTier, floor(firstWins / winsPerTier))`. Tier sets stage count and requirements per stage, e.g.
@@ -103,15 +138,16 @@ shared code lives in `shared/`.
   - Text: title from the scenario phrase bank (2 stages: "A & B", 3+: first title + " Adventure"); intro + one
     sentence per requirement, picked deterministically from the phrase bank for each reading level.
   - Saved challenges are fully resolved (checks + text for all three levels). Never regenerate a saved challenge.
-- **Starters** are offered in order first (3 at a time). They must fail with the default model and each needs one aspect.
-- **Board**: 3 active challenges. When one is won it is replaced by a new eligible challenge; if fewer than 3 unfinished
-  ones can be made, completed ones fill the rest. Completed challenges stay replayable (save capped at
-  `maxSavedChallenges`, active ones never dropped).
-- **Win**: first win → next variant in `unlockOrder` that isn't already available (+ `firstWins++`); replays give no
-  reward. Every win stores the build as the challenge's winning build and as `lastWin`; fails reset.
+- **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
+- **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
+  and never regenerated (deduped by resolved requirement set); its success stays in the save history. Any purchase or
+  spend re-checks the board. Save capped at `maxSavedChallenges` for non-won challenges, active ones never dropped.
+- **Win**: pays `2 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
+  the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. Nothing unlocks.
+  Variants are bought with `purchase` (price 2 + 2 x bought in that aspect).
 - **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
 - **Overrides** change availability; `refreshBoard` then drops active challenges that became unsolvable and refills.
-- **Saves**: `localStorage` `workshop.players.v1` = `Record<profileId, PlayerSave>`, `workshop.device.v1` = `DeviceSave`.
+- **Saves** (version bumped for the currency system): `localStorage` `workshop.players.v1` = `Record<profileId, PlayerSave>`, `workshop.device.v1` = `DeviceSave`. Per workshop: wallet, bought variants, success history.
   Model is saved on every part change.
 
 ## Content guide (content/race, content/dino)

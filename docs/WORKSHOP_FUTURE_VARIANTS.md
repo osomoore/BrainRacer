@@ -21,3 +21,4 @@ when planning a content wave.
 
 ## Both
 - Accent-color-aware extras (decals, patterns) once accents exist (Codex job C2).
+- **Scoreboard / trophy screen**: list the won challenges kept in each save's success history (currency system, C22). Not built yet.

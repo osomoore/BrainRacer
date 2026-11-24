@@ -345,6 +345,79 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Done when:** Playwright screenshots at both sizes (1920×1080 and 1366×768) show the field fully visible with text in it;
   existing tests pass.
 
+## C22 — Currency engine (logic only) · `OPEN`
+- **Start point:** branch `codex/c22` from `feature/workshop` at `b27b5b7` (or its current tip).
+- **Parallel-safe with C24.** C23 waits for this job.
+- **Port:** 5227 (only needed for the e2e run).
+- **Scope:** `apps/workshop/logic/**` (`save.ts`, `board.ts`, `available.ts`, `generator.ts`, `starters.ts`, `admin.ts`,
+  `index.ts`, `simulate.ts` and tests next to them), the `WS_RULES` section of `apps/workshop/config.ts`, and the
+  contract files `core/types.ts` / `core/engineApi.ts` for the new fields and methods only (explicitly allowed for this
+  job). Minimal call-site adaptations or stubs in `screens/**` so everything compiles.
+- **Design:** `docs/WORKSHOP.md` > Currency and shop (agreed 2026-11-23). Read it first; this job implements it.
+- **Do:**
+  - Per-workshop wallet, bought-variant list and success history in the save; bump the save version, old saves reset to
+    a fresh start (1 owned variant per aspect = first starter, wallet 4). `available` = owned (+ admin overrides).
+  - Prices (2 + 2 x bought in that aspect), per-aspect shop offer (next 2 unowned variants in the aspect's unlock order,
+    each with price and affordable flag), `purchase`, payout (2 x requirement count) applied in `recordWin`.
+  - No replays: won challenges leave the board, dedupe by resolved requirement set (`challengeKey`), kept in the success
+    history; the old "completed challenges fill the board" fallback is removed.
+  - Generator and board: 3 challenges, 1 owned-only + 2 affordable-with-purchases; early game = 3 affordable-purchase
+    challenges; never short (fall back to owned-only); keep `lastWin`, current-model and `minChangedAspects` rules.
+    Judge affordability per challenge (owned + purchases with total cost <= wallet).
+  - Board re-check after any purchase or spend (`refreshBoard`): replace newly unaffordable challenges, keep newly
+    owned-solvable ones.
+  - Hand-picked starters: keep only those needing exactly one 2-cost purchase, otherwise drop; report which.
+  - Admin: sandbox unchanged (everything open, nothing saved); add engine functions for "reset player (fresh start)" and
+    "+10 currency".
+  - Tunables (prices, start wallet, payout per requirement, offers per aspect) in `WS_RULES`.
+  - Pure, seeded, Vitest-tested: early game gives 3 affordable one-purchase challenges; payouts are 2 x reqs; prices
+    2/4/6; the board is never short across many seeds; spending replaces unaffordable challenges; no challenge repeats;
+    determinism; admin sandbox never mutates the save. Update the progression simulation (fresh profile -> everything
+    bought) accordingly.
+  - Keep existing screens compiling; list everything the UI job (C23) must change.
+- **Done when:** `npm run typecheck && npm test` pass; workshop e2e still passes (adapt or stub minimally).
+- **Hand-back:** document the small engine API for C23 (function names, types, wallet/offer/purchase/payout shapes),
+  which starters were kept or dropped, and the UI work left for C23.
+- Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review.
+
+## C23 — Currency screens · `OPEN`
+- **Start point:** branch `codex/c23` from `feature/workshop` **after C22 is merged** (do not start before).
+- **Not parallel with C22.** Parallel-safe with C24 (use its icons/sounds when merged, placeholders until then).
+- **Port:** 5228.
+- **Scope:** `apps/workshop/screens/**`, `apps/workshop/ui/**`, shell admin (`apps/workshop/shell/**`),
+  `tests/e2e/workshop*.spec.ts`.
+- **Design:** `docs/WORKSHOP.md` > Currency and shop; engine API from the C22 hand-back.
+- **Do:**
+  - Wallet display in every player pane (coin or juice-drop icon + number), always visible.
+  - Station shop: the next 2 unowned variants of the aspect with price tags; unaffordable ones visible but not
+    installable, showing "You need more coins" / "You need more Bio Juice" (optionally the missing amount); a short buy
+    confirm and a buy sound; buying reveals the next variant.
+  - Results screen: "+N" with the currency icon on a win; board and results no longer offer replays.
+  - Admin: per-player "Reset this player (fresh start)" and "+10 currency".
+  - Text >= 40 px, high contrast, tap targets >= 120 px, pad/keyboard/touch all work, both pane layouts.
+  - e2e covering: early-game board (3 affordable challenges), buy -> win -> payout, unaffordable message, admin +10/reset.
+- **Done when:** typecheck, unit tests, `npx playwright test tests/e2e/workshop --workers=1` pass; screenshots of the room
+  station shop, wallet, and results at 1920x1080 (wide) and 960x1080 (tall) checked.
+- **Hand-back:** screenshots list, any engine API gaps found, anything left for later (scoreboard is not part of this).
+- Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review.
+
+## C24 — Currency icons and sounds · `OPEN`
+- **Start point:** branch `codex/c24` from `feature/workshop` at `b27b5b7` (or its current tip).
+- **Parallel-safe with C22 and C23.** Shape/code only, no ComfyUI painting.
+- **Port:** 5229.
+- **Scope:** `apps/workshop/art/**` icon drawing (a new icons module and its tests), and the workshop sound sources
+  with rendered audio (`apps/workshop/audio/**`, `scripts/renderWorkshopAudio.ts`, `public/audio/workshop/**`).
+- **Do:**
+  - Draw in code: a coin (Race Shop), a Bio Juice drop/vial (Dino Lab), and a price-tag badge that can hold a number.
+    Readable at 40 px and at large size, high contrast, kid-friendly. Export small helpers that the UI can call to get
+    textures (baked once; no live-Graphics rounded paths per CLAUDE.md rule 15).
+  - Sounds: buy (short happy "cha-ching"/bubble), not-enough (soft gentle "nope", not scary), payout (+N counting-up
+    tick). Add them to the workshop audio manifest/names and re-render.
+  - A dev scene or reviewer sheet to see the icons (`workshop.html?dev=<Name>`), and a screenshot.
+- **Done when:** typecheck, tests (including the audio stale-file guard) pass; icon screenshots checked.
+- **Hand-back:** texture keys / helper names and sound names for C23, and the dev scene URL.
+- Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review. Sol is a good fit for the art work.
+
 ---
 
 ## Done
