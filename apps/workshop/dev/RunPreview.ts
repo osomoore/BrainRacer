@@ -3,11 +3,13 @@
  *  - ws=race|dino, scenario=<id>, facet=<id> (one stage with that facet) or facets=a:1,b:2 (a combined stage),
  *    failfacet=<id> (which facet fails when pass=0), level=<n>, view=side|top (override), pass=0|1,
  *    split=1 (renders in a 960x1080 pane in the middle), speed=<mult>, autoplay=0, hud=0
+ *  - buddy=<kind> (default dino): the buddy that runs along
  *  - sim=<n>: play the n-th challenge of a simulated game (winning build with pass=1, default build with pass=0)
  * Keys: Left/Right scenario, Up/Down facet, Q/E level -/+, A all facets of the scenario combined, P pass/fail,
  *       Space replay, F hold = fast forward, S toggle split, T top/side view where the facet allows both.
  */
 import Phaser from 'phaser';
+import { BUDDY_KINDS, type BuddyKind } from '../../../shared/buddies';
 import { buildRig } from '../art';
 import { createWorkshopAudio, preloadWorkshopAudio } from '../audio';
 import { CATALOGS } from '../content';
@@ -38,6 +40,7 @@ export default class RunPreview extends Phaser.Scene {
   private note = '';
   private fast = false;
   private seed = 7;
+  private buddy: BuddyKind = 'dino';
 
   constructor() { super('RunPreview'); }
 
@@ -61,6 +64,8 @@ export default class RunPreview extends Phaser.Scene {
     this.pass = q.get('pass') !== '0';
     this.split = q.get('split') === '1';
     this.seed = Number(q.get('seed') ?? 7);
+    const buddy = q.get('buddy');
+    if (buddy && (BUDDY_KINDS as readonly string[]).includes(buddy)) this.buddy = buddy as BuddyKind;
     this.viewOverride = (q.get('view') as View | null) ?? null;
     this.failFacet = q.get('failfacet') ?? '';
     this.simN = Number(q.get('sim') ?? -1);
@@ -188,7 +193,7 @@ export default class RunPreview extends Phaser.Scene {
       desc = `${st.scenario} [${st.view}] ${Object.entries(st.params).map(([f, l]) => `${f}=${l}`).join(' ')}${this.pass ? '' : ` gag=${b.gagFacet}`}`;
     }
     this.label.setText(`${this.ws}: ${desc}  ${result.passed ? 'PASS' : 'FAIL'}${this.note}`);
-    this.run = playRun({ scene: this, origin, size, workshop: this.ws, model, challenge, result, audio: this.audio, buildRig, seed: this.seed });
+    this.run = playRun({ scene: this, origin, size, workshop: this.ws, model, challenge, result, audio: this.audio, buildRig, seed: this.seed, buddy: this.buddy });
     this.run.setSpeed(this.fast ? 4 : this.speedParam);
     void this.run.done.then(() => { if (this.label.active) this.label.setText(`${this.label.text}  [done]`); });
   }

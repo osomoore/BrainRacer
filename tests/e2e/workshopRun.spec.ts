@@ -535,3 +535,33 @@ for (const ws of ['race', 'dino'] as const) for (const players of [1, 2] as cons
     await shot(page, `board-return-${ws}-${players}p`);
   });
 }
+
+test('buddy: a clearly visible buddy stands in the room and runs along in a run', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 1, screen: 'room' });
+  const room = await page.evaluate(() => {
+    const b = (window as any).__ws.panes[0].children.getByName('workshop-buddy');
+    return b && { visible: b.visible, alpha: b.alpha, w: b.displayWidth, h: b.displayHeight, x: b.x, y: b.y };
+  });
+  expect(room, 'room buddy exists').toBeTruthy();
+  expect(room.visible && room.alpha > 0.9).toBe(true);
+  expect(Math.max(room.w, room.h)).toBeGreaterThanOrEqual(100);
+  expect(room.x).toBeGreaterThan(0);
+  expect(room.x).toBeLessThan(1920);
+  const id = (await pickChallenge(page, 0, 'race', false))!;
+  await goRun(page, 0, id);
+  await expectScreens(page, 'run');
+  await page.waitForTimeout(900);
+  expect(await visibleRunBuddies(page, 0)).toHaveLength(1);
+  const run = await page.evaluate(() => {
+    const out: any[] = [];
+    const visit = (o: any) => { if (o.name === 'run-buddy') out.push({ w: o.displayWidth, h: o.displayHeight, x: o.x, y: o.y }); o.list?.forEach(visit); };
+    (window as any).__ws.panes[0].children.list.forEach(visit);
+    return out[0];
+  });
+  expect(Math.max(run.w, run.h)).toBeGreaterThanOrEqual(100);
+  expect(run.x).toBeGreaterThan(0);
+  expect(run.x).toBeLessThan(1920);
+  expect(run.y).toBeGreaterThan(0);
+  expect(run.y).toBeLessThan(1080);
+});

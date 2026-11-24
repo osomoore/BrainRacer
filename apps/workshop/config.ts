@@ -108,7 +108,7 @@ export const WS_BUDDIES = {
   peekMs: 240,
   hopMs: 175,
   run: {
-    size: { wide: 96, tall: 76 },
+    size: { wide: 150, tall: 110 },
     leadMs: 1150,
     slowHoldMs: 280,
     movingPxSec: 150,
@@ -116,8 +116,8 @@ export const WS_BUDDIES = {
     followRate: 10,
   },
   room: {
-    wide: { signX: 1450, signY: 110, barX: 405, barW: 64, buddyX: 1490, buddySize: 112 },
-    tall: { signX: 480, signY: 192, barX: 284, barW: 52, buddyX: 678, buddySize: 76 },
+    wide: { signX: 1450, signY: 110, barX: 405, barW: 64, buddyX: 1490, buddySize: 170 },
+    tall: { signX: 480, signY: 192, barX: 284, barW: 52, buddyX: 678, buddySize: 112 },
   },
   signW: 230,
   signH: 128,
