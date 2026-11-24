@@ -195,6 +195,10 @@ export const WS_RUN = {
   winHoldMs: 700,
   /** Fixed physics step (cosmetic physics only; never decides pass/fail). */
   physicsHz: 60,
+  /** Success coast: a car still rolling when the cheer starts decelerates smoothly (min speed to bother, max speed, max duration ms). */
+  coastMinSpeed: 60,
+  coastMaxSpeed: 900,
+  coastMaxMs: 1100,
 } as const;
 
 // ---------------------------------------------------------------- art (apps/workshop/art)
