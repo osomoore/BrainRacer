@@ -1,13 +1,14 @@
 /**
- * Adventure Workshop engine: pure rules (stats, evaluate, solver, generator, board, unlocks, hints, saves, admin sandbox).
+ * Adventure Workshop engine: pure rules (stats, evaluate, solver, generator, board, shop, hints, saves, admin sandbox).
  * No Phaser, no DOM, no Math.random. See docs/WORKSHOP.md "Engine semantics".
  */
 import type { WorkshopEngine } from '../core/engineApi';
 import type { WorkshopCatalog, WorkshopId } from '../core/types';
 import { CATALOGS } from '../content';
-import { adminSandbox } from './admin';
+import { adminSandbox, grantCurrency } from './admin';
+import { shopOffers } from './shop';
 import { available, availableFor, sanitizeModel } from './available';
-import { hint, newProgress, recordFail, recordWin, refreshBoard, regenerate, setOverride, setPart } from './board';
+import { hint, newProgress, purchase, recordFail, recordWin, refreshBoard, regenerate, setOverride, setPart } from './board';
 import { evaluate } from './evaluate';
 import { newPlayerSave, normalizeSave, progressOf } from './save';
 import { computeModel, defaultModel } from './stats';
@@ -22,6 +23,8 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     availableFor: (id, p, aspect) => availableFor(c(id), p, aspect),
     sanitizeModel: (id, p, model) => sanitizeModel(c(id), p, model),
     setPart: (id, p, aspect, variant) => setPart(c(id), p, aspect, variant),
+    shopOffers: (id, p, aspect) => shopOffers(c(id), p, aspect),
+    purchase: (id, p, aspect, variant) => purchase(c(id), p, aspect, variant),
     evaluate: (id, model, challenge) => evaluate(c(id), model, challenge),
     hint,
     newProgress: (id) => newProgress(c(id)),
@@ -31,7 +34,9 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     regenerate: (id, p) => regenerate(c(id), p),
     setOverride: (id, p, variant, value) => setOverride(c(id), p, variant, value),
     adminSandbox: (id, p, seed, count) => adminSandbox(c(id), p, seed, count),
+    grantCurrency: (id, p) => grantCurrency(c(id), p),
     newPlayerSave,
+    resetPlayer: (save) => newPlayerSave(save.reading),
     normalizeSave: (raw) => normalizeSave(catalogs, raw),
     progressOf: (save, id) => progressOf(c(id), save),
   };

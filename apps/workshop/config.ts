@@ -9,21 +9,27 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 export const WS_RULES = {
   /** Offered challenges on the board. */
   boardSize: 3,
+  startWallet: 4,
+  basePrice: 2,
+  priceStep: 2,
+  offersPerAspect: 2,
+  payoutPerRequirement: 2,
+  adminCurrencyGrant: 10,
   /** Admin Mode sandbox challenge count. */
   adminBoardSize: 10,
   /** Failed attempts on one challenge before its hint shows. */
   hintAfterFails: 3,
   /** New challenges: every solution must differ from the last winning build in at least this many aspects (relaxed to 1 if impossible, never 0). */
   minChangedAspects: 2,
-  /** Completed challenges kept in the save (oldest dropped first, active ones never). */
+  /** Maximum unfinished challenges retained (active ones never dropped). */
   maxSavedChallenges: 60,
   /** Generator: first-time wins per tier step (tier = min(maxTier, floor(firstWins / winsPerTier))). */
   winsPerTier: 3,
   maxTier: 6,
-  /** Generator attempts before giving up on one board slot (then a completed challenge fills it). */
+  /** Random generator attempts before searching fallback candidates. */
   genAttempts: 200,
-  genVersion: 1,
-  /** Chance that a new challenge is preferred to need the most recently unlocked variant. */
+  genVersion: 2,
+  /** Chance that a new challenge is preferred to need the most recently bought variant. */
   newestChance: 0.4,
   /** Generator shape per tier (index = tier, last row repeats): stage count range and requirements-per-stage range. */
   tierTable: [

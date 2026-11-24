@@ -344,7 +344,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - **Done when:** Playwright screenshots at both sizes (1920×1080 and 1366×768) show the field fully visible with text in it;
   existing tests pass.
 
-## C22 — Currency engine (logic only) · `OPEN`
+## C22 — Currency engine (logic only) · `DONE (codex/c22)`
 - **Start point:** branch `codex/c22` from `feature/workshop` at `b27b5b7` (or its current tip).
 - **Parallel-safe with C24.** C23 waits for this job.
 - **Port:** 5227 (only needed for the e2e run).

@@ -41,6 +41,21 @@ async function enter(page: Page, opts: { players: 1 | 2; ws?: 'race' | 'dino'; r
 const storedModel = (page: Page, id: string, ws: string) =>
   page.evaluate(({ id, ws }) => JSON.parse(localStorage.getItem('workshop.players.v1') ?? '{}')[id]?.workshops?.[ws]?.model as Record<string, string>, { id, ws });
 
+async function buyPart(page: Page, ws: 'race' | 'dino', aspect: string, variant?: string): Promise<string> {
+  return page.evaluate(({ ws, aspect, variant }) => {
+    const w = (window as any).__ws;
+    const c = w.contexts()[0];
+    const save = c.save();
+    const p = w.engine.progressOf(save, ws);
+    const offer = w.engine.shopOffers(ws, p, aspect).find((item: any) => !variant || item.variant === variant);
+    if (!offer) throw new Error(`No matching shop offer for ${aspect}`);
+    const result = w.engine.purchase(ws, p, aspect, offer.variant);
+    if (result.status !== 'bought') throw new Error(`Could not buy ${offer.variant}: ${result.status}`);
+    c.commit({ ...save, workshops: { ...save.workshops, [ws]: result.progress } });
+    return offer.variant as string;
+  }, { ws, aspect, variant });
+}
+
 /** Every Phaser Text currently shown in a pane (whitespace-normalised). */
 const paneTexts = (page: Page, pane = 0) => page.evaluate((pane) => {
   const out: string[] = [];
@@ -61,6 +76,7 @@ const activeChallenges = (page: Page, id = 'p1', ws = 'race') =>
 test('room: walk to a station, pick another part, it is saved and the room reopens', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, data: { from: 'wheels' } });
+  await buyPart(page, 'race', 'wheels', 'wheels.mud');
   const before = await storedModel(page, 'p1', 'race');
   expect(before.wheels).toBe('wheels.road');
   const roomTexts = await paneTexts(page);
@@ -82,7 +98,10 @@ test('room: walk to a station, pick another part, it is saved and the room reope
 
 test('station: Back leaves the part as it was', async ({ page }) => {
   await boot(page);
-  await enter(page, { players: 1, ws: 'dino', screen: 'station', data: { aspect: 'teeth' } });
+  await enter(page, { players: 1, ws: 'dino' });
+  await buyPart(page, 'dino', 'teeth');
+  await page.evaluate(() => (window as any).__ws.contexts()[0].go('station', { aspect: 'teeth' }));
+  await expectScreens(page, 'station');
   await page.waitForTimeout(700);
   await key(page, 'KeyD');
   await key(page, 'Escape');

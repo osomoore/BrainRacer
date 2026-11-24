@@ -2,7 +2,7 @@
 import { WS_RULES } from '../config';
 import type { Challenge, WorkshopCatalog, WorkshopProgress } from '../core/types';
 import { sanitizeModel } from './available';
-import { copyProgress } from './board';
+import { copyProgress, refreshBoard } from './board';
 import { challengeKey, generateChallenge } from './generator';
 import { hashSeed } from './util';
 
@@ -37,4 +37,8 @@ export function adminSandbox(cat: WorkshopCatalog, p0: WorkshopProgress, seed: n
   p.completed = {};
   p.fails = {};
   return p;
+}
+
+export function grantCurrency(cat: WorkshopCatalog, progress: WorkshopProgress): WorkshopProgress {
+  return refreshBoard(cat, { ...progress, wallet: progress.wallet + WS_RULES.adminCurrencyGrant });
 }

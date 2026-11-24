@@ -1,11 +1,11 @@
 /** Seeded challenge generator. Candidates are validated with the solver (see docs/WORKSHOP.md). */
 import { WS_RULES } from '../config';
 import { Rng } from '../core/rng';
-import type { Challenge, ChallengeId, FacetDef, Model, ScenarioId, StarterSpec, VariantId, WorkshopCatalog } from '../core/types';
+import type { Challenge, ChallengeId, Check, FacetDef, Model, ScenarioId, StarterSpec, VariantId, WorkshopCatalog } from '../core/types';
 import { solve } from './solver';
 import { allPass, computeModel } from './stats';
 import { resolveSpec, specChecks } from './text';
-import { clamp } from './util';
+import { clamp, flatChecks } from './util';
 
 export interface GenParams {
   tier: number;
@@ -25,16 +25,25 @@ export interface GenParams {
   attempts: number;
   /** false (admin): a candidate solved by the current model is only ranked lower, not rejected. */
   strictCurrent: boolean;
+  /** Board shop rules: reject candidates outside the requested cost band. */
+  accepts?: (checks: readonly Check[]) => boolean;
+  fallback?: boolean;
 }
 
 export interface GenResult { challenge: Challenge; minCost: number }
 
-export function specKey(spec: Pick<StarterSpec, 'stages'>): string {
-  return spec.stages.map((s) => `${s.scenario}:${s.facets.map((f) => `${f.facet}@${f.level}`).join('+')}`).join('|');
+function checksKey(checks: readonly Check[]): string {
+  return JSON.stringify([...new Set(checks.map((check) => {
+    switch (check.kind) {
+      case 'statMin': return JSON.stringify([check.kind, check.stat, check.min]);
+      case 'statMax': return JSON.stringify([check.kind, check.stat, check.max]);
+      default: return JSON.stringify([check.kind, check.tag]);
+    }
+  }))].sort());
 }
 
 export function challengeKey(c: Pick<Challenge, 'stages'>): string {
-  return c.stages.map((s) => `${s.scenario}:${s.requirements.map((r) => `${r.facet}@${r.level}`).join('+')}`).join('|');
+  return checksKey(flatChecks(c));
 }
 
 function pickLevel(rng: Rng, f: FacetDef, tier: number): number {
@@ -71,35 +80,48 @@ function buildSpec(rng: Rng, cat: WorkshopCatalog, tier: number): StarterSpec | 
   return { id: '', stages };
 }
 
-/** Generates one challenge, or null when no valid candidate is found within the attempt budget. */
+/** A deterministic search when tier sampling cannot fill a slot. Try simple cards before pairs. */
+function* fallbackSpecs(cat: WorkshopCatalog, rng: Rng): Iterable<StarterSpec> {
+  const stages = rng.shuffle(cat.scenarios.flatMap((scenario) => scenario.facets.flatMap((facet) =>
+    facet.levels.map((level) => ({ scenario: scenario.id, facets: [{ facet: facet.id, level }] })))));
+  for (const stage of stages) yield { id: '', stages: [stage] };
+  for (let i = 0; i < stages.length; i++) {
+    for (const other of stages.slice(i + 1)) {
+      if (stages[i].scenario !== other.scenario) yield { id: '', stages: [stages[i], other] };
+    }
+  }
+}
+
 export function generateChallenge(cat: WorkshopCatalog, id: ChallengeId, source: Challenge['source'], seed: number, p: GenParams): GenResult | null {
   const rng = new Rng(seed);
   const wantNewest = p.wantNewest ?? rng.chance(WS_RULES.newestChance);
   const availNoNewest = p.newest ? new Set([...p.avail].filter((v) => v !== p.newest)) : null;
   const curModel = computeModel(cat, p.current);
   const lastModel = p.lastWin ? computeModel(cat, p.lastWin) : null;
+  const tried = new Set(p.usedKeys);
+  const randomSpecs = Array.from({ length: p.fallback ? 0 : p.attempts }, () => buildSpec(rng, cat, p.tier));
+  const specs = p.fallback ? fallbackSpecs(cat, rng) : randomSpecs;
 
   let best: { spec: StarterSpec; rank: number; cost: number } | null = null;
-  for (let attempt = 0; attempt < p.attempts; attempt++) {
-    const spec = buildSpec(rng, cat, p.tier);
+  for (const spec of specs) {
     if (!spec) continue;
-    if (p.usedKeys.has(specKey(spec))) continue;
     const checks = specChecks(cat, spec);
-    if (!checks.length) continue;
+    const key = checksKey(checks);
+    if (!checks.length || tried.has(key)) continue;
+    tried.add(key);
     if (lastModel && allPass(checks, lastModel)) continue;
     const solvesNow = allPass(checks, curModel);
     if (solvesNow && p.strictCurrent) continue;
-    const sol = solve(cat, checks, p.avail, { ref: p.lastWin });
-    if (!sol) continue;
-    const cost = p.lastWin ? Math.max(1, sol.cost) : Infinity;
+    if (p.accepts && !p.accepts(checks)) continue;
+    const sol = p.lastWin || !p.accepts ? solve(cat, checks, p.avail, { ref: p.lastWin }) : null;
+    if (!p.accepts && !sol) continue;
+    const cost = sol && p.lastWin ? sol.cost : Infinity;
     const needsNewest = availNoNewest ? solve(cat, checks, availNoNewest, { stopAtFirst: true }) === null : false;
     const prefOk = !p.newest || (wantNewest ? needsNewest : !needsNewest);
     const unique = !p.avoidScenarios.has(spec.stages[0].scenario);
     const rank = (solvesNow ? 0 : 8) + (cost >= p.minChanged ? 4 : 0) + (prefOk ? 2 : 0) + (unique ? 1 : 0);
     if (!best || rank > best.rank) best = { spec, rank, cost };
-    if (rank === 15) break;
-    if (attempt >= p.attempts / 2 && rank >= 14) break;
-    if (attempt >= (p.attempts * 3) / 4 && rank >= 12) break;
+    if (rank === 15 || (p.fallback && best)) break;
   }
   if (!best) return null;
   const challenge = resolveSpec(cat, best.spec, { id, source, tier: p.tier, seed });
