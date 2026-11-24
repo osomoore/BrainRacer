@@ -9,6 +9,7 @@ import { WS_BUDDIES, WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { Button } from '../ui/Button';
+import { Confirm } from '../ui/Confirm';
 import { FocusGroup } from '../ui/FocusGroup';
 import { cardColor } from '../ui/screenChrome';
 import { COLORS, makeText } from '../ui/style';
@@ -19,6 +20,7 @@ import { Character } from './room/Character';
 import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
 import { dist, roomLayout, standOf, type Point } from './room/layout';
+import { isBackGuarded } from './backGuard';
 
 const roomScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
@@ -30,6 +32,8 @@ const roomScreen: ScreenFactory = (): Screen => {
   let updateBuddyFocus: (() => void) | undefined;
   let buddyTween: Phaser.Tweens.Tween | undefined;
   let busy = false;
+  let popup: Confirm | undefined;
+  let requestLeave: () => void = () => {};
   const objs: Phaser.GameObjects.GameObject[] = [];
   const tweens: Phaser.Tweens.Tween[] = [];
 
@@ -177,19 +181,42 @@ const roomScreen: ScreenFactory = (): Screen => {
         });
       };
       celebrateNext();
+
+      const leave = () => {
+        if (popup) return;
+        popup = new Confirm(scene, {
+          cx: ctx.size.w / 2, cy: ctx.size.h / 2, w: Math.min(ctx.size.w - 80, 900),
+          text: 'Leave the workshop?', yes: 'Yes', no: 'No', defaultYes: false,
+          audio: ctx.audio, touch: ctx.input.touch, depth: 500,
+          onYes: () => { busy = true; popup = undefined; ctx.audio.sfx('back'); ctx.go('pickWorkshop'); },
+          onNo: () => { popup = undefined; },
+        });
+      };
+      requestLeave = leave;
     },
     update(dt) {
       character?.update(dt);
       const actions = ctx.input.poll();
       if (busy) return;
+      if (popup) {
+        for (const a of actions) popup?.handle(a);
+        return;
+      }
       for (const a of actions) {
-        if (a === 'back') { ctx.audio.sfx('back'); ctx.go('pickWorkshop'); return; }
+        if (a === 'back') {
+          if (isBackGuarded(ctx, ctx.scene.time.now)) continue;
+          requestLeave();
+          return;
+        }
         group.handle(a);
       }
       if (!busy) updateBuddyFocus?.();
     },
     destroy() {
       group?.destroy();
+      popup?.destroy();
+      popup = undefined;
+      requestLeave = () => {};
       celebrationTimer?.remove(false);
       celebration?.destroy();
       buddyTween?.remove();

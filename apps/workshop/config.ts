@@ -60,6 +60,8 @@ export const WS_UI = {
   },
   /** Minimum tap target (px) for any button a kid presses. */
   tapMin: 120,
+  /** Ignore another Back press for this long after leaving a variant or part view (ms). */
+  backGuardMs: 500,
   radius: 28,
   maxPlayers: 2,
   titleJoin: { cardW: 760, cardH: 210, cardY: 520, textGap: 8 },

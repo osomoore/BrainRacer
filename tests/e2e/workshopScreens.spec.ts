@@ -102,7 +102,7 @@ test('room: walk to a station, pick another part, it is saved and the room reope
   expect(await roomBuddyX(page)).toBeGreaterThan(960);
 });
 
-test('station: Back leaves the part as it was', async ({ page }) => {
+test('station: Back leaves the part as it was and guards the room', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, ws: 'dino' });
   await buyPart(page, 'dino', 'teeth');
@@ -111,14 +111,22 @@ test('station: Back leaves the part as it was', async ({ page }) => {
   await page.waitForTimeout(700);
   await key(page, 'KeyD');
   await key(page, 'Escape');
+  await key(page, 'Escape');
   await expectScreens(page, 'room');
+  expect(await paneTexts(page)).not.toContain('Leave the workshop?');
   expect((await storedModel(page, 'p1', 'dino')).teeth).toBe('teeth.flat');
 });
 
-test('room: B goes back to the workshop picker', async ({ page }) => {
+test('room: B asks before returning to the workshop picker', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1 });
   await key(page, 'Escape');
+  expect(await paneTexts(page)).toContain('Leave the workshop?');
+  await key(page, 'Space'); // KB1 confirm: default No
+  await expectScreens(page, 'room');
+  await key(page, 'Escape');
+  await key(page, 'KeyA'); // KB1 left selects Yes
+  await key(page, 'Space');
   await expectScreens(page, 'pickWorkshop');
 });
 
@@ -201,7 +209,13 @@ for (const [ws, players, first, second] of [['race', 1, 'Wheels', 'Engine'], ['d
     if (second) expect(b.startsWith(second)).toBe(true);
     await key(page, prevKey);
     expect(await partLabel()).toBe(a);
-    await key(page, leaveKey);
+    if (ws === 'dino') {
+      await key(page, 'Escape');
+      await key(page, 'Escape'); // still inside the part view's back guard
+      await expectScreens(page, players === 2 ? 'board,board' : 'board');
+    } else {
+      await key(page, leaveKey);
+    }
     expect(await partLabel()).toBe('');
     // focus is back on the challenge list: Space starts the selected test
     await key(page, 'Space');
@@ -220,11 +234,21 @@ test('board race: the part walk skips Gears and shows both cycle arrows', async 
   expect(seen.has('Gears')).toBe(false);
 });
 
-test('board: B returns to the room (character at the board)', async ({ page }) => {
+test('board: B returns to the room and reopening the board restores card focus', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, screen: 'board' });
+  const [, second] = await activeChallenges(page);
+  const focusedCard = () => page.evaluate(() => {
+    const pane = (window as any).__ws.panes[0];
+    return pane.children.list.find((o: any) => o.isFocused)?.list.find((o: any) => o.type === 'Text')?.text as string | undefined;
+  });
+  await key(page, 'KeyD');
+  await expect.poll(focusedCard).toBe(second.title);
   await key(page, 'Escape');
   await expectScreens(page, 'room');
+  await key(page, 'Space');
+  await expectScreens(page, 'board');
+  await expect.poll(focusedCard).toBe(second.title);
 });
 
 test('board: Admin Mode shows ten challenges in pages and a New Challenges button', async ({ page }) => {
@@ -264,7 +288,14 @@ test('2P split: both panes show the room, each in its own player colour, and mov
   await key(page, 'KeyW');
   await expect.poll(async () => Math.abs(await roomBuddyX(page, 0) - p1Home)).toBeGreaterThan(20);
   expect(await roomBuddyX(page, 1)).toBe(p2Home);
-  await key(page, 'Escape'); // KB1 only: pane 0 leaves, pane 1 stays in the room
+  await key(page, 'Escape'); // KB1 only: pane 0 opens the leave confirmation
+  await expectScreens(page, 'room,room');
+  expect(await paneTexts(page, 0)).toContain('Leave the workshop?');
+  await key(page, 'Space'); // KB1 confirm: default No
+  await expectScreens(page, 'room,room');
+  await key(page, 'Escape');
+  await key(page, 'KeyA');
+  await key(page, 'Space');
   await expectScreens(page, 'pickWorkshop,room');
 });
 
