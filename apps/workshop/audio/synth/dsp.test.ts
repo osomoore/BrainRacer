@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fadeEdges, foldTail, makeSeamlessLoop, normalizePeak, peakOf, trimSilenceLength } from './dsp';
+import { fadeEdges, foldTail, makeSeamlessLoop, normalizeMusic, normalizePeak, peakOf, trimSilenceLength } from './dsp';
 
 describe('dsp helpers', () => {
   it('trims trailing silence', () => {
@@ -21,6 +21,16 @@ describe('dsp helpers', () => {
     const c = [new Float32Array([0.1, -0.2]), new Float32Array([0.05, 0])];
     normalizePeak(c, 0.8);
     expect(peakOf(c)).toBeCloseTo(0.8, 5);
+  });
+  it('normalizes stereo music together and bends only peaks above the knee', () => {
+    const stereo = [new Float32Array([.1, -.1]), new Float32Array([.2, -.2])];
+    normalizeMusic(stereo, Math.sqrt(.1), .6);
+    expect(stereo[0][0]).toBeCloseTo(.2);
+    expect(stereo[1][1]).toBeCloseTo(-.4);
+    normalizeMusic(stereo, .5, .5);
+    expect(stereo[0][0]).toBeCloseTo(Math.sqrt(.1));
+    expect(stereo[1][1]).toBeLessThan(-.48);
+    expect(stereo[1][1]).toBeGreaterThanOrEqual(-.5);
   });
   it('fades the edges', () => {
     const c = new Float32Array(10).fill(1);

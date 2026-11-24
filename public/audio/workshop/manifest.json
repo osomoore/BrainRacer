@@ -1,72 +1,96 @@
 {
  "version": 1,
- "sourceHash": "4804668988c640b0",
+ "sourceHash": "ce42f3e5201455cc",
  "files": {
   "music:raceShop": {
    "file": "music/raceShop.ogg",
    "kind": "music",
-   "sampleRate": 44100,
-   "length": 1653750,
+   "sampleRate": 48000,
+   "length": 1645714,
    "channels": 2,
    "copies": 1,
    "loop": true,
-   "seconds": 37.5,
-   "bpm": 128,
-   "lengthBeats": 80
+   "seconds": 34.28570833333333,
+   "bpm": 112,
+   "lengthBeats": 64
   },
   "music:dinoLab": {
    "file": "music/dinoLab.ogg",
    "kind": "music",
-   "sampleRate": 44100,
-   "length": 1568000,
+   "sampleRate": 48000,
+   "length": 1920000,
    "channels": 2,
    "copies": 1,
    "loop": true,
-   "seconds": 35.55555555555556,
-   "bpm": 108,
+   "seconds": 40,
+   "bpm": 96,
    "lengthBeats": 64
   },
   "music:title": {
    "file": "music/title.ogg",
    "kind": "music",
-   "sampleRate": 44100,
-   "length": 1693440,
+   "sampleRate": 48000,
+   "length": 1738868,
    "channels": 2,
    "copies": 1,
    "loop": true,
-   "seconds": 38.4,
-   "bpm": 100,
+   "seconds": 36.226416666666665,
+   "bpm": 106,
+   "lengthBeats": 64
+  },
+  "music:raceRun": {
+   "file": "music/raceRun.ogg",
+   "kind": "music",
+   "sampleRate": 48000,
+   "length": 1600000,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "seconds": 33.333333333333336,
+   "bpm": 144,
+   "lengthBeats": 80
+  },
+  "music:dinoRun": {
+   "file": "music/dinoRun.ogg",
+   "kind": "music",
+   "sampleRate": 48000,
+   "length": 1645714,
+   "channels": 2,
+   "copies": 1,
+   "loop": true,
+   "seconds": 34.28570833333333,
+   "bpm": 112,
    "lengthBeats": 64
   },
   "sting:success": {
    "file": "sting/success.ogg",
    "kind": "sting",
-   "sampleRate": 32000,
-   "length": 75889,
-   "channels": 1,
+   "sampleRate": 48000,
+   "length": 61843,
+   "channels": 2,
    "copies": 1,
    "loop": false,
-   "seconds": 2.37153125
+   "seconds": 1.2883958333333334
   },
   "sting:fail": {
    "file": "sting/fail.ogg",
    "kind": "sting",
-   "sampleRate": 32000,
-   "length": 82460,
-   "channels": 1,
+   "sampleRate": 48000,
+   "length": 69055,
+   "channels": 2,
    "copies": 1,
    "loop": false,
-   "seconds": 2.576875
+   "seconds": 1.4386458333333334
   },
   "sting:unlock": {
    "file": "sting/unlock.ogg",
    "kind": "sting",
-   "sampleRate": 32000,
-   "length": 81767,
-   "channels": 1,
+   "sampleRate": 48000,
+   "length": 72977,
+   "channels": 2,
    "copies": 1,
    "loop": false,
-   "seconds": 2.55521875
+   "seconds": 1.5203541666666667
   },
   "sfx:click": {
    "file": "sfx/click.ogg",

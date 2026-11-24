@@ -27,7 +27,7 @@ export interface PaneInput {
 
 // ------------------------------------------------------------------ audio
 
-export type WsMusic = 'raceShop' | 'dinoLab' | 'title';
+export type WsMusic = 'raceShop' | 'dinoLab' | 'title' | 'raceRun' | 'dinoRun';
 export type WsSting = 'success' | 'fail' | 'unlock';
 export type WsSfx =
   | 'click' | 'select' | 'back' | 'step' | 'whoosh' | 'pop' | 'sparkle'

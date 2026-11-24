@@ -10,7 +10,7 @@
 import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
 import type { Challenge, Requirement, RunResult } from '../core/types';
-import { WS_RESULTS, WS_UI } from '../config';
+import { WS_AUDIO, WS_RESULTS, WS_UI } from '../config';
 import { playWorkshopSfx } from '../audio';
 import { currencyBadge } from '../ui/CurrencyBadge';
 import { Button } from '../ui/Button';
@@ -47,6 +47,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       challengeId = data.challengeId ?? '';
       const ws = ctx.workshop;
       const result: RunResult | undefined = data.result;
+      if (ws) ctx.audio.music(WS_AUDIO.sceneMusic[ws]);
       const progress = ws ? currentProgress(ctx, ws) : undefined;
       const challenge: Challenge | undefined = progress?.challenges[challengeId];
       if (!ws || !progress || !result || !challenge) { toBoard(); return; }

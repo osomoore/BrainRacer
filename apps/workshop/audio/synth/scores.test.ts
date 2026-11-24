@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WS_MUSIC_NAMES } from '../manifest';
-import { SCORES, loopBeats, loopSeconds } from './scores';
+import { WS_MUSIC_NAMES, WS_STING_NAMES } from '../manifest';
+import { SCORES, STINGS, loopBeats, loopSeconds } from './scores';
 
 describe('workshop music scores', () => {
   for (const name of WS_MUSIC_NAMES) {
@@ -21,4 +21,20 @@ describe('workshop music scores', () => {
       }
     });
   }
+
+  it.each(['raceRun', 'dinoRun'] as const)('%s introduces its hook in the first bar', (name) => {
+    const score = SCORES[name]();
+    expect(score.events.some((e) => e.t < 1 && (e.inst === 'drive' || e.inst === 'reed'))).toBe(true);
+    expect(score.events.some((e) => e.t < 1 && (e.inst === 'kick' || e.inst === 'tom'))).toBe(true);
+  });
+});
+
+describe('workshop stings', () => {
+  it.each(WS_STING_NAMES)('%s starts immediately and resolves within 1.4 s before release', (name) => {
+    const cue = STINGS[name];
+    expect(Math.min(...cue.events.map((e) => e.t))).toBe(0);
+    const end = Math.max(...cue.events.map((e) => e.t + e.d));
+    expect(end * 60 / cue.bpm).toBeLessThan(1.4);
+    expect(cue.events.every((e) => e.d > 0 && e.v > 0 && e.v <= 1)).toBe(true);
+  });
 });

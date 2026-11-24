@@ -9,6 +9,12 @@ describe('arbitrateMusic', () => {
     expect(arbitrateMusic(['raceShop', 'raceShop'])).toBe('raceShop');
     expect(arbitrateMusic(['raceShop', 'dinoLab'])).toBe('title');
   });
+
+  it('keeps a challenge cue audible over the other pane or selects the first running pane', () => {
+    expect(arbitrateMusic(['raceShop', 'raceRun'])).toBe('raceRun');
+    expect(arbitrateMusic(['dinoRun', 'title'])).toBe('dinoRun');
+    expect(arbitrateMusic(['raceRun', 'dinoRun'])).toBe('raceRun');
+  });
 });
 
 describe('paneSfxPan', () => {

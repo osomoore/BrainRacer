@@ -1,13 +1,16 @@
 /**
  * One WorkshopAudio shared by the whole game, wrapped per pane: sfx are panned left / right in 2-player mode and
- * music is arbitrated (both panes want different tracks -> 'title'; a pane asking for silence yields to the other).
+ * music is arbitrated (a challenge cue takes priority; differing room tracks use 'title').
  */
 import type { WorkshopAudio, WsMusic } from '../core/runtime';
+import { WS_AUDIO } from '../config';
 
 /** Pure arbitration over each pane's wanted track (null = no opinion / silence). */
 export function arbitrateMusic(wants: readonly (WsMusic | null | undefined)[]): WsMusic | null {
   const tracks = wants.filter((w): w is WsMusic => !!w);
   if (tracks.length === 0) return null;
+  const run = tracks.find((t) => t === WS_AUDIO.runMusic.race || t === WS_AUDIO.runMusic.dino);
+  if (run) return run; // Pane order breaks the tie when two different runs overlap.
   return tracks.every((t) => t === tracks[0]) ? tracks[0] : 'title';
 }
 
