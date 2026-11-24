@@ -3,6 +3,7 @@ import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures, BUDDY_KINDS, buddyName, buddyTexture, type BuddyKind } from '../../../shared/buddies';
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { playWorkshopSfx } from '../audio';
+import { WS_BUDDIES } from '../config';
 import { engine } from '../logic';
 import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -10,6 +11,7 @@ import { Pager } from '../ui/Pager';
 import { cardColor } from '../ui/screenChrome';
 import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
+import { buddyBar } from './room/buddyDisplay';
 import { currentProgress } from './room/progress';
 
 const BAND = 0x232a66;
@@ -51,6 +53,24 @@ const buddyStationScreen: ScreenFactory = (): Screen => {
       objs.push(scene.add.image(size.w / 2, bandH, roundedTexture(scene, size.w + 60, bandH + 56, BAND, { radius: 36, shadow: 0, strokeW: 0, gloss: false })).setOrigin(0.5, 1).setDepth(5));
       objs.push(makeText(scene, size.w / 2, wide ? 62 : 245, 'Buddy Station', { size: wide ? 76 : 64, color: COLORS.paper, stroke: COLORS.ink }).setDepth(8));
       bakeBuddyTextures(scene);
+      const winsLeft = WS_BUDDIES.winsPerUnlock - progress.buddies.progress;
+      const allFound = progress.buddies.unlocked.length >= BUDDY_KINDS.length;
+      const hintY = wide ? 150 : 320;
+      const hintSize = wide ? 56 : 48;
+      const hintText = allFound
+        ? 'You found every buddy!'
+        : winsLeft === 1 ? '1 More Win to Find a New Buddy!' : `${winsLeft} More Wins to Find a New Buddy!`;
+      objs.push(makeText(scene, size.w / 2, hintY, hintText, { size: hintSize, color: COLORS.yellow, stroke: COLORS.ink }).setDepth(8));
+      if (!allFound) {
+        // Wide: vertical bar beside the cards. Tall: the same bar rotated to run under the cards, '?' on the right.
+        const barAt = wide ? { x: 100, y: 620, w: 96, h: 520 } : { x: size.w / 2, y: 868, w: 56, h: 520 };
+        const bar = buddyBar(scene, barAt, progress.buddies);
+        if (!wide) {
+          bar.setAngle(90);
+          bar.list.forEach((child) => { const t = child as Phaser.GameObjects.Text; if (t.text === '?') t.setAngle(-90); });
+        }
+        objs.push(bar.setDepth(8));
+      }
       ctx.audio.music(ws === 'race' ? 'raceShop' : 'dinoLab');
 
       const ownedKinds = BUDDY_KINDS.filter((kind) => progress.buddies.unlocked.includes(kind));

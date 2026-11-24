@@ -4,6 +4,7 @@ import { LetterPicker } from '../../../shared/ui/menu/LetterPicker';
 import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
+import { hashSeed } from '../logic/util';
 import type { ShellPaneContext } from '../shell/paneContext';
 import { shell } from '../shell/shell';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -61,7 +62,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
         message.setText(NAME_MESSAGES[checked.ok ? 'empty' : checked.reason]);
         return;
       }
-      shell.store.setPlayer(profile.id, engine.newPlayerSave(level));
+      shell.store.setPlayer(profile.id, engine.newPlayerSave(level, hashSeed(profile.id)));
       ctx.setProfile(profile.id);
       ctx.audio.sfx('sparkle');
       ctx.go('pickWorkshop');

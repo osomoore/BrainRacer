@@ -7,10 +7,20 @@ const DEFAULT_BUDDY: BuddyKind = 'dino';
 const known = new Set<unknown>(BUDDY_KINDS);
 const isBuddy = (value: unknown): value is BuddyKind => known.has(value);
 
-export function normalizeBuddies(raw: unknown): WorkshopBuddies {
+/** The buddy a new profile starts with, drawn from its seed (the same seed always gives the same buddy). */
+export function startingBuddy(seed: number): BuddyKind {
+  return new Rng(seed).pick(BUDDY_KINDS);
+}
+
+/**
+ * `start` is the buddy owned when nothing is saved yet (legacy saves without buddy data get the dino).
+ * Saved ownership is kept as saved, so a profile whose starting buddy is not the dino may not own the dino.
+ */
+export function normalizeBuddies(raw: unknown, start: BuddyKind = DEFAULT_BUDDY): WorkshopBuddies {
   const saved = raw && typeof raw === 'object' ? raw as Partial<Record<keyof WorkshopBuddies, unknown>> : {};
-  const unlocked = [...new Set([DEFAULT_BUDDY, ...(Array.isArray(saved.unlocked) ? saved.unlocked.filter(isBuddy) : [])])];
-  const selected = isBuddy(saved.selected) && unlocked.includes(saved.selected) ? saved.selected : DEFAULT_BUDDY;
+  const unlocked = [...new Set(Array.isArray(saved.unlocked) ? saved.unlocked.filter(isBuddy) : [])];
+  if (unlocked.length === 0) unlocked.push(start);
+  const selected = isBuddy(saved.selected) && unlocked.includes(saved.selected) ? saved.selected : unlocked.includes(start) ? start : unlocked[0];
   const wins = typeof saved.progress === 'number' && Number.isFinite(saved.progress) ? Math.floor(saved.progress) : 0;
   const progress = unlocked.length === BUDDY_KINDS.length
     ? WS_BUDDIES.winsPerUnlock
