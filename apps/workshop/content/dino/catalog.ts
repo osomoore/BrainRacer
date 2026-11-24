@@ -8,6 +8,7 @@ import { DINO_ASPECTS, DINO_VARIANTS } from './variants';
 import { DINO_STATS } from './stats';
 import { DINO_SCENARIOS } from './scenarios';
 import { DINO_FACET_PHRASES, DINO_PART_ALIASES, DINO_SCENARIO_PHRASES } from './phrases';
+import { DINO_SUCCESS_PART_NAMES, DINO_SUCCESS_PHRASES } from './successPhrases';
 
 export { DINO_SCENE_NOTES } from './sceneNotes';
 
@@ -42,6 +43,8 @@ export const DINO_CATALOG: WorkshopCatalog = {
   facetPhrases: DINO_FACET_PHRASES,
   scenarioPhrases: DINO_SCENARIO_PHRASES,
   cleverWinPhrases: CLEVER_WIN_PHRASES,
+  successPhrases: DINO_SUCCESS_PHRASES,
+  successPartNames: DINO_SUCCESS_PART_NAMES,
   partAliases: DINO_PART_ALIASES,
   unlockOrder: DINO_UNLOCK_ORDER,
   starters: DINO_STARTERS,

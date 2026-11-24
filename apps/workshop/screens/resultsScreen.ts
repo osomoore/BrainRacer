@@ -1,7 +1,7 @@
 /**
  * results: every requirement of the challenge at the player's reading level with a green check or red X,
  * grouped by stage (stage number badges when there is more than one stage; stages the run never reached are dimmed
- * but still marked), a currency payout after a win, a message for clever wins, the hint after
+ * but still marked), a currency payout and reasons after a win, a message for clever wins, the hint after
  * enough failed attempts, and buttons to retry, visit the board, or return to the workshop.
  *
  * Long checklists shrink the font (never below 40 px), then are paged (the payout and message stay on every page).
@@ -23,6 +23,7 @@ import { fitResults } from './results/layout';
 import { getOutcome } from './run/outcome';
 import { CATALOGS } from '../content';
 import { cleverWinMessage } from '../logic/text';
+import { successReasons } from '../logic/successReasons';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
 const INPUT_GUARD_MS = 400;
@@ -102,12 +103,18 @@ const resultsScreen: ScreenFactory = (): Screen => {
         return hh + rowExtra(row, i);
       });
 
-      const message = result.cleverWin ? cleverWinMessage(CATALOGS[ws], reading, challenge.seed)
+      const catalog = CATALOGS[ws];
+      const reasons = successReasons(catalog, challenge, result, reading);
+      const message = result.cleverWin ? cleverWinMessage(catalog, reading, challenge.seed)
         : !result.passed && outcome.hint ? `Hint: ${outcome.hint}` : '';
-      const messageText = message
-        ? keep(makeText(s, w / 2, 0, message, { size: 40, color: COLORS.ink, wrap: w - 150, origin: [0.5, 0] })).setDepth(1)
-        : undefined;
-      const messageHeight = messageText ? messageText.height + 30 : 0;
+      const lines = [...reasons, ...(message ? [message] : [])];
+      const messageTexts = lines.map((line, i) => keep(makeText(s, w / 2, 0, line, {
+        size: min, color: COLORS.ink, wrap: w - 112, origin: [0.5, 0], bold: i >= reasons.length,
+      })).setDepth(1));
+      const messagePadding = 15;
+      const lineGap = 8;
+      const messageHeight = lines.length
+        ? messageTexts.reduce((sum, line) => sum + line.height, 2 * messagePadding + lineGap * (lines.length - 1)) : 0;
 
       const plan = fitResults({
         fonts,
@@ -119,12 +126,17 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const font = plan.font;
       const pagesN = plan.pages.length;
       const rowHeights = measureRows(font);
-      if (messageText) {
+      if (messageHeight) {
         const rowsBottom = top + rowHeights.reduce((sum, height) => sum + height, 0);
         const y = pagesN > 1 ? pagedBottom - messageHeight : Math.min(fullBottom - messageHeight, rowsBottom + gap);
-        keep(s.add.rectangle(w / 2, y + messageHeight / 2, Math.min(w - 40, messageText.width + 60), messageHeight, COLORS.yellow)
+        const messageWidth = Math.max(...messageTexts.map((line) => line.width)) + 60;
+        keep(s.add.rectangle(w / 2, y + messageHeight / 2, Math.min(w - 40, messageWidth), messageHeight, COLORS.yellow)
           .setStrokeStyle(6, COLORS.ink));
-        messageText.setY(y + 15);
+        let lineY = y + messagePadding;
+        for (const line of messageTexts) {
+          line.setY(lineY);
+          lineY += line.height + lineGap;
+        }
       }
 
       // ---- one page of rows

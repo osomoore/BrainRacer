@@ -3,7 +3,9 @@ import { CATALOGS } from '../../apps/workshop/content';
 import { solveAffordable } from '../../apps/workshop/logic/affordability';
 import { available } from '../../apps/workshop/logic/available';
 import { solve } from '../../apps/workshop/logic/solver';
+import { successReasons } from '../../apps/workshop/logic/successReasons';
 import { cleverWinMessage, resolveSpec } from '../../apps/workshop/logic/text';
+import type { Challenge, RunResult } from '../../apps/workshop/core/types';
 import { flatChecks } from '../../apps/workshop/logic/util';
 import { seedProfiles } from './profiles';
 
@@ -289,6 +291,15 @@ test('win: green check, currency saved, board refills, replay does not pay again
   const after = await saved(page);
   expect(after.completed[id].payout).toBeGreaterThan(0);
   expect(after.wallet).toBe(before.wallet + after.completed[id].payout);
+  const { challenge, result } = await page.evaluate((id) => {
+    const w = (window as any).__ws;
+    const p = w.engine.progressOf(w.contexts()[0].save(), 'race');
+    const challenge = p.challenges[id];
+    return { challenge, result: w.engine.evaluate('race', p.completed[id].build, challenge) };
+  }, id) as { challenge: Challenge; result: RunResult };
+  const reasons = successReasons(CATALOGS.race, challenge, result, 'easy');
+  expect(reasons.length).toBe(result.requirements.filter((r) => r.passed).length);
+  expect(texts).toEqual(expect.arrayContaining(reasons));
   await expectCleanLayout(page, 0);
   await shot(page, 'results-first-win');
 
@@ -353,7 +364,16 @@ test('a stat-route win shows the leveled celebration and unlocks a buddy with th
   await goRun(page, 0, challenge.id);
   await expectScreens(page, 'run');
   await skipToResults(page);
-  expect(await paneTexts(page)).toContain(cleverWinMessage(CATALOGS.race, 'hard', challenge.seed));
+  const texts = await paneTexts(page);
+  const result = await page.evaluate((id) => {
+    const w = (window as any).__ws;
+    const p = w.engine.progressOf(w.contexts()[0].save(), 'race');
+    return w.engine.evaluate('race', p.completed[id].build, p.challenges[id]);
+  }, challenge.id) as RunResult;
+  const reasons = successReasons(CATALOGS.race, challenge, result, 'hard');
+  expect(reasons.length).toBe(result.requirements.filter((r) => r.passed).length);
+  expect(texts).toEqual(expect.arrayContaining(reasons));
+  expect(texts).toContain(cleverWinMessage(CATALOGS.race, 'hard', challenge.seed));
   const progress = await saved(page);
   expect(progress.buddies.unlocked).toHaveLength(2);
   expect(progress.buddies.progress).toBe(0);
