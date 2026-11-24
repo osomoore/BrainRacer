@@ -240,7 +240,7 @@ test('mobile: tap a station sign, the character walks there and the station open
   };
   await tap('Wheels', 760, 110);
   await expectScreens(page, 'station');
-  await tap('Back', 175, 115);
+  await tap('Back', 420, 115); // wide layout: Back sits right of the wallet badge (WS_WALLET wide x=126)
   await expectScreens(page, 'room');
   await tap('Test', 960, 950);
   await expectScreens(page, 'board');
