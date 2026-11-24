@@ -13,6 +13,59 @@ async function boot(page: Page, url = '/workshop.html'): Promise<void> {
   await page.waitForTimeout(300);
 }
 
+async function titleTextBounds(page: Page) {
+  return page.evaluate(() => {
+    const game = (window as any).__ws.game;
+    const scale = game.canvas.getBoundingClientRect().width / game.scale.gameSize.width;
+    const visibleText = (objects: any[]): any[] => objects
+      .filter((object) => object.visible)
+      .flatMap((object) => object.type === 'Container' ? visibleText(object.list)
+        : object.type === 'Text' && object.text ? [object] : []);
+    return visibleText(game.scene.getScene('title').children.list).map((object) => {
+      const { left, right, top, bottom } = object.getBounds();
+      return { text: object.text as string, left, right, top, bottom,
+        cssFontSize: parseFloat(object.style.fontSize) * scale };
+    });
+  });
+}
+
+async function expectTitleTextClear(page: Page, expected: string[]) {
+  const bounds = await titleTextBounds(page);
+  expect(bounds.map(({ text }) => text)).toEqual(expect.arrayContaining(expected));
+  for (const [i, a] of bounds.entries()) {
+    for (const b of bounds.slice(i + 1)) {
+      const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      expect(overlaps, `"${a.text}" overlaps "${b.text}"`).toBe(false);
+    }
+  }
+  return bounds;
+}
+
+test('wide title keeps both join slots clear before and after joining', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await boot(page, '/workshop.html?mobile=0');
+  await expectTitleTextClear(page, ['Player 2: press A, Space or Enter', '(optional)', 'Back to games']);
+  await page.screenshot({ path: testInfo.outputPath('title-1920x1080.png') });
+  await key(page, 'Space');
+  await expectTitleTextClear(page, ['Player 2: press A or Enter', '(optional)', 'PLAY', 'Back to games']);
+  await key(page, 'Enter');
+  await expectTitleTextClear(page, ['Player 1 ✓', 'Player 2 ✓', 'PLAY', 'Back to games']);
+});
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  test(`phone title has a readable beta notice at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    // Use the mobile title on a fine pointer so the shared portrait rotation prompt leaves it visible.
+    await boot(page, '/workshop.html?mobile=1');
+    const notice = ['Under construction —\nprogress may be lost.', 'Thanks for testing! Tell us what you think.'];
+    const bounds = await expectTitleTextClear(page, ['Adventure Workshop', 'Tap to play', ...notice]);
+    for (const text of bounds.filter(({ text }) => notice.includes(text))) {
+      expect(text.cssFontSize, text.text).toBeGreaterThanOrEqual(15);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`title-${viewport.width}x${viewport.height}.png`) });
+  });
+}
+
 test('keyboard 1P: join, new profile, reading level, workshop, room placeholder, save persists', async ({ page }) => {
   await boot(page);
   await key(page, 'Space'); // KB1 joins

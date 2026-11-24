@@ -55,6 +55,7 @@ export const WS_UI = {
   tapMin: 120,
   radius: 28,
   maxPlayers: 2,
+  titleJoin: { cardW: 760, cardH: 210, cardY: 520, textGap: 8 },
   /** Pane divider width in 2-player mode. */
   dividerW: 12,
   /** Admin status marker in the top-right edge of the stage. */
@@ -70,6 +71,8 @@ export const WS_UI = {
     line1: 'Under construction — progress may be lost.',
     line2: 'Thanks for testing! Tell us what you think.',
     y: 895, w: 1500, h: 124, fill: 0xfff4c2,
+    // The canvas fits a fixed 1920 × 1080 stage even on phones.
+    mobile: { y: 906, w: 1700, h: 300, headingY: 866, headingSize: 84, detailY: 1000, detailSize: 76, playY: 615 },
   },
 } as const;
 
