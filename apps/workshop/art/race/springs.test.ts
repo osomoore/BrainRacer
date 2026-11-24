@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { WS_ART } from '../../config';
 import { RACE_VARIANTS } from '../../content/race/variants';
-import { bodyLowerEdge, raceGeom, raceLooks, springEnds, springHeight, tireRadius } from './geometry';
-import { SPRING_BOB_MAX } from './looks';
+import { bodyLowerEdge, raceGeom, raceLooks, springEnds, springHeight, springPitch, tireRadius } from './geometry';
+import { SPRING_BOB_MAX, SPRING_INSET } from './looks';
 
 const ids = (aspect: string) => RACE_VARIANTS.filter((v) => v.aspect === aspect).map((v) => v.id);
 
@@ -28,5 +28,26 @@ function springFailures(height: (id: string, l: ReturnType<typeof raceLooks>, g:
 describe('race springs', () => {
   it('hides the top inside the body and the bottom behind the tire for every build', () => {
     expect(springFailures((id, _l, g, ax) => springHeight(id, g, ax))).toEqual([]);
+  });
+
+  it('tucks the coil top at least min(2 coil pitches, available room) inside the body for every build', () => {
+    const bad: string[] = [];
+    for (const body of ids('body')) for (const shape of ids('shape')) for (const size of ids('size'))
+      for (const wheels of ids('wheels')) for (const springs of ids('springs')) {
+        const model = { body, shape, size, wheels, springs };
+        const look = raceLooks(model), geo = raceGeom(look);
+        for (const ax of [geo.frontAxle, geo.rearAxle]) {
+          const H = Math.round(springHeight(springs, geo, ax));
+          const edge = bodyLowerEdge(geo) - geo.rideRaise;
+          const ceil = geo.chassisTop(ax) - geo.rideRaise + SPRING_INSET;
+          const depth = edge - springEnds(springs, H, geo, 0).top;
+          // The cap is enforced at full bob, which lifts the coil top further than the body, so that bob travel is not usable room at rest.
+          const bobLift = springEnds(springs, H, geo, 0).top - springEnds(springs, H, geo, SPRING_BOB_MAX).top;
+          const room = edge - ceil - bobLift;
+          const want = Math.min(2 * springPitch(springs, H), room);
+          if (depth < want - 1.5) bad.push(`${JSON.stringify(model)} ax=${ax} depth=${depth.toFixed(1)} want=${want.toFixed(1)}`);
+        }
+      }
+    expect(bad).toEqual([]);
   });
 });

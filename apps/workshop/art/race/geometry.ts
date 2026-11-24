@@ -160,7 +160,7 @@ export function topOutline(b: BodyLook, s: ShapeLook, n = 28): Pt[] {
 /** Distances (px, up from the hub) of a coil spring's top and bottom ends when drawn with length H (see springSide). */
 export function springExtent(id: string, H: number): { top: number; bottom: number } {
   const sp = SPRING[id] ?? SPRING['springs.soft'];
-  const pitch = (H - 6) / sp.turns;
+  const pitch = springPitch(id, H);
   const coilTop = 4 + (sp.turns - 1) * pitch + pitch * 0.55 + (sp.thick + 6) / 2;
   return { top: Math.max(coilTop, sp.shock ? H : 0), bottom: 4 - (sp.thick + 6) / 2 };
 }
@@ -181,8 +181,19 @@ export function springEnds(id: string, H: number, geo: RaceGeom, bob = 0): { top
   return { top: geo.hubY - bob - e.top * k, bottom: geo.hubY - bob - e.bottom * k };
 }
 
+/** Coil pitch (px) for a spring of length H. */
+export function springPitch(id: string, H: number): number {
+  const sp = SPRING[id] ?? SPRING['springs.soft'];
+  return (H - 6) / sp.turns;
+}
+
+/** How far (px) the coil top sits inside the body for a spring of length H: at least two coil pitches, never less than SPRING_TUCK. */
+export function springTuck(id: string, H: number): number {
+  return Math.max(SPRING_TUCK, 2 * springPitch(id, H));
+}
+
 /**
- * Spring length H: the coil top ends SPRING_TUCK inside the body above its lower edge (so it is hidden there), never
+ * Spring length H: the coil top ends springTuck(H) inside the body above its lower edge (so it is hidden there), never
  * lower than the lower edge at full bob, and no higher than SPRING_INSET below the chassis top. The bottom end sits at
  * the hub, behind the tire. The visible middle is whatever gap there is between tire and body.
  */
@@ -191,8 +202,10 @@ export function springHeight(id: string, geo: RaceGeom, axle: number): number {
   const ceil = geo.chassisTop(axle) - geo.rideRaise + SPRING_INSET;
   const ok = (H: number, want: number, bob: number) => springEnds(id, H, geo, bob).top <= want;
   const solve = (want: number, bob: number) => { let H = 20; while (H < 400 && !ok(H, want, bob)) H++; return H; };
+  // The tuck grows with H (longer coils have longer pitches), so search for the first H whose top clears its own tuck.
+  let wanted = 20;
+  while (wanted < 400 && !ok(wanted, edge - springTuck(id, wanted), 0)) wanted++;
   // Bobbing lifts the body by bob but the coil top by less, so the rest pose is the tightest case for hiding the top.
-  const wanted = solve(edge - SPRING_TUCK, 0);
   const lowest = solve(edge - 2, 0);
   let highest = lowest;
   while (highest < 400 && springEnds(id, highest + 1, geo, SPRING_BOB_MAX).top >= ceil) highest++;
