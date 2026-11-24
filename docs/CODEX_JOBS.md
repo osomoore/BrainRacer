@@ -16,10 +16,12 @@ git fetch . feature/workshop:feature/workshop 2>$null   # local branch; nothing 
 git worktree add -q ".worktrees\codex-<job>" -b "codex/<job>" feature/workshop
 New-Item -ItemType Junction -Path ".worktrees\codex-<job>\node_modules" -Target "$PWD\node_modules"
 cd ".worktrees\codex-<job>"; npm run assets
-npx vite --port 5198 --strictPort        # restart after every edit: Vite does not hot-reload inside .worktrees
+npx vite --port <job port> --strictPort  # the Port line of your job; restart after every edit (no hot reload in .worktrees)
 ```
-- Port 5198 is the shared art viewer port. If it is busy, stop whatever listens on it first
-  (`Get-NetTCPConnection -LocalPort 5198 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`).
+- Use only your job's port. If it is busy, pick the next free port above 5220 and say so in the hand-back.
+  Never stop a process you did not start (5190/5191/5198/5199/5203 belong to the user).
+- **Use lower-tier sub-agents when they suffice** (mechanical edits, test runs, screenshots, searches); keep the
+  top model for design calls and review. For art and shape-drawing work, Sol is a good fit.
 - Always branch from the **current `feature/workshop`** (never `dev`, never another job's branch).
 - Work only inside your worktree and only in the job's file scope. Never `git stash`. Never delete the
   `node_modules` junction while the worktree exists.
@@ -31,7 +33,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
    Do not merge, do not push. Claude (the orchestrator) reviews and merges into `feature/workshop`.
 4. Remove nothing; leave the worktree for review.
 
-**Review URLs** (port 5198): `workshop.html?dev=WorkshopParts&workshop=race&aspect=wheels` (arrows = aspect, 1/2 = workshop,
+**Review URLs** (your job port): `workshop.html?dev=WorkshopParts&workshop=race&aspect=wheels` (arrows = aspect, 1/2 = workshop,
 `&page=random&seed=N`, dino `&page=beaks`), `workshop.html?dev=RigAnims&workshop=dino&model=rex` (V = side/top),
 `workshop.html?dev=RunPreview&scenario=mud&facet=mud.grip&level=2&pass=0` (`&split=1` half width).
 
