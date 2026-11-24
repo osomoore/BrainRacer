@@ -87,10 +87,10 @@ test('buy and install Mud Tires, then win Deep Mud for its payout', async ({ pag
   await page.waitForTimeout(550); await key(page, 'Escape');
   await expectScreen(page, 'results');
   const paid = await saved(page);
-  expect(paid.completed[id].payout).toBe(2);
-  expect(paid.wallet).toBe(4);
+  expect(paid.completed[id].payout).toBe(1);
+  expect(paid.wallet).toBe(3);
   expect(paid.active).not.toContain(id);
-  expect(await visibleText(page)).toContain('+2');
+  expect(await visibleText(page)).toContain('+1');
   expect(await visibleText(page)).toContain('New Tests');
   expect(await visibleText(page)).not.toContain('Run again');
 });

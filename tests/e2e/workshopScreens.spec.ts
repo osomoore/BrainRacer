@@ -284,6 +284,7 @@ test('2P split: both panes show the room, each in its own player colour, and mov
   }
   const geo = await page.evaluate(() => (window as any).__ws.contexts().map((c: any) => [c.layout, c.size.w]));
   expect(geo).toEqual([['tall', 960], ['tall', 960]]);
+  await page.waitForTimeout(1000); // let the entry flight (WS_BUDDIES.driftMs) settle
   const [p1Home, p2Home] = await Promise.all([roomBuddyX(page, 0), roomBuddyX(page, 1)]);
   await key(page, 'KeyW');
   await expect.poll(async () => Math.abs(await roomBuddyX(page, 0) - p1Home)).toBeGreaterThan(20);
