@@ -1,6 +1,7 @@
 /** Creates the workshop Phaser game and wires the shell singleton, scenes and the `window.__ws` test hook. */
 import Phaser from 'phaser';
 import { isMobile } from '../../../shared/device';
+import type { WorkshopAudio } from '../core/runtime';
 import type { DeviceId } from '../../../shared/input/deviceInput';
 import { createWorkshopAudio } from '../audio';
 import { STAGE, WS_RUN } from '../config';
@@ -31,7 +32,15 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
 
   const store = new SaveStore();
   const router = new InputRouter();
-  const baseAudio = createWorkshopAudio(game);
+  // The real audio needs the files BootScene preloads, so it is built after the preload (`shell.initAudio`);
+  // until then (and if loading fails) this forwarder is silent.
+  let realAudio: WorkshopAudio | null = null;
+  const baseAudio: WorkshopAudio = {
+    music: (t) => realAudio?.music(t),
+    sfx: (n, o) => realAudio?.sfx(n, o),
+    sting: (n) => realAudio?.sting(n),
+    loop: (n, o) => realAudio?.loop(n, o) ?? (() => {}),
+  };
   let adminFlag = store.device().adminMode;
   let paused: string[] = [];
 
@@ -39,6 +48,10 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
     game, store, router, baseAudio, panes,
     sandboxes: new AdminSandboxes(),
     mixer: new AudioMixer(baseAudio),
+    initAudio() {
+      if (realAudio) return;
+      realAudio = createWorkshopAudio(game);
+    },
     mobile: isMobile(),
     count: 0,
     titleFrame: -1,

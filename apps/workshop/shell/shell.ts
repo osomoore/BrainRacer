@@ -18,6 +18,8 @@ export interface Shell {
   sandboxes: AdminSandboxes;
   mixer: AudioMixer;
   baseAudio: WorkshopAudio;
+  /** Builds the real audio once BootScene has preloaded the files (before that `baseAudio` is silent). */
+  initAudio(): void;
   mobile: boolean;
   /** 0 = title / join screen, 1 or 2 = panes running. */
   count: 0 | 1 | 2;

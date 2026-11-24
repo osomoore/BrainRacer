@@ -10,6 +10,7 @@ export class BootScene extends Phaser.Scene {
   preload(): void { preloadWorkshopAudio(this); preloadPaintedArt(); }
 
   create(): void {
+    shell.initAudio();
     void paintedReady().then(() => shell.toTitle(true));
   }
 }
