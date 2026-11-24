@@ -1,20 +1,22 @@
-/** Title / join screen (full stage). Desktop: each pad / keyboard layout confirms to join (max 2). Mobile: tap to play. */
+/** Desktop joins by device. Touch starts one player directly. */
 import Phaser from 'phaser';
 import { goToHub } from '../../../shared/hub';
 import type { DeviceId } from '../../../shared/input/deviceInput';
+import { ConfirmPrompt, FaceButtonBadge } from '../../../shared/ui/menu/FaceButtonBadge';
+import { JoinCard } from '../../../shared/ui/menu/JoinCard';
+import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
 import { STAGE, WS_UI } from '../config';
-import { Button } from '../ui/Button';
-import { makeBadge } from '../ui/Badge';
-import { backdropTexture, COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
-import { emptyJoin, goButtonLabel, reduceJoin, slotLine, type JoinState } from './joinLogic';
+import { carIconTexture, dinoIconTexture } from '../ui/icons';
+import { ProfileMenuButton } from '../ui/ProfileMenuButton';
+import { menuBackground, playerMenuColor } from '../ui/profileMenu';
+import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
+import { emptyJoin, goButtonLabel, reduceJoin, type JoinState } from './joinLogic';
 import { shell } from './shell';
 
 export class TitleScene extends Phaser.Scene {
   private join: JoinState = emptyJoin;
-  private slotTexts: Phaser.GameObjects.Text[] = [];
-  private slotSubs: Phaser.GameObjects.Text[] = [];
-  private slotCards: Phaser.GameObjects.Image[] = [];
-  private play?: Button;
+  private cards: JoinCard[] = [];
+  private play?: ProfileMenuButton;
   private leaving = false;
 
   constructor() { super('title'); }
@@ -22,11 +24,10 @@ export class TitleScene extends Phaser.Scene {
   create(): void {
     this.join = emptyJoin;
     this.leaving = false;
-    this.slotTexts = []; this.slotSubs = []; this.slotCards = [];
+    this.cards = [];
     this.cameras.main.setViewport(0, 0, STAGE.w, STAGE.h);
-    this.add.image(0, 0, backdropTexture(this, STAGE.w, STAGE.h)).setOrigin(0);
-    const title = makeText(this, STAGE.w / 2, 230, 'Adventure Workshop', { size: 150, color: COLORS.paper, stroke: COLORS.ink, strokeW: 16 });
-    this.tweens.add({ targets: title, y: 244, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    menuBackground(this, STAGE.w, STAGE.h);
+    bigText(this, STAGE.w / 2, shell.mobile ? 230 : 125, 'Adventure Workshop', 126, MENU.yellow, { font: FONT_HEAD, stroke: 16 }).setDepth(1);
     shell.baseAudio.music('title');
 
     this.buildBetaNotice();
@@ -35,7 +36,6 @@ export class TitleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
 
-  /** Calm, always-visible beta notice (baked card + text). Does not take input. */
   private buildBetaNotice(): void {
     const b = WS_UI.beta;
     const mobile = shell.mobile ? b.mobile : undefined;
@@ -49,50 +49,41 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private buildMobile(): void {
-    const b = new Button(this, { x: STAGE.w / 2, y: WS_UI.beta.mobile.playY, w: 760, h: 220, label: 'Tap to play', fontSize: 100, color: COLORS.yellow, onClick: () => this.begin([{ kind: 'touch' }]) });
-    this.tweens.add({ targets: b, scale: 1.06, duration: 700, yoyo: true, repeat: -1 });
-    this.input.on('pointerdown', () => this.begin([{ kind: 'touch' }]));
+    const start = () => this.begin([{ kind: 'touch' }]);
+    new ProfileMenuButton(this, STAGE.w / 2, WS_UI.beta.mobile.playY, 780, 180, 'Tap to play', COLORS.p1, 100, start);
+    this.input.on('pointerdown', start);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.off('pointerdown', start));
   }
 
   private buildJoin(): void {
-    const { cardW: cw, cardH: ch, cardY } = WS_UI.titleJoin;
-    for (let i = 0; i < WS_UI.maxPlayers; i++) {
-      const x = STAGE.w / 2 + (i === 0 ? -400 : 400);
-      const card = this.add.image(x, cardY, roundedTexture(this, cw, ch, COLORS.paper, { radius: 36 })).setOrigin(0.5, roundedOriginY(ch));
-      this.slotCards.push(card);
-      this.slotTexts.push(makeText(this, x, cardY, '', { size: 56, color: i === 0 ? COLORS.p1 : COLORS.p2, wrap: cw - 40 }));
-      this.slotSubs.push(makeText(this, x, cardY, '', { size: 40, bold: false, wrap: cw - 40 }));
+    const center = STAGE.w / 2;
+    for (const slot of [0, 1] as const) {
+      const texture = slot === 0 ? carIconTexture(this) : dinoIconTexture(this);
+      const visual = this.add.container(0, -49, [this.add.image(0, 0, texture).setScale(0.65)]);
+      const color = `#${playerMenuColor(slot).toString(16)}`;
+      this.cards.push(new JoinCard(this, center, 445, slot, color, {
+        visual,
+        keyboardHint: slot === 0 ? 'Press any button\nor key to join' : 'Space / Enter',
+        showConfirmPrompt: slot === 1,
+        confirmPrompt: slot === 1 ? new ConfirmPrompt(this, 0, 0, 'to join', 44) : undefined,
+      }));
     }
-    this.play = new Button(this, { x: STAGE.w / 2, y: 735, w: 800, h: 160, label: 'Press A to go', fontSize: 72, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
-    makeBadge(this, 'B', 120, STAGE.h - 70);
-    makeText(this, 170, STAGE.h - 70, 'Back to games', { size: 44, color: COLORS.paper, stroke: COLORS.ink, origin: [0, 0.5] });
+    this.play = new ProfileMenuButton(this, center, 752, 660, 112, '', COLORS.green, 60, () => this.begin(this.join.slots));
+    new FaceButtonBadge(this, 67, STAGE.h - 63, 58, 'right', 'xbox', 'B');
+    bigText(this, 111, STAGE.h - 63, 'Back to games', 44, MENU.white, { origin: [0, 0.5] });
     this.refresh();
   }
 
-  /**
-   * Nobody joined: one centered card, "Press any button or key to join". Player 1 joined: Player 1's card (which
-   * device it is) + an optional Player 2 card + a go button that names Player 1's button.
-   */
   private refresh(): void {
-    const n = this.join.slots.length;
-    const { cardY, textGap } = WS_UI.titleJoin;
-    for (let i = 0; i < WS_UI.maxPlayers; i++) {
-      const d = this.join.slots[i];
-      const solo = n === 0;
-      const x = solo ? STAGE.w / 2 : STAGE.w / 2 + (i === 0 ? -400 : 400);
-      const text = solo ? 'Press any button\nor key to join' : d ? slotLine(i, d, '') : `Player ${i + 1}`;
-      const sub = d ? shell.router.deviceName(d) : solo ? '' : 'Press a button to join (optional)';
-      const label = this.slotTexts[i].setText(text).setX(x);
-      const detail = this.slotSubs[i].setText(sub).setX(x);
-      label.setY(detail.text ? cardY - (detail.height + textGap) / 2 : cardY);
-      detail.setY(cardY + (label.height + textGap) / 2);
-      this.slotCards[i].setX(x).setAlpha(d ? 1 : 0.85).setVisible(!solo || i === 0);
-      label.setVisible(!solo || i === 0);
-      detail.setVisible(!solo || i === 0);
-    }
+    const solo = this.join.slots.length === 0;
+    this.cards.forEach((card, i) => {
+      const device = this.join.slots[i];
+      card.setX(solo ? STAGE.w / 2 : STAGE.w / 2 + (i === 0 ? -425 : 425));
+      card.setVisible(!solo || i === 0);
+      card.setJoined(device ? shell.router.deviceName(device) : null);
+    });
     this.play?.setLabel(`Press ${goButtonLabel(this.join.slots[0])} to go`);
-    this.play?.setVisible(n > 0);
-    this.play?.setEnabled(n > 0);
+    this.play?.setVisible(!solo).setEnabled(!solo);
   }
 
   private begin(devices: readonly DeviceId[]): void {
@@ -103,7 +94,7 @@ export class TitleScene extends Phaser.Scene {
 
   override update(): void {
     shell.router.step(this.game.getFrame());
-    // Events of the frame the title was opened in belong to the pane that just closed.
+    // The events of the frame the title was opened in belong to the pane that just closed.
     if (shell.mobile || this.leaving || shell.adminOpen || this.game.getFrame() === shell.titleFrame) return;
     for (const ev of shell.router.raw) {
       if (ev.type !== 'action') continue;

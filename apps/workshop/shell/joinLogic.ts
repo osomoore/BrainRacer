@@ -39,8 +39,3 @@ export function goButtonLabel(device: DeviceId | undefined): string {
   if (!device) return 'A';
   return device.kind === 'pad' ? 'A' : device.kind === 'kb' ? (device.layout === 1 ? 'Space' : 'Enter') : 'Tap';
 }
-
-/** Text for one slot line on the title screen. */
-export function slotLine(index: number, device: DeviceId | undefined, joinLabel: string): string {
-  return device ? `Player ${index + 1} ✓` : `Player ${index + 1}: ${joinLabel}`;
-}

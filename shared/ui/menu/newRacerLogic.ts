@@ -1,0 +1,43 @@
+/** Phaser-free helpers for the Setup "New Profile" flow. */
+export type Difficulty = 'easy' | 'easyPlus' | 'normal' | 'hard';
+export type AgeBand = '0-5' | '6-7' | '8-9' | '10+';
+export type RacerProfileId = string;
+export interface QuestionTypes { math: boolean; reading: boolean; jbq: boolean }
+const AGE_BAND_LABEL: Record<AgeBand, string> = { '0-5': '0–5', '6-7': '6–7', '8-9': '8–9', '10+': '10+' };
+const BAND_DIFFICULTY: Record<AgeBand, Difficulty> = { '0-5': 'easy', '6-7': 'easyPlus', '8-9': 'normal', '10+': 'hard' };
+const difficultyBand = (d: Difficulty): AgeBand => (Object.keys(BAND_DIFFICULTY) as AgeBand[]).find((b) => BAND_DIFFICULTY[b] === d) ?? '0-5';
+
+export type RacerChoice = RacerProfileId | 'new';
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
+
+/** Racers a player can cycle through: existing racers minus the other player's (when it is a real racer), then New Profile. */
+export function racerChoices(ids: readonly RacerProfileId[], other: RacerProfileId | readonly RacerProfileId[] | undefined, canNew: boolean): RacerChoice[] {
+  const taken: readonly RacerProfileId[] = other === undefined ? [] : typeof other === 'string' ? [other] : other;
+  const list: RacerChoice[] = ids.filter((r) => !taken.includes(r));
+  if (canNew) list.push('new');
+  return list;
+}
+
+/** Next/previous entry with wrap-around; an unknown current value goes to the first entry. */
+export function cycleChoice<T>(list: readonly T[], cur: T, dir: 1 | -1): T {
+  const i = list.indexOf(cur);
+  if (i < 0) return list[0];
+  return list[(i + dir + list.length) % list.length];
+}
+
+/** Flips one question type, but never turns the last one off. */
+export function toggleQuestionType(q: QuestionTypes, key: keyof QuestionTypes): QuestionTypes {
+  const next = { ...q, [key]: !q[key] };
+  return next.math || next.reading || next.jbq ? next : q;
+}
+
+export const nameTaken = (name: string, existing: readonly string[]): boolean =>
+  existing.some((n) => n.trim().toLowerCase() === name.trim().toLowerCase());
+
+export const DIFF_LABEL: Record<Difficulty, string> = { easy: 'Easy ★', easyPlus: 'Easy+ ★½', normal: 'Medium ★★', hard: 'Hard ★★★' };
+export const DIFF_EXAMPLE: Record<Difficulty, string> = { easy: '3 + 4', easyPlus: '8 + 7', normal: '14 + 5', hard: '38 + 47' };
+
+/** "8–9 · Medium ★★" for an age band. */
+export const bandChoiceLabel = (b: AgeBand, d: Difficulty): string => `${AGE_BAND_LABEL[b]} · ${DIFF_LABEL[d]}`;
+/** Same, from a profile's difficulty (the band is derived from it). */
+export const ageLabel = (d: Difficulty): string => bandChoiceLabel(difficultyBand(d), d);

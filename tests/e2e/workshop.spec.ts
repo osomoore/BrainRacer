@@ -47,9 +47,10 @@ test('wide title keeps both join slots clear before and after joining', async ({
   await expectTitleTextClear(page, ['Press any button\nor key to join', 'Back to games']);
   await page.screenshot({ path: testInfo.outputPath('title-1920x1080.png') });
   await key(page, 'Space');
-  await expectTitleTextClear(page, ['Player 1 ✓', 'Keyboard: W A S D', 'Player 2', 'Press a button to join (optional)', 'Press Space to go', 'Back to games']);
+  await expectTitleTextClear(page, ['PLAYER 1', 'Keyboard: W A S D', 'PLAYER 2', 'to join', 'Press Space to go', 'Back to games']);
   await key(page, 'Enter');
-  await expectTitleTextClear(page, ['Player 1 ✓', 'Player 2 ✓', 'Press Space to go', 'Back to games']);
+  await expectTitleTextClear(page, ['PLAYER 1', 'PLAYER 2', 'Keyboard: arrows', 'Press Space to go', 'Back to games']);
+  await page.screenshot({ path: testInfo.outputPath('title-2p-1920x1080.png') });
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
@@ -66,7 +67,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
   });
 }
 
-test('keyboard 1P: join, new profile, reading level, workshop, room placeholder, save persists', async ({ page }) => {
+test('keyboard 1P: join, new profile, reading level, workshop, room placeholder, save persists', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await boot(page);
   await key(page, 'Space'); // KB1 joins
   await key(page, 'Space'); // Player 1 starts
@@ -75,6 +77,7 @@ test('keyboard 1P: join, new profile, reading level, workshop, room placeholder,
   await key(page, 'Space'); // only card: New
   await screens(page).toBe('newProfile');
   await page.keyboard.type('Zoe', { delay: 80 });
+  await page.screenshot({ path: testInfo.outputPath('name-1920x1080.png') });
   await key(page, 'Enter'); // done -> reading level
   await page.waitForTimeout(200);
   await key(page, 'Space'); // Medium is preselected
@@ -114,7 +117,8 @@ test('duplicate names are refused (any case)', async ({ page }) => {
   expect((await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!))).length).toBe(1);
 });
 
-test('keyboard 2P: both layouts join, panes split and work independently', async ({ page }) => {
+test('keyboard 2P: both layouts join, panes split and work independently', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await seedProfiles(page);
   await boot(page);
   await key(page, 'Space'); // KB1 joins
@@ -128,8 +132,14 @@ test('keyboard 2P: both layouts join, panes split and work independently', async
   expect(geo.sizes).toEqual([960, 960]);
   expect(geo.x).toEqual([0, 960]);
   expect(geo.layouts).toEqual(['tall', 'tall']);
+  await page.screenshot({ path: testInfo.outputPath('profiles-2p-1920x1080.png') });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.screenshot({ path: testInfo.outputPath('profiles-2p-844x390.png') });
+  await page.setViewportSize({ width: 1920, height: 1080 });
 
   await key(page, 'Space'); // Player 1 picks Robin (no workshop save yet) -> reading
+  await screens(page).toBe('reading,profile');
+  await key(page, 'Enter'); // Player 2 can't claim Robin after Player 1
   await screens(page).toBe('reading,profile');
   await key(page, 'ArrowRight'); // Player 2 moves to Sam
   await key(page, 'Enter');
@@ -141,8 +151,8 @@ test('keyboard 2P: both layouts join, panes split and work independently', async
   expect(locked).toBe('p2');
 });
 
-test('mobile: tap to play gives one pane; gear opens the grown-up gate', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, hasTouch: true });
+test('mobile: tap to play gives one pane; gear opens the grown-up gate', async ({ browser }, testInfo) => {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
   try {
     const page = await ctx.newPage();
     await page.goto('/workshop.html?mobile=1');
@@ -165,11 +175,13 @@ test('mobile: tap to play gives one pane; gear opens the grown-up gate', async (
     await tap('title', 'Tap to play');
     await screens(page).toBe('profile');
     expect((await ws(page)).count).toBe(1);
+    await page.screenshot({ path: testInfo.outputPath('profiles-1p-844x390.png') });
     await tap('pane0', '+ New');
     const pane = await page.evaluate(() => { const c = (window as any).__ws.contexts()[0]; return { touch: c.input.touch, prompts: c.input.prompts, w: c.size.w }; });
     expect(pane).toEqual({ touch: true, prompts: 'none', w: 1920 });
     await screens(page).toBe('newProfile');
-    await tap('pane0', 'Back');
+    await page.screenshot({ path: testInfo.outputPath('name-844x390.png') });
+    await tap('pane0', 'BACK');
     await screens(page).toBe('profile');
     await tap('overlay');
     await expect.poll(async () => (await ws(page)).adminOpen).toBe(true);

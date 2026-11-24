@@ -20,13 +20,19 @@ export interface FocusGroupOpts {
   onEdge?: (dir: FocusDir) => void;
 }
 
-export class FocusGroup {
-  private items: Button[] = [];
+type Focusable = Pick<Button, 'rect' | 'isEnabled' | 'pulse' | 'activate'> & {
+  on(event: 'hover', listener: () => void): void;
+  off(event: 'hover'): void;
+  setFocused(focused: boolean): void;
+};
+
+export class FocusGroup<T extends Focusable = Button> {
+  private items: T[] = [];
   private index = -1;
 
   constructor(private readonly o: FocusGroupOpts = {}) {}
 
-  set(buttons: readonly Button[]): this {
+  set(buttons: readonly T[]): this {
     this.items.forEach((b) => b.off('hover'));
     this.items = [...buttons];
     this.items.forEach((b) => b.on('hover', () => this.focus(b)));
@@ -34,11 +40,11 @@ export class FocusGroup {
     return this;
   }
 
-  add(b: Button): this { return this.set([...this.items, b]); }
+  add(b: T): this { return this.set([...this.items, b]); }
 
-  get focused(): Button | undefined { return this.items[this.index]; }
+  get focused(): T | undefined { return this.items[this.index]; }
 
-  focus(b: Button | number | undefined): void {
+  focus(b: T | number | undefined): void {
     const i = typeof b === 'number' ? b : b ? this.items.indexOf(b) : -1;
     if (i === this.index) return;
     this.items.forEach((x, k) => x.setFocused(k === i && !this.o.touch));

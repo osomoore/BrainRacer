@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { InputDevice, RacerProfileId } from '../../core/types';
+import type { InputDevice, RacerProfileId } from './joinLogic';
 import { allReady, canAdvance, claimSlot, freeRacer, isLocked, leaveSlot, newJoinPlayer, nextRacer, racerOptions, setReady, waitingFor, type JoinSlot } from './joinLogic';
 
 const pad = (index: number): InputDevice => ({ type: 'gamepad', index });

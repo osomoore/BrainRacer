@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyJoin, goButtonLabel, reduceJoin, slotLine } from './joinLogic';
+import { emptyJoin, goButtonLabel, reduceJoin } from './joinLogic';
 
 const kb1 = { kind: 'kb', layout: 1 } as const;
 const kb2 = { kind: 'kb', layout: 2 } as const;
@@ -50,12 +50,5 @@ describe('any-button join', () => {
     expect(goButtonLabel(pad0)).toBe('A');
     expect(goButtonLabel(kb1)).toBe('Space');
     expect(goButtonLabel(kb2)).toBe('Enter');
-  });
-});
-
-describe('slotLine', () => {
-  it('shows a check or the join prompt', () => {
-    expect(slotLine(0, kb1, 'x')).toBe('Player 1 ✓');
-    expect(slotLine(1, undefined, 'press A to join')).toBe('Player 2: press A to join');
   });
 });

@@ -1,94 +1,68 @@
-/**
- * newProfile: name (on-screen letter grid, or type on a physical keyboard) then reading level, then creates the
- * shared profile and the workshop save. Duplicate names (any case) are refused. B deletes a letter; with an empty
- * name (or on the level step) it goes back. Creating a profile is always real, even in Admin Mode.
- */
-import { createProfile, listProfiles } from '../../../shared/profiles';
+/** Shared name-entry UI followed by the Workshop's reading-level step. */
+import { createProfile, listProfiles, PROFILE_NAME } from '../../../shared/profiles';
+import { LetterPicker } from '../../../shared/ui/menu/LetterPicker';
+import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import type { ShellPaneContext } from '../shell/paneContext';
 import { shell } from '../shell/shell';
-import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
-import { typedText } from '../ui/input';
-import { appendName, checkName, deleteName, NAME_MESSAGES } from '../ui/letterGrid';
-import { LetterGrid, type LetterKey } from '../ui/LetterGridView';
+import { ProfileMenuButton } from '../ui/ProfileMenuButton';
+import { menuBackground, playerMenuColor } from '../ui/profileMenu';
+import { checkName, NAME_MESSAGES } from '../ui/profileName';
 import { addBackButton, addHeader } from '../ui/screenChrome';
-import { COLORS, fitText, makeText, roundedOriginY, roundedTexture } from '../ui/style';
-import { PROFILE_NAME } from '../../../shared/profiles';
 import { buildLevelPicker } from './reading/levelPicker';
+
+const NO_INPUT = { navX: 0, navY: 0, confirm: false, back: false };
 
 const newProfileScreen: ScreenFactory = (): Screen => {
   let ctx: ShellPaneContext;
   let group: FocusGroup | undefined;
-  let phase: 'name' | 'level' = 'name';
+  let picker: LetterPicker | undefined;
+  let message: Phaser.GameObjects.Text;
   let name = '';
-  let objs: Phaser.GameObjects.GameObject[] = [];
-  let nameText: Phaser.GameObjects.Text | undefined;
-  let message: Phaser.GameObjects.Text | undefined;
-  let grid: LetterGrid | undefined;
+  let typing = false;
+  const objs: Phaser.GameObjects.GameObject[] = [];
 
   const clear = () => {
     group?.destroy(); group = undefined;
-    grid?.destroy(); grid = undefined;
-    objs.forEach((o) => o.destroy());
-    objs = [];
-    nameText = undefined; message = undefined; // destroyed with objs: never touch them after a screen change
+    picker?.destroy(); picker = undefined;
+    objs.splice(0).forEach((o) => o.destroy());
   };
 
   const showName = () => {
     clear();
-    phase = 'name';
-    const { w } = ctx.size;
+    typing = false;
+    const { w, h } = ctx.size;
+    const color = playerMenuColor(ctx.index);
     const wide = ctx.layout === 'wide';
-    objs.push(addHeader(ctx, 'What is your name?', wide ? 80 : 70, wide ? 76 : 56));
-    const boxW = wide ? 860 : 640;
-    const boxX = wide ? w / 2 : 600;
-    const boxY = wide ? 210 : 205;
-    const back = addBackButton(ctx, () => ctx.go('profile'), wide ? 175 : 155, boxY);
-    objs.push(back);
-    objs.push(ctx.scene.add.image(boxX, boxY, roundedTexture(ctx.scene, boxW, 140, COLORS.paper, { radius: 30, gloss: false })).setOrigin(0.5, roundedOriginY(140)));
-    nameText = makeText(ctx.scene, boxX, boxY, '', { size: 84 });
-    message = makeText(ctx.scene, w / 2, wide ? 318 : 312, '', { size: 44, color: COLORS.red, stroke: COLORS.paper, wrap: w - 60 });
-    objs.push(nameText, message);
-    grid = new LetterGrid(ctx.scene, { x: w / 2, y: wide ? 370 : 350, layout: ctx.layout, onKey: onKey });
-    group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch, wrap: true });
-    group.set([...grid.buttons, back]);
-    group.focus(grid.buttons[0]);
-    renderName();
+    const back = new ProfileMenuButton(ctx.scene, wide ? w - 190 : w - 152, 70, wide ? 300 : 240, 100, 'BACK', color, 50, () => ctx.go('profile'));
+    objs.push(menuBackground(ctx.scene, w, h), back);
+    objs.push(bigText(ctx.scene, 40, 70, `PLAYER ${ctx.index + 1}`, 48, `#${color.toString(16)}`, { font: FONT_HEAD, origin: [0, 0.5] }));
+    picker = new LetterPicker(ctx.scene, w / 2, wide ? 70 : 124, {
+      title: "WHAT'S YOUR NAME?", initial: name, maxLen: PROFILE_NAME.maxLen, color, keyboardTyping: false,
+      sfx: (cue) => ctx.audio.sfx(cue === 'menuMove' ? 'click' : 'select'),
+    });
+    message = bigText(ctx.scene, w / 2, h - 32, '', 44, MENU.yellow, { font: FONT_HEAD, wrap: w - 50 });
+    objs.push(message);
   };
 
-  const renderName = () => {
-    if (!nameText) return;
-    nameText.setText(name + (name.length < PROFILE_NAME.maxLen ? '_' : '')).setFontSize(84);
-    fitText(nameText, (ctx.layout === 'wide' ? 860 : 640) - 40, 48);
-  };
-
-  const onKey = (k: LetterKey) => {
-    message?.setText('');
-    if (k.type === 'add') name = appendName(name, k.ch);
-    else if (k.type === 'delete') name = deleteName(name);
-    else { done(); return; } // DONE changes the screen (or shows a message): nothing more to render here
-    renderName();
-  };
-
-  const done = () => {
-    const r = checkName(name, listProfiles().map((p) => p.name));
-    if (!r.ok) { message?.setText(NAME_MESSAGES[r.reason]); ctx.audio.sfx('back'); return; }
-    name = r.name;
-    showLevel();
-  };
+  const validated = (value: string) => checkName(value, listProfiles().map((p) => p.name));
 
   const showLevel = () => {
     clear();
-    phase = 'level';
-    const { w } = ctx.size;
     objs.push(addHeader(ctx, `${name}, how well do you read?`, 110, ctx.layout === 'wide' ? 76 : 52));
     const buttons = buildLevelPicker(ctx, (level) => {
-      const p = createProfile(name);
-      if (!p) { showName(); message?.setText(NAME_MESSAGES.empty); return; }
-      shell.store.setPlayer(p.id, engine.newPlayerSave(level));
-      ctx.setProfile(p.id);
+      // Both panes can reach this step before either has saved a name.
+      const checked = validated(name);
+      const profile = checked.ok ? createProfile(checked.name) : null;
+      if (!profile) {
+        showName();
+        message.setText(NAME_MESSAGES[checked.ok ? 'empty' : checked.reason]);
+        return;
+      }
+      shell.store.setPlayer(profile.id, engine.newPlayerSave(level));
+      ctx.setProfile(profile.id);
       ctx.audio.sfx('sparkle');
       ctx.go('pickWorkshop');
     });
@@ -97,41 +71,62 @@ const newProfileScreen: ScreenFactory = (): Screen => {
     group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
     group.set([...buttons, back]);
     group.focus(buttons[1]);
-    void w;
+  };
+
+  const done = (value: string) => {
+    const checked = validated(value);
+    if (!checked.ok) {
+      message.setText(NAME_MESSAGES[checked.reason]);
+      ctx.audio.sfx('back');
+      return;
+    }
+    name = checked.name;
+    showLevel();
   };
 
   return {
     create(c: PaneContext) {
       ctx = c as ShellPaneContext;
       ctx.audio.music('title');
-      name = '';
       showName();
     },
     update() {
       const actions = ctx.input.poll();
-      const text = typedText(ctx.input);
-      let submitted = false;
-      if (phase === 'name') {
-        for (const ch of text) {
-          if (ch === ' ' && actions.includes('confirm')) continue; // Space also presses the focused key: don't type it twice
-          if (ch === '\n') { submitted = true; done(); break; }
-          message?.setText('');
-          name = appendName(name, ch);
-          renderName();
+      const text = ctx.input.text();
+      if (!picker) {
+        for (const action of actions) {
+          if (action === 'back') { showName(); return; }
+          group?.handle(action);
+          if (action === 'confirm') return;
+        }
+        return;
+      }
+
+      if (picker.handle(NO_INPUT) === 'done') { done(picker.value); return; }
+      for (const ch of text) {
+        if (ch === '\n') {
+          if (typing && picker.value.trim()) { done(picker.value); return; }
+        } else {
+          typing = true;
+          message.setText('');
+          picker.typeText(ch);
         }
       }
-      for (const a of actions) {
-        if (submitted && a === 'confirm') continue; // Enter already finished the name
-        if (a === 'back') {
-          if (phase === 'level') { showName(); return; }
-          if (name.length > 0) { name = deleteName(name); message?.setText(''); renderName(); } else { ctx.go('profile'); return; }
-        } else group?.handle(a);
-        if (phase === 'level' && submitted) break;
+      for (const action of actions) {
+        const input = {
+          navX: Number(action === 'right') - Number(action === 'left'),
+          navY: Number(action === 'down') - Number(action === 'up'),
+          confirm: action === 'confirm',
+          back: action === 'back',
+        };
+        message.setText('');
+        const result = picker.handle(input);
+        if (result === 'done') { done(picker.value); return; }
+        if (result === 'cancel') { ctx.go('profile'); return; }
       }
     },
-    destroy() { clear(); nameText = undefined; message = undefined; },
+    destroy: clear,
   };
 };
 
 export default newProfileScreen;
-export type { Button };
