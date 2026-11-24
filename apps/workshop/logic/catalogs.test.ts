@@ -21,7 +21,7 @@ describe.each(WORKSHOP_IDS)('real catalog: %s', (id) => {
     expect(r.mismatches).toBe(0);
     expect(new Set(r.progress.bought).size).toBe(r.progress.bought.length);
     expect(r.progress.bought.length).toBe(cat.variants.length - cat.aspects.length);
-  });
+  }, 30_000); // a full playthrough takes 2-4 s alone, far longer while the whole suite runs in parallel
   run('deals Ready, Affordable, and Future, then keeps the same cards and colors through every legal two-purchase opening', () => {
     const start = engine.refreshBoard(id, engine.newProgress(id));
     const categories = (p: typeof start) => {
