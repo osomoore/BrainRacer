@@ -19,6 +19,9 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 ```
 - Use only your job's port. If it is busy, pick the next free port above 5220 and say so in the hand-back.
   Never stop a process you did not start (5190/5191/5198/5199/5203 belong to the user).
+- **Pause before running out of quota:** at about 90% of your usage window, stop at a safe point: commit work in progress on
+  your branch (message starts with `WIP:`), write a short "Resume from here" note under your job in this file (done / next /
+  open questions), and stop. A later session resumes from that note.
 - **Use lower-tier sub-agents when they suffice** (mechanical edits, test runs, screenshots, searches); keep the
   top model for design calls and review. For art and shape-drawing work, Sol is a good fit.
 - Always branch from the **current `feature/workshop`** (never `dev`, never another job's branch).
@@ -381,7 +384,7 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
   which starters were kept or dropped, and the UI work left for C23.
 - Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review.
 
-## C23 — Currency screens · `OPEN`
+## C23 — Currency screens · `DONE (codex/c23)`
 - **Start point:** branch `codex/c23` from `feature/workshop` **after C22 is merged** (do not start before).
 - **Not parallel with C22.** Parallel-safe with C24 (use its icons/sounds when merged, placeholders until then).
 - **Port:** 5228.
@@ -420,6 +423,32 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 - Use lower-tier sub-agents when appropriate (mechanical edits, test runs, screenshots, searches); keep the top model for design and review. Sol is a good fit for the art work.
 
 ---
+
+## C25 — Workshop join and profiles use Brain Racer's menu UI · `OPEN`
+- **Start point:** branch `codex/c25` from the current `feature/workshop` tip.
+- **Parallel-safe with C23** (C23 does not touch the join / profile / name-entry screens). Code only, no ComfyUI.
+- **Port:** 5230.
+- **Scope:** move the reusable Brain Racer menu pieces from `src/ui/menu/` into `shared/ui/menu/` (JoinCard, JoinPanel,
+  LetterPicker, NewRacerPanel, MenuButton, FaceButtonBadge, OptionRow, style, letterGrid, joinLogic, newRacerLogic and their
+  tests) and re-export them from `src/ui/menu/index.ts` so Brain Racer keeps working unchanged. Then rebuild the workshop's
+  join, profile chooser and new-profile screens (`apps/workshop/shell/**`, `apps/workshop/screens/profile*`,
+  `apps/workshop/screens/newProfileScreen.ts`, `apps/workshop/ui/**` as needed) from those shared pieces. Keep
+  `tests/e2e/workshopJoin.spec.ts` and the Brain Racer menu e2e specs green (update selectors only where the flow is the same).
+- **Do:**
+  - The workshop join and profile screens look and behave like Brain Racer's (same cards, letter picker, buttons, badges,
+    styling). The user finds them comfortable and polished.
+  - The workshop allows up to 2 players (split panes as now). Touch stays 1 player.
+  - The profile list is the shared store (`shared/profiles.ts`), the same one Brain Racer uses. Never delete, rename or clear
+    profiles in code or tests.
+  - The workshop-only step stays: a profile new to the workshop picks a reading level once.
+  - Keep the fixes from `pkg/ws-join`: Done never locks up input, and Right from Delete goes to Done.
+  - The workshop still never imports from `src/`; everything shared goes through `shared/`.
+- **Done when:** typecheck, `npm test`, the workshop e2e and the Brain Racer menu/profile e2e specs pass. Screenshots of the
+  workshop join, the 2-player profile chooser and name entry at 1920x1080 and a phone viewport look like Brain Racer's.
+- **Use lower-tier sub-agents when appropriate** (mechanical moves, import rewrites, test runs, screenshots); keep the top
+  model for design and review.
+- **Hand-back:** list the moved files, any Brain Racer behavior that changed (should be none), and what to check by hand
+  (real controllers, 2 players, phone).
 
 ## Done
 - C1 · `DONE (codex/c1)`

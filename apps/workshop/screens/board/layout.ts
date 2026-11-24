@@ -1,5 +1,5 @@
 /** Pure board-screen layout (wide: model + labels left, card tabs + detail panel right; tall: overview, detail is a second view). */
-import { WS_ROOM } from '../../config';
+import { WS_ROOM, WS_UI } from '../../config';
 import type { Model } from '../../core/types';
 import { paneSize, type LayoutKind } from '../room/layout';
 
@@ -19,7 +19,6 @@ export interface BoardLayout {
   /** Detail panel (wide: embedded on the right; tall: the whole second view). Center-based like BoxC. */
   panel: BoxC;
   testBtn: BoxC;
-  loadBtn: BoxC;
   /** Text area inside the panel: top-left origin and size. */
   textArea: { x: number; y: number; w: number; h: number };
   /** Pager for text pages (inside the panel, bottom center). */
@@ -51,20 +50,20 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
       labels: { x: 40, y0: 390, rowH: 52, size: 40, col1: 215, w: 580 },
       cards, perPage: PER_PAGE,
       pager: { x: rx + rw / 2 - 250, y: 305, gap: 130 },
-      newBtn: { x: rx + rw - 230, y: 305, w: 440, h: 100 },
+      newBtn: { x: rx + rw - 230, y: 305, w: 440, h: WS_UI.tapMin },
       back: { x: 150, y: 985, w: 230, h: 120 },
       panel,
       testBtn: { x: panel.x + panel.w / 2 - 40 - 210, y: btnY, w: 420, h: btnH },
-      loadBtn: { x: panel.x - panel.w / 2 + 40 + 250, y: btnY, w: 500, h: 110 },
       textArea: { x: panel.x - panel.w / 2 + 40, y: panel.y - panel.h / 2 + 125, w: panel.w - 80, h: panel.h - 125 - 20 - btnH - 20 },
       textPager: { x: panel.x + panel.w / 2 - 40 - 190, y: panel.y - panel.h / 2 + 62, gap: 70 },
       title: { x: panel.x - panel.w / 2 + 40, y: panel.y - panel.h / 2 + 62, size: 64, maxW: panel.w - 80 - 420 },
       compactCards: false,
     };
   }
-  const ch = admin ? 110 : 140;
-  const cardTop = admin ? 590 : 505;
-  const cards = [0, 1, 2].map((i) => ({ x: size.w / 2, y: cardTop + ch / 2 + i * (ch + 14), w: size.w - 60, h: ch }));
+  const ch = admin ? WS_UI.tapMin : 140;
+  const cardTop = admin ? 585 : 505;
+  const cardGap = admin ? 6 : 14;
+  const cards = [0, 1, 2].map((i) => ({ x: size.w / 2, y: cardTop + ch / 2 + i * (ch + cardGap), w: size.w - 60, h: ch }));
   const btnH = 130;
   const panelBottom = size.h - 140;
   const btnY = panelBottom - 20 - btnH / 2;
@@ -73,12 +72,11 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     model: { x: 215, groundY: 400, maxW: 400, maxH: 330 },
     labels: { x: 425, y0: 30, rowH: 43, size: 40, col1: 190, w: 520 },
     cards, perPage: PER_PAGE,
-    pager: { x: size.w / 2 + 120, y: size.h - 65, gap: 80 },
-    newBtn: { x: size.w / 2, y: 525, w: 700, h: 100 },
-    back: { x: 125, y: size.h - 65, w: 200, h: 110 },
+    pager: { x: size.w / 2 + 170, y: size.h - 62, gap: 80 },
+    newBtn: { x: size.w / 2, y: 520, w: 700, h: WS_UI.tapMin },
+    back: { x: 125, y: size.h - 62, w: 200, h: WS_UI.tapMin },
     panel: { x: size.w / 2, y: 30 + (panelBottom - 30) / 2, w: size.w - 40, h: panelBottom - 30 },
     testBtn: { x: size.w - 40 - 190, y: btnY, w: 380, h: btnH },
-    loadBtn: { x: 40 + 215, y: btnY, w: 430, h: 110 },
     textArea: { x: 50, y: 175, w: size.w - 100, h: btnY - btnH / 2 - 15 - 70 - 175 },
     textPager: { x: size.w / 2, y: btnY - btnH / 2 - 15 - 35, gap: 150 },
     title: { x: 50, y: 100, size: 56, maxW: size.w - 100 },

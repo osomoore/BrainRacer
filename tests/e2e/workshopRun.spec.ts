@@ -6,7 +6,7 @@ import { solve } from '../../apps/workshop/logic/solver';
 import { seedProfiles } from './profiles';
 
 /**
- * Adventure Workshop: run + results screens (fail / win / unlock / hint / reading level / Admin Mode / 2P / Dino / multi-stage).
+ * Adventure Workshop: run + results screens (fail / win / payout / hint / reading level / Admin Mode / 2P / Dino / multi-stage).
  * Hooks: window.__ws. Set WS_SHOTS=<dir> to also save screenshots of the results screens.
  */
 
@@ -146,7 +146,7 @@ async function expectCleanLayout(page: Page, pane: number): Promise<void> {
   }, pane);
   const hit = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }, tol = 6) =>
     a.x + tol < b.x + b.w && b.x + tol < a.x + a.w && a.y + tol < b.y + b.h && b.y + tol < a.y + a.h;
-  expect(r.buttons.length).toBeGreaterThanOrEqual(3);
+  expect(r.buttons.length).toBeGreaterThanOrEqual(2);
   for (const b of r.buttons) { expect(b.h).toBeGreaterThanOrEqual(120); expect(b.w).toBeGreaterThanOrEqual(120); }
   for (const t of r.texts) {
     expect(t.size, t.text).toBeGreaterThanOrEqual(40);
@@ -185,7 +185,7 @@ test('fail: red cross, fail counted, Try again re-runs, the hint appears after t
   await shot(page, 'results-fail');
 
   for (const n of [2, 3]) {
-    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Challenges -> Try again
+    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Test -> Try again
     await key(page, 'Space');
     await expectScreens(page, 'run');
     await skipToResults(page);
@@ -276,8 +276,8 @@ test('win: green check, currency saved, board refills, replay does not pay again
   await expectCleanLayout(page, 0);
   await shot(page, 'results-first-win');
 
-  // Challenges button: the board has three cards and the solved one was replaced
-  await key(page, 'Space'); // focused: Challenges after a win
+  // Test button: the board has three cards and the solved one was replaced
+  await key(page, 'Space'); // focused: Test after a win
   await expectScreens(page, 'board');
   const active = await activeIds(page);
   expect(active).toHaveLength(3);

@@ -47,12 +47,12 @@ const runScreen: ScreenFactory = (): Screen => {
     const save = ctx.save();
     const progress = currentProgress(ctx, ws);
     const challenge = progress.challenges[challengeId];
-    let outcome = { unlocked: [] as string[], payout: 0, hint: null as string | null, firstWin: false };
+    const outcome = { payout: 0, hint: null as string | null };
     if (!ctx.adminMode && challenge) {
       if (result.passed) {
         const win = engine.recordWin(ws, progress, challengeId, progress.model, Date.now());
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: win.progress } });
-        outcome = { unlocked: [], payout: win.payout, hint: null, firstWin: win.firstWin };
+        outcome.payout = win.payout;
       } else {
         const p = engine.recordFail(ws, progress, challengeId);
         ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: p } });

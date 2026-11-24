@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { checkGateAnswer, appendGateDigit, makeGateQuestion, type GateQuestion } from '../../../../shared/adminGate';
 import { listProfiles } from '../../../../shared/profiles';
-import { STAGE, WS_ADMIN } from '../../config';
+import { STAGE, WS_ADMIN, WS_RULES, WS_UI } from '../../config';
 import { READING_LABEL, READING_LEVELS, WORKSHOP_IDS, type PlayerSave, type ReadingLevel, type VariantOverride, type WorkshopId } from '../../core/types';
 import { engine } from '../../logic';
 import { Button } from '../../ui/Button';
@@ -116,13 +116,24 @@ export class AdminScene extends Phaser.Scene {
           options: READING_LEVELS.map((l) => ({ id: l, label: READING_LABEL[l] })),
           set: (id) => shell.store.setPlayer(v.profile, { ...save, reading: id as ReadingLevel }),
         });
-        for (const ws of WORKSHOP_IDS) rows.push({ kind: 'action', label: WS_TITLE[ws], tag: '>', run: () => this.push({ kind: 'workshop', profile: v.profile, ws }) });
       }
+      for (const ws of WORKSHOP_IDS) rows.push({ kind: 'action', label: WS_TITLE[ws], tag: '>', run: () => this.push({ kind: 'workshop', profile: v.profile, ws }) });
+      rows.push({ kind: 'action', label: 'Reset this player (fresh start)', run: () => {
+        this.confirm = new Confirm(this, {
+          cx: STAGE.w / 2, cy: STAGE.h / 2, w: 1100, text: 'Reset both workshops to a fresh start? Reading level stays the same.', yes: 'Yes, reset', no: 'No', defaultYes: false,
+          touch: false, depth: 900,
+          onYes: () => this.mutate(v, (save) => engine.resetPlayer(save), 'Player reset'),
+        });
+      } });
       rows.push({ kind: 'action', label: 'Back', run: () => this.pop() });
     } else if (v.kind === 'workshop') {
-      const save = this.realSave(v.profile);
-      if (!save) { rows.push({ kind: 'action', label: 'Back', run: () => this.pop() }); return rows; }
+      const save = this.realSave(v.profile) ?? engine.newPlayerSave('medium');
       const progress = engine.progressOf(save, v.ws);
+      const grant = WS_RULES.adminCurrencyGrant;
+      rows.push({ kind: 'action', label: `Add +${grant} ${v.ws === 'race' ? 'coins' : 'Bio Juice'} (wallet: ${progress.wallet})`, run: () => this.mutate(v, (s) => {
+        const p = engine.grantCurrency(v.ws, engine.progressOf(s, v.ws));
+        return { ...s, workshops: { ...s.workshops, [v.ws]: p } };
+      }, `+${grant} added`) });
       rows.push({ kind: 'action', label: 'Regenerate challenges', run: () => this.mutate(v, (s) => ({ ...s, workshops: { ...s.workshops, [v.ws]: engine.regenerate(v.ws, engine.progressOf(s, v.ws)) } }), 'New challenges made') });
       rows.push({
         kind: 'action', label: 'Reset workshop progress',
@@ -159,11 +170,10 @@ export class AdminScene extends Phaser.Scene {
   /** Applies a change to the player's REAL save (even in Admin Mode), then redraws. */
   private mutate(v: View, f: (s: PlayerSave) => PlayerSave, msg?: string, keep = false): void {
     if (v.kind !== 'workshop' && v.kind !== 'player') return;
-    const save = this.realSave(v.profile);
-    if (!save) return;
+    const save = this.realSave(v.profile) ?? engine.newPlayerSave('medium');
     shell.store.setPlayer(v.profile, f(save));
-    if (msg) showBanner(this, { x: STAGE.w / 2, y: 980, text: msg, depth: 1000 });
     this.show(v, keep);
+    if (msg) showBanner(this, { x: STAGE.w / 2, y: 980, text: msg, depth: 1000 });
   }
 
   private push(v: View): void { this.stack.push(this.view); this.show(v); }
@@ -177,11 +187,19 @@ export class AdminScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- list rendering
 
+  private get rowHeight(): number {
+    return this.view.kind === 'main' ? WS_ADMIN.rowH : WS_UI.tapMin + 12;
+  }
+
+  private get visibleRows(): number {
+    return Math.min(WS_ADMIN.visibleRows, Math.floor((STAGE.h - LIST_Y - 65) / this.rowHeight));
+  }
+
   private render(): void {
     this.objs.forEach((o) => o.destroy());
     this.objs = [];
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.objs.push(o); return o; };
-    const rowH = WS_ADMIN.rowH, vis = WS_ADMIN.visibleRows, f = WS_ADMIN.font;
+    const rowH = this.rowHeight, vis = this.visibleRows, f = WS_ADMIN.font;
     this.top = scrollTop(this.ls.focus, this.top, vis, this.rows.length);
     add(makeText(this, STAGE.w / 2, 70, this.title(this.view), { size: 56, color: COLORS.yellow, small: true }));
     add(new Button(this, { x: 150, y: 70, w: 220, h: 100, label: this.stack.length ? 'Back' : 'Close', fontSize: 44, color: COLORS.yellow, small: true, onClick: () => this.keyInput('back', true) }));
@@ -226,9 +244,9 @@ export class AdminScene extends Phaser.Scene {
   }
 
   private scroll(dir: 1 | -1): void {
-    this.top = Math.max(0, Math.min(this.top + dir * 4, this.rows.length - WS_ADMIN.visibleRows));
+    this.top = Math.max(0, Math.min(this.top + dir * 4, this.rows.length - this.visibleRows));
     // move focus into the window if it left it
-    const vis = WS_ADMIN.visibleRows;
+    const vis = this.visibleRows;
     if (this.ls.focus < this.top || this.ls.focus >= this.top + vis) {
       for (let i = this.top; i < Math.min(this.rows.length, this.top + vis); i++) {
         if (this.rows[i].kind === 'action' || this.rows[i].kind === 'value') { this.ls = { ...this.ls, focus: i, editing: false }; break; }

@@ -6,11 +6,10 @@
 import type Phaser from 'phaser';
 import { WS_ROOM, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
-import type { Challenge, Model, WorkshopProgress } from '../core/types';
+import type { Challenge, WorkshopProgress } from '../core/types';
 import { engine } from '../logic';
 import { newAdminChallenges } from '../shell/adminMode';
 import { Button } from '../ui/Button';
-import { showBanner } from '../ui/Banner';
 import { FocusGroup } from '../ui/FocusGroup';
 import { Pager } from '../ui/Pager';
 import { pageCount, pageItems } from '../ui/paging';
@@ -55,14 +54,12 @@ const boardScreen: ScreenFactory = (): Screen => {
   let newBtn: Button | undefined;
   let modelObjs: Phaser.GameObjects.GameObject[] = [];
   let testBtn: Button | undefined;
-  let loadBtn: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
 
   const ws = () => ctx.workshop ?? 'race';
   const wide = () => ctx.layout === 'wide';
   const ids = () => progress.active;
   const challenge = (): Challenge | undefined => progress.challenges[ids()[sel]];
-  const done = (id: string) => !!progress.completed[id];
   const hook = (fn: () => void): Phaser.GameObjects.GameObject => ({ destroy: fn, scene: ctx.scene } as unknown as Phaser.GameObjects.GameObject);
   const kill = (list: Phaser.GameObjects.GameObject[]) => { list.forEach((o) => { if (o.scene) o.destroy(); }); list.length = 0; };
 
@@ -71,12 +68,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     const p = currentProgress(ctx, ws());
     if (!ctx.adminMode && JSON.stringify(save.workshops[ws()]) !== JSON.stringify(p)) ctx.commit({ ...save, workshops: { ...save.workshops, [ws()]: p } });
     progress = p;
-  };
-
-  const commitModel = (model: Model) => {
-    const cur = ctx.save();
-    progress = { ...progress, model };
-    ctx.commit({ ...cur, workshops: { ...cur.workshops, [ws()]: progress } });
   };
 
   // ------------------------------------------------------------ model + labels
@@ -119,9 +110,8 @@ const boardScreen: ScreenFactory = (): Screen => {
       const c = progress.challenges[id];
       const slot = L.cards[k];
       const gi = first + k;
-      const isDone = done(id);
       const b = new Button(scene, {
-        x: slot.x, y: slot.y, w: slot.w, h: slot.h, color: isDone ? 0xa8e6a1 : cardColor(gi),
+        x: slot.x, y: slot.y, w: slot.w, h: slot.h, color: cardColor(gi),
         onClick: () => {
           ctx.audio.sfx('select');
           if (wide()) { group.focus(b); lastFocus = b; select(gi); } else { sel = gi; openDetail(); }
@@ -132,12 +122,12 @@ const boardScreen: ScreenFactory = (): Screen => {
         const t = makeText(scene, -slot.w / 2 + 30, 0, c.title, { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
         fitText(t, slot.w - 330);
         b.add(t);
-        if (isDone || stages > 1) addChip(b, slot.w / 2 - 150, 0, isDone ? '✓ Done' : `${stages} stages`, isDone);
+        if (stages > 1) addChip(b, slot.w / 2 - 150, 0, `${stages} stages`);
       } else {
-        const t = makeText(scene, 0, isDone || stages > 1 ? -28 : 0, c.title, { size: 48, wrap: slot.w - 30 });
+        const t = makeText(scene, 0, stages > 1 ? -28 : 0, c.title, { size: 48, wrap: slot.w - 30 });
         if (t.height > 120) t.setFontSize(40);
         b.add(t);
-        if (isDone || stages > 1) addChip(b, 0, slot.h / 2 - 40, isDone ? '✓ Done' : `${stages} stages`, isDone);
+        if (stages > 1) addChip(b, 0, slot.h / 2 - 40, `${stages} stages`);
       }
       cardBtns.push(b);
       cardObjs.push(b);
@@ -160,11 +150,11 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (idx >= 0 && idx < cardBtns.length) ring.setPosition(L.cards[idx].x, L.cards[idx].y).setVisible(true); else ring.setVisible(false);
   }
 
-  function addChip(b: Button, x: number, y: number, text: string, good: boolean): void {
+  function addChip(b: Button, x: number, y: number, text: string): void {
     const scene = ctx.scene;
-    const t = makeText(scene, x, y, text, { size: 40, color: good ? COLORS.paper : COLORS.ink });
+    const t = makeText(scene, x, y, text, { size: 40, color: COLORS.ink });
     const w = Math.ceil(t.width) + 40, h = 54;
-    const bg = scene.add.image(x, y, roundedTexture(scene, w, h, good ? COLORS.green : 0xffffff, { radius: 27, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0));
+    const bg = scene.add.image(x, y, roundedTexture(scene, w, h, 0xffffff, { radius: 27, shadow: 0, strokeW: 4, gloss: false })).setOrigin(0.5, roundedOriginY(h, 0));
     b.add([bg, t]);
   }
 
@@ -177,10 +167,11 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (!c) return;
     const P = L.panel;
     detailObjs.push(scene.add.image(P.x, P.y, roundedTexture(scene, P.w, P.h, 0xffffff, { radius: 36 })).setOrigin(0.5, roundedOriginY(P.h)).setDepth(-300));
-    const isDone = done(c.id);
-    const title = makeText(scene, L.title.x, L.title.y, (isDone ? '✓ ' : '') + c.title, { size: L.title.size, align: 'left', origin: [0, 0.5], color: isDone ? 0x1e8a3a : COLORS.ink });
-    fitText(title, L.title.maxW);
-    detailObjs.push(title);
+    if (!wide()) { // The selected card already shows the title in the wide layout.
+      const title = makeText(scene, L.title.x, L.title.y, c.title, { size: L.title.size, align: 'left', origin: [0, 0.5], color: COLORS.ink });
+      fitText(title, L.title.maxW);
+      detailObjs.push(title);
+    }
 
     const T = L.textArea;
     const multi = c.stages.length > 1;
@@ -213,15 +204,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     });
     detailObjs.push(test);
     testBtn = test;
-    loadBtn = undefined;
-    if (isDone) {
-      const load = new Button(scene, {
-        x: L.loadBtn.x, y: L.loadBtn.y, w: L.loadBtn.w, h: L.loadBtn.h, label: 'Load winning build', fontSize: 44, color: COLORS.yellow,
-        onClick: () => loadBuild(c.id),
-      });
-      detailObjs.push(load);
-      loadBtn = load;
-    }
   };
 
   function startRun(id: string): void {
@@ -229,17 +211,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     busy = true;
     ctx.audio.sfx('select');
     ctx.go('run', { challengeId: id });
-  }
-
-  function loadBuild(id: string): void {
-    const info = progress.completed[id];
-    if (!info) return;
-    const m = engine.sanitizeModel(ws(), progress, info.build);
-    commitModel(m);
-    rig?.setModel(m);
-    ctx.audio.sfx('pop');
-    buildLabels();
-    showBanner(ctx.scene, { x: L.size.w / 2, y: wide() ? 960 : 900, text: 'Build loaded!', color: COLORS.green, textColor: COLORS.paper, ms: 1600, depth: 900 });
   }
 
   // ------------------------------------------------------------ focus / modes
@@ -252,7 +223,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     }
     if (wide() || mode === 'detail') {
       if (textPager) list.push(...textPager.buttons);
-      if (loadBtn) list.push(loadBtn);
       if (testBtn) list.push(testBtn);
     }
     list.push(backBtn);
@@ -294,7 +264,7 @@ const boardScreen: ScreenFactory = (): Screen => {
 
   function refreshAll(): void {
     buildCards();
-    if (wide() || mode === 'detail') buildDetail(); else { kill(detailObjs); testBtn = undefined; loadBtn = undefined; }
+    if (wide() || mode === 'detail') buildDetail(); else { kill(detailObjs); testBtn = undefined; }
     setFocusables();
     showMode();
   }

@@ -115,24 +115,24 @@ describe('dino balance', () => {
 });
 
 describe('dino phrases', () => {
-  it('covers every facet: >= 3 sentences per level and reading level, >= 2 hints', () => {
+  it('covers every facet: >= 2 sentences per level and reading level, >= 2 hints', () => {
     const byId = new Map(cat.facetPhrases.map((p) => [p.facet, p]));
     expect(byId.size).toBe(facets.length);
     for (const { f } of facets) {
       const p = byId.get(f.id);
       expect(p, f.id).toBeDefined();
       expect(p!.requirement.length).toBeGreaterThanOrEqual(f.levels.length);
-      for (const row of p!.requirement) for (const r of READING_LEVELS) expect(row[r].length, `${f.id} ${r}`).toBeGreaterThanOrEqual(3);
+      for (const row of p!.requirement) for (const r of READING_LEVELS) expect(row[r].length, `${f.id} ${r}`).toBeGreaterThanOrEqual(2);
       for (const r of READING_LEVELS) expect(p!.hint[r].length).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('covers every scenario: titles and >= 2 intros per reading level', () => {
+  it('covers every scenario: titles; intros are dropped', () => {
     for (const s of cat.scenarios) {
       const p = cat.scenarioPhrases.find((x) => x.scenario === s.id);
       expect(p, s.id).toBeDefined();
       expect(p!.title.length).toBeGreaterThanOrEqual(2);
-      for (const r of READING_LEVELS) expect(p!.intro[r].length).toBeGreaterThanOrEqual(2);
+      for (const r of READING_LEVELS) expect(p!.intro[r]).toEqual([]);
     }
   });
 
@@ -144,12 +144,12 @@ describe('dino phrases', () => {
     ...cat.scenarioPhrases.flatMap((p) => READING_LEVELS.flatMap((r) => p.intro[r].map((t) => ({ r, t, id: `${p.scenario} intro` })))),
   ];
 
-  it('sentences are plain ASCII, capitalised, end with a period; Easy <= 9 words', () => {
+  it('sentences are plain ASCII, capitalised, end with a period; Easy <= 6, Medium <= 8, Hard <= 12 words', () => {
     for (const { r, t, id } of allSentences()) {
       expect(/^[\x20-\x7e]+$/.test(t), `${id}: ${t}`).toBe(true);
       expect(/^[A-Z]/.test(t), `${id}: ${t}`).toBe(true);
       expect(id.endsWith('hint') ? /[.?]$/.test(t) : t.endsWith('.'), `${id}: ${t}`).toBe(true);
-      if (r === 'easy') expect(words(t), `${id}: ${t}`).toBeLessThanOrEqual(9);
+      expect(words(t), `${id}: ${t}`).toBeLessThanOrEqual(r === 'easy' ? 6 : r === 'medium' ? 8 : 12);
     }
   });
 

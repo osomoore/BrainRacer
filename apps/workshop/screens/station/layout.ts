@@ -23,7 +23,7 @@ export function stationLayout(kind: LayoutKind): StationLayout {
   const xs = Array.from({ length: visible }, (_, i) => size.w / 2 + (i - (visible - 1) / 2) * (sw + gap));
   if (kind === 'wide') {
     return {
-      size, topBandH: 230,
+      size, topBandH: 250,
       aspect: { x: size.w / 2, y: 68, size: 72 },
       name: { x: size.w / 2, y: 160, size: 88, maxW: 1000 },
       back: { x: 175, y: 115, w: 240, h: 130 },
@@ -33,12 +33,12 @@ export function stationLayout(kind: LayoutKind): StationLayout {
     };
   }
   return {
-    size, topBandH: 280,
+    size, topBandH: 285,
     aspect: { x: 570, y: 75, size: 64 },
     name: { x: size.w / 2, y: 190, size: 76, maxW: 880 },
     back: { x: 130, y: 75, w: 200, h: 120 },
     use: { x: size.w / 2, y: 1005, w: 560, h: 120 },
-    strip: { bandY: 700, y: 810, swatch: sw, visible, xs, arrowL: 60, arrowR: size.w - 60, arrowW: 110 },
+    strip: { bandY: 700, y: 810, swatch: sw, visible, xs, arrowL: 60, arrowR: size.w - 60, arrowW: 120 },
     stage: { cx: size.w / 2, cy: 490 },
   };
 }

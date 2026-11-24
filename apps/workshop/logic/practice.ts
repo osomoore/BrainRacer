@@ -12,7 +12,7 @@ export function practiceChallenge(
   const rng = new Rng(seed);
   const parts = rng.shuffle(cat.variants.filter((part) => owned.has(part.id)
     && cat.variants.some((other) => other.aspect === part.aspect && other.id !== part.id && owned.has(other.id))));
-  const intro = 'Use these parts for a practice run.';
+  const intro = '';
   const make = (variants: Variant[]): Challenge => {
     const requirements = variants.map((part, i): Requirement => {
       const text = 'Use ' + part.name + '.';
