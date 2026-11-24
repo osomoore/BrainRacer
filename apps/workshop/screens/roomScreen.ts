@@ -16,7 +16,7 @@ import { cardColor } from '../ui/screenChrome';
 import { COLORS, makeText } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buddyBar, buddyCelebration, buddyImage, flyBuddy } from './room/buddyDisplay';
-import { boardPerch } from './room/buddyFlight';
+import { perchFor } from './room/buddyFlight';
 import { Character } from './room/Character';
 import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
@@ -95,12 +95,9 @@ const roomScreen: ScreenFactory = (): Screen => {
         buddyTween?.remove();
         buddyTween = flyBuddy(scene, buddy, buddyPose, at, pointAt ? { pointAt } : { endAngle: lean, endFlipX: lean < 0 ? true : undefined });
       };
-      const peekAt = (st: { x: number; y: number; stand: Point }) => {
-        const offset = L.buddy.size / 2;
-        const side = Math.sign(st.stand.x - st.x);
-        drift({ x: st.stand.x + side * offset, y: st.stand.y - offset }, 0, { x: st.x, y: st.y });
-      };
-      const peekBoard = () => drift(boardPerch(L.board, L.buddy.size), 0, { x: L.board.x, y: L.board.y });
+      const allTiles = [...L.stations, L.buddyStation, L.board];
+      const peekAt = (st: { x: number; y: number; w: number; h: number }) => drift(perchFor(st, L.size, L.buddy.size, allTiles), 0, { x: st.x, y: st.y });
+      const peekBoard = () => peekAt(L.board);
 
       // stations
       const signs: Button[] = [];

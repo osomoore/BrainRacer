@@ -60,7 +60,41 @@ export function flightPose(a: FlightPoint, b: FlightPoint, t: number, o: FlightO
   return { x, y, angle: Math.atan2(flipX ? -vy : vy, Math.abs(vx)) * DEG, flipX };
 }
 
-/** Where the buddy hovers to point at the challenge board: above its right end, looking down at it. */
-export function boardPerch(board: { x: number; y: number; w: number; h: number }, size: number): FlightPoint {
-  return { x: board.x + board.w / 2 + size * 0.1, y: board.y - board.h / 2 - size * 0.45 };
+export interface PerchRect { x: number; y: number; w: number; h: number }
+
+const overlapArea = (a: PerchRect, b: PerchRect): number => {
+  const w = Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2);
+  const h = Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2);
+  return w > 0 && h > 0 ? w * h : 0;
+};
+
+/**
+ * Where the buddy (a `size` square, centre-anchored) hovers to point at `tile`: just outside the tile's bounds (label included)
+ * on a side with room inside the pane, preferring the side facing the pane centre and spots clear of `others`.
+ * The result never overlaps `tile` and stays inside the pane whenever any side has room.
+ */
+export function perchFor(tile: PerchRect, pane: { w: number; h: number }, size: number, others: readonly PerchRect[] = []): FlightPoint {
+  const gap = WS_BUDDIES.fly.perchGapPx;
+  const half = size / 2;
+  const dx = tile.w / 2 + half + gap, dy = tile.h / 2 + half + gap;
+  const inward = tile.x < pane.w / 2 ? 1 : -1;
+  const vertical = tile.y < pane.h / 2 ? 1 : -1;
+  const clampX = (x: number) => Math.min(pane.w - half, Math.max(half, x));
+  const clampY = (y: number) => Math.min(pane.h - half, Math.max(half, y));
+  const candidates: FlightPoint[] = [
+    { x: tile.x + inward * dx, y: clampY(tile.y) },
+    { x: clampX(tile.x), y: tile.y + vertical * dy },
+    { x: clampX(tile.x), y: tile.y - vertical * dy },
+    { x: tile.x - inward * dx, y: clampY(tile.y) },
+  ];
+  let best = candidates[0]!, bestScore = Infinity;
+  candidates.forEach((c, i) => {
+    const box = { x: c.x, y: c.y, w: size, h: size };
+    const outside = c.x - half >= -0.5 && c.x + half <= pane.w + 0.5 && c.y - half >= -0.5 && c.y + half <= pane.h + 0.5;
+    const hitsTile = overlapArea(box, tile) > 0;
+    const clutter = others.reduce((sum, o) => sum + (o === tile ? 0 : overlapArea(box, o)), 0);
+    const score = (hitsTile ? 1e12 : 0) + (outside ? 0 : 1e9) + clutter + i;
+    if (score < bestScore) { bestScore = score; best = c; }
+  });
+  return best;
 }
