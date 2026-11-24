@@ -268,7 +268,7 @@ describe('shop and currency', () => {
   it('keeps newly owned-solvable cards and replaces unaffordable cards after spending', () => {
     const start = fresh();
     const mud = eng.purchase('race', start, 'wheels', 'wheels.mud').progress;
-    const spent = eng.purchase('race', mud, 'paint', 'paint.red').progress;
+    const spent = eng.purchase('race', mud, 'paint', 'paint.yellow').progress;
     expect(spent.wallet).toBe(0);
     expect(spent.active).toHaveLength(3);
     expect(spent.active).toContain('st-mud');
@@ -297,8 +297,9 @@ describe('shop and currency', () => {
     expect(result!.cost).toBeLessThanOrEqual(p.wallet);
     expect(solveAffordable(C, checks, { ...p, wallet: 0 })).toBeNull();
     const combined = [...checks, ...flatChecks(p.challenges['st-mud'])];
-    expect(solveAffordable(C, combined, p)?.cost).toBe(4);
-    expect(solveAffordable(C, combined, { ...p, wallet: 2 })).toBeNull();
+    // wheels.mud costs 2 and paint.red costs 4 (fixed shop order), so both together need 6.
+    expect(solveAffordable(C, combined, { ...p, wallet: 6 })?.cost).toBe(6);
+    expect(solveAffordable(C, combined, { ...p, wallet: 5 })).toBeNull();
   });
 
   it('resets purchased progress and wallet while preserving reading', () => {
