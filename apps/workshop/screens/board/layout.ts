@@ -65,10 +65,11 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   // Narrow pane: one view. Vehicle + part walk on top, three challenge tabs, the selected challenge's text below,
   // and a bottom row with Back, "Test it!" and (Admin Mode, more than one page) the card pager.
   const mt = 10;
+  // The wallet badge sits at (480, 80) and its bottom edge is near y 120: keep the vehicle's top below it.
   const mh = admin ? 310 : 370;
-  const ground = admin ? 225 : 270;
-  const maxH = admin ? 150 : 200;
-  const labelY = admin ? 280 : 335;
+  const ground = admin ? 245 : 290;
+  const maxH = admin ? 120 : 165;
+  const labelY = admin ? 285 : 335;
   const newBtn = { x: size.w / 2, y: mt + mh + 10 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
   const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : mt + mh + 15;
   const tabH = WS_UI.tapMin;
