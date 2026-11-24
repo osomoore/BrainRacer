@@ -1,7 +1,7 @@
 /** Simulated player: solves affordable challenges and spends the payouts at the stations. */
 import { WS_RULES } from '../config';
 import type { WorkshopCatalog, WorkshopProgress } from '../core/types';
-import { solveAffordable } from './affordability';
+import { affordability } from './affordability';
 import { available } from './available';
 import { newProgress, purchase, newestVariant, recordWin, refreshBoard, tierOf } from './board';
 import { evaluate } from './evaluate';
@@ -53,15 +53,25 @@ export function simulate(cat: WorkshopCatalog, opts: SimOptions = {}): SimReport
       stalls.push('step ' + steps + ': board only has ' + p.active.length + ' cards');
       break;
     }
-    const [id] = p.active;
-    const ch = p.challenges[id];
+    // Exercise the shop when possible, then prefer a ready card that still needs a build change.
+    const budget = affordability(cat, p);
+    const playable = p.active.flatMap((id) => {
+      const challenge = p.challenges[id];
+      const solution = budget.solve(flatChecks(challenge));
+      return solution ? [{ challenge, solution }] : [];
+    });
+    const choice = playable.find(({ solution }) => solution.cost > 0)
+      ?? playable.find(({ challenge }) => !evaluate(cat, p.model, challenge).passed)
+      ?? playable[0];
+    if (!choice) { stalls.push('step ' + steps + ': no affordable solution'); break; }
+    const { challenge: ch, solution: affordable } = choice;
+    const { id } = ch;
     const checks = flatChecks(ch);
-    const affordable = solveAffordable(cat, checks, p);
-    if (!affordable) { stalls.push('step ' + steps + ': no affordable solution for ' + id); break; }
 
     for (const [aspect, variant] of Object.entries(affordable.build)) {
-      if (available(cat, p).has(variant)) continue;
-      p = purchase(cat, p, aspect, variant).progress;
+      for (const part of budget.routes.get(variant)?.variants ?? []) {
+        p = purchase(cat, p, aspect, part).progress;
+      }
     }
     const avail = available(cat, p);
     const sol = solve(cat, checks, avail, { ref: p.model });

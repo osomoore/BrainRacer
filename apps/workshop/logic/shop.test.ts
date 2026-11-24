@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WS_RULES } from '../config';
 import { newProgress, purchase } from './board';
 import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
-import { priceOf, shopOffers } from './shop';
+import { priceOf, purchaseRoutes, shopOffers } from './shop';
 
 const rich = () => ({ ...newProgress(C), wallet: 100 });
 
@@ -23,6 +23,17 @@ describe('fixed shop prices', () => {
     const p = rich();
     const offers = shopOffers(C, p, 'wheels');
     expect(offers.map((o) => [o.variant, o.price])).toEqual([['wheels.mud', 2], ['wheels.racing', 4]]);
+  });
+
+  it('includes the cheapest prerequisite purchases in a hidden variant’s route', () => {
+    const p = newProgress(C);
+    expect(purchaseRoutes(C, p).get('wheels.snow')).toEqual({
+      variants: ['wheels.mud', 'wheels.snow'], cost: 8,
+    });
+    const bought = purchase(C, p, 'wheels', 'wheels.mud').progress;
+    expect(purchaseRoutes(C, bought).get('wheels.snow')).toEqual({
+      variants: ['wheels.snow'], cost: 6,
+    });
   });
 
   it('skips bought variants without re-pricing the rest', () => {

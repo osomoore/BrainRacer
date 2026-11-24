@@ -5,7 +5,7 @@ import type {
   Challenge, ChallengeId, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
 import { availableFor, sanitizeModel } from './available';
-import { affordability } from './affordability';
+import { affordability, BOARD_CATEGORIES, boardCategory, type BoardCategory } from './affordability';
 import { challengeKey, generateChallenge } from './generator';
 import { computeModel, defaultModel, allPass } from './stats';
 import { currencyStarters } from './starters';
@@ -44,105 +44,53 @@ export function newestVariant(p: WorkshopProgress, avail: ReadonlySet<VariantId>
   return null;
 }
 
-/** Existing cards may already be solved by the current build: the player is allowed to test it. */
+type BoardBudget = ReturnType<typeof affordability>;
+
+function categoryOf(challenge: Challenge, budget: BoardBudget, wallet: number): BoardCategory {
+  return boardCategory(budget.solve(flatChecks(challenge))?.cost ?? Infinity, wallet);
+}
+
+/** Assign missing colors before sorting so legacy cards keep their saved slot's color. */
+export function sortBoard(p: WorkshopProgress, budget: BoardBudget): void {
+  const usedColors = new Set(p.active.map((id) => p.challenges[id].boardColor));
+  p.active.forEach((id, slot) => {
+    const challenge = p.challenges[id];
+    if (challenge.boardColor !== undefined) return;
+    let color = slot;
+    while (usedColors.has(color)) color = (color + 1) % WS_RULES.boardSize;
+    usedColors.add(color);
+    p.challenges[id] = { ...challenge, boardColor: color };
+  });
+  const categories = p.active.map((id) => ({
+    id, rank: BOARD_CATEGORIES.indexOf(categoryOf(p.challenges[id], budget, p.wallet)),
+  }));
+  p.active = categories.sort((a, b) => a.rank - b.rank).map(({ id }) => id);
+}
+
+/** Retain unfinished cards and fill only the vacancies. */
 export function refreshBoard(cat: WorkshopCatalog, p0: WorkshopProgress): WorkshopProgress {
   const p = copyProgress(p0);
   const budget = affordability(cat, p);
-  const current = computeModel(cat, p.model);
-  const last = p.lastWin && computeModel(cat, p.lastWin);
   const usedKeys = new Set(Object.values(p.challenges).map(challengeKey));
-  const wonKeys = new Set(Object.keys(p.completed).flatMap((id) =>
+  const activeKeys = new Set(Object.keys(p.completed).flatMap((id) =>
     p.challenges[id] ? [challengeKey(p.challenges[id])] : []));
-  const activeKeys = new Set<string>();
-  const costs = new Map<ChallengeId, number>();
-  const size = WS_RULES.boardSize;
-
-  for (const id of p.active) {
+  p.active = p.active.filter((id) => {
     const challenge = p.challenges[id];
-    if (!challenge || p.completed[id]) continue;
+    if (!challenge || p.completed[id]) return false;
     const key = challengeKey(challenge);
-    if (activeKeys.has(key) || wonKeys.has(key)) continue;
-    const solution = budget.solve(flatChecks(challenge));
-    if (solution) {
-      activeKeys.add(key);
-      costs.set(id, solution.cost);
-    }
-    if (costs.size === size) break;
+    if (activeKeys.has(key)) return false;
+    activeKeys.add(key);
+    return true;
+  }).slice(0, WS_RULES.boardSize);
+
+  sortBoard(p, budget);
+  if (p.active.length < WS_RULES.boardSize) {
+    fillBoard(cat, p, budget, usedKeys);
+    sortBoard(p, budget);
   }
-
-  const starters = currencyStarters(cat);
-  const nextCard = (kind: 'owned' | 'purchase'): Challenge | null => {
-    const acceptsCost = (cost: number): boolean => kind === 'owned' ? cost === 0 : cost > 0;
-    if (kind === 'purchase') {
-      for (const challenge of starters.slice(p.nextStarter)) {
-        const key = challengeKey(challenge);
-        const checks = flatChecks(challenge);
-        if (usedKeys.has(key) || allPass(checks, current) || (last && allPass(checks, last))) continue;
-        const solution = budget.solve(checks);
-        if (solution?.cost !== WS_RULES.basePrice) continue;
-        costs.set(challenge.id, solution.cost);
-        p.nextStarter = starters.indexOf(challenge) + 1;
-        return challenge;
-      }
-      if (p.wallet < WS_RULES.basePrice || budget.pool.size === budget.owned.size) return null;
-    }
-
-    if (kind === 'owned' && budget.owned.size === cat.aspects.length) return null;
-    const id = `${cat.id}-g${p.genSeq}`;
-    const seed = hashSeed(id);
-    const avoidScenarios = new Set([...costs.keys()].map((key) => p.challenges[key].stages[0].scenario));
-    const opts = {
-      tier: tierOf(p.firstWins), avail: kind === 'owned' ? budget.owned : budget.pool,
-      current: p.model, lastWin: p.lastWin, minChanged: WS_RULES.minChangedAspects,
-      newest: newestVariant(p, budget.owned), usedKeys, avoidScenarios,
-      attempts: WS_RULES.genAttempts, strictCurrent: true,
-      accepts: (checks: Parameters<typeof budget.solve>[0]) => {
-        const solution = budget.solve(checks);
-        return solution !== null && acceptsCost(solution.cost);
-      },
-    };
-    // Tier sampling is the usual path. Deterministic search covers exhausted tiers and tight wallets.
-    const next = generateChallenge(cat, id, 'generated', seed, opts)
-      ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true });
-    if (!next) return null;
-    p.genSeq++;
-    costs.set(id, budget.solve(flatChecks(next.challenge))!.cost);
-    return next.challenge;
-  };
-
-  const add = (c: Challenge): void => {
-    p.challenges[c.id] = c;
-    usedKeys.add(challengeKey(c));
-  };
-  const countOwned = (): number => [...costs.values()].filter((cost) => cost === 0).length;
-  const nextPractice = (): Challenge | null => {
-    const id = cat.id + '-g' + p.genSeq;
-    const practice = practiceChallenge(cat, id, hashSeed(id), tierOf(p.firstWins), budget.owned, p.model, p.lastWin, usedKeys);
-    if (practice) {
-      p.genSeq++;
-      costs.set(id, 0);
-    }
-    return practice;
-  };
-
-  if (countOwned() === 0) {
-    const toReplace = costs.size === size ? [...costs.keys()].at(-1) : undefined;
-    const owned = nextCard('owned') ?? nextPractice();
-    if (owned) {
-      if (toReplace) costs.delete(toReplace);
-      add(owned);
-    }
-  }
-  while (costs.size < size) {
-    const challenge = nextCard('purchase') ?? nextCard('owned') ?? nextPractice();
-    if (!challenge) break;
-    add(challenge);
-  }
-
-  p.active = [...costs.keys()];
   const retained = new Set(p.active);
   const inactive = Object.keys(p.challenges).filter((id) => !p.completed[id] && !retained.has(id));
-  // Keep removed cards for deduplication and draw new cards when a wallet or override changes.
+  // Retain a bounded history of unfinished cards for deduplication.
   for (const id of inactive.slice(0, Math.max(0, inactive.length + p.active.length - WS_RULES.maxSavedChallenges))) {
     delete p.challenges[id];
     delete p.fails[id];
@@ -150,12 +98,84 @@ export function refreshBoard(cat: WorkshopCatalog, p0: WorkshopProgress): Worksh
   return p;
 }
 
+function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudget, usedKeys: Set<string>): void {
+  const current = computeModel(cat, p.model);
+  const last = p.lastWin && computeModel(cat, p.lastWin);
+  const starters = currencyStarters(cat);
+  const occupied = new Set(p.active.map((id) => categoryOf(p.challenges[id], budget, p.wallet)));
+  const exhausted = new Set<BoardCategory>();
+
+  const draw = (category: BoardCategory): Challenge | null => {
+    if (category === 'affordable') {
+      for (let i = p.nextStarter; i < starters.length; i++) {
+        const challenge = starters[i];
+        const checks = flatChecks(challenge);
+        if (usedKeys.has(challengeKey(challenge)) || allPass(checks, current) || (last && allPass(checks, last))) continue;
+        if (budget.solve(checks)?.cost !== WS_RULES.basePrice) continue;
+        p.nextStarter = i + 1;
+        return challenge;
+      }
+      if (budget.pool.size === budget.owned.size) return null;
+    }
+    if (category === 'future' && budget.futurePool.size === budget.owned.size) return null;
+
+    const id = `${cat.id}-g${p.genSeq}`;
+    const seed = hashSeed(id);
+    const tier = tierOf(p.firstWins);
+    const avoidScenarios = new Set(p.active.map((key) => p.challenges[key].stages[0].scenario));
+    const opts = {
+      tier, avail: category === 'ready' ? budget.owned : category === 'affordable' ? budget.pool : budget.futurePool,
+      current: p.model, lastWin: p.lastWin, minChanged: WS_RULES.minChangedAspects,
+      newest: newestVariant(p, budget.owned), usedKeys, avoidScenarios,
+      attempts: WS_RULES.genAttempts, strictCurrent: true,
+      accepts: (checks: Parameters<typeof budget.solve>[0]) => {
+        const solution = category === 'future' ? budget.cheapest(checks) : budget.solve(checks);
+        return solution !== null && boardCategory(solution.cost, p.wallet) === category;
+      },
+    };
+    // The first owned build is the current build, so allow it when no other ready card exists.
+    const onlyCurrent = category === 'ready' && budget.owned.size === cat.aspects.length;
+    let challenge = onlyCurrent ? undefined : (generateChallenge(cat, id, 'generated', seed, opts)
+      ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true }))?.challenge;
+    if (!challenge && category === 'ready') {
+      challenge = practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys)
+        ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true, strictCurrent: false })?.challenge
+        ?? practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, true)
+        ?? undefined;
+    }
+    if (challenge) p.genSeq++;
+    return challenge ?? null;
+  };
+
+  while (p.active.length < WS_RULES.boardSize) {
+    const candidates = BOARD_CATEGORIES.filter((category) => !occupied.has(category));
+    candidates.push(...BOARD_CATEGORIES.filter((category) => occupied.has(category)));
+    const category = candidates.find((kind) => {
+      if (exhausted.has(kind)) return false;
+      const challenge = draw(kind);
+      if (!challenge) {
+        exhausted.add(kind);
+        return false;
+      }
+      p.challenges[challenge.id] = challenge;
+      p.active.push(challenge.id);
+      usedKeys.add(challengeKey(challenge));
+      occupied.add(kind);
+      return true;
+    });
+    if (!category) break;
+  }
+}
+
 export function purchase(cat: WorkshopCatalog, p: WorkshopProgress, aspect: string, variant: VariantId): PurchaseOutcome {
   const offer = shopOffers(cat, p, aspect).find((item) => item.variant === variant);
   if (!offer) return { progress: p, status: 'unavailable', price: 0 };
   const { price } = offer;
   if (!offer.affordable) return { progress: p, status: 'unaffordable', price };
-  const progress = refreshBoard(cat, { ...p, bought: [...p.bought, variant], wallet: p.wallet - price });
+  const progress = copyProgress(p);
+  progress.bought.push(variant);
+  progress.wallet -= price;
+  sortBoard(progress, affordability(cat, progress));
   return { progress, status: 'bought', price };
 }
 
@@ -193,6 +213,8 @@ export function setOverride(cat: WorkshopCatalog, p: WorkshopProgress, variant: 
   const q = copyProgress(p);
   if (value === 'auto') delete q.overrides[variant]; else q.overrides[variant] = value;
   q.model = sanitizeModel(cat, q, q.model);
+  const budget = affordability(cat, q);
+  q.active = q.active.filter((id) => budget.cheapest(flatChecks(q.challenges[id])));
   return refreshBoard(cat, q);
 }
 

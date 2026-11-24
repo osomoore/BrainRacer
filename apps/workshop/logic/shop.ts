@@ -21,16 +21,29 @@ export function priceOf(cat: WorkshopCatalog, variant: VariantId): number {
   return i < 0 ? 0 : WS_RULES.basePrice + WS_RULES.priceStep * i;
 }
 
-/** Prices for every currently purchasable offer, regardless of wallet balance. */
-export function purchaseCosts(cat: WorkshopCatalog, p: ShopProgress): Map<VariantId, number> {
-  const costs = new Map<VariantId, number>();
-  for (const a of cat.aspects) for (const offer of shopOffers(cat, p, a.id)) costs.set(offer.variant, offer.price);
-  return costs;
+function unownedOrder(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): VariantId[] {
+  return aspectOrder(cat, aspect).filter((id) => !p.bought.includes(id) && p.overrides[id] !== 'open' && p.overrides[id] !== 'locked');
+}
+
+/** Cheapest purchases that reveal and buy each unowned variant, including later offers. */
+export function purchaseRoutes(cat: WorkshopCatalog, p: ShopProgress) {
+  const routes = new Map<VariantId, { variants: VariantId[]; cost: number }>();
+  for (const { id } of cat.aspects) {
+    const ordered = unownedOrder(cat, p, id);
+    const prices = ordered.map((variant) => priceOf(cat, variant));
+    let revealCost = 0;
+    ordered.forEach((variant, i) => {
+      const count = Math.max(0, i - WS_RULES.offersPerAspect + 1);
+      if (count) revealCost += prices[count - 1];
+      routes.set(variant, { variants: [...ordered.slice(0, count), variant], cost: revealCost + prices[i] });
+    });
+  }
+  return routes;
 }
 
 /** Up to the next two ordinary variants at a station; admin-open parts are omitted. */
 export function shopOffers(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): ShopOffer[] {
-  const ordered = aspectOrder(cat, aspect).filter((id) => !p.bought.includes(id) && p.overrides[id] !== 'open' && p.overrides[id] !== 'locked');
+  const ordered = unownedOrder(cat, p, aspect);
   return ordered.slice(0, WS_RULES.offersPerAspect).map((variant) => {
     const price = priceOf(cat, variant);
     return { variant, price, affordable: p.wallet >= price };

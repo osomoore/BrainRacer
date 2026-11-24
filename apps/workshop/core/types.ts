@@ -188,6 +188,8 @@ export interface Stage {
 
 export interface Challenge {
   id: ChallengeId;
+  /** Palette index assigned when offered. Older version-2 saves infer it from the saved slot. */
+  boardColor?: number;
   workshop: WorkshopId;
   title: string;
   intro: Leveled;

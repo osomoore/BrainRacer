@@ -5,7 +5,7 @@ import { WORKSHOP_IDS } from '../core/types';
 import { simulate } from './simulate';
 import { validateCatalog } from './validateCatalog';
 import { engine } from './index';
-import { solveAffordable } from './affordability';
+import { affordability, BOARD_CATEGORIES, boardCategory } from './affordability';
 import { flatChecks } from './util';
 
 describe.each(WORKSHOP_IDS)('real catalog: %s', (id) => {
@@ -22,8 +22,13 @@ describe.each(WORKSHOP_IDS)('real catalog: %s', (id) => {
     expect(new Set(r.progress.bought).size).toBe(r.progress.bought.length);
     expect(r.progress.bought.length).toBe(cat.variants.length - cat.aspects.length);
   });
-  run('keeps three affordable challenges after every legal two-purchase opening', () => {
+  run('deals Ready, Affordable, and Future, then keeps the same cards and colors through every legal two-purchase opening', () => {
     const start = engine.refreshBoard(id, engine.newProgress(id));
+    const categories = (p: typeof start) => {
+      const budget = affordability(cat, p);
+      return p.active.map((id) => boardCategory(budget.cheapest(flatChecks(p.challenges[id]))!.cost, p.wallet));
+    };
+    expect(categories(start)).toEqual(['ready', 'affordable', 'future']);
     const options = (p: typeof start) => cat.aspects.flatMap(({ id: aspect }) =>
       engine.shopOffers(id, p, aspect).filter((offer) => offer.affordable).map((offer) => ({ aspect, ...offer })));
     for (const first of options(start)) {
@@ -32,10 +37,11 @@ describe.each(WORKSHOP_IDS)('real catalog: %s', (id) => {
         const twice = engine.purchase(id, once, second.aspect, second.variant).progress;
         const purchasePair = first.variant + ' then ' + second.variant;
         expect(twice.wallet).toBe(0);
-        expect(twice.active, purchasePair).toHaveLength(3);
-        for (const challengeId of twice.active) {
-          expect(solveAffordable(cat, flatChecks(twice.challenges[challengeId]), twice)?.cost, purchasePair).toBe(0);
-        }
+        expect([...twice.active].sort(), purchasePair).toEqual([...start.active].sort());
+        expect(twice.challenges, purchasePair).toEqual(start.challenges);
+        const actual = categories(twice);
+        const sorted = BOARD_CATEGORIES.flatMap((category) => actual.filter((value) => value === category));
+        expect(actual, purchasePair).toEqual(sorted);
       }
     }
   });

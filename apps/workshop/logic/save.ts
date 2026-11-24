@@ -7,7 +7,8 @@ import type {
 import { READING_LEVELS, WORKSHOP_IDS } from '../core/types';
 import { index } from './catalogIndex';
 import { sanitizeModel } from './available';
-import { newProgress, refreshBoard } from './board';
+import { affordability } from './affordability';
+import { newProgress, refreshBoard, sortBoard } from './board';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -69,7 +70,13 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   }
   if (isObj(raw.challenges)) {
     for (const [k, v] of Object.entries(raw.challenges)) {
-      if (validChallenge(v, k, cat.id)) out.challenges[k] = JSON.parse(JSON.stringify(v)) as Challenge;
+      if (!validChallenge(v, k, cat.id)) continue;
+      const challenge = JSON.parse(JSON.stringify(v)) as Challenge;
+      const color = challenge.boardColor;
+      if (typeof color !== 'number' || !Number.isInteger(color) || color < 0 || color >= WS_RULES.boardSize) {
+        delete challenge.boardColor;
+      }
+      out.challenges[k] = challenge;
     }
   }
   if (isObj(raw.completed)) {
@@ -102,6 +109,7 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
     if (m) seq = Math.max(seq, Number(m[1]) + 1);
   }
   out.genSeq = seq;
+  sortBoard(out, affordability(cat, out));
   return out;
 }
 

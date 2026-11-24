@@ -112,7 +112,7 @@ const boardScreen: ScreenFactory = (): Screen => {
       const slot = L.cards[k];
       const gi = first + k;
       const b = new Button(scene, {
-        x: slot.x, y: slot.y, w: slot.w, h: slot.h, color: cardColor(gi),
+        x: slot.x, y: slot.y, w: slot.w, h: slot.h, color: cardColor(c.boardColor ?? gi),
         onClick: () => {
           ctx.audio.sfx('select');
           group.focus(b); lastFocus = b; select(gi);

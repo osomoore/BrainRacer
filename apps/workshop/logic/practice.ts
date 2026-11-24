@@ -4,24 +4,28 @@ import type { Challenge, ChallengeId, Model, Requirement, Variant, VariantId, Wo
 import { challengeKey } from './generator';
 import { partTag } from './stats';
 
-/** Owned-part practice keeps the board playable when the authored catalog is out of affordable cards. */
+/** Owned-part practice keeps the board playable when the authored catalog is out of ready cards. */
 export function practiceChallenge(
   cat: WorkshopCatalog, id: ChallengeId, seed: number, tier: number, owned: ReadonlySet<VariantId>,
   current: Model, lastWin: Model | null, usedKeys: ReadonlySet<string>,
+  allowCurrent = false,
 ): Challenge | null {
   const rng = new Rng(seed);
   const parts = rng.shuffle(cat.variants.filter((part) => owned.has(part.id)
-    && cat.variants.some((other) => other.aspect === part.aspect && other.id !== part.id && owned.has(other.id))));
+    && (allowCurrent || cat.variants.some((other) => other.aspect === part.aspect && other.id !== part.id && owned.has(other.id)))));
   const intro = '';
   const make = (variants: Variant[]): Challenge => {
     const requirements = variants.map((part, i): Requirement => {
-      const text = 'Use ' + part.name + '.';
       const aspect = cat.aspects.find((a) => a.id === part.aspect);
       const hint = 'Visit the ' + (aspect?.label ?? part.aspect) + ' station.';
       return {
         id: 's0r' + i, facet: 'practice.' + part.aspect, level: 1,
         checks: [{ kind: 'tag', tag: partTag(part.id) }],
-        text: { easy: text, medium: text, hard: text },
+        text: {
+          easy: 'Use ' + part.name + '.',
+          medium: 'Fit the ' + part.name + '.',
+          hard: 'Install the ' + part.name + '.',
+        },
         hint: { aspect: part.aspect, text: { easy: hint, medium: hint, hard: hint } },
       };
     });
@@ -39,7 +43,7 @@ export function practiceChallenge(
   let relaxed: Challenge | null = null;
   for (const variants of candidates) {
     const changes = (model: Model): number => variants.filter((part) => model[part.aspect] !== part.id).length;
-    if (!changes(current) || (lastWin && !changes(lastWin))) continue;
+    if (!allowCurrent && (!changes(current) || (lastWin && !changes(lastWin)))) continue;
     const challenge = make(variants);
     if (usedKeys.has(challengeKey(challenge))) continue;
     if (!lastWin || changes(lastWin) >= WS_RULES.minChangedAspects) return challenge;

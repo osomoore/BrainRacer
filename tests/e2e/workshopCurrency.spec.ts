@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CATALOGS } from '../../apps/workshop/content';
-import { solveAffordable } from '../../apps/workshop/logic/affordability';
+import { affordability } from '../../apps/workshop/logic/affordability';
 import { installGamepadMock, tapPad } from './gamepadMock';
 import { seedProfiles } from './profiles';
 
@@ -42,7 +42,7 @@ const visibleText = (page: Page) => page.evaluate(() => {
   return out;
 });
 
-test('fresh board has three challenges solvable with affordable purchases', async ({ page }) => {
+test('fresh board shows Ready, Affordable, and Future challenges in order', async ({ page }) => {
   await boot(page); await enter(page, 'race', 'board');
   const progress = await saved(page);
   const checks = await page.evaluate(() => {
@@ -50,13 +50,19 @@ test('fresh board has three challenges solvable with affordable purchases', asyn
     return p.active.map((id: string) => p.challenges[id].stages.flatMap((s: any) => s.requirements.flatMap((r: any) => r.checks)));
   });
   expect(checks).toHaveLength(3);
-  for (const c of checks) expect(solveAffordable(CATALOGS.race, c, progress)?.cost).toBe(2);
+  const budget = affordability(CATALOGS.race, progress);
+  const costs = checks.map((check: Parameters<typeof budget.cheapest>[0]) => budget.cheapest(check)!.cost);
+  expect(costs[0]).toBe(0);
+  expect(costs[1]).toBeGreaterThan(0);
+  expect(costs[1]).toBeLessThanOrEqual(progress.wallet);
+  expect(costs[2]).toBeGreaterThan(progress.wallet);
 });
 
 test('buy and install Mud Tires, then win Deep Mud for its payout', async ({ page }) => {
   await boot(page); await enter(page, 'race', 'station');
   const fresh = await saved(page);
-  const id = fresh.active.find((cid: string) => fresh.challenges[cid].stages[0].scenario === 'mud');
+  const id = fresh.active.find((cid: string) => fresh.challenges[cid].source === 'starter'
+    && fresh.challenges[cid].stages[0].scenario === 'mud');
   expect(id).toBeTruthy();
   await key(page, 'KeyD');
   expect(await visibleText(page)).toContain('Buy for 2');
@@ -72,6 +78,8 @@ test('buy and install Mud Tires, then win Deep Mud for its payout', async ({ pag
   expect(progress.wallet).toBe(2);
   expect(progress.bought).toEqual(['wheels.mud']);
   expect(progress.model.wheels).toBe('wheels.mud'); // buying also equips
+  expect([...progress.active].sort()).toEqual([...fresh.active].sort());
+  expect(progress.challenges).toEqual(fresh.challenges);
   await expectScreen(page, 'room');
 
   await page.evaluate((id) => (window as any).__ws.contexts()[0].go('run', { challengeId: id }), id);

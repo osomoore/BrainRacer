@@ -3,17 +3,23 @@ import { WS_RULES } from '../config';
 import type { WorkshopEngine } from '../core/engineApi';
 import type { Challenge, Model, WorkshopCatalog, WorkshopId, WorkshopProgress } from '../core/types';
 import { createEngine } from './index';
-import { solveAffordable } from './affordability';
+import { affordability, boardCategory, solveAffordable } from './affordability';
 import { solvable } from './solver';
 import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
 import { deepFreeze } from './testing/helpers';
 import { flatChecks } from './util';
 import { challengeKey } from './generator';
 import { resolveSpec } from './text';
+import { starterChallenge } from './starters';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
 const fresh = (): WorkshopProgress => eng.refreshBoard('race', eng.newProgress('race'));
+const starter = (id: string): Challenge => starterChallenge(C, C.starters.find((spec) => spec.id === id)!);
+const categories = (p: WorkshopProgress, cat = C) => {
+  const budget = affordability(cat, p);
+  return p.active.map((id) => boardCategory(budget.cheapest(flatChecks(p.challenges[id]))?.cost ?? Infinity, p.wallet));
+};
 const unfinished = (p: WorkshopProgress): Challenge[] => p.active.filter((id) => !p.completed[id]).map((id) => p.challenges[id]);
 const win = (p: WorkshopProgress, id: string, model: Model, now = 1): WorkshopProgress => eng.recordWin('race', p, id, model, now).progress;
 
@@ -99,17 +105,20 @@ describe('availability', () => {
     p = eng.setPart('race', p, 'wheels', 'wheels.mud');
     p = eng.setOverride('race', p, 'wheels.mud', 'locked');
     expect(p.model.wheels).toBe('wheels.road');
-    for (const c of unfinished(p)) expect(solveAffordable(C, flatChecks(c), p)).not.toBeNull();
+    for (const c of unfinished(p)) expect(affordability(C, p).cheapest(flatChecks(c))).not.toBeNull();
     p = eng.setOverride('race', p, 'wheels.mud', 'auto');
     expect(p.overrides['wheels.mud']).toBeUndefined();
   });
-  it('locking a part rechecks the board against remaining affordable builds', () => {
+  it('locking a required part replaces a card when no route remains', () => {
     let p = fresh();
-    const oldActive = [...p.active];
+    const [ready] = p.active;
     p = eng.setOverride('race', p, 'wheels.mud', 'locked');
+    p = eng.setOverride('race', p, 'wheels.snow', 'locked');
+    p = eng.setOverride('race', p, 'extra.anchors', 'locked');
     expect(p.active.length).toBe(3);
-    for (const id of p.active) expect(solveAffordable(C, flatChecks(p.challenges[id]), p)?.cost).toBe(2);
-    expect(oldActive.length).toBe(3);
+    expect(p.active).not.toContain('st-mud');
+    expect(p.active).toContain(ready);
+    expect(categories(p)).toEqual(['ready', 'affordable', 'future']);
   });
   it('setPart ignores unavailable parts', () => {
     const p = fresh();
@@ -120,12 +129,12 @@ describe('availability', () => {
 });
 
 describe('starters and board', () => {
-  it('offers the first currency starter and fills the rest of the board', () => {
+  it('deals one card per category, including the first currency starter', () => {
     const p = fresh();
     expect(p.active).toHaveLength(3);
-    expect(p.challenges[p.active[0]]).toMatchObject({ source: 'starter', tier: 0, workshop: 'race' });
+    expect(p.challenges[p.active[1]]).toMatchObject({ source: 'starter', tier: 0, workshop: 'race' });
     expect(p.nextStarter).toBeGreaterThan(0);
-    for (const id of p.active) expect(solveAffordable(C, flatChecks(p.challenges[id]), p)).not.toBeNull();
+    expect(categories(p)).toEqual(['ready', 'affordable', 'future']);
   });
   it('is idempotent', () => {
     const p = fresh();
@@ -145,10 +154,66 @@ describe('starters and board', () => {
     expect(out.progress.active).toHaveLength(3);
     expect(out.payout).toBe(ch.stages.reduce((n, s) => n + s.requirements.length, 0) * 2);
   });
+  it('fills Ready first if completing a card leaves two Future cards', () => {
+    const start = fresh();
+    const [ready, , future] = start.active;
+    const expensive = starter('st-bright');
+    const before = eng.refreshBoard('race', {
+      ...start, wallet: 0, active: [ready, expensive.id, future],
+      overrides: { 'paint.yellow': 'locked' },
+      challenges: { ...start.challenges, [expensive.id]: expensive },
+    });
+    expect(categories(before)).toEqual(['ready', 'future', 'future']);
+    const out = eng.recordWin('race', before, ready, before.model, 1);
+    expect(out.newChallenges).toHaveLength(1);
+    expect(out.progress.active[0]).toBe(out.newChallenges[0]);
+    expect(categories(out.progress)).toEqual(['ready', 'future', 'future']);
+    expect(out.progress.active).toEqual(expect.arrayContaining([expensive.id, future]));
+  });
+
+  it('fills Affordable before Future when two Ready cards remain', () => {
+    const start = fresh();
+    const [ready, mud] = start.active;
+    const bright = starter('st-bright');
+    const before = eng.refreshBoard('race', {
+      ...start, bought: ['wheels.mud', 'paint.yellow'], active: [ready, mud, bright.id],
+      challenges: { ...start.challenges, [bright.id]: bright },
+    });
+    const out = eng.recordWin('race', before, ready, before.model, 1);
+    expect(out.newChallenges).toHaveLength(1);
+    expect(categories(out.progress)).toEqual(['ready', 'ready', 'affordable']);
+  });
+
+  it('falls back to another Ready card when all parts are owned', () => {
+    const start = fresh();
+    const before = eng.refreshBoard('race', {
+      ...start, bought: C.variants.map(({ id }) => id),
+    });
+    const [ready] = before.active;
+    const out = eng.recordWin('race', before, ready, affordableBuild(before, before.challenges[ready]), 1);
+    expect(out.newChallenges).toHaveLength(1);
+    expect(categories(out.progress)).toEqual(['ready', 'ready', 'ready']);
+    expect(out.progress.active).not.toContain(ready);
+  });
+
+  it('falls forward to Future if Affordable is missing and every remaining purchase costs too much', () => {
+    const start = fresh();
+    const [ready, mud] = start.active;
+    const bright = starter('st-bright');
+    const before = eng.refreshBoard('race', {
+      ...start, wallet: 0, bought: ['wheels.mud', 'paint.yellow'], active: [ready, mud, bright.id],
+      overrides: { 'engine.big': 'locked', 'size.small': 'locked', 'springs.sport': 'locked', 'extra.rocket': 'locked' },
+      challenges: { ...start.challenges, [bright.id]: bright },
+    });
+    const out = eng.recordWin('race', before, ready, before.model, 1);
+    expect(out.newChallenges).toHaveLength(1);
+    expect(categories(out.progress)).toEqual(['ready', 'ready', 'future']);
+  });
+
   it('pays for every requirement across stages and dedupes reordered requirements', () => {
     const start = fresh();
     const mud = start.challenges['st-mud'];
-    const turn = start.challenges['st-turn'];
+    const turn = starter('st-turn');
     const challenge = { ...mud, id: 'combined', stages: [...mud.stages, ...turn.stages] };
     const reversed = { ...challenge, id: 'reversed', stages: [...challenge.stages].reverse() };
     expect(challengeKey(reversed)).toBe(challengeKey(challenge));
@@ -266,16 +331,25 @@ describe('shop and currency', () => {
     expect(eng.purchase('race', p, 'wheels', early[2]).status).toBe('unaffordable');
   });
 
-  it('keeps newly owned-solvable cards and replaces unaffordable cards after spending', () => {
+  it('re-sorts after a purchase while keeping each card and its color', () => {
     const start = fresh();
-    const mud = eng.purchase('race', start, 'wheels', 'wheels.mud').progress;
-    const spent = eng.purchase('race', mud, 'paint', 'paint.yellow').progress;
-    expect(spent.wallet).toBe(0);
-    expect(spent.active).toHaveLength(3);
-    expect(spent.active).toContain('st-mud');
-    expect(spent.active).not.toContain('st-jump');
-    expect(spent.active).not.toContain('st-turn');
-    for (const pending of unfinished(spent)) expect(solveAffordable(C, flatChecks(pending), spent)?.cost).toBe(0);
+    const [ready, mud] = start.active;
+    const bright = starter('st-bright');
+    const before = eng.refreshBoard('race', {
+      ...start, active: [ready, mud, bright.id], challenges: { ...start.challenges, [bright.id]: bright },
+    });
+    expect(before.active).toEqual([ready, mud, bright.id]);
+    expect(categories(before)).toEqual(['ready', 'affordable', 'affordable']);
+    const bought = eng.purchase('race', before, 'paint', 'paint.yellow').progress;
+    expect(bought.active).toEqual([ready, bright.id, mud]);
+    expect(categories(bought)).toEqual(['ready', 'ready', 'affordable']);
+    expect(bought.challenges).toEqual(before.challenges);
+    expect(bought.active.map((id) => bought.challenges[id].boardColor)).toEqual([0, 2, 1]);
+
+    const spent = eng.purchase('race', before, 'engine', 'engine.efficient').progress;
+    expect(spent.active).toEqual(before.active);
+    expect(categories(spent)).toEqual(['ready', 'future', 'future']);
+    expect(spent.challenges).toEqual(before.challenges);
   });
 
   it('checks current wallet and board state on each purchase and grants currency deterministically', () => {
@@ -316,15 +390,14 @@ describe('shop and currency', () => {
 });
 
 describe('generator rules', () => {
-  it('makes challenges the current model and last win do not solve, with ids from genSeq', () => {
+  it('retains generated IDs and solvable routes as the board changes', () => {
     const p = playStarters();
-    const gen = unfinished(p).filter((c) => c.source === 'generated');
-    expect(gen.length).toBeGreaterThan(0);
-    for (const c of gen) {
+    const generated = unfinished(p).filter((c) => c.source === 'generated');
+    expect(generated.length).toBeGreaterThan(0);
+    const budget = affordability(C, p);
+    for (const c of generated) {
       expect(c.id).toMatch(/^race-g\d+$/);
-      expect(eng.evaluate('race', p.model, c).passed).toBe(false);
-      expect(eng.evaluate('race', p.lastWin!, c).passed).toBe(false);
-      expect(solveAffordable(C, flatChecks(c), p)).not.toBeNull();
+      expect(budget.cheapest(flatChecks(c))).not.toBeNull();
     }
   });
   it('is deterministic and respects tier shape, facet uniqueness and views', () => {
@@ -352,7 +425,10 @@ describe('generator rules', () => {
     }
   });
   it('mostly asks for at least 2 changed aspects and never solves with the last win', () => {
-    let p = playStarters();
+    const start = playStarters();
+    let p = eng.regenerate('race', {
+      ...start, overrides: Object.fromEntries(C.variants.map((variant) => [variant.id, 'open'])),
+    });
     let ge2 = 0;
     let total = 0;
     for (let i = 0; i < 10; i++) {
@@ -409,21 +485,11 @@ describe('text', () => {
     expect(fresh().challenges['st-mud']).toEqual(c);
   });
   it('titles 2 stages "A & B" and 3 stages "<first> Adventure"', () => {
-    const titles = new Set<string>();
-    let p = playStarters();
-    for (let i = 0; i < 14; i++) {
-      for (const c of Object.values(p.challenges)) titles.add(`${c.stages.length}|${c.title}`);
-      const ch = unfinished(p)[0];
-      if (!ch) break;
-      const build = affordableBuild(p, ch);
-      p = buyBuild(p, build);
-      p = win(p, ch.id, build, 200 + i);
-    }
-    const two = [...titles].filter((t) => t.startsWith('2|'));
-    const three = [...titles].filter((t) => t.startsWith('3|'));
-    expect(two.length).toBeGreaterThan(0);
-    for (const t of two) expect(t).toMatch(/^2\|.+ & .+$/);
-    for (const t of three) expect(t).toMatch(/Adventure$/);
+    const stages = C.starters.slice(0, 3).map((spec) => spec.stages[0]);
+    const title = (count: number) => resolveSpec(C, { stages: stages.slice(0, count) },
+      { id: 'title', source: 'generated', tier: 4, seed: 1 }).title;
+    expect(title(2)).toMatch(/^.+ & .+$/);
+    expect(title(3)).toMatch(/Adventure$/);
   });
   it('does not crash on missing phrases and falls back sensibly', () => {
     const bare: WorkshopCatalog = { ...C, facetPhrases: [], scenarioPhrases: [] };
@@ -538,7 +604,7 @@ describe('saves', () => {
           fails: { 'st-mud': 2, missing: 4 },
           nextStarter: 99, firstWins: -3, genSeq: 'x',
           lastWin: { wheels: 'nope' },
-          challenges: { ...p.challenges, junk: { id: 'junk' }, 'race-g7': { ...p.challenges['st-jump'], id: 'race-g7' } },
+          challenges: { ...p.challenges, junk: { id: 'junk' }, 'race-g7': { ...starter('st-jump'), id: 'race-g7' } },
         },
         dino: 'garbage',
       },
@@ -561,6 +627,23 @@ describe('saves', () => {
     expect(r.lastWin?.wheels).toBe('wheels.road');
     expect(r.challenges.junk).toBeUndefined();
   });
+  it('reorders saved version-2 cards and preserves their original slot colors', () => {
+    const p = fresh();
+    const challenges = Object.fromEntries(Object.entries(p.challenges).map(([id, challenge]) => {
+      const legacy = { ...challenge };
+      delete legacy.boardColor;
+      return [id, legacy];
+    }));
+    const save = { ...eng.newPlayerSave('easy'), workshops: { race: {
+      ...p, active: [...p.active].reverse(), challenges,
+    } } };
+    const normalized = eng.normalizeSave(save)!;
+    const progress = eng.progressOf(normalized, 'race');
+    expect(progress.active).toEqual(p.active);
+    expect(progress.active.map((id) => progress.challenges[id].boardColor)).toEqual([2, 1, 0]);
+    expect(progress.genSeq).toBe(p.genSeq);
+  });
+
   it('round-trips a normal save unchanged', () => {
     const start = fresh();
     const model = { ...eng.defaultModel('race'), wheels: 'wheels.mud' };

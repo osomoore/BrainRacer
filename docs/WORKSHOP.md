@@ -77,16 +77,17 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
   (optionally the missing amount as a number).
 - Each variant has a fixed price from its place in its aspect's shop order: 2, 4, 6 … (basePrice + priceStep × index). Prices never change.
-- **Fresh start:** 1 owned variant per aspect (the first starter), wallet 4 (two 2-cost buys). Save version is bumped;
-  old beta saves are reset (no migration).
-- **Board = 3 challenges.** Target mix: 1 solvable with owned variants only + 2 that need purchases the player can
-  afford right now. Affordable = solvable with owned variants plus purchases whose total cost <= current wallet (each
-  challenge judged on its own). When no owned-only challenge can exist (early game: one owned variant per aspect, so
-  the only build is the current model), fill with 3 affordable-purchase challenges; the owned-only slot returns once it
-  is possible. Never leave the board short; if generation truly fails, fall back to more owned-only challenges.
-  Existing rules stay: not solvable by `lastWin` nor by the current model; `minChangedAspects`.
-- **After any purchase or spend, re-check the board:** challenges that became unaffordable are replaced with new valid
-  ones; challenges that became owned-only solvable stay.
+- **Fresh start.** Each aspect starts with one owned variant and the wallet starts at 4. Version 2 saves keep their
+  existing cards, which are re-categorized on load.
+- **Board of three.** The first deal includes one **Ready** card (solvable with owned parts), one **Affordable** card
+  (needs purchases within the wallet balance), and one **Future** card (needs purchases beyond the balance). For
+  each card, use the cheapest complete build, including the cost of any purchases needed to reveal a later shop offer.
+- **Purchasing parts** can change a card's category. The same challenges stay on the board and keep their colors as
+  the list reorders Ready, Affordable, Future.
+- **Completing a challenge** fills one vacancy. Recalculate the surviving cards with the new balance and look for
+  missing categories in Ready, Affordable, Future order. Skip categories with no eligible card, and draw from an
+  already represented category if needed to keep three cards. New challenges prefer a different build, and a Ready
+  card may accept the current build when no other Ready challenge is available.
 - **Hand-picked starters:** kept only if they fit (each needs exactly one 2-cost purchase); otherwise dropped in favor
   of generated ones (the C22 job decides and reports which).
 - **UI:** each player pane always shows its wallet (coin or juice-drop icon + number). Results shows "+N" with the icon
@@ -131,8 +132,8 @@ shared code lives in `shared/`.
     t0: 1 stage × 1 req; t1: 1 × 1–2; t2: 1–2 stages; t3: 2 stages × 1–2; t4+: 2–3 stages, more aspects, tradeoffs.
     Exact table is engine-owned (config).
   - Only facets with `minTier <= t` and scenarios with `minTier <= t`.
-  - Construction: pick scenario(s) + facets + levels, then **validate with the solver**: solvable with the
-    available variants; NOT solved by `lastWin`; NOT solved by the current model; min changed aspects rule.
+  - Construction picks scenarios, facets, and levels, then uses the solver to find a build in the requested category.
+    It normally requires a change from the current model and `lastWin`, and prefers at least `minChangedAspects` changes.
     Prefer (not require) challenges whose solutions need the newest unlocked variant about 40% of the time; the
     rest should need older parts or combinations.
   - The three active challenges should differ (different scenarios / hint aspects where possible).
@@ -141,14 +142,15 @@ shared code lives in `shared/`.
   - Saved challenges are fully resolved (checks + text for all three levels). Never regenerate a saved challenge.
 - **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
-  and never regenerated (deduped by resolved requirement set); its success stays in the save history. Any purchase or
-  spend re-checks the board. Save capped at `maxSavedChallenges` for non-won challenges, active ones never dropped.
+  and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
+  reorders the current cards. The save retains active cards and caps unfinished history at `maxSavedChallenges`.
 - **Win**: pays `2 x requirement count` into the workshop's wallet (coins / Bio Juice), `firstWins++`, the challenge leaves
   the board and is recorded as a success with its winning build; the build is also stored as `lastWin`. Nothing unlocks.
   Variants are bought with `purchase` (fixed price from the variant's place in its aspect's shop order).
 - **Fail**: `fails[id]++`; after `hintAfterFails` the results screen shows the hint (aspect of the first failed requirement).
-- **Overrides** change availability; `refreshBoard` then drops active challenges that became unsolvable and refills.
-- **Saves** (version bumped for the currency system): `localStorage` `workshop.players.v1` = `Record<profileId, PlayerSave>`, `workshop.device.v1` = `DeviceSave`. Per workshop: wallet, bought variants, success history.
+- **Overrides** change availability. A card that loses every possible route is replaced.
+- **Version 2 saves** use `workshop.players.v1` for `Record<profileId, PlayerSave>` and `workshop.device.v1` for
+  `DeviceSave` in localStorage. Per-workshop data includes the wallet, bought variants, board and success history.
   Model is saved on every part change.
 
 ## Content guide (content/race, content/dino)
@@ -177,9 +179,8 @@ shared code lives in `shared/`.
 
 Both fixes count as one requirement on their respective cards. A build must satisfy every guideline, and the
 win pays two coins or two Bio Juice per requirement. The board compares the total cost of complete builds
-and uses the cheapest. A card with an owned route can fill the owned-only slot. The board targets one owned-only
-card and two affordable purchase cards as it fills or replaces slots. An owned practice card can fill the
-owned slot if the authored pool has no eligible card. Cards that become owned-solvable after a purchase stay active.
+and uses the cheapest to determine the category. An owned route makes the card Ready. A practice card can serve
+as a Ready card when no authored card is eligible.
 Version 2 saves retain their resolved requirements, wording, and IDs. Newly offered cards use the updated catalog.
 
 The review kept these cases on their existing rules.

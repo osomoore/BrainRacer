@@ -73,11 +73,13 @@ describe('alternative challenge fixes', () => {
     expect(generate({ ...options, usedKeys: new Set([challengeKey(peek)]) })).toBeNull();
   });
 
-  it('counts a card with an owned alternative in the owned-only board slot', () => {
+  it('classifies a card by its cheapest complete alternative', () => {
     const progress = { ...initial, active: [peek.id], challenges: { [peek.id]: peek }, bought: ['size.big'] };
     const board = engine.refreshBoard('dino', progress);
     expect(board.active).toContain(peek.id);
-    expect(board.active.map((id) => solveAffordable(dino, flatChecks(board.challenges[id]), board)?.cost)).toEqual([0, 2, 2]);
+    const costs = board.active.map((id) => affordability(dino, board).cheapest(flatChecks(board.challenges[id]))!.cost);
+    expect(costs.slice(0, 2)).toEqual([0, 2]);
+    expect(costs[2]).toBeGreaterThan(board.wallet);
   });
 
   it('keeps old resolved checks and round-trips new ones with the same save version and requirement ids', () => {
@@ -91,7 +93,9 @@ describe('alternative challenge fixes', () => {
       challenges: { [legacy.id]: legacy, [peek.id]: peek },
     };
     const save = { ...engine.newPlayerSave('easy'), workshops: { dino: progress } };
-    expect(engine.normalizeSave(JSON.parse(JSON.stringify(save)))).toEqual(save);
+    const normalized = engine.normalizeSave(JSON.parse(JSON.stringify(save)))!;
+    expect(normalized.workshops.dino).toMatchObject(progress);
+    expect(engine.normalizeSave(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
     expect(engine.evaluate('dino', { ...initial.model, size: 'size.big' }, legacy).passed).toBe(false);
   });
 
