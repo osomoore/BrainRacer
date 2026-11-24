@@ -5,7 +5,7 @@ import { solveAffordable } from './affordability';
 import { available } from './available';
 import { newProgress, purchase, newestVariant, recordWin, refreshBoard, tierOf } from './board';
 import { evaluate } from './evaluate';
-import { shopOffers } from './shop';
+import { priceOf, shopOffers } from './shop';
 import { solve } from './solver';
 import { flatChecks } from './util';
 
@@ -36,12 +36,9 @@ export function simulate(cat: WorkshopCatalog, opts: SimOptions = {}): SimReport
   let changedSum = 0;
   let mismatches = 0;
   const target = cat.variants.length - cat.aspects.length;
-  const remainingCost = (): number => cat.aspects.reduce((sum, aspect) => {
-    const total = cat.variants.filter((v) => v.aspect === aspect.id).length - 1;
-    const bought = p.bought.filter((id) => cat.variants.find((v) => v.id === id)?.aspect === aspect.id).length;
-    const left = total - bought;
-    return sum + left * WS_RULES.basePrice + WS_RULES.priceStep * left * (bought + total - 1) / 2;
-  }, 0);
+  const remainingCost = (): number => cat.variants
+    .filter((v) => !p.bought.includes(v.id) && !cat.aspects.some((a) => a.starters[0] === v.id))
+    .reduce((sum, v) => sum + priceOf(cat, v.id), 0);
 
   while (steps < maxSteps && p.bought.length < target) {
     if (p.wallet >= remainingCost()) {
