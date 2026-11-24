@@ -19,6 +19,9 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 ```
 - Use only your job's port. If it is busy, pick the next free port above 5220 and say so in the hand-back.
   Never stop a process you did not start (5190/5191/5198/5199/5203 belong to the user).
+- **Pause before running out of quota:** at about 90% of your usage window, stop at a safe point: commit work in progress on
+  your branch (message starts with `WIP:`), write a short "Resume from here" note under your job in this file (done / next /
+  open questions), and stop. A later session resumes from that note.
 - **Use lower-tier sub-agents when they suffice** (mechanical edits, test runs, screenshots, searches); keep the
   top model for design calls and review. For art and shape-drawing work, Sol is a good fit.
 - Always branch from the **current `feature/workshop`** (never `dev`, never another job's branch).
