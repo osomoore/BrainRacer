@@ -160,7 +160,7 @@ async function expectCleanLayout(page: Page, pane: number): Promise<void> {
   }
 }
 
-test('fail: red cross, fail counted, Try again re-runs, the hint appears after three fails', async ({ page }) => {
+test('fail: red cross, fail counted, Run again re-runs, the hint appears after three fails', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, reading: 'medium' });
   const id = (await pickChallenge(page, 0, 'race', false))!;
@@ -185,7 +185,7 @@ test('fail: red cross, fail counted, Try again re-runs, the hint appears after t
   await shot(page, 'results-fail');
 
   for (const n of [2, 3]) {
-    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Test -> Try again
+    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> New Tests -> Run again
     await key(page, 'Space');
     await expectScreens(page, 'run');
     await skipToResults(page);

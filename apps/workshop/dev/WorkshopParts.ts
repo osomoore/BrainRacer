@@ -2,6 +2,7 @@
  * Art review sheet. `workshop.html?dev=WorkshopParts[&workshop=dino][&aspect=size&head=head.horned&extra=extra.feathers][&page=random|beaks][&seed=3]`
  * Keys: Left/Right = aspect, Up/Down or 1/2 = workshop, R = random combos page / reseed, A = aspect page.
  * Every variant of the aspect is drawn on the default model, side view on top and top view below.
+ * Race springs: &page=springs&body=body.truck&shape=shape.boxy&size=size.medium draws every wheel (columns) x spring (rows).
  * Race attachments: &page=jeep|winch&body=body.truck&size=size.tiny compares every wheel on that build.
  */
 import Phaser from 'phaser';
@@ -115,6 +116,19 @@ export default class WorkshopParts extends Phaser.Scene {
         if (attachment === 'winch') model.extra = 'extra.winch';
         return { name: wheel.name, side: buildRig(this, 'race', model, 'side'), top: buildRig(this, 'race', model, 'top') };
       }), true, false, true);
+      return;
+    }
+    if (this.workshop === 'race' && attachment === 'springs') {
+      const pick = (aspect: string) => q.get(aspect) ?? base[aspect];
+      const wheels = cat.variants.filter((v) => v.aspect === 'wheels'), springs = cat.variants.filter((v) => v.aspect === 'springs');
+      this.label(960, 4, `Springs x wheels / ${pick('body')} / ${pick('shape')} / ${pick('size')}`, 30);
+      const cw = 1920 / wheels.length, ch = 1000 / springs.length;
+      springs.forEach((sp, r) => wheels.forEach((wh, c) => {
+        const rig = buildRig(this, 'race', { ...base, body: pick('body'), shape: pick('shape'), size: pick('size'), wheels: wh.id, springs: sp.id }, 'side');
+        this.place(rig, cw * c + cw / 2, 50 + ch * r, cw, ch, 0.9 * Math.min(1, (cw - 24) / 520));
+        this.rigs.push(rig);
+        this.label(cw * c + cw / 2, 50 + ch * r + 2, `${wh.id.split('.')[1]} / ${sp.id.split('.')[1]}`, 20);
+      }));
       return;
     }
     if (this.beaks) {
