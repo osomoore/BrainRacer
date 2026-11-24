@@ -28,6 +28,7 @@ When Claude hands you a job (e.g. a `docs/CODEX_JOBS.md` entry), the user's Code
 - Dev server: `npm run dev` → http://localhost:5173 (game launcher; Brain Racer is `/racer.html`, query strings on the root forward there). Skip menus with `/?race=2&seed=3` (also `&round=60&debug=1&dino=now&heat=100&rewards=1`). Dev scenes: `?dev=<FileName>` for `src/scenes/dev/<FileName>.ts`.
 - Visual checks: Playwright with Edge (`chromium.launch({ channel: 'msedge' })`) at 1920×1080. The bundled headless shell is software-rendered and very slow.
 - Vite "Outdated Optimize Dep" after big changes: restart the dev server with `--force`.
+- Adventure Workshop saves: when a change alters how challenges are built, worded or checked, don't migrate saved challenge cards. On load, throw away the unfinished saved challenges and deal a fresh board from the current rules. Keep the player's wallet, bought parts, model, buddies and progress, and drop only the open challenge cards.
 
 ## Parallel checkouts
 
