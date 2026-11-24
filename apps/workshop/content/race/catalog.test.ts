@@ -5,8 +5,6 @@ import { allPass, computeModel, partTag } from '../../logic/stats';
 import { evaluate } from '../../logic/evaluate';
 import { resolveSpec } from '../../logic/text';
 import { namedVariants, variantHelps } from '../../logic/validateCatalog';
-import { newProgress } from '../../logic/board';
-import { normalizeProgress } from '../../logic/save';
 import { RACE_CATALOG as C, RACE_SCENE_NOTES } from './catalog';
 
 // ---- helpers for checking content balance ----
@@ -185,25 +183,6 @@ describe('jump builds printed on challenge cards', () => {
     for (const level of landing.levels) for (const fix of fixes(landing, level)) {
       expect(evaluate(C, { ...slow, ...fix }, jump(at(landing, level))).passed, JSON.stringify(fix)).toBe(true);
     }
-  });
-
-  it('repairs an existing Long Gap card and still requires the complete fix or sufficient speed', () => {
-    const card = jump(at(speed, 2));
-    delete card.stages[0].requirements[0].namedFixes;
-    card.stages[0].requirements[0].checks = [{ kind: 'statMin', stat: 'speed', min: 7 }];
-    const original = { ...newProgress(C), challenges: { [card.id]: card }, active: [card.id], fails: { [card.id]: 2 } };
-    const loaded = normalizeProgress(C, original)!;
-    const upgraded = loaded.challenges[card.id];
-    const withGears = { ...slow, gears: 'gears.speedy' };
-    const both = { ...withGears, extra: 'extra.rocket' };
-    expect(evaluate(C, both, card).passed).toBe(false);
-    expect(evaluate(C, both, upgraded).passed).toBe(true);
-    expect(evaluate(C, withGears, upgraded).passed).toBe(false);
-    expect(evaluate(C, { ...slow, extra: 'extra.rocket' }, upgraded).passed).toBe(false);
-    expect(evaluate(C, { ...defaultModel, wheels: 'wheels.racing', engine: 'engine.turbo' }, upgraded).passed).toBe(true);
-    expect(loaded.active).toEqual(original.active);
-    expect(loaded.fails).toEqual(original.fails);
-    expect(normalizeProgress(C, loaded)).toEqual(loaded);
   });
 });
 

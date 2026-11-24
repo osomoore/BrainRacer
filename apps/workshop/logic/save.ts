@@ -1,7 +1,7 @@
 /** Save creation, validation and repair. Input is untrusted (localStorage JSON); nothing is mutated. */
-import { WS_RULES } from '../config';
+import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type {
-  Challenge, ChallengeId, CompletedInfo, Model, PlayerSave, ReadingLevel, Requirement, VariantId, VariantOverride, WorkshopCatalog,
+  Challenge, ChallengeId, CompletedInfo, Model, PlayerSave, ReadingLevel, VariantId, VariantOverride, WorkshopCatalog,
   WorkshopId, WorkshopProgress,
 } from '../core/types';
 import { READING_LEVELS, WORKSHOP_IDS } from '../core/types';
@@ -10,9 +10,6 @@ import { sanitizeModel } from './available';
 import { affordability } from './affordability';
 import { newProgress, refreshBoard, sortBoard } from './board';
 import { normalizeBuddies } from './buddies';
-import { practiceTitle } from './practice';
-import { distinctFixes, lineFixes } from './namedFixes';
-import { catalogFixes } from './text';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -56,38 +53,6 @@ function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Chal
     && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && r.checks.length > 0 && r.checks.every(validCheck) && isObj(r.text) && isObj(r.hint)));
 }
 
-/** Keep the saved targets and wording, adding named routes for cards from older builds. */
-function upgradeRequirement(cat: WorkshopCatalog, req: Requirement): void {
-  const ix = index(cat);
-  const facet = ix.facetById.get(req.facet)?.facet;
-  const validFix = (value: unknown): value is VariantId[] => {
-    if (!Array.isArray(value) || !value.length) return false;
-    const aspects = value.map((id) => typeof id === 'string' ? ix.variantById.get(id)?.aspect : undefined);
-    return !aspects.includes(undefined) && new Set(aspects).size === aspects.length;
-  };
-  const fixes = Array.isArray(req.namedFixes) ? req.namedFixes.filter(validFix) : [];
-  const hasSavedFixes = fixes.length > 0;
-  const [old] = req.checks;
-  if (cat.id === 'race' && (req.facet === 'jump.speed' || req.facet === 'jump.landing')
-    && req.checks.length === 1 && old.kind === 'anyOf') {
-    const [stat, ...parts] = old.options;
-    if (stat.length === 1 && stat[0].kind === 'statMin'
-      && parts.every((option) => option.every((c) => c.kind === 'tag' && c.tag.startsWith('variant:')))) {
-      fixes.push(...parts.map((option) => option.map((c) => c.kind === 'tag' ? c.tag.slice('variant:'.length) : '')).filter(validFix));
-      req.checks = [...stat];
-    }
-  }
-  if (!hasSavedFixes && facet && isNum(req.level)) {
-    for (const r of READING_LEVELS) {
-      if (typeof req.text[r] === 'string') fixes.push(...lineFixes(cat, req.checks, req.text[r]));
-    }
-    // If the target still matches the catalog, include the alternate wording for this level.
-    if (JSON.stringify(req.checks) === JSON.stringify(facet.check(req.level))) fixes.push(...catalogFixes(cat, facet, req.level));
-  }
-  if (fixes.length) req.namedFixes = distinctFixes(fixes);
-  else delete req.namedFixes;
-}
-
 export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopProgress | null {
   if (!isObj(raw)) return null;
   const ix = index(cat);
@@ -108,11 +73,6 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
     for (const [k, v] of Object.entries(raw.challenges)) {
       if (!validChallenge(v, k, cat.id)) continue;
       const challenge = JSON.parse(JSON.stringify(v)) as Challenge;
-      if (/part build|two.part|one.part/i.test(challenge.title)) {
-        const partCount = challenge.stages.reduce((sum, stage) => sum + stage.requirements.length, 0);
-        challenge.title = practiceTitle(cat, isNum(challenge.seed) ? challenge.seed : 0, partCount);
-      }
-      for (const stage of challenge.stages) for (const req of stage.requirements) upgradeRequirement(cat, req);
       const color = challenge.boardColor;
       if (typeof color !== 'number' || !Number.isInteger(color) || color < 0 || color >= WS_RULES.boardSize) {
         delete challenge.boardColor;
@@ -151,6 +111,14 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   }
   out.genSeq = seq;
   sortBoard(out, affordability(cat, out));
+  // Rules changed since this workshop was saved: don't migrate open cards, re-deal them.
+  if (raw.rulesVersion !== CHALLENGE_RULES_VERSION) {
+    for (const id of Object.keys(out.challenges)) if (!out.completed[id]) delete out.challenges[id];
+    out.active = [];
+    out.fails = {};
+    out.rulesVersion = CHALLENGE_RULES_VERSION;
+    return refreshBoard(cat, out);
+  }
   return out;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WS_RULES } from '../config';
+import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type { WorkshopEngine } from '../core/engineApi';
 import type { Challenge, Model, WorkshopCatalog, WorkshopId, WorkshopProgress } from '../core/types';
 import { createEngine } from './index';
@@ -11,7 +11,6 @@ import { flatChecks } from './util';
 import { challengeKey } from './generator';
 import { resolveSpec } from './text';
 import { starterChallenge } from './starters';
-import { practiceTitle } from './practice';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -587,23 +586,33 @@ describe('purity', () => {
 });
 
 describe('saves', () => {
-  it('retitles generic saved build cards with the same seeded picker as new practice cards', () => {
-    const p = fresh();
-    const sample = p.challenges[p.active[0]];
-    const titles = ['One-Part Build', 'Two Part', 'Two-Part Build', 'Part Build', 'Keep this title'];
-    const challenges = Object.fromEntries(titles.map((title, i) => {
-      const id = `old-card-${i}`;
-      const stage = sample.stages[0];
-      const requirements = i === 0 ? stage.requirements : [...stage.requirements, { ...stage.requirements[0], id: 'second' }];
-      return [id, { ...sample, id, title, seed: i + 10, stages: [{ ...stage, requirements }] }];
-    }));
-    const save = { ...eng.newPlayerSave('easy'), workshops: { race: { ...p, active: Object.keys(challenges).slice(0, 3), challenges } } };
-    const normalized = eng.normalizeSave(deepFreeze(save))!;
-    for (const [id, card] of Object.entries(challenges)) {
-      const title = card.title === 'Keep this title' ? card.title : practiceTitle(C, card.seed, card.stages[0].requirements.length);
-      expect(normalized.workshops.race?.challenges[id]).toEqual({ ...card, title });
+  it('re-deals open cards when the saved rules version differs, keeping wallet, parts, buddies and history', () => {
+    const start = fresh();
+    const model = { ...eng.defaultModel('race'), wheels: 'wheels.mud' };
+    const won = win(buyBuild(start, model), 'st-mud', model, 3);
+    const openBefore = won.active.filter((id) => !won.completed[id]);
+    for (const version of [undefined, CHALLENGE_RULES_VERSION - 1]) {
+      const old = { ...won, wallet: 7, rulesVersion: version };
+      if (version === undefined) delete old.rulesVersion;
+      const save = { ...eng.newPlayerSave('easy'), workshops: { race: old } };
+      const r = eng.normalizeSave(JSON.parse(JSON.stringify(save)))!.workshops.race!;
+      expect(r.rulesVersion).toBe(CHALLENGE_RULES_VERSION);
+      expect(r.active.length).toBe(3);
+      expect(r.active.some((id) => openBefore.includes(id) && r.challenges[id] === old.challenges[id])).toBe(false);
+      expect(r.wallet).toBe(7);
+      expect(r.bought).toEqual(won.bought);
+      expect(r.buddies).toEqual(won.buddies);
+      expect(r.completed).toEqual(won.completed);
+      for (const id of Object.keys(won.completed)) expect(r.challenges[id]).toEqual(won.challenges[id]);
+      expect(r.fails).toEqual({});
     }
-    expect(eng.normalizeSave(normalized)).toEqual(normalized);
+  });
+
+  it('loads a current-version save unchanged', () => {
+    const p = fresh();
+    expect(p.rulesVersion).toBe(CHALLENGE_RULES_VERSION);
+    const save = { ...eng.newPlayerSave('easy'), workshops: { race: p } };
+    expect(eng.normalizeSave(JSON.parse(JSON.stringify(save)))).toEqual(save);
   });
 
   it('creates a progress with a full board when missing and leaves the save untouched', () => {

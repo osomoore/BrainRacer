@@ -1,5 +1,5 @@
 /** Board and progression: refill, wins, fails, hints, regenerate, overrides. All functions return new objects. */
-import { WS_RULES } from '../config';
+import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type { PurchaseOutcome, WinOutcome } from '../core/engineApi';
 import type {
   Challenge, ChallengeId, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
@@ -19,7 +19,7 @@ import { evaluate } from './evaluate';
 export function newProgress(cat: WorkshopCatalog, buddySeed?: number): WorkshopProgress {
   return {
     model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {},
-    lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1,
+    lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1, rulesVersion: CHALLENGE_RULES_VERSION,
     buddies: normalizeBuddies(undefined, buddySeed === undefined ? undefined : startingBuddy(buddySeed)),
   };
 }

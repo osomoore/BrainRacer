@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { BUDDY_KINDS } from '../../../shared/buddies/catalog';
 import { CATALOGS } from '../content';
 import { READING_LEVELS } from '../core/types';
-import type { BasicCheck, Check, Model, Variant, WorkshopCatalog } from '../core/types';
+import type { BasicCheck, Model, Variant, WorkshopCatalog } from '../core/types';
 import { evaluate } from './evaluate';
 import { engine } from './index';
 import { checkOptions, lineFixes } from './namedFixes';
-import { normalizeProgress } from './save';
 import { allPass, computeModel, defaultModel, partTag } from './stats';
 import { cleverWinMessage, resolveSpec } from './text';
 import { flatChecks } from './util';
@@ -106,30 +105,6 @@ it('prefers the named route, marks alternate stat wins and requires the entire r
   expect(evaluate(race, { ...unusual, paint: 'paint.yellow' }, { ...jump, stages: [...jump.stages, ...fog.stages] })).toMatchObject({
     passed: true, cleverWin: true, requirements: [{ route: 'stat' }, { route: 'named' }],
   });
-});
-
-it.each(Object.values(CATALOGS))('migrates pre-hybrid $title cards without changing their displayed text or targets', (cat) => {
-  const legacy = cat.id === 'race' ? card(cat, 'jump', 'jump.speed', 2) : card(cat, 'canyon', 'canyon.fly', 2);
-  const req = legacy.stages[0].requirements[0];
-  const named = req.namedFixes!;
-  const oldChecks = req.checks;
-  delete req.namedFixes;
-  if (cat.id === 'race') {
-    const c35: Check = { kind: 'anyOf', options: [
-      checkOptions(oldChecks)[0],
-      ...named.map((fix) => fix.map((id): BasicCheck => ({ kind: 'tag', tag: partTag(id) }))),
-    ] };
-    req.checks = [c35];
-  }
-  const raw = { ...engine.newProgress(cat.id), active: [legacy.id], challenges: { [legacy.id]: legacy } };
-  const upgraded = normalizeProgress(cat, raw)!;
-  const loaded = upgraded.challenges[legacy.id];
-  expect(loaded.stages[0].requirements[0]).toMatchObject({ text: req.text, checks: oldChecks, namedFixes: named });
-  expect(normalizeProgress(cat, upgraded)).toEqual(upgraded);
-  const fix = cat.id === 'race'
-    ? { ...defaultModel(cat), gears: 'gears.speedy', extra: 'extra.rocket' }
-    : { ...defaultModel(cat), move: 'move.fly', size: 'size.small' };
-  expect(evaluate(cat, fix, loaded).requirements[0].route).toBe('named');
 });
 
 it('awards one extra buddy point, including an unlock and overflow at ten', () => {

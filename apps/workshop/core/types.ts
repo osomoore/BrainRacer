@@ -294,6 +294,8 @@ export interface WorkshopProgress {
   firstWins: number;
   /** Generator counter (seed source; never reused). */
   genSeq: number;
+  /** CHALLENGE_RULES_VERSION the open cards were dealt under; a mismatch on load re-deals them. */
+  rulesVersion?: number;
 }
 
 export interface PlayerSave {
