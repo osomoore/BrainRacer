@@ -1,7 +1,6 @@
 /**
- * board: the player's model (read-only labels, NOT links to the stations) and the challenge board. Wide layout: model +
- * labels on the left, challenge tabs on top right, the focused challenge's full text below. Tall layout: an overview
- * (model, labels, challenge list) and a detail view per challenge. "Test it!" starts a run: go('run', { challengeId }).
+ * board: the player's composed model and challenge board. Wide layout: model preview + challenge tabs and details.
+ * Tall layout: a challenge list and a detail view per challenge. "Test it!" starts a run: go('run', { challengeId }).
  */
 import type Phaser from 'phaser';
 import { WS_ROOM, WS_UI } from '../config';
@@ -18,11 +17,14 @@ import { cardColor } from '../ui/screenChrome';
 import { COLORS, circleTexture, fitText, makeText, ringTexture, roundedOriginY, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
-import { boardLayout, detailFonts, labelRows, type BoardLayout } from './board/layout';
+import { boardLayout, detailFonts, type BoardLayout } from './board/layout';
+import { PartPreview } from './board/PartPreview';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
 
 const STAGE_COLORS = [0xffd23f, 0x7fd6ff, 0xffa3b8, 0xb8e986, 0xd5b8ff];
+/** Selection survives the run/results screen swap, but is scoped to this pane session. */
+const boardReturn = new WeakMap<object, { challengeId: string; cardPage: number; textPage: number; workshop: string; profileId: string | undefined; adminMode: boolean }>();
 let canvasCtx: CanvasRenderingContext2D | null | undefined;
 const measure: Measure = (text, size) => {
   if (canvasCtx === undefined) canvasCtx = document.createElement('canvas').getContext('2d');
@@ -47,13 +49,15 @@ const boardScreen: ScreenFactory = (): Screen => {
   let cardBtns: Button[] = [];
   let lastFocus: Button | undefined;
   const staticObjs: Phaser.GameObjects.GameObject[] = [];
-  let labelObjs: Phaser.GameObjects.GameObject[] = [];
   let cardObjs: Phaser.GameObjects.GameObject[] = [];
   let detailObjs: Phaser.GameObjects.GameObject[] = [];
   let backBtn: Button;
   let newBtn: Button | undefined;
   let modelObjs: Phaser.GameObjects.GameObject[] = [];
   let testBtn: Button | undefined;
+  let partPreview: PartPreview | undefined;
+  let partPrevBtn: Button | undefined;
+  let partNextBtn: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
 
   const ws = () => ctx.workshop ?? 'race';
@@ -70,21 +74,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     progress = p;
   };
 
-  // ------------------------------------------------------------ model + labels
-  const buildLabels = () => {
-    kill(labelObjs);
-    const cat = engine.catalog(ws());
-    const rows = labelRows(cat.aspects, cat.variants, progress.model);
-    const { x, y0, rowH, col1, w, size } = L.labels;
-    rows.forEach(([a, v], i) => {
-      const y = y0 + i * rowH + rowH / 2;
-      const at = makeText(ctx.scene, x, y, `${a}:`, { size, color: 0x5a5a7a, bold: false, align: 'left', origin: [0, 0.5] });
-      const vt = makeText(ctx.scene, x + col1, y, v, { size, color: COLORS.ink, align: 'left', origin: [0, 0.5] });
-      fitText(vt, w - col1, 34);
-      labelObjs.push(at, vt);
-    });
-  };
-
+  // ------------------------------------------------------------ composed model
   const buildModel = () => {
     const scene = ctx.scene;
     const panel = wide()
@@ -96,7 +86,36 @@ const boardScreen: ScreenFactory = (): Screen => {
     rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(-200);
     rig.play('idle');
     modelObjs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 26, 0x000000, 0.2).setDepth(-250));
-    buildLabels();
+  };
+
+  const destroyPartPreview = () => {
+    partPreview?.destroy(); partPreview = undefined;
+    partPrevBtn?.destroy(); partPrevBtn = undefined;
+    partNextBtn?.destroy(); partNextBtn = undefined;
+  };
+
+  const buildPartPreview = () => {
+    destroyPartPreview();
+    if (!rig) return;
+    const cat = engine.catalog(ws());
+    const P = L.partPreview;
+    const bounds = { x: P.x, y: P.y, maxW: P.maxW, maxH: P.maxH };
+    const label = { x: P.labelX, y: P.labelY, w: P.labelW };
+    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, { bounds, label, model: progress.model, variants: cat.variants });
+    partPrevBtn = new Button(ctx.scene, {
+      x: P.arrowLeftX, y: P.arrowY, w: P.arrowW, h: P.arrowH, label: '<', fontSize: 64, color: COLORS.yellow,
+      onClick: () => { partPreview?.step(-1); },
+    });
+    partNextBtn = new Button(ctx.scene, {
+      x: P.arrowRightX, y: P.arrowY, w: P.arrowW, h: P.arrowH, label: '>', fontSize: 64, color: COLORS.yellow,
+      onClick: () => { partPreview?.step(1); },
+    });
+  };
+
+  const restoreModelPosition = () => {
+    if (!rig) return;
+    const s = Math.min(WS_ROOM.boardModelScale[ctx.layout], L.model.maxW / Math.max(1, rig.width), L.model.maxH / Math.max(1, rig.height));
+    rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(-200);
   };
 
   // ------------------------------------------------------------ cards
@@ -208,6 +227,7 @@ const boardScreen: ScreenFactory = (): Screen => {
 
   function startRun(id: string): void {
     if (busy) return;
+    boardReturn.set(ctx, { challengeId: id, cardPage, textPage, workshop: ws(), profileId: ctx.profileId, adminMode: ctx.adminMode });
     busy = true;
     ctx.audio.sfx('select');
     ctx.go('run', { challengeId: id });
@@ -223,6 +243,8 @@ const boardScreen: ScreenFactory = (): Screen => {
     }
     if (wide() || mode === 'detail') {
       if (textPager) list.push(...textPager.buttons);
+      if (partPrevBtn) list.push(partPrevBtn);
+      if (partNextBtn) list.push(partNextBtn);
       if (testBtn) list.push(testBtn);
     }
     list.push(backBtn);
@@ -246,6 +268,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   function openDetail(): void {
     mode = 'detail';
     textPage = 0;
+    if (!wide()) buildPartPreview();
     refreshAll();
     group.focus(testBtn);
     lastFocus = testBtn;
@@ -255,15 +278,19 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (wide()) return;
     const overview = mode === 'overview';
     modelObjs.forEach((o) => (o as Phaser.GameObjects.Image).setVisible(overview));
-    labelObjs.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(overview));
-    rig?.root.setVisible(overview);
+    rig?.root.setVisible(overview || !!partPreview);
     cardObjs.forEach((o) => (o as Phaser.GameObjects.Image).setVisible?.(overview));
     cardPager?.buttons.forEach((b) => b.setVisible(overview && cardPager!.count > 1));
     newBtn?.setVisible(overview);
   }
 
   function refreshAll(): void {
-    buildCards();
+    if (wide() || mode === 'overview') buildCards();
+    else {
+      cardPager?.destroy(); cardPager = undefined;
+      kill(cardObjs);
+      cardBtns = [];
+    }
     if (wide() || mode === 'detail') buildDetail(); else { kill(detailObjs); testBtn = undefined; }
     setFocusables();
     showMode();
@@ -274,6 +301,8 @@ const boardScreen: ScreenFactory = (): Screen => {
     if (!wide() && mode === 'detail') {
       mode = 'overview';
       ctx.audio.sfx('back');
+      destroyPartPreview();
+      restoreModelPosition();
       lastFocus = undefined;
       refreshAll();
       return;
@@ -299,6 +328,16 @@ const boardScreen: ScreenFactory = (): Screen => {
       ctx.audio.music(ws() === 'race' ? 'raceShop' : 'dinoLab');
       readProgress();
       L = boardLayout(ctx.layout, ctx.adminMode);
+      const savedReturn = boardReturn.get(ctx);
+      const restore = savedReturn && savedReturn.workshop === ws() && savedReturn.profileId === ctx.profileId && savedReturn.adminMode === ctx.adminMode ? savedReturn : undefined;
+      boardReturn.delete(ctx);
+      if (restore) {
+        const restoredIndex = progress.active.indexOf(restore.challengeId);
+        sel = restoredIndex >= 0 ? restoredIndex : Math.min(restore.cardPage * L.perPage, Math.max(0, progress.active.length - 1));
+        cardPage = Math.floor(sel / L.perPage);
+        textPage = restoredIndex >= 0 ? restore.textPage : 0;
+        if (!wide() && restoredIndex >= 0) mode = 'detail';
+      }
       const RL = roomLayout(ctx.layout, []);
       const bg = roomBackdrop(scene, ws(), ctx.layout, RL.floorY);
       staticObjs.push(scene.add.image(0, 0, bg.key).setOrigin(0).setDepth(-900));
@@ -311,6 +350,7 @@ const boardScreen: ScreenFactory = (): Screen => {
         staticObjs.push(newBtn);
       }
       buildModel();
+      if (wide() || mode === 'detail') buildPartPreview();
       refreshAll();
     },
     update() {
@@ -318,6 +358,17 @@ const boardScreen: ScreenFactory = (): Screen => {
         if (busy) continue;
         if (a === 'back') { leave(); continue; }
         const f = group.focused;
+        if (wide() && f === cardBtns[0] && a === 'left' && partNextBtn) { group.focus(partNextBtn); continue; }
+        if (partPreview && (f === partPrevBtn || f === partNextBtn) && (a === 'left' || a === 'right')) {
+          partPreview.step(a === 'left' ? -1 : 1);
+          continue;
+        }
+        if (partPreview && !textPager && (f === partPrevBtn || f === partNextBtn) && a === 'down' && testBtn) { group.focus(testBtn); continue; }
+        if (wide() && partPreview && (f === partPrevBtn || f === partNextBtn) && a === 'up') {
+          group.focus(cardBtns[Math.max(0, sel - cardPage * L.perPage)] ?? cardBtns[0]);
+          continue;
+        }
+        if (!wide() && !textPager && partPreview && f === testBtn && a === 'up' && partNextBtn) { group.focus(partNextBtn); continue; }
         if (a === 'confirm' && f && cardBtns.includes(f) && wide()) { startRun(ids()[cardPage * L.perPage + cardBtns.indexOf(f)]); continue; }
         group.handle(a);
       }
@@ -332,8 +383,9 @@ const boardScreen: ScreenFactory = (): Screen => {
       group?.destroy();
       cardPager?.destroy(); textPager?.destroy();
       cardPager = undefined; textPager = undefined;
+      destroyPartPreview();
       rig?.destroy(); rig = undefined;
-      for (const list of [labelObjs, cardObjs, detailObjs, modelObjs, staticObjs]) kill(list);
+      for (const list of [cardObjs, detailObjs, modelObjs, staticObjs]) kill(list);
       cardBtns = [];
     },
   };

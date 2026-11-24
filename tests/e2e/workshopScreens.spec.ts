@@ -126,7 +126,7 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(easy).toContain(ch[0].stages[0].requirements[0].text.easy);
   expect(easy).not.toContain(ch[0].stages[0].requirements[0].text.hard);
   expect(easy).toContain('Test it!');
-  expect(easy).toContain('Wheels:'); // read-only model labels
+  expect(easy).toContain('Wheels: Road Tires'); // read-only model labels include the fitted part
 
   // switch the reading level: the text changes, nothing else
   await page.evaluate(() => {
