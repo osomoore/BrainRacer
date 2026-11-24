@@ -31,42 +31,51 @@ The final music pack revises City, Factory, Beach & Harbor, Farm, Underwater, Br
 
 Every world plays at full configured music gain through the dry signal path while driving, including turbo and the final stretch. Question breaks and pauses fade over 300 ms to 70% gain through a 3 kHz low-pass filter.
 
-The renderer targets −17.5 dBFS RMS with a −1.5 dBFS sample-peak ceiling before Opus encoding. Live uses the same per-track gain from `src/audio/musicGains.json`. Pre-render applies the same loudness rule to its runtime buffers.
+Music normalization targets −17.5 dBFS RMS and smoothly limits peaks below −2.5 dBFS (tanh soft limiter) before Opus encoding. Live uses the per-track gain from `src/audio/musicGains.json` and the same limiter curve; pre-render applies the same rule to its runtime buffers.
 
-FFmpeg `volumedetect` measured the shipped Opus files. Race music, including the Dino boss track, spans **−18.6 to −17.5 dBFS mean (1.1 dB)**. The Results duration includes its ring-out.
+FFmpeg `volumedetect` measured the shipped Opus files. All music, including the Dino boss track, spans **−17.7 to −17.5 dBFS mean (0.2 dB)**. The Results duration includes its ring-out.
+
+### Per-track playback style (2026-11-23)
+
+Each track picks how its score is played in `src/audio/music/trackStyles.json` (typed in `trackStyles.ts`, attached to the track data by `resolveTrack` so the renderer, pre-render and live synthesis share one code path, `prepareLayerNotes` in `musicTheory.ts`). Fields, all optional:
+
+- `durationUnit`: `"seconds"` (default; the original behaviour, note `d` is played as seconds even though the validator reads it as beats) or `"beats"` (`d` converted at the track BPM).
+- `sustain`: `true` stretches pitched notes (not percussion) by up to 40% but never past the next onset in the same layer. Default `false`.
+- `lowpassHz`: a 2-pole lowpass on the whole track inside the synth chain (Tone.Filter). Default none.
+
+Chosen by listening (A/B kit, 2026-11-23): seconds: race, underwater, dino (their scores were restored from commit 77dff13, the pre-music-pack versions, so underwater and Mine/underground are the short 32-beat loops again), candy, house, title. Beats without sustain: airport, castle, farm, underground (also 77dff13 score), brickworks (plus `lowpassHz` 5600, about the old always-on in-race filter). Beats with sustain: forest, harbor, industrial, mushroom, results, sky, tundra, volcano. To change a track edit its entry and run `npm run audio:render`; the source-hash test then passes. A track with no entry behaves as before this feature (seconds, no sustain, no filter). The Adventure Workshop has its own synth (`apps/workshop/audio`) and is unaffected.
 
 | Track | Mean (dBFS) | Peak (dBFS) | Duration (s) | Beats | Notes/min |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Dino boss (dino) | −17.5 | −5.1 | 49.2 | 128 | 1,768 |
-| In My House (house) | −17.5 | −2.6 | 60.0 | 120 | 781 |
-| City (race) | −17.5 | −3.8 | 49.2 | 128 | 1,012 |
-| Title (title) | −17.5 | −4.4 | 29.5 | 64 | 1,072 |
-| Brickworks (brickworks) | −17.5 | −3.7 | 53.3 | 112 | 639 |
-| Castle (castle) | −17.8 | −5.0 | 51.4 | 108 | 684 |
-| Farm (farm) | −17.8 | −1.7 | 58.2 | 128 | 690 |
-| Dark Forest (forest) | −17.6 | −2.3 | 45.7 | 96 | 550 |
-| Beach & Harbor (harbor) | −17.6 | −1.7 | 50.9 | 112 | 846 |
-| Factory (industrial) | −17.7 | −4.0 | 46.5 | 96 | 736 |
-| Mushroom Island (mushroom) | −17.8 | −4.0 | 54.9 | 128 | 661 |
-| Results (results) | −17.5 | −4.4 | 9.4 | 16 | 612 |
-| Frozen Tundra (tundra) | −17.5 | −2.0 | 57.9 | 112 | 319 |
-| Underwater (underwater) | −17.5 | −4.7 | 49.7 | 96 | 460 |
-| Volcano (volcano) | −17.5 | −4.1 | 51.2 | 128 | 1,055 |
-| Airport (airport) | −17.8 | −4.3 | 53.3 | 128 | 712 |
-| Sky City (sky) | −17.7 | −3.9 | 41.7 | 96 | 878 |
-| Mine (underground) | −17.8 | −1.5 | 43.6 | 96 | 971 |
-| Candyland (candy) | −18.6 | −1.8 | 48.7 | 112 | 844 |
+| Dino boss (dino) | −17.5 | −4.6 | 49.2 | 128 | 1,768 |
+| In My House (house) | −17.5 | −2.8 | 60.0 | 120 | 781 |
+| City (race) | −17.5 | −4.5 | 49.2 | 128 | 1,012 |
+| Title (title) | −17.5 | −4.7 | 29.5 | 64 | 1,072 |
+| Brickworks (brickworks) | −17.5 | −3.3 | 53.3 | 112 | 639 |
+| Castle (castle) | −17.7 | −3.8 | 51.4 | 108 | 684 |
+| Farm (farm) | −17.6 | −2.1 | 58.2 | 128 | 690 |
+| Dark Forest (forest) | −17.7 | −2.3 | 45.7 | 96 | 550 |
+| Beach & Harbor (harbor) | −17.6 | −2.4 | 50.9 | 112 | 846 |
+| Factory (industrial) | −17.6 | −4.8 | 46.5 | 96 | 736 |
+| Mushroom Island (mushroom) | −17.6 | −4.6 | 54.9 | 128 | 661 |
+| Results (results) | −17.5 | −4.2 | 9.4 | 16 | 612 |
+| Frozen Tundra (tundra) | −17.5 | −2.5 | 57.9 | 112 | 319 |
+| Underwater (underwater) | −17.6 | −2.6 | 16.6 | 32 | 460 |
+| Volcano (volcano) | −17.5 | −3.5 | 51.2 | 128 | 1,055 |
+| Airport (airport) | −17.6 | −4.2 | 53.3 | 128 | 712 |
+| Sky City (sky) | −17.6 | −5.1 | 41.7 | 96 | 878 |
+| Mine (underground) | −17.6 | −2.3 | 14.5 | 32 | 971 |
+| Candyland (candy) | −17.6 | −2.1 | 48.7 | 112 | 844 |
 
 In dev, open `/?dev=AudioTest` to audition every track at the default game volume. The engine preview starts off. Use `/?race=1&map=tundra&questions=math&every=5` to hear the mix transition in a race. Change the map to `city` or `volcano` to compare.
 
 ## Question types: Math, Reading, JBQ (2026-11-22)
 
-- **Join screen:** each player panel has a **QUESTIONS** row with three chips, **Math**, **Reading**, and **JBQ**. Any combination can be on, but at least one stays on. Left/right moves the focus ring and A toggles the focused chip. A on any other row still means Ready. Choices save to the racer profile right away.
+- On the **Join screen**, each player picks a racer, car, and buddy. The **Questions** button opens that racer's submenu. Left/right moves between the **Math**, **Reading**, and **JBQ** chips, and confirm toggles the focused chip. At least one stays on. **Done** or Back returns to the same signup choices. Changes save to the racer profile right away.
 - **Math** is addition on Easy, Easy+, and Normal, and multiplication on Hard. **Reading** is the picture/word spelling questions (place-word questions are Reading only). Older saves carry forward: Addition or Multiplication becomes Math, and Spelling becomes Reading.
-- Car and buddy previews use the space freed by hidden JBQ rows. JBQ Basics gets an intermediate size, and JBQ with points and scope uses compact previews.
-- **JBQ (Junior Bible Quiz):** with JBQ on, two more rows appear: points (**Basics / 10 / 20 / 30 pts**) and scope (**Week / Month / All**). The scope row shows the current question numbers, e.g. "Week 145–168".
+- Turning on **JBQ (Junior Bible Quiz)** reveals the points (**Basics / 10 / 20 / 30 pts**) and scope (**Week / Month / All**) controls in the Questions submenu. The scope row shows the current question numbers, such as "Week 145–168".
   - **Basics** = the fixed set Q1–144 (10-point questions; `JbqLevel` 'basics', `Challenge.jbq.points` stays 10). The scope row is hidden (Join and Admin), the pool never grows beyond 144, wrong answers still come from the 10-point level.
-  - **Player limits** (`jbqAllowed` in `src/challenge/jbqScope.ts`, `raceQuestionTypes` in `src/challenge/jbqRules.ts`): Basics, 10 and 20 pts work with 1–2 players, 30 pts with 1 player only. At race start JBQ is turned off for that player for that race only (Math + Reading if nothing else is on); the saved profile is untouched. On the Join screen the JBQ chip is crossed out and the QUESTIONS caption reads "JBQ: 1 player only" or "JBQ: 1–2 players" while the joined count disallows it; it updates as players join and leave.
+  - **Player limits** come from `jbqAllowed` in `src/challenge/jbqScope.ts` and `raceQuestionTypes` in `src/challenge/jbqRules.ts`. Basics, 10 and 20 pts work with 1–2 players. The 30-point level takes one player. At race start the game disables JBQ for that race when the player count exceeds the limit, falling back to Math and Reading whenever JBQ was the sole enabled type. In the Questions submenu, the chip is crossed out and the caption shows the limit. The caption updates as players join and leave.
   - Point levels: 10s = Q1–288, 20s = Q289–480, 30s = Q481–576. Data: `src/data/jbq.json`, built by `npm run jbq:data` from the cleaned CSV `data/jbq/Junior_Bible_Quiz_2016_MASTER_fixed.csv` (text fixes are listed in `data/jbq/FIXES.md`).
   - Schedule: `src/data/jbqSchedule.ts` (Nov 2026 – Mar 2027). **Week** = the latest schedule row on or before today (review and meet weeks give the review range). **Month** = the next REVIEW or MEET row on or after today. **All** = the whole level. After the schedule ends, Week and Month mean All.
   - **Pool growth:** each racer's correct answers per question are saved in localStorage `brainracer.jbq.v1`. When every question in the pool has been answered correctly `CHALLENGE.jbqMasteredCorrect` (2) times, the previous week's chunk is added, and so on. Not-yet-learned questions come up `jbqUnmasteredWeight` (4×) as often. Quick races without a profile keep progress in memory only.
@@ -90,7 +99,7 @@ Plan and decisions: [docs/FOUR_PLAYERS.md](FOUR_PLAYERS.md).
 
 ## Racer presets, question panel, boost FX (2026-11-20)
 
-- **Setup** has one **Racer** row per player instead of Difficulty plus question toggles; the racers are the **shared profiles** (see Shared profiles below). Each profile has its own level, question types and race time (a new profile gets its level and race time from its **age band**: 0–5 Easy ★, 6–7 Easy+ ★½, 8–9 Medium ★★ (internal id `normal`), 10+ Hard ★★★; 10+ also gets the 3 min race, the others 5 min. `src/core/ageBands.ts`; the profile still stores `difficulty` + `roundSec`, the band is derived from difficulty. JBQ runs on its own level, unaffected. The Join card shows "Age 8–9 · Medium ★★"). A player defaults to the profile their slot used last if it still exists, else the n-th profile, else **New Profile** ("Make your racer!"); two players can't pick the same racer. **Race length** = `?round=` if given, else Admin Mode's 60 s, else the longer of the racers' times (`teamRoundSec`). The pick is `PlayerSettings.profile` (a shared profile id); `applyRacerProfile` (`src/core/racerProfiles.ts`) copies the settings into `difficulty`/`questionTypes` for ChallengeSystem. New-profile defaults: `NEW_RACER` / `NEW_RACER_DEFAULTS` in gameConfig.
+- **Setup** has one **Racer** row per player instead of Difficulty plus question toggles; the racers are the **shared profiles** (see Shared profiles below). Each profile has its own level, question types and race time (a new profile gets its level and race time from its **age band**: 0–5 Easy ★, 6–7 Easy+ ★½, 8–9 Medium ★★ (internal id `normal`), 10+ Hard ★★★; 10+ also gets the 3 min race, the others 5 min. `src/core/ageBands.ts`; the profile still stores `difficulty` + `roundSec`, the band is derived from difficulty. JBQ runs on its own level, unaffected). A player defaults to the profile their slot used last if it still exists, else the n-th profile, else **New Profile** ("Make your racer!"); two players can't pick the same racer. **Race length** = `?round=` if given, else Admin Mode's 60 s, else the longer of the racers' times (`teamRoundSec`). The pick is `PlayerSettings.profile` (a shared profile id); `applyRacerProfile` (`src/core/racerProfiles.ts`) copies the settings into `difficulty`/`questionTypes` for ChallengeSystem. New-profile defaults: `NEW_RACER` / `NEW_RACER_DEFAULTS` in gameConfig.
 - **Admin Settings → Racer Profiles** lists every profile, 2 per page with a Page row at the top. Each block: **Age** (cycles the 4 bands and sets level AND race time), Addition, Multiplication, Spelling, Race time (still adjustable after Age; one question type always stays on), **Rename** (on-screen LetterPicker; duplicate names rejected case-insensitively) and **Delete** (confirm, defaults to No; removes the shared profile for every app, its saved unlocks, and any player slot pointing at it). Rename and delete go through `shared/profiles.ts`; the game settings are in `Settings.racerProfiles`, keyed by profile id. **Racer Unlocks** cycles all racers. Reset to defaults leaves profiles and their settings alone. Paging math: `src/ui/menu/paging.ts`.
 - **Question panel:** the question area is tinted and separated from the answers by a divider bar with a "PICK ONE" pill. **Xbox** face buttons show colors only (no letters); Switch keeps its letters.
 - **Scoreboard** shows a flag and **n/3** world-completion goals for this race (green at 3/3, stays there).
@@ -102,8 +111,8 @@ Plan and decisions: [docs/FOUR_PLAYERS.md](FOUR_PLAYERS.md).
 
 ## New Profile in Setup
 - The Racer row cycles every racer (`racerIds`) then **New Profile** (hidden at `NEW_RACER.maxCustomRacers`). Setup keeps this as a local `isNew` flag per column; nothing special is saved. New Profile shows "Make a new racer!" and only starter cars/guides. Both players may pick it; real racers stay unique.
-- START RACE with New Profile opens `NewRacerPanel` (`src/ui/menu/NewRacerPanel.ts`, logic in `newRacerLogic.ts`) for P1 then P2, driven only by that player's input: name (LetterPicker; duplicate names refused; Back on empty cancels to Setup) -> "How old are you?" with four big choices (0–5 · Easy ★ / 6–7 · Easy+ ★½ / 8–9 · Medium ★★ / 10+ · Hard ★★★), which sets level and race time and creates the racer (no separate Level step). Question types and JBQ choices are no longer asked here: the new profile takes what that player had on the Join screen (or the defaults). Back steps back.
-- **Flow (newprofile-flow):** while a player's Racer row is on New Profile their Join card shows only that row, "Make your racer!" and "= make racer" (questions, JBQ, car, buddy are hidden and unreachable). Confirm opens `NewRacerPanel`; Back returns to New Profile with nothing created. On finish the new racer is selected, the panel is **not ready**, and the cursor sits on the Questions row so the player picks questions / JBQ / car / buddy and confirms to be Ready. (Before, `updateNewPanel` readied the panel, so a solo player hit NEXT at once.) `SetupScene.inputBlockedUntil` swallows input for `NEXT_GRACE_MS` after the panel closes so the finishing press cannot ready or advance. Phone: after creation tap NEXT.
+- START RACE with New Profile opens `NewRacerPanel` (`src/ui/menu/NewRacerPanel.ts`, logic in `newRacerLogic.ts`) for P1 then P2, driven only by that player's input: name (LetterPicker; duplicate names refused; Back on empty cancels to Setup) -> "How old are you?" with four big choices (0–5 · Easy ★ / 6–7 · Easy+ ★½ / 8–9 · Medium ★★ / 10+ · Hard ★★★), which sets level and race time and creates the racer (no separate Level step). Question types and JBQ choices are no longer asked here: the racer can edit them in the Questions submenu after creation. Back steps back.
+- **Flow (newprofile-flow):** while a player's Racer row is on New Profile their Join card shows only that row, "Make your racer!" and "= make racer" (questions, JBQ, car, buddy are hidden and unreachable). Confirm opens `NewRacerPanel`; Back returns to New Profile with nothing created. On finish the new racer is selected, the panel is **not ready**, and the cursor sits on Car so the player can pick a loadout, open Questions, or confirm to be Ready. (Before, `updateNewPanel` readied the panel, so a solo player hit NEXT at once.) `SetupScene.inputBlockedUntil` swallows input for `NEXT_GRACE_MS` after the panel closes so the finishing press cannot ready or advance. Phone: after creation tap NEXT.
 - On GO: `createRacer`, settings saved immediately, player switched to the new id, then the next new player or the race starts. Test: `tests/e2e/menus.spec.ts`.
 
 ## Map progression and bosses

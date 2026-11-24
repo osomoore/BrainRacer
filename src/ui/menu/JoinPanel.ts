@@ -4,23 +4,19 @@ import type { CarKind, ControllerFamily, GuideKind, InputDevice } from '../../co
 import { isMobile } from '../../../shared/device';
 import { JBQ_SETUP } from '../../config/gameConfig';
 import { ConfirmPrompt } from './FaceButtonBadge';
+import { MenuButton } from './MenuButton';
 import { OptionRow } from './OptionRow';
-import { CHIP_KEYS, CHIP_LABEL, ROW_CAR, ROW_GUIDE, ROW_POINTS, ROW_QUESTIONS, ROW_RACER, ROW_SCOPE } from './questionPick';
+import { CHIP_KEYS, CHIP_LABEL, ROW_CAR, ROW_DONE, ROW_GUIDE, ROW_POINTS, ROW_QUESTIONS, ROW_RACER, ROW_SCOPE } from './questionPick';
 import { bigText, carPreview, deviceLabel, FONT_HEAD, hexNum, MENU } from './style';
 
 export const JOIN_PANEL = { w: 450, h: 820, gap: 30, top: 120 } as const;
 /** Centre x of panel `i` (4 panels fill the screen width). */
 export const joinPanelX = (i: number): number => 15 + JOIN_PANEL.w / 2 + i * (JOIN_PANEL.w + JOIN_PANEL.gap);
 
-export { ROW_RACER, ROW_CAR, ROW_GUIDE, ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE };
-
 /** Y offsets (from the panel top) of the Join panel rows. */
-const Y = { racerCap: 160, racer: 205, hint: 242, qCap: 322, chips: 377, points: 440, scope: 500 } as const;
-const LOADOUT_LAYOUT = {
-  readingMath: { car: 470, buddy: 635, rowOffset: 82, width: 200, height: 96 },
-  jbqBasics: { car: 508, buddy: 650, rowOffset: 69, width: 180, height: 74 },
-  jbqScope: { car: 558, buddy: 665, rowOffset: 54, width: 150, height: 42 },
-} as const;
+const Y = { racerCap: 160, racer: 205, car: 390, buddy: 557, questions: 716,
+  qCap: 350, chips: 420, points: 508, scope: 596, done: 716 } as const;
+const LOADOUT_LAYOUT = { rowOffset: 82, width: 200, height: 96 } as const;
 const PICK_ART_X = 96;
 const PICK_LABEL_X = -104;
 
@@ -75,10 +71,19 @@ export interface PanelView {
   device: InputDevice;
   family?: ControllerFamily;
   racer: string;
-  hint: string;
   car: string;
   guide: string;
-  /** Which of Math / Reading / JBQ are on, which chip has focus, and the JBQ row texts. */
+  /** Present only while this player is editing questions. */
+  questions?: QuestionView;
+  carKind: CarKind;
+  guideKind: GuideKind;
+  cursor: number;
+  ready: boolean;
+  /** The RACER row is on New Profile: only that row (and the make-racer prompt) is shown. */
+  newProfile?: boolean;
+}
+
+interface QuestionView {
   chipsOn: readonly boolean[];
   chipFocus: number;
   jbqPoints: string;
@@ -87,12 +92,7 @@ export interface PanelView {
   jbqBasics: boolean;
   /** Short note when the chosen JBQ level isn't allowed with this many players (else null). */
   jbqLimit: string | null;
-  carKind: CarKind;
-  guideKind: GuideKind;
   cursor: number;
-  ready: boolean;
-  /** The RACER row is on New Profile: only that row (and the make-racer prompt) is shown. */
-  newProfile?: boolean;
 }
 
 /** One quarter of the Join screen: "press A to join" when empty, racer/car/buddy pickers when joined, a locked READY look when ready. */
@@ -104,6 +104,9 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   readonly scopeRow: OptionRow;
   readonly chips: QuestionChips;
   private readonly qCap: Phaser.GameObjects.Text;
+  private readonly questionsBtn: MenuButton;
+  private readonly doneBtn: MenuButton;
+  private readonly loadoutGroup: Phaser.GameObjects.Container;
   private readonly questionsGroup: Phaser.GameObjects.Container;
   private readonly jbqGroup: Phaser.GameObjects.Container;
   private readonly carGroup: Phaser.GameObjects.Container;
@@ -117,6 +120,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   private readonly askBanner: Phaser.GameObjects.Container;
   private readonly askText: Phaser.GameObjects.Text;
   private readonly askPrompt: ConfirmPrompt;
+  private readonly openPrompt: ConfirmPrompt;
   private readonly makePrompt: ConfirmPrompt;
   private readonly deviceText: Phaser.GameObjects.Text;
   private readonly rowsGroup: Phaser.GameObjects.Container;
@@ -126,7 +130,7 @@ export class JoinPanel extends Phaser.GameObjects.Container {
   private readonly joinPrompt: ConfirmPrompt;
   joined = false;
   ready = false;
-  /** Tap/click on a Racer/Car/Buddy row (dir 0 = the row body, -1/+1 = an arrow). */
+  /** Tap/click on a row or button (dir 0 = the body, -1/+1 = an arrow). */
   onRowTap?: (row: number, dir: -1 | 0 | 1) => void;
   /** Tap on one of the Math / Reading / JBQ chips (0..2). */
   onChipTap?: (chip: number) => void;
@@ -153,9 +157,8 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     const cap = (y: number, t: string) => bigText(scene, 0, top + y, t, 40, MENU.dim, { bold: false, shadow: false, stroke: 4 });
     const racerCap = cap(Y.racerCap, 'RACER');
     this.racerRow = new OptionRow(scene, 0, top + Y.racer, '', opts);
-    this.hint = bigText(scene, 0, top + Y.hint, '', 40, MENU.dim, { bold: false, shadow: false, stroke: 4, origin: [0.5, 0], wrap: w - 20 });
-    const qCap = cap(Y.qCap, 'QUESTIONS');
-    this.qCap = qCap;
+    this.hint = cap(270, 'Make your racer!');
+    this.qCap = cap(Y.qCap, 'QUESTION TYPES');
     this.chips = new QuestionChips(scene, 0, top + Y.chips, this.color);
     this.chips.onTap = (i) => this.onChipTap?.(i);
     const jbqOpts = { ...opts, height: 56 };
@@ -163,29 +166,39 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     this.scopeRow = new OptionRow(scene, 0, top + Y.scope, '', jbqOpts);
     this.jbqGroup = scene.add.container(0, 0, [this.pointsRow, this.scopeRow]);
     const carCap = cap(0, 'CAR').setPosition(PICK_LABEL_X, 0);
-    this.carRow = new OptionRow(scene, 0, 0, '', opts);
-    this.carGroup = scene.add.container(0, 0, [carCap, this.carRow]);
+    this.carRow = new OptionRow(scene, 0, LOADOUT_LAYOUT.rowOffset, '', opts);
+    this.carGroup = scene.add.container(0, top + Y.car, [carCap, this.carRow]);
     const guideCap = cap(0, 'BUDDY').setPosition(PICK_LABEL_X, 0);
-    this.guideRow = new OptionRow(scene, 0, 0, '', opts);
+    this.guideRow = new OptionRow(scene, 0, LOADOUT_LAYOUT.rowOffset, '', opts);
     this.guideObj = scene.add.image(PICK_ART_X, 0, guideArt('star'));
-    this.guideGroup = scene.add.container(0, 0, [guideCap, this.guideRow, this.guideObj]);
-    this.questionsGroup = scene.add.container(0, 0, [qCap, this.chips, this.jbqGroup, this.carGroup, this.guideGroup]);
-    this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, this.questionsGroup]);
+    this.guideGroup = scene.add.container(0, top + Y.buddy, [guideCap, this.guideRow, this.guideObj]);
+    const button = (y: number, label: string, row: number) => {
+      const b = new MenuButton(scene, 0, top + y, 290, 68, label, this.color, 40);
+      const zone = scene.add.zone(0, 0, b.w, 84).setInteractive({ useHandCursor: true });
+      zone.on('pointerdown', () => this.onRowTap?.(row, 0));
+      b.add(zone);
+      return b;
+    };
+    this.questionsBtn = button(Y.questions, 'Questions', ROW_QUESTIONS);
+    this.doneBtn = button(Y.done, 'Done', ROW_DONE);
+    this.loadoutGroup = scene.add.container(0, 0, [this.carGroup, this.guideGroup, this.questionsBtn]);
+    this.questionsGroup = scene.add.container(0, 0, [this.qCap, this.chips, this.jbqGroup, this.doneBtn]);
+    this.rowsGroup = scene.add.container(0, 0, [racerCap, this.racerRow, this.hint, this.loadoutGroup, this.questionsGroup]);
 
     const tapDir = { left: -1, body: 0, right: 1 } as const;
-    this.racerRow.makeTappable((z) => this.onRowTap?.(ROW_RACER, tapDir[z]), 100, this.rowsGroup);
+    this.racerRow.makeTappable((z) => this.onRowTap?.(ROW_RACER, tapDir[z]));
     this.carRow.makeTappable((z) => this.onRowTap?.(ROW_CAR, tapDir[z]), 60);
     this.guideRow.makeTappable((z) => this.onRowTap?.(ROW_GUIDE, tapDir[z]), 60);
-    [[this.pointsRow, ROW_POINTS], [this.scopeRow, ROW_SCOPE]].forEach(([row, idx]) => {
-      (row as OptionRow).makeTappable((z) => this.onRowTap?.(idx as number, tapDir[z]), 60, this.jbqGroup);
-    });
+    this.pointsRow.makeTappable((z) => this.onRowTap?.(ROW_POINTS, tapDir[z]), 76);
+    this.scopeRow.makeTappable((z) => this.onRowTap?.(ROW_SCOPE, tapDir[z]), 76);
     this.chips.makeTappable(this.questionsGroup, top + Y.chips);
 
     const askY = top + h - 32;
     this.askText = bigText(scene, 0, askY, '', 40, '#ffffff');
     this.askPrompt = new ConfirmPrompt(scene, 0, askY, '= ready', 40);
+    this.openPrompt = new ConfirmPrompt(scene, 0, askY, '= open', 40);
     this.makePrompt = new ConfirmPrompt(scene, 0, askY, '= create', 40);
-    this.askBanner = scene.add.container(0, 0, [this.askPrompt, this.makePrompt, this.askText]);
+    this.askBanner = scene.add.container(0, 0, [this.askPrompt, this.openPrompt, this.makePrompt, this.askText]);
     const back = scene.add.graphics();
     back.fillStyle(0x0b3a22, 0.92).fillRoundedRect(-205, -85, 410, 170, 30).lineStyle(8, this.color, 1).strokeRoundedRect(-205, -85, 410, 170, 30);
     const tick = bigText(scene, 0, -28, 'READY ✓', 72, '#ffd43b', { font: FONT_HEAD, stroke: 12 });
@@ -222,24 +235,22 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     const pad = v.device.type === 'gamepad';
     this.deviceText.setText(v.family === 'nintendo' ? 'Switch Pro' : deviceLabel(v.device, v.family));
     this.racerRow.setValue(v.racer);
-    this.hint.setText(v.hint);
+    this.hint.setVisible(!!v.newProfile);
     this.carRow.setValue(v.car);
     this.guideRow.setValue(v.guide);
-    const jbqOn = !!v.chipsOn[2];
-    this.jbqGroup.setVisible(jbqOn);
-    this.scopeRow.setVisible(!v.jbqBasics);
-    const layout = jbqOn ? (v.jbqBasics ? LOADOUT_LAYOUT.jbqBasics : LOADOUT_LAYOUT.jbqScope) : LOADOUT_LAYOUT.readingMath;
-    const top = -JOIN_PANEL.h / 2;
-    this.carGroup.setY(top + layout.car);
-    this.guideGroup.setY(top + layout.buddy);
-    this.carRow.setY(layout.rowOffset);
-    this.guideRow.setY(layout.rowOffset);
-    const limited = jbqOn && !!v.jbqLimit;
-    this.jbqGroup.setAlpha(limited ? 0.35 : 1);
-    this.qCap.setText(limited ? v.jbqLimit! : 'QUESTIONS').setColor(limited ? '#ffb4b4' : MENU.dim);
-    this.pointsRow.setValue(v.jbqPoints);
-    this.scopeRow.setValue(v.jbqScope);
-    this.chips.set(v.chipsOn, !v.ready && v.cursor === ROW_QUESTIONS ? v.chipFocus : -1, limited ? 2 : -1);
+    const q = v.questions;
+    this.questionsGroup.setVisible(!!q);
+    if (q) {
+      const jbqOn = q.chipsOn[2];
+      const limited = jbqOn && !!q.jbqLimit;
+      this.qCap.setText(limited ? q.jbqLimit! : 'QUESTION TYPES').setColor(limited ? '#ffb4b4' : MENU.dim);
+      this.chips.set(q.chipsOn, q.cursor === ROW_QUESTIONS ? q.chipFocus : -1, limited ? 2 : -1);
+      this.jbqGroup.setVisible(jbqOn);
+      this.scopeRow.setVisible(!q.jbqBasics);
+      this.pointsRow.setValue(q.jbqPoints);
+      this.scopeRow.setValue(q.jbqScope);
+    }
+    const layout = LOADOUT_LAYOUT;
     this.guideObj.setTexture(guideArt(v.guideKind));
     this.guideObj.setScale(Math.min(layout.height / this.guideObj.height, layout.width / this.guideObj.width));
     if (!this.carObj || this.carKind !== v.carKind) {
@@ -252,19 +263,24 @@ export class JoinPanel extends Phaser.GameObjects.Container {
     }
     this.carObj.setVisible(!v.newProfile).setScale(Math.min(layout.height / this.carObj.height, layout.width / this.carObj.width));
     // locked look: dimmed choices, no cursor
-    this.questionsGroup.setVisible(!v.newProfile);
+    this.loadoutGroup.setVisible(!v.newProfile && !q);
     this.rowsGroup.setAlpha(v.ready ? 0.4 : 1);
-    this.racerRow.setSelected(!v.ready && v.cursor === ROW_RACER, this.color);
-    this.carRow.setSelected(!v.ready && v.cursor === ROW_CAR, this.color);
-    this.guideRow.setSelected(!v.ready && v.cursor === ROW_GUIDE, this.color);
-    this.pointsRow.setSelected(!v.ready && v.cursor === ROW_POINTS, this.color);
-    this.scopeRow.setSelected(!v.ready && !v.jbqBasics && v.cursor === ROW_SCOPE, this.color);
+    this.racerRow.setSelected(!v.ready && !q && v.cursor === ROW_RACER, this.color);
+    this.carRow.setSelected(!v.ready && !q && v.cursor === ROW_CAR, this.color);
+    this.guideRow.setSelected(!v.ready && !q && v.cursor === ROW_GUIDE, this.color);
+    this.questionsBtn.setSelected(!v.ready && !q && v.cursor === ROW_QUESTIONS);
+    this.pointsRow.setSelected(q?.cursor === ROW_POINTS, this.color);
+    this.scopeRow.setSelected(q?.cursor === ROW_SCOPE, this.color);
+    this.doneBtn.setSelected(q?.cursor === ROW_DONE);
     this.readyBanner.setVisible(v.ready);
-    this.askBanner.setVisible(!v.ready && !(isMobile() && v.device.type === 'touch')); // phone: NEXT is tapped
-    this.askPrompt.setVisible(pad && !v.newProfile);
+    this.askBanner.setVisible(!q && !v.ready && !(isMobile() && v.device.type === 'touch')); // phone: NEXT is tapped
+    const open = v.cursor === ROW_QUESTIONS;
+    this.askPrompt.setVisible(pad && !v.newProfile && !open);
+    this.openPrompt.setVisible(pad && open);
     this.makePrompt.setVisible(pad && !!v.newProfile);
-    this.askText.setVisible(!pad).setText(v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter = ' + (v.newProfile ? 'create' : 'ready') : 'Space = ' + (v.newProfile ? 'create' : 'ready'));
-    if (pad && v.family) { this.askPrompt.setFamily(v.family); this.makePrompt.setFamily(v.family); }
+    const action = v.newProfile ? 'create' : open ? 'open' : 'ready';
+    this.askText.setVisible(!pad).setText(`${v.device.type === 'keyboard' && v.device.layout === 'right' ? 'Enter' : 'Space'} = ${action}`);
+    if (pad && v.family) { this.askPrompt.setFamily(v.family); this.openPrompt.setFamily(v.family); this.makePrompt.setFamily(v.family); }
     if (this.joined !== was) this.scene.tweens.add({ targets: this, scale: { from: 1.08, to: 1 }, duration: 300, ease: 'Back.Out' });
   }
 }

@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
-  changeJbq, CHIP_KEYS, jbqScopeLabel, moveChip, moveRow, ROW_CAR, ROW_GUIDE, ROW_POINTS, ROW_QUESTIONS, ROW_RACER, ROW_SCOPE,
+  changeJbq, CHIP_KEYS, jbqScopeLabel, moveChip, moveRow, ROW_CAR, ROW_DONE, ROW_POINTS, ROW_QUESTIONS, ROW_SCOPE,
   jbqLimitNote, jbqPointsLabel, rowOrder, toggleChip, visibleRow,
 } from './questionPick';
 
 describe('question rows', () => {
   it('lists the JBQ rows only while JBQ is on', () => {
-    expect(rowOrder(false)).toEqual([ROW_RACER, ROW_QUESTIONS, ROW_CAR, ROW_GUIDE]);
-    expect(rowOrder(true)).toEqual([ROW_RACER, ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE, ROW_CAR, ROW_GUIDE]);
+    expect(rowOrder(false)).toEqual([ROW_QUESTIONS, ROW_DONE]);
+    expect(rowOrder(true)).toEqual([ROW_QUESTIONS, ROW_POINTS, ROW_SCOPE, ROW_DONE]);
   });
   it('moves between rows, skipping hidden ones and wrapping', () => {
-    expect(moveRow(ROW_QUESTIONS, 1, false)).toBe(ROW_CAR);
+    expect(moveRow(ROW_QUESTIONS, 1, false)).toBe(ROW_DONE);
     expect(moveRow(ROW_QUESTIONS, 1, true)).toBe(ROW_POINTS);
-    expect(moveRow(ROW_CAR, -1, true)).toBe(ROW_SCOPE);
-    expect(moveRow(ROW_GUIDE, 1, false)).toBe(ROW_RACER);
-    expect(moveRow(ROW_RACER, -1, false)).toBe(ROW_GUIDE);
-    expect(moveRow(ROW_SCOPE, 1, false)).toBe(ROW_CAR); // hidden row counts as Questions
+    expect(moveRow(ROW_DONE, -1, true)).toBe(ROW_SCOPE);
+    expect(moveRow(ROW_DONE, 1, false)).toBe(ROW_QUESTIONS);
+    expect(moveRow(ROW_QUESTIONS, -1, false)).toBe(ROW_DONE);
+    expect(moveRow(ROW_SCOPE, 1, false)).toBe(ROW_DONE); // hidden row counts as Questions
   });
   it('pulls a cursor off a hidden row', () => {
     expect(visibleRow(ROW_POINTS, false)).toBe(ROW_QUESTIONS);
@@ -45,8 +45,8 @@ describe('question rows', () => {
     expect(jbqScopeLabel(30, 'all', '2026-11-22')).toBe('All 481–576');
   });
   it('hides the scope row for Basics', () => {
-    expect(rowOrder(true, true)).toEqual([ROW_RACER, ROW_QUESTIONS, ROW_POINTS, ROW_CAR, ROW_GUIDE]);
-    expect(moveRow(ROW_POINTS, 1, true, true)).toBe(ROW_CAR);
+    expect(rowOrder(true, true)).toEqual([ROW_QUESTIONS, ROW_POINTS, ROW_DONE]);
+    expect(moveRow(ROW_POINTS, 1, true, true)).toBe(ROW_DONE);
     expect(visibleRow(ROW_SCOPE, true, true)).toBe(ROW_QUESTIONS);
   });
   it('labels Basics and the player limit', () => {

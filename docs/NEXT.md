@@ -39,6 +39,16 @@ Open:
 
 - **#66** Loudness normalization, the race music mix, and the new arrangements are shipped. See [current music measurements](STATUS.md#race-music-2026-11-22). The earlier measurements are in [MUSIC_TODO.md](MUSIC_TODO.md).
 
+- **#67** Music follow-ups from the 2026-11-23 listening round (per-track styles are in [STATUS](STATUS.md#per-track-playback-style-2026-11-23)):
+  - **Tracks the user disliked (new compositions wanted, in priority order):**
+    1. **tundra** (Frozen Tundra): "all are awful, need a rewrite"; the least-bad version (fix + sustain) is in for now.
+    2. **house** (In My House): "all are pretty bad … we need new candidates"; the current dev version is in for now.
+    3. **farm** (Farm): "none perfect", late/stumbling melody notes from ~30 s (see findings below).
+    4. **brickworks** (Brickworks): best pick "still has some stumbling notes" (see findings below).
+    5. **race** (City): fine for now (see below), but wants an update eventually.
+  - **race** kept the pre-music-pack score (77dff13); it "gets a little busy mid way; eventually update". Underwater and underground are also the old short 32-beat loops (about 15 s); consider lengthening them.
+  - **Farm / brickworks timing**: measured, the renderer is sample-accurate (onsets 0 to 4 ms after the scored time). The odd feel is in the scores: farm melody (pluck layer 0) has 7 notes off its 8th-note grid on 16th positions, at beats 74.75, 75.25, 77.25, 93.25, 114.75, 115.25, 121.25 (74.75 to 75.25 is about 34 s in); brickworks lead (square layer 0) has a 32nd-position note every 8 bars at beats 0.375, 8.375, 16.375, 80.375, 88.375, 96.375 (a 3/32 beat after a 0.2-beat note). Fix by re-scoring those notes onto the grid if the user still dislikes them.
+
 ### Admin (hidden settings) menu rework (not started)
 - **#63** Too many items on screen; columns overwrite each other's screen space. Re-layout or paginate so nothing overlaps.
 - **#64** Up/down does not move in visual order, it jumps around. Make focus order follow the on-screen order within a column.
