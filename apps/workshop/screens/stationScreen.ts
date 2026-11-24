@@ -84,6 +84,13 @@ const stationScreen: ScreenFactory = (): Screen => {
       };
 
       let zoomTo = (_ms: number) => {};
+      /** Reverses the entry zoom back to the room's framing (the world container at identity); no-op without a zoomed rig. */
+      const zoomOut = (): number => {
+        if (!rig) return 0;
+        scene.tweens.killTweensOf(world);
+        tweens.push(scene.tweens.add({ targets: world, x: 0, y: 0, scaleX: 1, scaleY: 1, duration: WS_ROOM.stationZoomMs, ease: 'Cubic.easeInOut' }));
+        return WS_ROOM.stationZoomMs;
+      };
       detail = buildDetail(scene, ws, candidate(), aspect);
       if (detail) {
         placeDetail(detail);
@@ -249,7 +256,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         busy = true;
         ctx.audio.sfx('back');
         if (viaBack) guardBackAfterPreview(ctx, scene.time.now);
-        ctx.go('room', { from: aspect });
+        timer = scene.time.delayedCall(zoomOut(), () => ctx.go('room', { from: aspect }));
       };
       const apply = (cue: 'equip' | 'buy' = 'equip') => {
         if (busy) return;
@@ -291,7 +298,7 @@ const stationScreen: ScreenFactory = (): Screen => {
             scale: 1.1, alpha: 0, angle: 180, duration: WS_ROOM.stationConfirmMs, ease: 'Quad.easeOut',
           }));
         }
-        timer = scene.time.delayedCall(WS_ROOM.stationConfirmMs, () => ctx.go('room', { from: aspect, partChanged: true }));
+        timer = scene.time.delayedCall(Math.max(WS_ROOM.stationConfirmMs, zoomOut()), () => ctx.go('room', { from: aspect, partChanged: true }));
       };
       const buy = (variant: string) => {
         if (busy) return;
