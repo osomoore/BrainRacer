@@ -235,7 +235,7 @@ npx vite --port 5198 --strictPort        # restart after every edit: Vite does n
 - **Done when:** same checks as C14 with `--only` set to the race prop key prefix.
 
 
-## C16 — Title screen fixes for the live beta · `OPEN`
+## C16 — Title screen fixes for the live beta · `DONE (codex/c16)`
 - **Parallel-safe with C17.** No user review needed. The beta is live on GitHub Pages, so keep it small and safe.
 - **Port:** 5221.
 - **Scope:** `apps/workshop/shell/TitleScene.ts`, `apps/workshop/config.ts` (shell/UI section, add or change keys only),

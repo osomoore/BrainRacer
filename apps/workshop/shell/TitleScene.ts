@@ -38,25 +38,30 @@ export class TitleScene extends Phaser.Scene {
   /** Calm, always-visible beta notice (baked card + text). Does not take input. */
   private buildBetaNotice(): void {
     const b = WS_UI.beta;
-    this.add.image(STAGE.w / 2, b.y, roundedTexture(this, b.w, b.h, b.fill, { radius: 36 })).setOrigin(0.5, roundedOriginY(b.h));
-    makeText(this, STAGE.w / 2, b.y - 24, b.line1, { size: 52, color: COLORS.ink, wrap: b.w - 60 });
-    makeText(this, STAGE.w / 2, b.y + 28, b.line2, { size: 40, bold: false, color: COLORS.ink, wrap: b.w - 60 });
+    const mobile = shell.mobile ? b.mobile : undefined;
+    const { w, h, y } = mobile ?? b;
+    const x = STAGE.w / 2;
+    this.add.image(x, y, roundedTexture(this, w, h, b.fill, { radius: 36 })).setOrigin(0.5, roundedOriginY(h));
+    makeText(this, x, mobile?.headingY ?? b.y - 24, mobile ? b.line1.replace(' — ', ' —\n') : b.line1,
+      { size: mobile?.headingSize ?? 52, color: COLORS.ink, wrap: w - 60 });
+    makeText(this, x, mobile?.detailY ?? b.y + 28, b.line2,
+      { size: mobile?.detailSize ?? 40, bold: false, color: COLORS.ink, wrap: w - 60 });
   }
 
   private buildMobile(): void {
-    const b = new Button(this, { x: STAGE.w / 2, y: 650, w: 760, h: 220, label: 'Tap to play', fontSize: 100, color: COLORS.yellow, onClick: () => this.begin([{ kind: 'touch' }]) });
+    const b = new Button(this, { x: STAGE.w / 2, y: WS_UI.beta.mobile.playY, w: 760, h: 220, label: 'Tap to play', fontSize: 100, color: COLORS.yellow, onClick: () => this.begin([{ kind: 'touch' }]) });
     this.tweens.add({ targets: b, scale: 1.06, duration: 700, yoyo: true, repeat: -1 });
     this.input.on('pointerdown', () => this.begin([{ kind: 'touch' }]));
   }
 
   private buildJoin(): void {
-    const cw = 760, ch = 190;
+    const { cardW: cw, cardH: ch, cardY } = WS_UI.titleJoin;
     for (let i = 0; i < WS_UI.maxPlayers; i++) {
       const x = STAGE.w / 2 + (i === 0 ? -400 : 400);
-      const card = this.add.image(x, 520, roundedTexture(this, cw, ch, COLORS.paper, { radius: 36 })).setOrigin(0.5, roundedOriginY(ch));
+      const card = this.add.image(x, cardY, roundedTexture(this, cw, ch, COLORS.paper, { radius: 36 })).setOrigin(0.5, roundedOriginY(ch));
       this.slotCards.push(card);
-      this.slotTexts.push(makeText(this, x, 505, '', { size: 56, color: i === 0 ? COLORS.p1 : COLORS.p2, wrap: cw - 40 }));
-      this.slotSubs.push(makeText(this, x, 570, '', { size: 40, bold: false, wrap: cw - 40 }));
+      this.slotTexts.push(makeText(this, x, cardY, '', { size: 56, color: i === 0 ? COLORS.p1 : COLORS.p2, wrap: cw - 40 }));
+      this.slotSubs.push(makeText(this, x, cardY, '', { size: 40, bold: false, wrap: cw - 40 }));
     }
     this.play = new Button(this, { x: STAGE.w / 2, y: 760, w: 640, h: 170, label: 'PLAY', fontSize: 84, color: COLORS.green, onClick: () => this.begin(this.join.slots) });
     makeBadge(this, 'B', 120, STAGE.h - 70);
@@ -70,15 +75,15 @@ export class TitleScene extends Phaser.Scene {
       const d = this.join.slots[i];
       const other = this.join.slots[0];
       const joinLabel = i === 0 ? 'press A, Space or Enter' : other && other.kind === 'kb' ? (other.layout === 1 ? 'press A or Enter' : 'press A or Space') : 'press A, Space or Enter';
-      this.slotTexts[i].setText(slotLine(i, d, joinLabel));
-      this.slotSubs[i].setText(d ? shell.router.deviceName(d) : i === 1 ? '(optional)' : '');
+      const label = this.slotTexts[i].setText(slotLine(i, d, joinLabel));
+      const detail = this.slotSubs[i].setText(d ? shell.router.deviceName(d) : i === 1 ? '(optional)' : '');
+      const { cardY, textGap } = WS_UI.titleJoin;
+      label.setY(detail.text ? cardY - (detail.height + textGap) / 2 : cardY);
+      detail.setY(cardY + (label.height + textGap) / 2);
       this.slotCards[i].setAlpha(d ? 1 : 0.85);
     }
     this.play?.setVisible(n > 0);
-    if (this.play) {
-      this.play.setEnabled(n > 0);
-      
-    }
+    this.play?.setEnabled(n > 0);
   }
 
   private begin(devices: readonly DeviceId[]): void {
