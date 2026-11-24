@@ -1,0 +1,802 @@
+[
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.orange",
+    "name": "Orange",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.green",
+    "name": "Green",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.sandy",
+    "name": "Sandy Brown",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.blue",
+    "name": "Sky Blue",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.purple",
+    "name": "Purple",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "color",
+    "variant": "color.spotted",
+    "name": "Spotty",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "head",
+    "variant": "head.round",
+    "name": "Round Head",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "head",
+    "variant": "head.horned",
+    "name": "Horn Head",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "head",
+    "variant": "head.longNeck",
+    "name": "Long Neck",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "head",
+    "variant": "head.crest",
+    "name": "Crest Head",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "head",
+    "variant": "head.rex",
+    "name": "Rex Head",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "teeth",
+    "variant": "teeth.flat",
+    "name": "Flat Teeth",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "teeth",
+    "variant": "teeth.big",
+    "name": "Big Teeth",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "teeth",
+    "variant": "teeth.sharp",
+    "name": "Sharp Teeth",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "teeth",
+    "variant": "teeth.beak",
+    "name": "Beak",
+    "grade": 3,
+    "comment": "Bottom beak's back edge fades out too early, needs to merge with bottom of head better."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "teeth",
+    "variant": "teeth.mega",
+    "name": "Mega Teeth",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "claws",
+    "variant": "claws.small",
+    "name": "Little Claws",
+    "grade": 2,
+    "comment": "All claws are currently drawn as a stack and forward layer on top and not stagged with the foot layer.  Should move far side claws to properly begin nearer the tips of the feet, and look smaller from the profile view."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "claws",
+    "variant": "claws.hooks",
+    "name": "Hook Claws",
+    "grade": 3,
+    "comment": "All claws are currently drawn as a stack and forward layer on top and not stagged with the foot layer.  Should move far side claws to properly begin nearer the tips of the feet, and look smaller from the profile view."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "claws",
+    "variant": "claws.digging",
+    "name": "Digging Claws",
+    "grade": 3,
+    "comment": "All claws are currently drawn as a stack and forward layer on top and not stagged with the foot layer.  Should move far side claws to properly begin nearer the tips of the feet, and look smaller from the profile view."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "claws",
+    "variant": "claws.grabby",
+    "name": "Grabby Hands",
+    "grade": 3,
+    "comment": "All claws are currently drawn as a stack and forward layer on top and not stagged with the foot layer.  Should move far side claws to properly begin nearer the tips of the feet, and look smaller from the profile view."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "claws",
+    "variant": "claws.tinyArms",
+    "name": "Tiny Arms",
+    "grade": 1,
+    "comment": "\"tiny arms\" is not a claw, what's going on here?"
+  },
+  {
+    "workshop": "dino",
+    "aspect": "legs",
+    "variant": "legs.short",
+    "name": "Short Legs",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "legs",
+    "variant": "legs.long",
+    "name": "Long Legs",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "legs",
+    "variant": "legs.powerful",
+    "name": "Powerful Legs",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "legs",
+    "variant": "legs.hoppy",
+    "name": "Hoppy Legs",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "legs",
+    "variant": "legs.flippers",
+    "name": "Flippers",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "move",
+    "variant": "move.crawl",
+    "name": "Crawling",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "move",
+    "variant": "move.stand",
+    "name": "Standing",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "move",
+    "variant": "move.fly",
+    "name": "Flying",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "move",
+    "variant": "move.swim",
+    "name": "Swimming",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "tail",
+    "variant": "tail.short",
+    "name": "Short Tail",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "tail",
+    "variant": "tail.long",
+    "name": "Long Tail",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "tail",
+    "variant": "tail.heavy",
+    "name": "Heavy Tail",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "tail",
+    "variant": "tail.spiked",
+    "name": "Spiked Tail",
+    "grade": 2,
+    "comment": "Spike and Paddle tail are not compatible with feathers in their current spot, either drop the feathers or find a new spot for them."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "tail",
+    "variant": "tail.paddle",
+    "name": "Paddle Tail",
+    "grade": 2,
+    "comment": "Spike and Paddle tail are not compatible with feathers in their current spot, either drop the feathers or find a new spot for them."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "body",
+    "variant": "body.round",
+    "name": "Round Body",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "body",
+    "variant": "body.slim",
+    "name": "Slim Body",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "body",
+    "variant": "body.armored",
+    "name": "Armor Plates",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "body",
+    "variant": "body.sail",
+    "name": "Back Sail",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "body",
+    "variant": "body.belly",
+    "name": "Big Belly",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "size",
+    "variant": "size.medium",
+    "name": "Medium",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "size",
+    "variant": "size.small",
+    "name": "Small",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "size",
+    "variant": "size.big",
+    "name": "Big",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "size",
+    "variant": "size.huge",
+    "name": "Huge",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "extra",
+    "variant": "extra.feathers",
+    "name": "Feathers",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "extra",
+    "variant": "extra.frill",
+    "name": "Neck Frill",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "extra",
+    "variant": "extra.glow",
+    "name": "Glow Spots",
+    "grade": 2,
+    "comment": "Glow spots should be on stomach too, in faded/differentiated colors."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "extra",
+    "variant": "extra.camo",
+    "name": "Leaf Pattern",
+    "grade": 2,
+    "comment": "Leaf patterns hould be thicker and on stomach too, in differentiated coloring."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "extra",
+    "variant": "extra.stripes",
+    "name": "Tiger Stripes",
+    "grade": 2,
+    "comment": "Tiger stripes should be more regularly spaced.  Not perfectly, but not touching or huge gaps or doubles."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "beak-review",
+    "variant": "beak.profile-1",
+    "name": "Short and curved",
+    "grade": 4,
+    "comment": "Beaks are all pretty good but have the base of the lower beak fading too early, before it meets the jaw."
+  },
+  {
+    "workshop": "dino",
+    "aspect": "beak-review",
+    "variant": "beak.profile-2",
+    "name": "Wide duckbill",
+    "grade": 4,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "beak-review",
+    "variant": "beak.profile-3",
+    "name": "Long and pointed",
+    "grade": 4,
+    "comment": ""
+  },
+  {
+    "workshop": "dino",
+    "aspect": "beak-review",
+    "variant": "beak.profile-4",
+    "name": "Tall parrot beak",
+    "grade": 4,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "wheels",
+    "variant": "wheels.road",
+    "name": "Road Tires",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "wheels",
+    "variant": "wheels.mud",
+    "name": "Mud Tires",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "wheels",
+    "variant": "wheels.racing",
+    "name": "Racing Tires",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "wheels",
+    "variant": "wheels.snow",
+    "name": "Snow Tires",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "wheels",
+    "variant": "wheels.monster",
+    "name": "Monster Wheels",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "engine",
+    "variant": "engine.small",
+    "name": "Small Engine",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "engine",
+    "variant": "engine.big",
+    "name": "Big Engine",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "engine",
+    "variant": "engine.efficient",
+    "name": "Efficient Engine",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "engine",
+    "variant": "engine.turbo",
+    "name": "Turbo Engine",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "engine",
+    "variant": "engine.electric",
+    "name": "Electric Motor",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "gears",
+    "variant": "gears.easy",
+    "name": "Easy Gears",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "gears",
+    "variant": "gears.speedy",
+    "name": "Speed Gears",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "gears",
+    "variant": "gears.climbing",
+    "name": "Climbing Gears",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "gears",
+    "variant": "gears.fourByFour",
+    "name": "4x4 Drive",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "springs",
+    "variant": "springs.soft",
+    "name": "Soft Springs",
+    "grade": 3,
+    "comment": "Soft springs need to be higher up, they are not into the body area far enough, too low."
+  },
+  {
+    "workshop": "race",
+    "aspect": "springs",
+    "variant": "springs.sport",
+    "name": "Sport Springs",
+    "grade": null,
+    "comment": "Soft springs need to be much higher up, they are not into the body area far enough, far too low."
+  },
+  {
+    "workshop": "race",
+    "aspect": "springs",
+    "variant": "springs.lifted",
+    "name": "Lift Kit",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "springs",
+    "variant": "springs.bouncy",
+    "name": "Bouncy Springs",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "bumpers",
+    "variant": "bumpers.small",
+    "name": "Small Bumpers",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "bumpers",
+    "variant": "bumpers.big",
+    "name": "Big Bumpers",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "bumpers",
+    "variant": "bumpers.rubber",
+    "name": "Rubber Bumpers",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "bumpers",
+    "variant": "bumpers.pusher",
+    "name": "Push Bumper",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.blue",
+    "name": "Blue",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.yellow",
+    "name": "Bright Yellow",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.red",
+    "name": "Fire Red",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.green",
+    "name": "Leaf Green",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.black",
+    "name": "Night Black",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "paint",
+    "variant": "paint.rainbow",
+    "name": "Rainbow",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "body",
+    "variant": "body.car",
+    "name": "Car",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "body",
+    "variant": "body.truck",
+    "name": "Pickup Truck",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "body",
+    "variant": "body.sports",
+    "name": "Sports Car",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "body",
+    "variant": "body.van",
+    "name": "Van",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "body",
+    "variant": "body.jeep",
+    "name": "Jeep",
+    "grade": 3,
+    "comment": "Jeep spare tire on the back should be lower, close to the rear bumper height."
+  },
+  {
+    "workshop": "race",
+    "aspect": "shape",
+    "variant": "shape.boxy",
+    "name": "Boxy",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "shape",
+    "variant": "shape.round",
+    "name": "Round",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "shape",
+    "variant": "shape.sleek",
+    "name": "Sleek",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "shape",
+    "variant": "shape.wedge",
+    "name": "Wedge",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "size",
+    "variant": "size.medium",
+    "name": "Medium",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "size",
+    "variant": "size.small",
+    "name": "Small",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "size",
+    "variant": "size.big",
+    "name": "Big",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "size",
+    "variant": "size.tiny",
+    "name": "Tiny",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.roofRack",
+    "name": "Roof Rack",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.rocket",
+    "name": "Rocket Booster",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.floats",
+    "name": "Floaties",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.spoiler",
+    "name": "Big Spoiler",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.snorkel",
+    "name": "Snorkel",
+    "grade": 5,
+    "comment": ""
+  },
+  {
+    "workshop": "race",
+    "aspect": "extra",
+    "variant": "extra.winch",
+    "name": "Winch",
+    "grade": 3,
+    "comment": "Winch should be mounted higher on the front of the car, above the small bumper."
+  }
+]

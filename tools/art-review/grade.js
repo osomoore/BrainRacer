@@ -241,8 +241,14 @@ function begin() {
   } else show(start || items[0]);
 }
 /** Grades saved before fingerprints existed get the hash of the art they were graded against (baseline-hashes.json), so only really-changed art shows as changed. */
-fetch('baseline-hashes.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((base) => {
+const getJson = (file, fallback) => fetch(file).then((r) => (r.ok ? r.json() : fallback)).catch(() => fallback);
+Promise.all([getJson('baseline-hashes.json', {}), getJson('round2-grades.json', [])]).then(([base, round2]) => {
   let filled = false;
+  /** Round-2 grades (exported file) restore feedback this browser does not have saved. */
+  for (const row of round2) {
+    const key = row.workshop + '/' + row.variant;
+    if (!hasFeedback(reports[key]) && (row.grade || row.comment)) { reports[key] = { grade: row.grade ?? null, comment: row.comment ?? '' }; filled = true; }
+  }
   for (const [key, report] of Object.entries(reports)) {
     if (hasFeedback(report) && !report.hash && base[key]) { report.hash = base[key]; filled = true; }
   }
