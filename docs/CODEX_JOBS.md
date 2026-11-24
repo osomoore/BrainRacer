@@ -19,11 +19,10 @@ npx vite --port <job port> --strictPort  # the Port line of your job; restart af
 ```
 - Use only your job's port. If it is busy, pick the next free port above 5220 and say so in the hand-back.
   Never stop a process you did not start (5190/5191/5198/5199/5203 belong to the user).
-- **Pause before running out of quota:** at about 90% of your usage window, stop at a safe point: commit work in progress on
-  your branch (message starts with `WIP:`), write a short "Resume from here" note under your job in this file (done / next /
-  open questions), and stop. A later session resumes from that note.
-- **Use lower-tier sub-agents when they suffice** (mechanical edits, test runs, screenshots, searches); keep the
-  top model for design calls and review. For art and shape-drawing work, Sol is a good fit.
+- **Budget, model choice and checks:** follow `AGENTS.md` "Token budget and sub-agents" (Sol only for drawing art/shapes,
+  lower-tier helpers for everything else, minimal checks, ~15% per-job budget, "Resume from here" note under your job).
+- Codex's sandbox may block git writes in linked worktrees. If a commit or merge is refused, leave the work uncommitted, say so
+  in the hand-back, and stop; Claude commits and merges it.
 - Always branch from the **current `feature/workshop`** (never `dev`, never another job's branch).
 - Work only inside your worktree and only in the job's file scope. Never `git stash`. Never delete the
   `node_modules` junction while the worktree exists.
