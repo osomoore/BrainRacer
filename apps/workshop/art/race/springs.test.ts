@@ -17,8 +17,8 @@ function springFailures(height: (id: string, l: ReturnType<typeof raceLooks>, g:
         const H = Math.round(height(springs, look, geo, ax));
         for (const bob of [0, SPRING_BOB_MAX / 2, SPRING_BOB_MAX]) {
           const ends = springEnds(springs, H, geo, bob);
-          const bodyEdge = bodyLowerEdge(geo) - WS_ART.raceRideRaise - bob;
-          if (!(ends.top < bodyEdge) || !(ends.bottom > tireTop)) { bad.push(`${JSON.stringify(model)} ax=${ax} bob=${bob}`); break; }
+          const bodyEdge = bodyLowerEdge(geo) - geo.rideRaise - bob;
+          if (!(ends.top < bodyEdge) || !(ends.bottom > tireTop) || tireTop - bodyEdge < WS_ART.raceSpringGapMin) { bad.push(`${JSON.stringify(model)} ax=${ax} bob=${bob}`); break; }
         }
       }
     }

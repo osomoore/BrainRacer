@@ -165,6 +165,8 @@ export const WS_ART = {
   reviewSpringsWheelAlpha: 0.4,
   /** Extra ride height of the race car body over its wheels (side view), px; springs lengthen to match. */
   raceRideRaise: 9,
+  /** Smallest visible gap (px) between the tire top and the body's lower edge, so the coil shows (the ride raise grows to fit big tires). */
+  raceSpringGapMin: 24,
 } as const;
 
 // ---------------------------------------------------------------- audio (apps/workshop/audio)

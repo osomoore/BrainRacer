@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { WS_ART } from '../../config';
 import { jeepSpareMount, raceGeom, raceLooks, winchMount } from './geometry';
 import { BODY, JEEP_SPARE, SHAPE, SIZE_SCALE, SPRING, WHEEL, WINCH_SCALE } from './looks';
 
@@ -16,7 +15,7 @@ describe('Race Shop attachments', () => {
               const radius = geo.wheelRadius * (look.wheel.tread === 'monster' ? 1 + 14 / look.wheel.r : 1) + 4;
               const winch = winchMount(look, geo);
               const housingBack = winch.x - 28 * WINCH_SCALE;
-              const housingBottom = winch.y + 2 - WS_ART.raceRideRaise;
+              const housingBottom = winch.y + 2 - geo.rideRaise;
               expect(winch.y, JSON.stringify(model)).toBeLessThan(geo.bottom - 4);
               expect(Math.hypot(housingBack - geo.frontAxle, housingBottom - geo.hubY), JSON.stringify(model)).toBeGreaterThan(radius);
 
@@ -24,7 +23,7 @@ describe('Race Shop attachments', () => {
                 const spare = jeepSpareMount(look, geo);
                 const lowerEdge = spare.y + JEEP_SPARE.diameter;
                 const spareFront = spare.x + JEEP_SPARE.depth + 3;
-                const spareBottom = lowerEdge + 3 - WS_ART.raceRideRaise;
+                const spareBottom = lowerEdge + 3 - geo.rideRaise;
                 expect(lowerEdge, JSON.stringify(model)).toBeCloseTo(geo.bottom - 25);
                 expect(Math.hypot(spareFront - geo.rearAxle, spareBottom - geo.hubY), JSON.stringify(model)).toBeGreaterThan(radius);
               }

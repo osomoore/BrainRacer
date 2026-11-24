@@ -37,9 +37,19 @@ export interface RaceGeom {
   cabinTopRange: [number, number];
   /** Overall bounds of the body silhouette. */
   height: number;
+  /** Side-view ride raise (px): WS_ART.raceRideRaise, more when big/lugged tires would leave no visible spring gap. */
+  rideRaise: number;
 }
 
 export function raceGeom(l: RaceLooks): RaceGeom {
+  const geo = baseGeom(l);
+  // Monster lugs and big tires reach up to the body, hiding the coil: lift the body until a clear gap shows it.
+  const gap = geo.hubY - tireRadius(l, geo) - bodyLowerEdge(geo);
+  geo.rideRaise = Math.max(WS_ART.raceRideRaise, Math.ceil(WS_ART.raceSpringGapMin - gap));
+  return geo;
+}
+
+function baseGeom(l: RaceLooks): RaceGeom {
   const { body: b, shape: s, wheel: w } = l;
   const wheelRadius = Math.round(w.r * l.wheelScale);
   const sports = b.kind === 'sports';
@@ -95,13 +105,14 @@ export function raceGeom(l: RaceLooks): RaceGeom {
     chassis, cabin, bed, topY, chassisTop, roofTop,
     cabinTopRange: [cabin[1].x, cabin[2].x],
     height: Math.max(-roofTop, -topY(x0), wheelRadius * 2),
+    rideRaise: WS_ART.raceRideRaise,
   };
 }
 
 /** Horizontal reach of a rotating tire at a height on the body. */
 function tireReachAt(l: RaceLooks, geo: RaceGeom, y: number): number {
   const radius = geo.wheelRadius * (l.wheel.tread === 'monster' ? (l.wheel.r + 14) / l.wheel.r : 1) + 4;
-  const dy = geo.hubY - (y - WS_ART.raceRideRaise);
+  const dy = geo.hubY - (y - geo.rideRaise);
   return Math.sqrt(Math.max(0, radius ** 2 - dy ** 2));
 }
 
@@ -176,8 +187,8 @@ export function springEnds(id: string, H: number, geo: RaceGeom, bob = 0): { top
  * the hub, behind the tire. The visible middle is whatever gap there is between tire and body.
  */
 export function springHeight(id: string, geo: RaceGeom, axle: number): number {
-  const edge = bodyLowerEdge(geo) - WS_ART.raceRideRaise;
-  const ceil = geo.chassisTop(axle) - WS_ART.raceRideRaise + SPRING_INSET;
+  const edge = bodyLowerEdge(geo) - geo.rideRaise;
+  const ceil = geo.chassisTop(axle) - geo.rideRaise + SPRING_INSET;
   const ok = (H: number, want: number, bob: number) => springEnds(id, H, geo, bob).top <= want;
   const solve = (want: number, bob: number) => { let H = 20; while (H < 400 && !ok(H, want, bob)) H++; return H; };
   // Bobbing lifts the body by bob but the coil top by less, so the rest pose is the tightest case for hiding the top.

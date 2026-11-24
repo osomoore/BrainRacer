@@ -1,6 +1,5 @@
 /** Race car rig (side + top). Parts are baked textures; animations drive the state in BaseRig. */
 import type Phaser from 'phaser';
-import { WS_ART } from '../../config';
 import type { RigAnim } from '../../core/runtime';
 import type { Model, View } from '../../core/types';
 import { partImage } from '../bake';
@@ -231,7 +230,7 @@ export class RaceRig extends BaseRig {
     this.pivot.rotation = S0.roll;
     // Side view: the body rides raiseY higher on its (longer) springs. Done here rather than in raceGeom() so the
     // painted body PNGs (keyed by geometry) stay valid.
-    const raiseY = side ? WS_ART.raceRideRaise : 0;
+    const raiseY = side ? this.geo.rideRaise : 0;
     this.bodyG.y = (side ? -S0.bob : S0.bob * 0.3) - raiseY;
     this.bodyG.rotation = S0.tilt;
     this.bumperG.y = -raiseY;
