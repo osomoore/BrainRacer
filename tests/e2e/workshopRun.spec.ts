@@ -185,7 +185,7 @@ test('fail: red cross, fail counted, Try again re-runs, the hint appears after t
   await shot(page, 'results-fail');
 
   for (const n of [2, 3]) {
-    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Challenges -> Try again
+    await key(page, 'KeyA'); await key(page, 'KeyA'); // Workshop -> Test -> Try again
     await key(page, 'Space');
     await expectScreens(page, 'run');
     await skipToResults(page);
@@ -276,8 +276,8 @@ test('win: green check, currency saved, board refills, replay does not pay again
   await expectCleanLayout(page, 0);
   await shot(page, 'results-first-win');
 
-  // Challenges button: the board has three cards and the solved one was replaced
-  await key(page, 'Space'); // focused: Challenges after a win
+  // Test button: the board has three cards and the solved one was replaced
+  await key(page, 'Space'); // focused: Test after a win
   await expectScreens(page, 'board');
   const active = await activeIds(page);
   expect(active).toHaveLength(3);

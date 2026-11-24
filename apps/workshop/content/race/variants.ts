@@ -13,12 +13,12 @@ export const RACE_ASPECTS: readonly AspectDef[] = [
   { id: 'engine', label: 'Engine', starters: ['engine.small', 'engine.big'], visibleFromTop: true },
   { id: 'gears', label: 'Gears', starters: ['gears.easy', 'gears.speedy'], visibleFromTop: false },
   { id: 'springs', label: 'Springs', starters: ['springs.soft', 'springs.sport'], visibleFromTop: false },
-  { id: 'bumpers', label: 'Bumpers', starters: ['bumpers.small', 'bumpers.big'], visibleFromTop: true },
+  { id: 'bumpers', label: 'Bumper', starters: ['bumpers.small', 'bumpers.big'], visibleFromTop: true },
   { id: 'paint', label: 'Paint', starters: ['paint.blue', 'paint.yellow'], visibleFromTop: true },
   { id: 'body', label: 'Body', starters: ['body.car', 'body.truck'], visibleFromTop: true },
   { id: 'shape', label: 'Shape', starters: ['shape.boxy', 'shape.round'], visibleFromTop: true },
   { id: 'size', label: 'Size', starters: ['size.medium', 'size.small'], visibleFromTop: true },
-  { id: 'extra', label: 'Extras', starters: ['extra.roofRack', 'extra.rocket'], visibleFromTop: true },
+  { id: 'extra', label: 'Extra', starters: ['extra.roofRack', 'extra.rocket'], visibleFromTop: true },
 ];
 
 type Stats = Partial<Record<StatId, number>>;
