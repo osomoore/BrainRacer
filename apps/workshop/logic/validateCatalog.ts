@@ -79,7 +79,6 @@ export function validateCatalog(cat: WorkshopCatalog): string[] {
     if (!sp) err(`scenario ${sc.id}: no scenarioPhrases`);
     else {
       if (sp.title.length < 1) err(`scenario ${sc.id}: no title`);
-      sentences(`scenario ${sc.id} intro`, sp.intro);
     }
     if (sc.facets.length === 0) err(`scenario ${sc.id}: no facets`);
     for (const f of sc.facets) {

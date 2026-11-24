@@ -13,7 +13,7 @@ const ASPECTS: AspectDef[] = [
   { id: 'paint', label: 'Paint', starters: ['paint.blue', 'paint.yellow'], visibleFromTop: true },
   { id: 'size', label: 'Size', starters: ['size.medium', 'size.small'], visibleFromTop: true },
   { id: 'springs', label: 'Springs', starters: ['springs.soft', 'springs.sport'], visibleFromTop: false },
-  { id: 'extra', label: 'Extras', starters: ['extra.roofRack', 'extra.rocket'], visibleFromTop: true },
+  { id: 'extra', label: 'Extra', starters: ['extra.roofRack', 'extra.rocket'], visibleFromTop: true },
 ];
 
 const v = (id: string, stats: Variant['stats'] = {}, tags: string[] = []): Variant =>

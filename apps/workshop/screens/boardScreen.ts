@@ -178,9 +178,11 @@ const boardScreen: ScreenFactory = (): Screen => {
     const P = L.panel;
     detailObjs.push(scene.add.image(P.x, P.y, roundedTexture(scene, P.w, P.h, 0xffffff, { radius: 36 })).setOrigin(0.5, roundedOriginY(P.h)).setDepth(-300));
     const isDone = done(c.id);
-    const title = makeText(scene, L.title.x, L.title.y, (isDone ? '✓ ' : '') + c.title, { size: L.title.size, align: 'left', origin: [0, 0.5], color: isDone ? 0x1e8a3a : COLORS.ink });
-    fitText(title, L.title.maxW);
-    detailObjs.push(title);
+    if (!wide()) { // the wide layout already shows the title on the selected card: say it once
+      const title = makeText(scene, L.title.x, L.title.y, (isDone ? '✓ ' : '') + c.title, { size: L.title.size, align: 'left', origin: [0, 0.5], color: isDone ? 0x1e8a3a : COLORS.ink });
+      fitText(title, L.title.maxW);
+      detailObjs.push(title);
+    }
 
     const T = L.textArea;
     const multi = c.stages.length > 1;

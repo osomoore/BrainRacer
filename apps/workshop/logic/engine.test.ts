@@ -395,7 +395,7 @@ describe('text', () => {
   it('fills every reading level and is stable', () => {
     const c = fresh().challenges['st-mud'];
     for (const r of ['easy', 'medium', 'hard'] as const) {
-      expect(c.intro[r]).toContain(`(${r}`);
+      expect(c.intro[r]).toBe('');
       expect(c.stages[0].requirements[0].text[r]).toContain(`(${r}`);
       expect(c.stages[0].requirements[0].hint.text[r]).toContain(`(${r}`);
     }

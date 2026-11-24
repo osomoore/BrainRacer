@@ -20,7 +20,7 @@ export const DINO_ASPECTS: readonly AspectDef[] = [
   { id: 'tail', label: 'Tail', starters: ['tail.short', 'tail.long'], visibleFromTop: true },
   { id: 'body', label: 'Body', starters: ['body.round', 'body.slim'], visibleFromTop: true },
   { id: 'size', label: 'Size', starters: ['size.medium', 'size.small'], visibleFromTop: true },
-  { id: 'extra', label: 'Extras', starters: ['extra.feathers', 'extra.frill'], visibleFromTop: true },
+  { id: 'extra', label: 'Extra', starters: ['extra.feathers', 'extra.frill'], visibleFromTop: true },
 ];
 
 type S = Partial<Record<StatId, number>>;

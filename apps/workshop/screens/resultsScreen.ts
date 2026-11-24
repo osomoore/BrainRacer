@@ -212,7 +212,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const gapX = wide ? 500 : 300;
       const fs = wide ? 56 : 44;
       const again = new Button(s, { x: w / 2 - gapX, y: by, w: bw, h: 140, label: 'Try again', fontSize: fs, color: COLORS.yellow, onClick: () => ctx.go('run', { challengeId }) });
-      const board = new Button(s, { x: w / 2, y: by, w: bw, h: 140, label: 'Challenges', fontSize: fs, color: 0xbfe3ff, onClick: toBoard });
+      const board = new Button(s, { x: w / 2, y: by, w: bw, h: 140, label: 'Test', fontSize: fs, color: 0xbfe3ff, onClick: toBoard });
       const room = new Button(s, { x: w / 2 + gapX, y: by, w: bw, h: 140, label: 'Workshop', fontSize: fs, color: 0xa8e6a1, onClick: () => ctx.go('room', { from: 'center' }) });
       objs.push(again, board, room);
       group = new FocusGroup({

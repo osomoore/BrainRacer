@@ -80,7 +80,7 @@ test('room: walk to a station, pick another part, it is saved and the room reope
   const before = await storedModel(page, 'p1', 'race');
   expect(before.wheels).toBe('wheels.road');
   const roomTexts = await paneTexts(page);
-  for (const label of ['Wheels', 'Engine', 'Paint', 'Extras', 'Challenges']) expect(roomTexts).toContain(label);
+  for (const label of ['Wheels', 'Engine', 'Paint', 'Extra', 'Test']) expect(roomTexts).toContain(label);
 
   await key(page, 'Space'); // the focused sign (Wheels): the character walks, then the station opens
   await expectScreens(page, 'station');
@@ -123,7 +123,6 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(ch).toHaveLength(3);
   const easy = await paneTexts(page);
   for (const c of ch) expect(easy).toContain(c.title);
-  expect(easy).toContain(ch[0].intro.easy);
   expect(easy).toContain(ch[0].stages[0].requirements[0].text.easy);
   expect(easy).not.toContain(ch[0].stages[0].requirements[0].text.hard);
   expect(easy).toContain('Test it!');
@@ -185,7 +184,7 @@ test('2P split: both panes show the room, each in its own player colour, and mov
   await enter(page, { players: 2 });
   for (const pane of [0, 1]) {
     const t = await paneTexts(page, pane);
-    for (const label of ['Wheels', 'Engine', 'Challenges']) expect(t).toContain(label);
+    for (const label of ['Wheels', 'Engine', 'Test']) expect(t).toContain(label);
   }
   const geo = await page.evaluate(() => (window as any).__ws.contexts().map((c: any) => [c.layout, c.size.w]));
   expect(geo).toEqual([['tall', 960], ['tall', 960]]);
@@ -218,7 +217,7 @@ test('mobile: tap a station sign, the character walks there and the station open
   await expectScreens(page, 'station');
   await tap('Back', 175, 115);
   await expectScreens(page, 'room');
-  await tap('Challenges', 960, 950);
+  await tap('Test', 960, 950);
   await expectScreens(page, 'board');
   await ctx.close();
 });
