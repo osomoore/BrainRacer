@@ -11,7 +11,7 @@ export default defineConfig({
     command: `npm run build && npm run preview -- --port ${port} --strictPort`,
     url: baseURL,
     reuseExistingServer: false,
-    env: { VITE_ALLOW_QUESTIONS_OFF: '1', VITE_QA_QUICK_MAPS: '1' },
+    env: { VITE_ALLOW_QUESTIONS_OFF: '1', VITE_QA_QUICK_MAPS: '1', VITE_SYNC_TEST_FAKE: '1' },
     timeout: 180_000,
   },
 });

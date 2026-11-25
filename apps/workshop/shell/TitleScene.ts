@@ -12,6 +12,8 @@ import { menuBackground, playerMenuColor } from '../ui/profileMenu';
 import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
 import { emptyJoin, goButtonLabel, reduceJoin, type JoinState } from './joinLogic';
 import { shell } from './shell';
+import { consumeFamilyJoinCode, openFamilySyncPanel } from '../../../shared/sync/panel';
+import { familySync } from '../../../shared/sync/runtime';
 
 export class TitleScene extends Phaser.Scene {
   private join: JoinState = emptyJoin;
@@ -33,6 +35,8 @@ export class TitleScene extends Phaser.Scene {
     this.buildBetaNotice();
     if (shell.mobile) this.buildMobile();
     else this.buildJoin();
+    const joinCode = consumeFamilyJoinCode();
+    if (joinCode && familySync.enabled) this.time.delayedCall(0, () => { shell.openAdmin(false); openFamilySyncPanel({ joinCode }); });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
 

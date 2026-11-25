@@ -10,6 +10,7 @@ import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS, WORLD_REWARDS, worl
 import { BUDDY_EVERY_REWARDS, COMPLETION_OBJECTIVES, parseUnlocks, RACE_MAPS, rewardsSinceBuddy } from './progression';
 import type { Rng } from './rng';
 import type { CarKind, GuideKind, RaceMap, RacerProfileId, StarterCar } from './types';
+import { notifyProfileChanged } from '../../shared/sync/changes';
 
 export type Content = RaceMap | Collectible;
 export interface RacerProgress {
@@ -74,6 +75,7 @@ export function loadAllProgress(): AllProgress {
 export function saveAllProgress(all: AllProgress): void {
   volatile = structuredClone(all);
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(all)); } catch { /* session-only fallback */ }
+  for (const id of Object.keys(all)) notifyProfileChanged(id);
 }
 
 export function loadRacerProgress(id: RacerProfileId): RacerProgress {

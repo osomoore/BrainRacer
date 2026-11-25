@@ -1,0 +1,384 @@
+import { normalizeFamilyCode } from './code';
+import { newSyncProfileId } from './changes';
+import { FamilyApi, object, profileId, stamp, SyncError } from './protocol';
+import { mergeProfile, readRevision, snapshotHash, timeOf, valueHash, type ProfileValue, type Revision } from './record';
+import type { ProfileSnapshot } from './storage';
+
+interface ProfileSync {
+  rev: number;
+  dirty: boolean;
+  deleted: boolean;
+  updatedAt: number;
+  hash: string;
+  lastPushedHash?: string;
+}
+
+interface DeviceState {
+  code?: string;
+  since?: number;
+  lastSync?: number;
+  profiles: Record<string, ProfileSync>;
+}
+type SyncStorage = Pick<Storage, 'getItem' | 'setItem'>;
+
+export interface LocalProfiles {
+  ids(): string[];
+  read(id: string): ProfileSnapshot | undefined;
+  apply(snapshot: ProfileSnapshot): void;
+  hide(id: string): void;
+  rekey(oldId: string, newId: string): boolean;
+}
+
+export interface SyncView {
+  code?: string;
+  lastSync?: number;
+  pending: number;
+  error?: string;
+  status: 'off' | 'synced' | 'offline' | 'error';
+  busy: boolean;
+}
+
+class ProfileError extends SyncError {}
+
+function readDevice(storage: SyncStorage | undefined, key: string): DeviceState {
+  try {
+    const raw: unknown = JSON.parse(storage?.getItem(key) ?? 'null');
+    if (object(raw) && typeof raw.code === 'string' && normalizeFamilyCode(raw.code) === raw.code) {
+      const profiles = Object.entries(object(raw.profiles) ? raw.profiles : {}).filter(([id, p]) =>
+        profileId(id) && object(p) && stamp(p.rev) && stamp(p.updatedAt) && typeof p.hash === 'string'
+        && typeof p.dirty === 'boolean' && typeof p.deleted === 'boolean');
+      return {
+        code: raw.code, since: stamp(raw.since) ? raw.since : undefined,
+        lastSync: stamp(raw.lastSync) ? raw.lastSync : undefined,
+        profiles: Object.fromEntries(profiles) as DeviceState['profiles'],
+      };
+    }
+  } catch { /* Start with clean sync metadata if it is inaccessible. */ }
+  return { profiles: {} };
+}
+
+export class FamilySyncClient {
+  private device: DeviceState;
+  private error?: string;
+  private running?: Promise<boolean>;
+  private readonly listeners = new Set<() => void>();
+  private readonly profileListeners = new Set<(id: string) => void>();
+  private readonly sendingOnHide = new WeakSet<ProfileSync>();
+
+  constructor(private readonly api: FamilyApi | undefined, private readonly local: LocalProfiles,
+    private readonly storage: SyncStorage | undefined, private readonly key: string,
+    private readonly online: () => boolean = () => true, private readonly now: () => number = Date.now,
+    private readonly newId: () => string = newSyncProfileId) {
+    this.device = api ? readDevice(storage, key) : { profiles: {} };
+  }
+
+  get state(): SyncView {
+    const { code, lastSync, profiles } = this.device;
+    return {
+      code, lastSync, pending: Object.values(profiles).filter(p => p.dirty).length, error: this.error,
+      status: !code ? 'off' : !this.online() ? 'offline' : this.error ? 'error' : 'synced', busy: !!this.running,
+    };
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  subscribeProfiles(listener: (id: string) => void): () => void {
+    this.profileListeners.add(listener);
+    return () => this.profileListeners.delete(listener);
+  }
+
+  refreshView(): void { this.listeners.forEach(listener => listener()); }
+
+  reloadDevice(): void {
+    const state = readDevice(this.storage, this.key);
+    if (!this.running || this.device.code !== state.code) {
+      if (this.device.code !== state.code) this.error = undefined;
+      this.device = state;
+      this.refreshView();
+    }
+  }
+
+  private persist(): void {
+    try { this.storage?.setItem(this.key, JSON.stringify(this.device)); } catch { /* Keep playing if storage is blocked. */ }
+    this.refreshView();
+  }
+
+  private observe(id: string, edited: boolean): void {
+    if (!profileId(id)) return;
+    const snapshot = this.local.read(id);
+    if (!snapshot) return; // Only an explicit delete creates a tombstone.
+    const prior = this.device.profiles[id];
+    const hash = snapshotHash(snapshot);
+    if (prior?.hash === hash) return;
+    this.device.profiles[id] = {
+      ...prior, rev: prior?.rev ?? 0, dirty: true, deleted: false, hash,
+      updatedAt: edited || prior ? Math.max(this.now(), (prior?.updatedAt ?? 0) + 1) : snapshot.profile.createdAt,
+    };
+  }
+
+  noteChange(id: string, deleted = false): void {
+    if (!this.device.code || !profileId(id)) return;
+    if (deleted) {
+      const prior = this.device.profiles[id];
+      this.device.profiles[id] = {
+        ...prior, rev: prior?.rev ?? 0, dirty: true, deleted: true,
+        hash: 'deleted', updatedAt: Math.max(this.now(), (prior?.updatedAt ?? 0) + 1),
+      };
+    } else this.observe(id, true);
+    this.persist();
+  }
+
+  private observeAll(): void {
+    this.local.ids().forEach(id => this.observe(id, false));
+    this.persist();
+  }
+
+  private value(id: string): ProfileValue | undefined {
+    const meta = this.device.profiles[id];
+    if (!meta) return undefined;
+    if (meta.deleted) return { deleted: true, updatedAt: meta.updatedAt };
+    const snapshot = this.local.read(id);
+    if (!snapshot) return undefined;
+    const data = { ...snapshot, schema: 1 as const, updatedAt: meta.updatedAt };
+    if (!readRevision({ id, rev: 1, updatedAt: meta.updatedAt, data })) {
+      throw new ProfileError('A local profile could not be read for sync. Its save is still on this device.');
+    }
+    return { deleted: false, data };
+  }
+
+  private accept(remote: Revision): void {
+    const { id, rev, value } = remote;
+    this.observe(id, false); // Include edits made while fetch was in flight.
+    const prior = this.device.profiles[id];
+    if (prior && rev < prior.rev) return;
+    let local = this.value(id);
+    if (prior?.rev === 0 && /^p\d+$/.test(id) && local && !local.deleted
+      && (value.deleted || local.data.profile.createdAt !== value.data.profile.createdAt)) {
+      // Sequential IDs predate sync. The two devices created different profiles with the same ID.
+      const newId = this.newId();
+      const rekeyed = this.local.rekey(id, newId);
+      const copy = this.local.read(newId);
+      if (!rekeyed || !copy || snapshotHash(copy) !== snapshotHash({ ...local.data, profile: { ...local.data.profile, id: newId } })) {
+        throw new ProfileError('Could not keep both local profiles. Check device storage.');
+      }
+      this.observe(newId, false);
+      local = undefined;
+    }
+    const merged = local ? mergeProfile(local, value) : value;
+    const hash = valueHash(merged);
+    const remoteHash = valueHash(value);
+    const changed = !local || valueHash(local) !== hash;
+    if (changed) {
+      if (merged.deleted) this.local.hide(id);
+      else this.local.apply(merged.data);
+    }
+    const stored = this.local.read(id);
+    if (merged.deleted ? !!stored : !stored || snapshotHash(stored) !== hash) {
+      throw new ProfileError('Could not save the synced profile. Check device storage.');
+    }
+    this.device.profiles[id] = {
+      rev, hash, lastPushedHash: remoteHash, deleted: merged.deleted, updatedAt: timeOf(merged),
+      dirty: hash !== remoteHash || timeOf(merged) !== timeOf(value),
+    };
+    this.persist();
+    if (changed) this.profileListeners.forEach(listener => listener(id));
+  }
+
+  private acceptPull(pull: { profiles: unknown[]; serverTime: number }, first?: string) {
+    const blocked = new Set<string>();
+    let error: SyncError | undefined;
+    const rows: Revision[] = [];
+    for (const raw of pull.profiles) {
+      const row = readRevision(raw);
+      if (row) rows.push(row);
+      else {
+        if (object(raw) && profileId(raw.id)) blocked.add(raw.id);
+        error = new SyncError('Some server profiles were unreadable and were skipped.');
+      }
+    }
+    // GET is a family-wide endpoint. Prioritize applying the chosen profile locally.
+    const chosen = rows.findIndex(row => row.id === first);
+    if (chosen > 0) rows.unshift(rows.splice(chosen, 1)[0]);
+    for (const row of rows) {
+      if (blocked.has(row.id)) continue;
+      try { this.accept(row); } catch (failure) {
+        if (!(failure instanceof ProfileError)) throw failure;
+        blocked.add(row.id);
+        error ??= failure;
+      }
+    }
+    // Retain the cursor so an unreadable or unwritten profile is requested again.
+    if (!error) this.device.since = Math.max(this.device.since ?? 0, pull.serverTime);
+    this.persist();
+    return { blocked, error };
+  }
+
+  private body(id: string, value: ProfileValue): Record<string, unknown> {
+    const baseRev = this.device.profiles[id].rev;
+    return value.deleted
+      ? { baseRev, deleted: true, data: { schema: 1, deleted: true, updatedAt: value.updatedAt } }
+      : { baseRev, data: value.data };
+  }
+
+  private recordReceipt(id: string, sent: ProfileSync, rev: number): void {
+    this.observe(id, false);
+    const latest = this.device.profiles[id];
+    if (rev <= latest.rev) return;
+    this.device.profiles[id] = {
+      ...latest, rev, lastPushedHash: sent.hash,
+      dirty: latest.hash !== sent.hash || latest.updatedAt !== sent.updatedAt,
+    };
+    this.persist();
+  }
+
+  private async pushProfile(device: DeviceState, id: string): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (device !== this.device) return;
+      const sent = device.profiles[id];
+      if (!sent.dirty) return;
+      const value = this.value(id);
+      if (!value) return;
+      const result = await this.api!.put(device.code!, id, this.body(id, value), false);
+      if (device !== this.device) return;
+      if ('rev' in result) {
+        this.recordReceipt(id, sent, result.rev);
+        return;
+      }
+      const current = readRevision(result.current);
+      if (!current || current.id !== id) throw new ProfileError('The server sent an unreadable conflict.');
+      this.accept(current);
+    }
+    if (device.profiles[id].dirty) throw new ProfileError('That profile is still syncing on another device. Try again.');
+  }
+
+  private async push(device: DeviceState, blocked?: Set<string>): Promise<SyncError | undefined> {
+    let error: SyncError | undefined;
+    for (const id of Object.keys(device.profiles)) {
+      if (blocked?.has(id)) continue;
+      try { await this.pushProfile(device, id); } catch (failure) {
+        if (!(failure instanceof ProfileError || (failure instanceof SyncError && failure.status === 413))) throw failure;
+        error ??= failure;
+      }
+    }
+    return error;
+  }
+
+  private perform(action: () => Promise<void>): Promise<boolean> {
+    if (this.running) return this.running;
+    if (!this.api) return Promise.resolve(false);
+    this.running = Promise.resolve().then(action).then(() => {
+      this.error = undefined;
+      return true;
+    }, (error: unknown) => {
+      this.error = error instanceof SyncError ? error.message : 'Family sync could not finish.';
+      return false;
+    }).finally(() => {
+      this.running = undefined;
+      this.refreshView();
+    });
+    this.refreshView();
+    return this.running;
+  }
+
+  private async sync(device: DeviceState, pull: boolean, first?: string): Promise<void> {
+    this.observeAll();
+    let received: ReturnType<typeof this.acceptPull> | undefined;
+    if (pull || device.since === undefined) {
+      const incoming = await this.api!.pull(device.code!, device.since);
+      if (device !== this.device) return;
+      received = this.acceptPull(incoming, first);
+    }
+    await this.finishSync(device, received);
+  }
+
+  private async finishSync(device: DeviceState, received?: ReturnType<typeof this.acceptPull>): Promise<void> {
+    const pushError = await this.push(device, received?.blocked);
+    if (device !== this.device) return;
+    const error = received?.error ?? pushError;
+    if (error) throw error;
+    device.lastSync = this.now();
+    this.persist();
+  }
+
+  async syncNow(first?: string): Promise<boolean> {
+    if (this.running) await this.running;
+    const device = this.device;
+    return device.code ? this.perform(() => this.sync(device, true, first)) : false;
+  }
+
+  async flush(): Promise<boolean> {
+    if (this.running) await this.running;
+    const device = this.device;
+    return device.code ? this.perform(() => this.sync(device, !!this.error)) : false;
+  }
+
+  hide(): void {
+    const device = this.device;
+    if (!device.code || !this.online() || device.since === undefined) return;
+    // Dispatch immediately even if a regular sync is waiting on a pull. The next pull
+    // reconciles any receipts the browser could not process before the page closed.
+    this.observeAll();
+    for (const [id, meta] of Object.entries(device.profiles)) {
+      if (!meta.dirty || this.sendingOnHide.has(meta)) continue;
+      let value: ProfileValue | undefined;
+      try { value = this.value(id); } catch { continue; } // Leave an unreadable local save pending.
+      if (!value) continue;
+      this.sendingOnHide.add(meta);
+      void this.api!.put(device.code, id, this.body(id, value), true).then(result => {
+        if (device === this.device && 'rev' in result) this.recordReceipt(id, meta, result.rev);
+      }).catch(() => {}).finally(() => this.sendingOnHide.delete(meta));
+    }
+  }
+
+  makeFamily(): Promise<boolean> {
+    if (this.device.code) return Promise.resolve(false);
+    const startingDevice = this.device;
+    return this.perform(async () => {
+      const raw = await this.api!.create();
+      const code = typeof raw === 'string' ? normalizeFamilyCode(raw) : null;
+      if (!code) throw new SyncError('The server sent an unreadable family code.');
+      if (startingDevice !== this.device) return;
+      this.device = { code, profiles: {} };
+      this.persist();
+      await this.sync(this.device, true);
+    });
+  }
+
+  joinFamily(input: string): Promise<boolean> {
+    if (this.device.code) return Promise.resolve(false);
+    const startingDevice = this.device;
+    return this.perform(async () => {
+      const code = normalizeFamilyCode(input);
+      if (!code) throw new SyncError('Enter the three words and two digits from the family code.');
+      const incoming = await this.api!.pull(code);
+      if (startingDevice !== this.device) return;
+      this.device = { code, profiles: {} };
+      this.observeAll();
+      await this.finishSync(this.device, this.acceptPull(incoming));
+    });
+  }
+
+  leaveFamily(): void {
+    if (this.running) return;
+    this.clearMembership();
+  }
+
+  private clearMembership(): void {
+    this.device = { profiles: {} };
+    this.error = undefined;
+    this.persist();
+  }
+
+  deleteFamily(): Promise<boolean> {
+    const device = this.device;
+    const code = device.code;
+    if (!code) return Promise.resolve(false);
+    return this.perform(async () => {
+      await this.api!.delete(code);
+      if (device === this.device) this.clearMembership();
+    });
+  }
+}

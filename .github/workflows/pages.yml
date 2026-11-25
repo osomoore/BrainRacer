@@ -31,6 +31,8 @@ jobs:
         run: npm ci
 
       - name: Build game
+        env:
+          VITE_SYNC_URL: ${{ vars.VITE_SYNC_URL }}
         run: npm run build
 
       - name: Configure Pages

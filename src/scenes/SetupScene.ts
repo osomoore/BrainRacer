@@ -4,7 +4,7 @@ import { applyRacerProfile, createRacer, playerRacer, racerIds, racerName, racer
 import { services } from '../core/services';
 import { selectedLoadout } from '../core/progression';
 import { loadAllProgress, racerProgressOf, racerLoadouts, teamPlayableMap, type AllProgress } from '../core/racerProgress';
-import { isRaceMap, loadSettings, saveSettings, savedSecondPlayer } from '../core/settings';
+import { isRaceMap, loadoutForProfile, loadSettings, saveSettings, savedSecondPlayer } from '../core/settings';
 import type { CarKind, GuideKind, InputDevice, JbqSettings, PlayerId, PlayerSettings, QuestionTypes, RacerProfileId, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
 import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
@@ -16,6 +16,8 @@ import { NewRacerPanel } from '../ui/menu/NewRacerPanel';
 import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu/style';
 import { isMobile } from '../../shared/device';
 import { REG, SCENE } from './keys';
+import { familySync } from '../../shared/sync/runtime';
+import { syncDotColor } from '../../shared/sync/panel';
 
 /** Stand-in id for "New Profile": matches no shared profile, so no saved progress: only the starter cars/guides and City. */
 const NEW_PROFILE_ID = 'new-profile' as RacerProfileId;
@@ -100,9 +102,26 @@ export class SetupScene extends Phaser.Scene {
     }
     this.syncAssign();
     this.refreshAll();
+    const color = syncDotColor();
+    const dot = color === null ? undefined : this.add.circle(GAME_WIDTH - 122, 40, 11, color).setStrokeStyle(2, 0xffffff);
+    const unsubscribeSync = familySync.subscribe(() => { if (dot) dot.setFillStyle(syncDotColor()!); });
+    const unsubscribeProfiles = familySync.subscribeProfiles((id) => {
+      const latest = loadSettings();
+      this.cfg.racerProfiles = racerProfiles(latest);
+      this.cfg.players = this.cfg.players.map((player, slot): SetupPlayer => {
+        if (player.profile !== id) return player as SetupPlayer;
+        const updated = applyRacerProfile(player, slot, this.cfg);
+        const loadout = loadoutForProfile(id);
+        return { ...updated, ...(loadout ?? {}) } as SetupPlayer;
+      });
+      this.refreshAvailability();
+      this.refreshAll();
+    });
     this.events.on(Phaser.Scenes.Events.RESUME, this.refreshAdvanced, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.RESUME, this.refreshAdvanced, this);
+      unsubscribeSync();
+      unsubscribeProfiles();
     });
   }
 
@@ -160,7 +179,9 @@ export class SetupScene extends Phaser.Scene {
     const ids = racerIds(this.cfg);
     const taken = this.cfg.players.map((p, k) => (this.isNew[k] ? undefined : playerRacer(p, k, this.cfg))).filter(Boolean) as RacerProfileId[];
     const prev = savedPlayers[i] ?? (i === 1 ? savedSecondPlayer() : undefined);
-    const p = newJoinPlayer(i, device, prev, savedPlayers[0]?.car, ids, taken, ids[i]);
+    const joined = newJoinPlayer(i, device, prev, savedPlayers[0]?.car, ids, taken, ids[i]);
+    const p = joined.profile ? { ...joined, ...loadoutForProfile(joined.profile) } : joined;
+    if (p.profile) familySync.chooseProfile(p.profile);
     this.slots = claimSlot(this.slots, device);
     this.cursors.push(ROW_RACER);
     this.questionCursors.push(undefined);
@@ -425,7 +446,11 @@ export class SetupScene extends Phaser.Scene {
         .filter(Boolean) as RacerProfileId[];
       const next = nextRacer(racerIds(c), takenByOthers, racerIds(c).length < NEW_RACER.maxCustomRacers, this.isNew[p] ? 'new' : playerRacer(ps, p, c) ?? 'new', dir);
       if (next === 'new') this.isNew[p] = true;
-      else { this.isNew[p] = false; c.players[p] = applyRacerProfile({ ...ps, profile: next }, p, c) as SetupPlayer; }
+      else {
+        this.isNew[p] = false;
+        familySync.chooseProfile(next);
+        c.players[p] = applyRacerProfile({ ...ps, ...loadoutForProfile(next), profile: next }, p, c) as SetupPlayer;
+      }
       this.refreshAvailability();
       target = panel.racerRow;
     } else if (row === ROW_CAR) {
@@ -491,6 +516,7 @@ export class SetupScene extends Phaser.Scene {
     const { id, patch } = created;
     Object.assign(this.cfg, patch);
     this.isNew[p] = false;
+    familySync.chooseProfile(id);
     this.cfg.players[p] = applyRacerProfile({ ...this.cfg.players[p], profile: id }, p, this.cfg) as SetupPlayer;
     this.persist();
     this.refreshAvailability();

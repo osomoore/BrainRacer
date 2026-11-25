@@ -160,7 +160,9 @@ export class TrackSelectScene extends Phaser.Scene {
   }
 
   private persist() {
-    const settings: Settings = { ...this.settings, map: this.map };
+    // Family sync may have refreshed profile settings while this scene was open.
+    const latest = this.registry.get(REG.settings) as Settings | undefined;
+    const settings: Settings = { ...(latest ?? this.settings), map: this.map };
     saveSettings({ ...settings, seed: loadSettings().seed });
     this.registry.set(REG.settings, settings);
   }
