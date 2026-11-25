@@ -245,7 +245,8 @@ The review kept these cases on their existing rules.
 ## Screens and input
 
 - **Join/title** (shell, full screen): each pad / keyboard layout presses A (Space / Enter) to join; Start or the first
-  player's A on "Play" opens the panes. Mobile: tap = one player. B on the title goes back to the launcher.
+  player's A on "Play" opens the panes. Mobile starts one player on tap. Use the mobile **Back** button or press B
+  on the title to return to the game launcher.
 - Keyboard layouts: KB1 = WASD + Space (confirm) + Q/Escape (back); KB2 = arrows + Enter (confirm) + Backspace (back).
   F9 = admin.
 - **Pane flow**: profile → (newProfile | reading) → pickWorkshop → room ⇄ station; room → board → run → results →
@@ -260,6 +261,17 @@ The review kept these cases on their existing rules.
 - **Stubs to replace**: `logic/index.ts` (engine), `art/index.ts` (`buildRig`), `audio/index.ts`
   (`preloadWorkshopAudio`, `createWorkshopAudio`), `content/*/catalog.ts`. Keep the export names.
 - **Music arbitration** (shell): when both panes ask for different tracks, play `title`.
+
+### Touch navigation (C53)
+
+At a station, tap a part to highlight it and preview it on the model. The selection shows whether the part is owned
+or what it costs. Tap another part to change the preview. Tap the selected part again or use **OK** / **Buy** to equip
+it and return to the room. Buying deducts the price and equips the new part. If the balance is too low, the
+station shows the balance and the required price. Pad and keyboard navigation still preview with left and right and
+ask for confirmation before a purchase.
+
+On touch, the upper-left **Back** button in the Race Shop or Dino Lab room and challenge board returns to the workshop
+picker. **Room** on the board returns to the stations. On the mobile title screen, **Back** returns to the game launcher.
 
 ### Test launch (C52)
 

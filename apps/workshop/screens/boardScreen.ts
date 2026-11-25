@@ -15,7 +15,7 @@ import { FocusGroup } from '../ui/FocusGroup';
 import { Pager } from '../ui/Pager';
 import { pageCount, pageItems } from '../ui/paging';
 import { promptLabel } from '../ui/input';
-import { cardColor } from '../ui/screenChrome';
+import { addTouchBackButton, cardColor } from '../ui/screenChrome';
 import { COLORS, circleTexture, fitText, makeText, ringTexture, roundedOriginY, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
@@ -317,6 +317,13 @@ const boardScreen: ScreenFactory = (): Screen => {
     ctx.go('room', { from: 'center' });
   };
 
+  const leaveToPicker = () => {
+    if (busy) return;
+    busy = true;
+    ctx.audio.sfx('back');
+    ctx.go('pickWorkshop');
+  };
+
   const rebuildAdmin = () => {
     if (!newAdminChallenges(ctx)) return;
     ctx.audio.sfx('sparkle');
@@ -347,8 +354,11 @@ const boardScreen: ScreenFactory = (): Screen => {
       staticObjs.push(scene.add.image(0, 0, bg.key).setOrigin(0).setDepth(-900));
       staticObjs.push(scene.add.rectangle(0, 0, L.size.w, L.size.h, 0xffffff, 0.45).setOrigin(0).setDepth(-850));
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
-      backBtn = new Button(scene, { x: L.back.x, y: L.back.y, w: L.back.w, h: L.back.h, label: 'Back', fontSize: 52, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick: handleBack });
+      backBtn = new Button(scene, { x: L.back.x, y: L.back.y, w: L.back.w, h: L.back.h, label: ctx.input.touch ? 'Room' : 'Back', fontSize: 52, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick: handleBack });
       staticObjs.push(backBtn);
+      if (ctx.input.touch) {
+        staticObjs.push(addTouchBackButton(scene, leaveToPicker));
+      }
       if (ctx.adminMode) {
         newBtn = new Button(scene, { x: L.newBtn.x, y: L.newBtn.y, w: L.newBtn.w, h: L.newBtn.h, label: 'New Challenges', fontSize: 48, color: COLORS.blue, textColor: COLORS.paper, onClick: () => rebuildAdmin() });
         staticObjs.push(newBtn);

@@ -297,6 +297,13 @@ Adventure Workshop test launches read the active card directly from the player's
 run art before registering textures, avoiding Phaser's initial pixel readback and blank upload. See the
 [Workshop test launch notes](WORKSHOP.md#test-launch-c52).
 
+## Adventure Workshop touch navigation
+
+Tap a station part once to preview it. The selected part shows its owned status or price. Tap it again, or tap
+**OK** / **Buy**, to equip it and return to the room. The room and challenge board have an upper-left **Back**
+button to the Race Shop / Dino Lab picker. The mobile title has a **Back** button to the game launcher.
+Pad and keyboard controls keep their previous behavior. See [Workshop touch navigation](WORKSHOP.md#touch-navigation-c53).
+
 ## Family sync
 
 On a build configured with `VITE_SYNC_URL`, open **Family sync** from either game's grown-up settings menu. On the first device, choose **Make a family**, then **Show code**. On another device, choose **Join a family** and enter that code, or scan the QR and confirm the join in the grown-up panel. Links with `?join=<code>` work from the launcher and either game. Keep the code and QR private. Anyone with either can access the family's profiles and saved progress.

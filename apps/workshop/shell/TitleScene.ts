@@ -9,6 +9,7 @@ import { buildLabel } from '../../../src/buildInfo';
 import { STAGE, WS_UI } from '../config';
 import { carIconTexture, dinoIconTexture } from '../ui/icons';
 import { ProfileMenuButton } from '../ui/ProfileMenuButton';
+import { addTouchBackButton } from '../ui/screenChrome';
 import { menuBackground, playerMenuColor } from '../ui/profileMenu';
 import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
 import { emptyJoin, goButtonLabel, reduceJoin, type JoinState } from './joinLogic';
@@ -39,7 +40,7 @@ export class TitleScene extends Phaser.Scene {
     const joinCode = consumeFamilyJoinCode();
     if (joinCode && familySync.enabled) this.time.delayedCall(0, () => { shell.openAdmin(false); openFamilySyncPanel({ joinCode }); });
     const mobile = shell.mobile;
-    bigText(this, mobile ? 24 : STAGE.w - 24, mobile ? 16 : STAGE.h - 16, buildLabel(), 32, '#ffffff',
+    bigText(this, mobile ? 285 : STAGE.w - 24, mobile ? 16 : STAGE.h - 16, buildLabel(), 32, '#ffffff',
       { origin: mobile ? [0, 0] : [1, 1], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
@@ -59,6 +60,11 @@ export class TitleScene extends Phaser.Scene {
   private buildMobile(): void {
     const start = () => this.begin([{ kind: 'touch' }]);
     new ProfileMenuButton(this, STAGE.w / 2, WS_UI.beta.mobile.playY, 780, 180, 'Tap to play', COLORS.p1, 100, start);
+    addTouchBackButton(this, () => {
+      if (this.leaving) return;
+      this.leaving = true;
+      goToHub();
+    });
     this.input.on('pointerdown', start);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.off('pointerdown', start));
   }

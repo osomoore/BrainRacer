@@ -13,7 +13,7 @@ import { visibleAspectIds } from '../logic/aspects';
 import { Button } from '../ui/Button';
 import { Confirm } from '../ui/Confirm';
 import { FocusGroup } from '../ui/FocusGroup';
-import { cardColor } from '../ui/screenChrome';
+import { addTouchBackButton, cardColor } from '../ui/screenChrome';
 import { COLORS, makeText } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buddyBar, buddyCelebration, buddyImage, flyBuddy } from './room/buddyDisplay';
@@ -50,6 +50,14 @@ const roomScreen: ScreenFactory = (): Screen => {
     busy = true;
     ctx.audio.sfx('select');
     walk(stand, then);
+  };
+
+  const goToPicker = () => {
+    if (busy) return;
+    busy = true;
+    popup = undefined;
+    ctx.audio.sfx('back');
+    ctx.go('pickWorkshop');
   };
 
   return {
@@ -197,11 +205,14 @@ const roomScreen: ScreenFactory = (): Screen => {
           cx: ctx.size.w / 2, cy: ctx.size.h / 2, w: Math.min(ctx.size.w - 80, 900),
           text: 'Leave the workshop?', yes: 'Yes', no: 'No', defaultYes: false,
           audio: ctx.audio, touch: ctx.input.touch, depth: 500,
-          onYes: () => { busy = true; popup = undefined; ctx.audio.sfx('back'); ctx.go('pickWorkshop'); },
+          onYes: goToPicker,
           onNo: () => { popup = undefined; },
         });
       };
       requestLeave = leave;
+      if (ctx.input.touch) {
+        objs.push(addTouchBackButton(scene, goToPicker));
+      }
     },
     update(dt) {
       character?.update(dt);
