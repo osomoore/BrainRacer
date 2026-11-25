@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
 import { seedProfiles } from './profiles';
 
 /** Adventure Workshop: room, station and board screens (keyboard, touch, 2P split). Hooks: window.__ws. */
@@ -178,10 +179,11 @@ test('board: three challenge cards at the player reading level, Test it! opens t
     w.store.setPlayer('p1', { ...w.store.player('p1'), reading: 'starter' });
     w.contexts()[0].go('board');
   });
-  await expect.poll(() => paneTexts(page)).toContain(ch[0].starterTitle);
+  await expect.poll(() => paneTexts(page)).toContain('Get Small Engine.');
+  await expect.poll(() => paneTexts(page)).not.toContain(ch[0].starterTitle);
   expect(await activeChallenges(page)).toEqual(ch);
   const starter = await paneTexts(page);
-  expect(starter).toContain(ch[0].stages[0].requirements[0].text.starter);
+  if (ch[0].intro.starter) expect(starter).not.toContain(ch[0].intro.starter);
   expect(starter).not.toContain(ch[0].stages[0].requirements[0].text.easy);
 
   // Leaving Starter changes the aspects in play, so the open cards are re-dealt at the new level
@@ -208,6 +210,87 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(await paneTexts(page)).toContain(dealt[1].stages[0].requirements[0].text.hard);
   await key(page, 'Space');
   await expectScreens(page, 'run');
+});
+
+test('Starter board: numbered cards and readable directions fit desktop and tablet views', async ({ page }) => {
+  const shots = 'test-results/c57-starter-board';
+  await mkdir(shots, { recursive: true });
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
+    for (const players of [1, 2] as const) {
+      await page.setViewportSize(viewport);
+      await boot(page);
+      await enter(page, { players, reading: 'starter', screen: 'board' });
+      const suffix = `${viewport.width}x${viewport.height}-${players}p`;
+      await page.screenshot({ path: `${shots}/starter-board-${suffix}.png` });
+
+      const paneInfo = await page.evaluate(() => {
+        const w = (window as any).__ws;
+        return w.panes.slice(0, w.contexts().length).map((pane: any) => {
+          const all: any[] = [];
+          const visit = (o: any) => {
+            if (o.type === 'Text' && o.visible !== false) {
+              const b = o.getBounds();
+              all.push({ text: String(o.text).replace(/\s+/g, ' ').trim(), size: Number.parseFloat(String(o.style?.fontSize)) || 0,
+                x: b.x, y: b.y, right: b.right, bottom: b.bottom });
+            }
+            o.list?.forEach(visit);
+          };
+          pane.children.list.forEach(visit);
+          const check = '\u2713';
+          const cards = pane.children.list.filter((o: any) => o.type === 'Container' && o.list?.some((child: any) =>
+            child.type === 'Text' && [check, '$', 'X'].includes(String(child.text))));
+          return { layout: pane.ctx.layout, size: pane.ctx.size, texts: all,
+            cards: cards.map((card: any) => ({ x: card.x,
+              label: String(card.list.find((child: any) => child.type === 'Text' && ![check, '$', 'X'].includes(String(child.text)))?.text ?? ''),
+              badge: String(card.list.find((child: any) => child.type === 'Text' && [check, '$', 'X'].includes(String(child.text)))?.text ?? '') })) };
+        });
+      });
+      expect(paneInfo).toHaveLength(players);
+      for (const pane of paneInfo) {
+        expect(pane.layout).toBe(players === 2 ? 'tall' : 'wide');
+        const orderedCards = pane.cards.sort((a: any, b: any) => a.x - b.x);
+        expect(orderedCards.map((card: any) => card.label)).toEqual(['1', '2', '3']);
+        expect(orderedCards.map((card: any) => card.badge)).toHaveLength(3);
+        for (const card of orderedCards) expect(['\u2713', '$', 'X']).toContain(card.badge);
+        const paneIndex = paneInfo.indexOf(pane);
+        const challenges = await activeChallenges(page, paneIndex === 0 ? 'p1' : 'p2');
+        const rendered = pane.texts.map((t: any) => t.text).join(' ');
+        const selected = challenges[0];
+        expect(rendered).not.toContain(selected.title);
+        expect(rendered).not.toContain(selected.starterTitle);
+        const intro = selected.intro.starter?.replace(/\s+/g, ' ').trim();
+        if (intro) expect(rendered).not.toContain(intro);
+        // The fresh Starter fixture's selected card must show direct fix instructions, without its saved story.
+        const directions = pane.texts.filter((t: any) => t.text.startsWith('Get ') && t.text.endsWith('.'));
+        expect(directions.length).toBe(selected.stages.reduce((n: number, stage: any) => n + stage.requirements.length, 0));
+        for (const text of directions) expect(text.text.split(/\s+/).length).toBeLessThanOrEqual(6);
+        // Keep the displayed short directions at the project's 40 px logical minimum and inside the pane.
+        expect(directions.length).toBeGreaterThan(0);
+        for (const text of directions) {
+          expect(text.size, `small Starter text: ${text.text}`).toBeGreaterThanOrEqual(40);
+          expect(text.x).toBeGreaterThanOrEqual(-1);
+          expect(text.right).toBeLessThanOrEqual(pane.size.w + 1);
+          expect(text.y).toBeGreaterThanOrEqual(-1);
+          expect(text.bottom).toBeLessThanOrEqual(1080 + 1);
+        }
+      }
+      if (viewport.width === 1920 && players === 1) {
+        const first = (await activeChallenges(page))[0];
+        await key(page, 'Space');
+        await expectScreens(page, 'run');
+        const runText = await paneTexts(page);
+        expect(runText).not.toContain(first.title);
+        await page.waitForTimeout(550); // let the run accept the skip input
+        await key(page, 'Escape');
+        await expectScreens(page, 'results');
+        const results = await paneTexts(page);
+        expect(results).toContain('Test 1');
+        expect(results).not.toContain(first.title);
+      }
+      await page.evaluate(() => (window as any).__ws.shell?.dispose?.());
+      await page.goto('about:blank');
+    }
+  }
 });
 
 for (const [ws, players] of [['race', 1], ['dino', 1], ['race', 2], ['dino', 2]] as const) {

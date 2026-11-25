@@ -312,6 +312,12 @@ wins and shows the share of measured wins solved on the first try. Older wins st
 The learning record follows the profile through Family sync and duplicate-profile merges. See the
 [Workshop progress report notes](WORKSHOP.md#progress-report-c55).
 
+## Adventure Workshop Starter cards
+
+On Starter, each player sees cards numbered **1**, **2**, **3** from left to right, with short part instructions
+and the existing status badges and colors. Results identifies the test by its number at launch. Grown-ups can
+see the saved titles in the Progress report. See [Starter challenge cards](WORKSHOP.md#starter-challenge-cards-c57).
+
 ## Family sync
 
 On a build configured with `VITE_SYNC_URL`, open **Family sync** from either game's grown-up settings menu. On the first device, choose **Make a family**, then **Show code**. On another device, choose **Join a family** and enter that code, or scan the QR and confirm the join in the grown-up panel. Links with `?join=<code>` work from the launcher and either game. Keep the code and QR private. Anyone with either can access the family's profiles and saved progress.

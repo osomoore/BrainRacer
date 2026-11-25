@@ -3,6 +3,7 @@ export interface RunOutcome {
   payout: number;
   hint: string | null;
   failLines: string[];
+  testTitle?: string;
 }
 
 const byPane = new Map<number, RunOutcome>();
