@@ -4,6 +4,7 @@ import type { Challenge, ChallengeId, Check, FacetDef, Leveled, ReadingLevel, Re
 import { READING_LEVELS } from '../core/types';
 import { Rng } from '../core/rng';
 import { index } from './catalogIndex';
+import { readingLines, STARTER_HINT, STARTER_TEST_TITLE } from './wording';
 import { distinctFixes, hybridChecks, lineFixes } from './namedFixes';
 
 export interface ChallengeMeta {
@@ -23,19 +24,21 @@ function pick(rng: Rng, arr: readonly string[] | undefined, fallback: string): s
 }
 
 export function cleverWinMessage(cat: WorkshopCatalog, reading: ReadingLevel, seed: number): string {
-  return pick(new Rng(seed ^ 0x41f2a9b3), cat.cleverWinPhrases?.[reading], '');
+  return pick(new Rng(seed ^ 0x41f2a9b3), readingLines(cat.cleverWinPhrases, reading), '');
 }
 
 /**
  * The problem named on the card for one stage: the facet's level title when the stage has one requirement,
  * otherwise the scenario title (written to fit every facet of the scenario). Falls back to the scenario label.
  */
-export function stageTitle(cat: WorkshopCatalog, st: StarterSpec['stages'][number]): string {
+export function stageTitle(cat: WorkshopCatalog, st: StarterSpec['stages'][number], reading?: ReadingLevel): string {
   const ix = index(cat);
-  const fallback = ix.scenarioPhrases.get(st.scenario)?.title[0] ?? ix.scenarioById.get(st.scenario)?.label ?? st.scenario;
+  const scenario = ix.scenarioPhrases.get(st.scenario);
+  const fallback = (reading === 'starter' ? scenario?.starterTitle?.[0] : undefined) ?? scenario?.title[0] ?? ix.scenarioById.get(st.scenario)?.label ?? st.scenario;
   if (st.facets.length !== 1) return fallback;
   const fs = st.facets[0];
-  const titles = ix.facetPhrases.get(fs.facet)?.title;
+  const phrases = ix.facetPhrases.get(fs.facet);
+  const titles = (reading === 'starter' ? phrases?.starterTitle : undefined) ?? phrases?.title;
   const def = ix.facetById.get(fs.facet)?.facet;
   if (!titles || titles.length === 0) return fallback;
   return titles[Math.min(def ? levelIndex(def, fs.level) : 0, titles.length - 1)];
@@ -86,8 +89,11 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
   const title = titles.length <= 1 ? (titles[0] ?? 'Challenge')
     : titles.length === 2 ? `${titles[0]} & ${titles[1]}` : `${titles[0]} Adventure`;
 
+  const starterTitles = spec.stages.map((st) => stageTitle(cat, st, 'starter'));
+  const starterTitle = starterTitles.length === 2 ? starterTitles.join(' & ') : starterTitles[0] ?? STARTER_TEST_TITLE;
+
   // No intro: the title names the problem, each requirement tells its story.
-  const intro: Leveled = { easy: '', medium: '', hard: '' };
+  const intro: Leveled = { starter: '', easy: '', medium: '', hard: '' };
 
   const stages: Stage[] = spec.stages.map((st, si) => {
     const requirements: Requirement[] = [];
@@ -110,10 +116,16 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
       const stories = cat.stories?.[fs.facet]?.story;
       const storyRow = stories?.length ? stories[Math.min(def ? levelIndex(def, fs.level) : 0, stories.length - 1)] : undefined;
       for (const r of READING_LEVELS) {
-        text[r] = storyRow?.[r]?.length ? pickAt(row, storyRow[r], '') : pickAt(row, reqPhr?.[r], `Build something for ${fs.facet}.`);
+        const lines = readingLines(storyRow, r) ?? readingLines(reqPhr, r);
+        text[r] = pickAt(row, lines, r === 'starter' ? '' : `Build something for ${fs.facet}.`);
       }
+      text.starter ||= text.easy;
       const hint = {} as Leveled;
-      for (const r of READING_LEVELS) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
+      // Keep the original hint draws for Easy through Hard. Starter shares the Easy draw.
+      const hintRoll = rng.next();
+      hint.easy = pickAt(hintRoll, phr?.hint.easy, `Try changing the ${aspectLabel}.`);
+      hint.starter = pickAt(hintRoll, readingLines(phr?.hint, 'starter'), STARTER_HINT[0].replace('{aspect}', aspectLabel));
+      for (const r of ['medium', 'hard'] as const) hint[r] = pick(rng, phr?.hint[r], `Try changing the ${aspectLabel}.`);
       const namedFixes = def ? catalogFixes(cat, def, fs.level) : [];
       requirements.push({
         id: `s${si}r${ri}`, facet: fs.facet, level: fs.level,
@@ -128,7 +140,7 @@ export function resolveSpec(cat: WorkshopCatalog, spec: Pick<StarterSpec, 'stage
   });
 
   return {
-    id: meta.id, workshop: cat.id, title, intro, stages, tier: meta.tier, source: meta.source,
+    id: meta.id, workshop: cat.id, title, starterTitle, intro, stages, tier: meta.tier, source: meta.source,
     seed: meta.seed, genVersion: WS_RULES.genVersion,
   };
 }

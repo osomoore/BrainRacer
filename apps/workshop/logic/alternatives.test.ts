@@ -103,6 +103,7 @@ describe('alternative challenge fixes', () => {
   it('reports guidelines over the limit at every reading level', () => {
     const facetPhrases = dino.facetPhrases.map((phrases) => phrases.facet === requirement.facet ? {
       ...phrases, requirement: [{
+        starter: phrases.requirement[0].starter,
         easy: ['One two three four five six seven.', 'Stand or use a long neck.'],
         medium: ['One two three four five six seven eight nine.', 'Stand or use a long neck.'],
         hard: ['One two three four five six seven eight nine ten eleven twelve thirteen.', 'Stand or use a long neck.'],

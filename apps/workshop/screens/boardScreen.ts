@@ -24,6 +24,7 @@ import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './b
 import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from './board/reward';
 import { isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
+import { challengeTitle } from '../logic/wording';
 import { roomLayout } from './room/layout';
 
 const STAGE_COLORS = [0xffd23f, 0x7fd6ff, 0xffa3b8, 0xb8e986, 0xd5b8ff];
@@ -100,14 +101,14 @@ const boardScreen: ScreenFactory = (): Screen => {
       const stages = c.stages.length;
       const reward = challengeReward(c);
       if (L.compactCards) {
-        const t = makeText(scene, -slot.w / 2 + 30, 0, c.title, { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
+        const t = makeText(scene, -slot.w / 2 + 30, 0, challengeTitle(c, ctx.reading()), { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
         fitText(t, slot.w - 330);
         b.add(t);
         addFooter(b, slot.h / 2 - 40, stages, reward);
       } else { // the title above the reward footer (the stage count is in the detail on narrow tabs)
         const footerY = slot.h / 2 - CARD_PAD - FOOTER_H / 2;
         const titleBox = slot.h - 2 * CARD_PAD - FOOTER_H - CARD_PAD;
-        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: wide() ? 48 : 44, wrap: slot.w - 24 });
+        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, challengeTitle(c, ctx.reading()), { size: wide() ? 48 : 44, wrap: slot.w - 24 });
         for (let size = wide() ? 44 : 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
         b.add(t);
         addFooter(b, footerY, wide() ? stages : 1, reward);
@@ -169,7 +170,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     const P = L.panel;
     detailObjs.push(scene.add.image(P.x, P.y, roundedTexture(scene, P.w, P.h, 0xffffff, { radius: 36 })).setOrigin(0.5, roundedOriginY(P.h)).setDepth(-300));
     if (!wide()) { // The selected card already shows the title in the wide layout.
-      const title = makeText(scene, L.title.x, L.title.y, c.title, { size: L.title.size, align: 'left', origin: [0, 0.5], color: COLORS.ink });
+      const title = makeText(scene, L.title.x, L.title.y, challengeTitle(c, ctx.reading()), { size: L.title.size, align: 'left', origin: [0, 0.5], color: COLORS.ink });
       fitText(title, L.title.maxW);
       detailObjs.push(title);
     }

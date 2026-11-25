@@ -122,9 +122,9 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown, reading?: 
   }
   out.genSeq = seq;
   sortBoard(out, affordability(cat, out));
-  // Rules changed (or Easy switched on or off, which decides the aspects in play) since this workshop was saved:
+  // Rules changed (or the number of aspects in play changed) since this workshop was saved:
   // don't migrate open cards, re-deal them.
-  if (raw.rulesVersion !== CHALLENGE_RULES_VERSION || !!raw.easy !== (reading === 'easy')) return redeal(cat, out);
+  if (raw.rulesVersion !== CHALLENGE_RULES_VERSION || !!raw.easy !== !!easyFlag(reading).easy) return redeal(cat, out);
   return out;
 }
 
@@ -162,7 +162,7 @@ export function progressOf(cat: WorkshopCatalog, save: PlayerSave): WorkshopProg
   const saved = save.workshops[cat.id];
   if (!saved) return refreshBoard(cat, newProgress(cat, save.buddySeed, save.reading));
   // The reading level changed since the cards were dealt: Easy and Medium/Hard use different aspects.
-  if (!!saved.easy !== (save.reading === 'easy')) {
+  if (!!saved.easy !== !!easyFlag(save.reading).easy) {
     const { easy: _easy, ...rest } = saved;
     return redeal(cat, { ...rest, ...easyFlag(save.reading) });
   }

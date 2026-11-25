@@ -1,6 +1,7 @@
 import type { LeveledPhrases } from '../core/types';
 
 export const CLEVER_WIN_PHRASES: LeveledPhrases = {
+  starter: ['You did it!', 'A smart fix!', 'That fix did it!'],
   easy: [
     'You found a new way!',
     'That was a smart fix!',

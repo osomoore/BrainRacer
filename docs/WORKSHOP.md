@@ -32,7 +32,8 @@ the decisions made on top of it and how the code is split.
   (each pane 960×1080). Each player has their own profile, workshop, model, board and progress.
 - **Profiles** are the shared ones (`shared/profiles.ts`). A new profile = name (on-screen letter grid) + reading
   level. An existing profile entering the workshop for the first time picks a reading level once.
-- **Reading levels: Easy / Medium / Hard.** They change only the wording; requirements are identical.
+- **Reading levels: Starter / Easy / Medium / Hard.** Starter uses short, sound-out-able wording and shares
+  Easy's four stations, challenge rules, and economy. Medium and Hard use all ten stations.
 - **Two workshops**, 10 aspects each, 2 starter variants per aspect (frozen lists in `content/*/variants.ts`).
 - **Challenges are generated** from hand-built scenarios (scene types such as mud field, low bridge, tall tree),
   each with facets (requirement templates with difficulty levels) and phrase banks (several sentences per facet,
@@ -142,10 +143,9 @@ shared code lives in `shared/`.
   - The three active challenges should differ (different scenarios / hint aspects where possible).
   - Text comes from the scenario and facet phrase banks. A stage with one requirement is titled by that facet's
     level title; a stage with two or more uses the scenario's single stage title. Two stages join their titles with
-    "&", and three or more use the first title plus "Adventure". Each requirement shows one authored row (A or B),
+    "&", and three or more start with the first title. Easy through Hard append "Adventure". Each requirement shows one authored row (A or B),
     the same row at every reading level.
-  - Saved challenges keep their checks, named builds, and text for all three levels. Loading older cards adds
-    named builds while preserving their thresholds and wording.
+  - Saved challenges keep their checks, named builds, and text for all four levels. Older open cards are re-dealt when the challenge rules version changes.
 - **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
   and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
@@ -165,6 +165,11 @@ shared code lives in `shared/`.
   Model is saved on every part change.
 
 ## Content guide (content/race, content/dino)
+
+- **Starter** uses the regular words and small sight-word list in `content/starterWords.ts`. Write concrete
+  sentences of 2–5 words in hints and success lines, and 2–6 words in guidelines, stories and rendered
+  failure lines. Split a long guideline into short sentences. Copy part names and station labels exactly.
+  A long failure fix starts by naming the part that needs to change.
 
 - **Guidelines** give beginning readers one short line per requirement. The title names the problem (one title per
   facet level, plus one stage title per scenario that fits all its facets), and each line names the fix by the part
@@ -264,6 +269,6 @@ The review kept these cases on their existing rules.
 - e2e: `tests/e2e/workshop*.spec.ts`. Hooks: `window.__ws` (pane contexts, engine) for tests.
 - Dev-server ports per package: shell 5191, audio 5192 (render 5193), art 5194, screens 5195, runs 5196/5197.
 
-## Easy uses four aspects (WS_EASY_ASPECTS)
+## Starter and Easy use four aspects (WS_EASY_ASPECTS)
 
-On the Easy reading level each workshop shows only the aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`): race = wheels, engine, paint, size; dino = color, teeth, body, size. The other aspects stay pinned to their first starter for judging, rendering and runs; their bought parts stay owned and return on Medium/Hard. `WorkshopProgress.easy` marks a progress dealt for Easy; changing to or from Easy re-deals the open cards (`progressOf` / `normalizeSave`). Pure helpers live in `logic/aspects.ts`. Facets that cannot be solved inside the four aspects are never dealt on Easy (the board only offers cards the solver can meet with the shown aspects).
+On Starter and Easy each workshop shows only the aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`): race = wheels, engine, paint, size; dino = color, teeth, body, size. The other aspects stay pinned to their first starter for judging, rendering and runs; their bought parts stay owned and return on Medium/Hard. `WorkshopProgress.easy` marks a board dealt for Starter or Easy. Switching between the four-station and ten-station levels re-deals the open cards (`progressOf` / `normalizeSave`). Pure helpers live in `logic/aspects.ts`. Facets that cannot be solved inside the four aspects are never dealt on Starter or Easy (the board only offers cards the solver can meet with the shown aspects).

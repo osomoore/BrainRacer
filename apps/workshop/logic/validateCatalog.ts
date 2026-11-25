@@ -1,4 +1,6 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
+import { STARTER_PRACTICE_TITLES } from '../content/practiceTitles';
+import { starterWordProblems } from '../content/starterWords';
 import { READING_LEVELS } from '../core/types';
 import type { BasicCheck, Check, FacetDef, LeveledPhrases, ReadingLevel, Variant, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
@@ -17,6 +19,23 @@ export { namedVariants, variantHelps } from './namedFixes';
 
 const MIN_TIER0_STARTER_ONLY_FACETS = 3;
 const TITLE_WORD_LIMIT = 4;
+const STARTER_GUIDELINE_WORD_LIMIT = 6;
+const LATER_LEVELS = ['easy', 'medium', 'hard'] as const;
+
+function starterWords(cat: WorkshopCatalog, where: string, line: string, err: (m: string) => void): void {
+  for (const word of starterWordProblems(cat, line)) err(`${where}: Starter word "${word}" is not decodable: "${line}"`);
+}
+
+function starterSentence(cat: WorkshopCatalog, where: string, line: string, err: (m: string) => void): void {
+  starterWords(cat, where, line, err);
+  for (const sentence of line.match(/[^.!?]+/g) ?? []) {
+    if (wordCount(sentence) < 2) err(`${where}: Starter sentences need at least 2 words: "${line}"`);
+  }
+}
+
+function outOfOrder(counts: readonly number[]): boolean {
+  return counts.some((count, i) => i > 0 && count < counts[i - 1]);
+}
 /** Words beginning readers stumble on (found in the 2026 text review), plus idioms. Part names are allowed. */
 export const HARD_WORDS: readonly string[] = [
   'canyon', 'dune', 'dunes', 'flock', 'shoo', 'shove', 'slippery', 'twisty', 'zigzag', 'pebble', 'pebbles', 'gooey',
@@ -130,9 +149,9 @@ export function validateCatalog(cat: WorkshopCatalog, opts: ValidateOptions = {}
       const arr = rec?.[r];
       if (!arr || arr.length < 2) err(`${where} [${r}]: needs >= 2 sentences`);
       else if (arr.some((s) => !s || !s.trim())) err(`${where} [${r}]: empty sentence`);
-      if (guideline) for (const line of arr ?? []) {
+      if (guideline && r !== 'starter') for (const line of arr ?? []) {
         const limit = PHRASE_WORD_LIMIT[r];
-        if (line.trim().split(/\s+/).length > limit) err(`${where} [${r}]: guideline exceeds ${limit} words: "${line}"`);
+        if (wordCount(line) > limit) err(`${where} [${r}]: guideline exceeds ${limit} words: "${line}"`);
       }
     }
   };
@@ -217,8 +236,13 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
     if (prev) err(`${where}: duplicate title "${t}" (also ${prev})`);
     else seenTitles.set(t.toLowerCase(), where);
   };
+  const starterTitle = (where: string, t: string): void => {
+    if (!/^[A-Z][A-Za-z &'!-]*$/.test(t) || wordCount(t) > TITLE_WORD_LIMIT) err(`${where}: invalid Starter title "${t}"`);
+    starterWords(cat, where, t, err);
+  };
   const completeSentence = (where: string, reading: ReadingLevel, phrase: string): void => {
-    hard(where, phrase);
+    if (reading === 'starter') starterSentence(cat, where, phrase, err);
+    else hard(where, phrase);
     if (!/^[A-Z0-9].*[.!?]$/.test(phrase)) err(`${where}: needs a complete sentence: "${phrase}"`);
     const limit = PHRASE_WORD_LIMIT[reading];
     if (wordCount(phrase) > limit) err(`${where}: exceeds ${limit} words: "${phrase}"`);
@@ -231,10 +255,11 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
       phrases.forEach((phrase) => completeSentence(at, reading, phrase));
       return phrases;
     });
-    if (rows.some((row) => row.length !== rows[0].length)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
-    rows[0].forEach((easy, i) => {
-      const medium = rows[1][i];
-      const hard = rows[2][i];
+    if (rows.some((row) => row.length !== rows[0].length)) err(`${where}: all reading levels need the same number of rows`);
+    const [, easyRows, mediumRows, hardRows] = rows;
+    easyRows.forEach((easy, i) => {
+      const medium = mediumRows[i];
+      const hard = hardRows[i];
       if (medium && hard && (wordCount(easy) > wordCount(medium) || wordCount(medium) > wordCount(hard))) {
         err(`${where} row ${i + 1}: words must go Easy <= Medium <= Hard`);
       }
@@ -252,17 +277,24 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
     if (sp) {
       if (sp.title.length !== 1) err(`scenario ${sc.id}: needs exactly 1 title (the stage title for 2+ requirements), has ${sp.title.length}`);
       sp.title.forEach((t) => title(`scenario ${sc.id} title`, t));
+      if (sp.starterTitle?.length !== 1) err(`scenario ${sc.id}: needs one Starter title`);
+      for (const t of sp.starterTitle ?? []) starterTitle(`scenario ${sc.id} title`, t);
+      if (!sp.intro.starter || sp.intro.starter.length !== sp.intro.easy.length) err(`scenario ${sc.id}: needs matching Starter intro rows`);
+      for (const line of sp.intro.starter ?? []) completeSentence(`scenario ${sc.id} intro [starter]`, 'starter', line);
     }
     for (const f of sc.facets) {
       const success = cat.successPhrases?.[f.id];
       if (!success) err(`facet ${f.id}: no success phrases`);
       else {
+        // Validate the baseline bank even when a facet has a level-specific override.
+        successRows(`facet ${f.id} success baseline`, success.quality);
         for (const key of Object.keys(success.qualityByLevel ?? {})) {
           if (!f.levels.includes(Number(key))) err(`facet ${f.id}: success phrases for unknown level ${key}`);
         }
         for (const level of f.levels) {
           const at = `facet ${f.id} level ${level} success`;
-          successRows(`${at} quality`, success.qualityByLevel?.[level] ?? success.quality);
+          const quality = success.qualityByLevel?.[level];
+          if (quality) successRows(`${at} quality`, quality);
           for (const fix of catalogFixes(cat, f, level)) {
             successRows(`${at} named (${fix.join(', ')})`, success.named, (line, reading) => namedReason(cat, fix, line, reading));
           }
@@ -274,8 +306,16 @@ function wording(cat: WorkshopCatalog, err: (m: string) => void): void {
         err(`facet ${f.id}: needs one title per level (${f.levels.length}), has ${ph.title?.length ?? 0}`);
       }
       (ph.title ?? []).forEach((t, i) => title(`facet ${f.id} level ${f.levels[i] ?? i + 1} title`, t));
+      if (ph.starterTitle?.length !== f.levels.length) err(`facet ${f.id}: needs one Starter title per level`);
+      for (const t of ph.starterTitle ?? []) starterTitle(`facet ${f.id} title`, t);
+      for (const line of ph.hint.starter ?? []) completeSentence(`facet ${f.id} hint [starter]`, 'starter', line);
       ph.requirement.forEach((row, i) => facetRow(cat, f, i, row, err, seenLines, hard));
     }
+  }
+  for (const a of cat.aspects) {
+    const t = STARTER_PRACTICE_TITLES[cat.id][a.id];
+    if (t) starterTitle(`practice title ${a.id}`, t);
+    else err(`practice ${a.id}: needs a Starter title`);
   }
   stories(cat, err, hard);
   for (const r of READING_LEVELS) {
@@ -291,20 +331,31 @@ function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Re
   const lv = f.levels[Math.min(i, f.levels.length - 1)];
   const where = `facet ${f.id} level ${lv}`;
   const n = row.easy?.length ?? 0;
-  if (READING_LEVELS.some((r) => (row[r]?.length ?? 0) !== n)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
+  if (READING_LEVELS.some((r) => (row[r]?.length ?? 0) !== n)) err(`${where}: all reading levels need the same number of rows`);
   const checks = f.check(lv);
   for (let k = 0; k < n; k++) {
-    const counts = READING_LEVELS.map((r) => (row[r]?.[k] !== undefined ? wordCount(row[r][k]) : 0));
-    if (counts[0] > counts[1] || counts[1] > counts[2]) {
+    const counts = LATER_LEVELS.map((r) => (row[r]?.[k] !== undefined ? wordCount(row[r][k]) : 0));
+    if (outOfOrder(counts)) {
       err(`${where} row ${k + 1}: words must go Easy <= Medium <= Hard (${counts.join(' / ')})`);
     }
   }
   for (const r of READING_LEVELS) (row[r] ?? []).forEach((line, k) => {
     const at = `${where} [${r}] row ${k + 1}`;
-    hard(at, line);
+    if (r === 'starter') {
+      starterSentence(cat, at, line, err);
+      const sentences = line.match(/[^.!?]+/g) ?? [];
+      if (sentences.some((sentence) => wordCount(sentence) > STARTER_GUIDELINE_WORD_LIMIT)) {
+        err(`${at}: guideline sentence exceeds ${STARTER_GUIDELINE_WORD_LIMIT} words: "${line}"`);
+      }
+    } else hard(at, line);
     if (!/^[A-Z0-9].*[.!?]$/.test(line)) err(`${at}: start with a capital and end with . ! or ?: "${line}"`);
     for (const p of lineProblems(cat, checks, line)) err(`${at}: ${p}: "${line}"`);
     if (!lineFixes(cat, checks, line).length) err(at + ': names no complete build: ' + line);
+    // The same short Starter instruction can fit several problems with the same fix.
+    if (r === 'starter') {
+      if (row[r].indexOf(line) !== k) err(`${at}: duplicate Starter line: "${line}"`);
+      return;
+    }
     const prev = seen.get(line.toLowerCase());
     if (prev) err(`${at}: duplicate line (also ${prev}): "${line}"`);
     else seen.set(line.toLowerCase(), at);
@@ -321,7 +372,8 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
   const ix = index(cat);
   const seen = new Map<string, string>();
   const sentence = (where: string, line: string, limit: number): void => {
-    hard(where, line);
+    if (where.endsWith('[starter]')) starterSentence(cat, where, line, err);
+    else hard(where, line);
     if (!/^[A-Z0-9].*[.!?]$/.test(line)) err(`${where}: needs a complete sentence: "${line}"`);
     if (wordCount(line) > limit) err(`${where}: exceeds ${limit} words: "${line}"`);
   };
@@ -332,10 +384,10 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
   };
   const ordered = (where: string, bank: LeveledPhrases, count = wordCount): void => {
     const n = bank.easy?.length ?? 0;
-    if (READING_LEVELS.some((r) => (bank[r]?.length ?? 0) !== n)) err(`${where}: Easy, Medium and Hard need the same number of rows`);
+    if (READING_LEVELS.some((r) => (bank[r]?.length ?? 0) !== n)) err(`${where}: all reading levels need the same number of rows`);
     for (let k = 0; k < n; k++) {
-      const c = READING_LEVELS.map((r) => (bank[r]?.[k] !== undefined ? count(bank[r][k]) : 0));
-      if (c[0] > c[1] || c[1] > c[2]) err(`${where} row ${k + 1}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
+      const c = LATER_LEVELS.map((r) => (bank[r]?.[k] !== undefined ? count(bank[r][k]) : 0));
+      if (outOfOrder(c)) err(`${where} row ${k + 1}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
     }
   };
   const templates = (where: string, bank: LeveledPhrases | undefined, token: string): boolean => {
@@ -343,7 +395,8 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
     ordered(where, bank, (t) => wordCount(t.replace(token, '')));
     for (const r of READING_LEVELS) for (const t of bank[r]) {
       if (t.split(token).length !== 2) err(`${where} [${r}]: needs exactly one ${token}: "${t}"`);
-      unique(`${where} [${r}]`, t);
+      if (r === 'starter') starterSentence(cat, `${where} [${r}]`, t, err);
+      else unique(`${where} [${r}]`, t);
     }
     return true;
   };
@@ -358,9 +411,10 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
     st.story.forEach((row, i) => {
       const at = `facet ${f.id} level ${f.levels[i] ?? i + 1} story`;
       ordered(at, row);
+      if (!row.starter?.length) err(`${at}: needs a Starter story line`);
       for (const r of READING_LEVELS) for (const line of row[r] ?? []) {
         sentence(`${at} [${r}]`, line, STORY_WORD_LIMIT[r]);
-        unique(`${at} [${r}]`, line);
+        if (r !== 'starter') unique(`${at} [${r}]`, line);
       }
     });
     if (!templates(`facet ${f.id} fail`, st.fail, '{parts}')) continue;
@@ -386,7 +440,7 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
           sentence(at, lines[k], STORY_WORD_LIMIT[r]);
           namesOne(at, lines[k], [v.id]);
         });
-        const c = lines.map(wordCount);
+        const c = lines.slice(1).map(wordCount);
         if (c[0] > c[1] || c[1] > c[2]) err(`practice story ${v.id}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
       }
       if (practiceFail) for (const r of READING_LEVELS) for (const t of cat.practiceFail![r]) {

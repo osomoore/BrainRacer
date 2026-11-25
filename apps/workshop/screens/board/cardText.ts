@@ -2,6 +2,7 @@
  * Pure (Phaser-free) challenge text layout: which sentences to show at a reading level, word-wrapping with an
  * injected measure function, and picking the largest font size that fits the box (else paginating at the smallest).
  */
+import { readingText } from '../../logic/wording';
 import type { Challenge, ReadingLevel } from '../../core/types';
 
 export interface TextBlock {
@@ -15,8 +16,9 @@ export interface TextBlock {
 /** Intro sentence, every requirement story (all stages, in order) at the reading level, then any failure hints. */
 export function buildBlocks(c: Challenge, level: ReadingLevel, hints: readonly string[] = []): TextBlock[] {
   const out: TextBlock[] = [];
-  if (c.intro[level]) out.push({ kind: 'intro', text: c.intro[level], stage: 0 });
-  c.stages.forEach((st, si) => st.requirements.forEach((r) => out.push({ kind: 'req', text: r.text[level], stage: si })));
+  const intro = readingText(c.intro, level);
+  if (intro) out.push({ kind: 'intro', text: intro, stage: 0 });
+  c.stages.forEach((st, si) => st.requirements.forEach((r) => out.push({ kind: 'req', text: readingText(r.text, level), stage: si })));
   for (const text of hints) out.push({ kind: 'hint', text, stage: 0 });
   return out;
 }

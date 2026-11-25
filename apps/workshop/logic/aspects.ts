@@ -1,11 +1,11 @@
-/** Aspects in play. On Easy only WS_EASY_ASPECTS[workshop] are shown and used; the others stay pinned to their first starter. */
+/** Aspects in play. On Starter and Easy only WS_EASY_ASPECTS[workshop] are shown and used; the others stay pinned to their first starter. */
 import { WS_EASY_ASPECTS } from '../config';
 import type { AspectDef, AspectId, ReadingLevel, VariantId, WorkshopCatalog, WorkshopId, WorkshopProgress } from '../core/types';
 import { index } from './catalogIndex';
 
 type Leveled = Pick<WorkshopProgress, 'easy'>;
 
-/** Aspect ids shown on Easy or at the other levels, in catalog order (all of them unless Easy trims the workshop). */
+/** Aspect ids in catalog order, trimmed to four on Starter and Easy. */
 export function aspectIdsAt(cat: Pick<WorkshopCatalog, 'id' | 'aspects'>, easy: boolean | undefined): AspectId[] {
   const all = cat.aspects.map((a) => a.id);
   if (!easy) return all;
@@ -14,7 +14,7 @@ export function aspectIdsAt(cat: Pick<WorkshopCatalog, 'id' | 'aspects'>, easy: 
   return shown.length ? shown : all;
 }
 
-/** Aspect ids the progress works with (Easy or not decides). */
+/** Aspect ids used by this board. */
 export function visibleAspectIds(cat: Pick<WorkshopCatalog, 'id' | 'aspects'>, p: Leveled): AspectId[] {
   return aspectIdsAt(cat, p.easy);
 }
@@ -42,4 +42,4 @@ export function partsVisible(cat: WorkshopCatalog, p: Leveled, parts: readonly V
 }
 
 /** The progress flag that goes with a reading level. */
-export const easyFlag = (reading: ReadingLevel | undefined): { easy?: true } => reading === 'easy' ? { easy: true } : {};
+export const easyFlag = (reading: ReadingLevel | undefined): { easy?: true } => (reading === 'starter' || reading === 'easy') ? { easy: true } : {};

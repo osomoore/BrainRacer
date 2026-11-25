@@ -16,6 +16,7 @@ function patch(cat: WorkshopCatalog, facet: string, level: number, rows: Row[], 
     ...p,
     title: title ?? p.title,
     requirement: p.requirement.map((row, i) => i !== level ? row : {
+      starter: row.starter,
       easy: rows.map((r) => r[0]), medium: rows.map((r) => r[1]), hard: rows.map((r) => r[2]),
     } as Record<ReadingLevel, string[]>),
   });
@@ -119,7 +120,7 @@ describe('validateCatalog wording', () => {
       patch(stories);
       return validateCatalog({ ...race, stories });
     };
-    const set = (st: Record<string, FacetStory>, r: 'easy' | 'medium' | 'hard', line: string) => {
+    const set = (st: Record<string, FacetStory>, r: ReadingLevel, line: string) => {
       (st['mud.grip'].story[0][r] as string[])[0] = line;
     };
     expect(broken((st) => set(st, 'easy', 'The mud is so very deep and sticky and brown today!')).join('|')).toMatch(/exceeds 10 words/);
@@ -134,7 +135,7 @@ describe('validateCatalog wording', () => {
 describe('both workshops together', () => {
   it('never share a title or a guideline line', () => {
     const titles = (c: WorkshopCatalog) => [...c.scenarioPhrases.flatMap((p) => p.title), ...c.facetPhrases.flatMap((p) => p.title ?? [])];
-    const lines = (c: WorkshopCatalog) => c.facetPhrases.flatMap((p) => p.requirement.flatMap((row) => [...row.easy, ...row.medium, ...row.hard]));
+    const lines = (c: WorkshopCatalog) => c.facetPhrases.flatMap((p) => p.requirement.flatMap((row) => READING_LEVELS.flatMap((r) => row[r])));
     const all = [...titles(race), ...titles(dino)].map((t) => t.toLowerCase());
     expect(new Set(all).size).toBe(all.length);
     const raceLines = new Set(lines(race).map((l) => l.toLowerCase()));

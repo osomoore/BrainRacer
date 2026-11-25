@@ -5,7 +5,7 @@ import { READING_LEVELS } from '../core/types';
 import type { BasicCheck, Model, Variant, WorkshopCatalog } from '../core/types';
 import { evaluate } from './evaluate';
 import { engine } from './index';
-import { checkOptions, lineFixes } from './namedFixes';
+import { checkOptions, distinctFixes, lineFixes } from './namedFixes';
 import { allPass, computeModel, defaultModel, partTag } from './stats';
 import { cleverWinMessage, resolveSpec } from './text';
 import { flatChecks } from './util';
@@ -52,6 +52,20 @@ describe.each(Object.values(CATALOGS))('$title hybrid requirements', (cat) => {
             expect(allPass(flatChecks(challenge), computeModel(cat, model)), label).toBe(true);
           }
         }
+      }
+    }
+  });
+
+  it('Starter guideline rows preserve the Easy named fixes', () => {
+    for (const scenario of cat.scenarios) for (const facet of scenario.facets) {
+      const phrases = cat.facetPhrases.find((p) => p.facet === facet.id)!;
+      for (const [i, level] of facet.levels.entries()) {
+        const row = phrases.requirement[i];
+        const checks = facet.check(level);
+        row.starter.forEach((line, k) => {
+          expect(distinctFixes(lineFixes(cat, checks, line)), `${facet.id} level ${level}: ${line}`)
+            .toEqual(distinctFixes(lineFixes(cat, checks, row.easy[k])));
+        });
       }
     }
   });
@@ -128,6 +142,7 @@ it('awards one extra buddy point, including an unlock and overflow at ten', () =
 
 it('validates clever-win wording at every reading level', () => {
   const phrases = {
+    starter: ['You did it!', 'A smart fix!'],
     easy: ['One two three four five six seven.', 'Nice fix!'],
     medium: ['One two three four five six seven eight nine.', 'Great fix!'],
     hard: ['One two three four five six seven eight nine ten eleven twelve thirteen.', 'You solved the obstacle!'],

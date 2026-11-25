@@ -26,3 +26,30 @@ export const PRACTICE_TITLES: Readonly<Record<WorkshopId, Readonly<Record<string
     extra: 'One More Trick',
   },
 };
+
+export const STARTER_PRACTICE_TITLES: typeof PRACTICE_TITLES = {
+  race: {
+    wheels: 'Grip Test',
+    engine: 'Hill Run',
+    gears: 'Shift Test',
+    springs: 'Hop Test',
+    bumpers: 'Bump Test',
+    paint: 'Tint Test',
+    body: 'Box Trip',
+    shape: 'Fit Test',
+    size: 'Gap Test',
+    extra: 'Fun Bit',
+  },
+  dino: {
+    color: 'Hide Test',
+    head: 'Hat Test',
+    teeth: 'Snack Test',
+    claws: 'Grab Test',
+    legs: 'Kick Test',
+    move: 'Step Test',
+    tail: 'Swish Test',
+    body: 'Flex Test',
+    size: 'Den Test',
+    extra: 'Fun Bit',
+  },
+};

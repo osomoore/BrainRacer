@@ -11,15 +11,15 @@ import { partsVisible } from './aspects';
 import { available } from './available';
 import { index } from './catalogIndex';
 import { purchaseRoutes } from './shop';
-import { FAIL_WORD_LIMIT, wordCount } from './wording';
+import { FAIL_WORD_LIMIT, readingLines, STARTER_FAIL, STARTER_PART, STARTER_SHORT_FIX, wordCount } from './wording';
 
 const PARTS = '{parts}';
 const PART = '{part}';
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** How a part reads inside a sentence ("a Winch", "the Small size"). */
-export function partPhrase(cat: WorkshopCatalog, id: VariantId): string {
-  return cat.partPhrases?.[id] ?? index(cat).variantById.get(id)?.name ?? id;
+export function partPhrase(cat: WorkshopCatalog, id: VariantId, reading?: ReadingLevel): string {
+  return (reading !== 'starter' ? cat.partPhrases?.[id] : undefined) ?? index(cat).variantById.get(id)?.name ?? id;
 }
 
 export function joinParts(names: readonly string[]): string {
@@ -30,17 +30,21 @@ export function joinParts(names: readonly string[]): string {
 
 /**
  * Fill a template's "{parts}" with the parts. When the whole list is too long for the reading level, the first
- * parts are named and the rest become "and more".
+ * parts are named. Easy through Hard append "and more" when parts are omitted.
  */
 export function fillParts(cat: WorkshopCatalog, template: string, parts: readonly VariantId[], reading: ReadingLevel): string {
-  const names = parts.map((id) => partPhrase(cat, id));
+  const names = parts.map((id) => partPhrase(cat, id, reading));
   const render = (list: string): string => {
     const line = template.replace(PARTS, list);
     return template.startsWith(PARTS) ? cap(line) : line;
   };
   for (let n = names.length; n >= 1; n--) {
-    const line = render(joinParts(n === names.length ? names : [...names.slice(0, n), 'more']));
-    if (wordCount(line) <= FAIL_WORD_LIMIT[reading] || n === 1) return line;
+    const shown = names.slice(0, n);
+    const line = render(joinParts(n === names.length || reading === 'starter' ? shown : [...shown, 'more']));
+    if (wordCount(line) <= FAIL_WORD_LIMIT[reading]) return line;
+    const short = STARTER_SHORT_FIX.replace(PARTS, joinParts(shown));
+    if (reading === 'starter' && wordCount(short) <= FAIL_WORD_LIMIT.starter) return short;
+    if (n === 1) return line;
   }
   return render('');
 }
@@ -48,9 +52,11 @@ export function fillParts(cat: WorkshopCatalog, template: string, parts: readonl
 /** A practice story: the station's template with the part filled in. */
 export function practiceStory(cat: WorkshopCatalog, part: VariantId, reading: ReadingLevel): string {
   const v = index(cat).variantById.get(part);
-  const template = v ? cat.practiceStories?.[v.aspect]?.[reading]?.[0] : undefined;
+  const bank = v ? cat.practiceStories?.[v.aspect] : undefined;
+  if (reading === 'starter' && !bank?.starter?.length && bank?.easy?.length) return practiceStory(cat, part, 'easy');
+  const template = bank?.[reading]?.[0] ?? (reading === 'starter' ? STARTER_PART : undefined);
   if (!template) return `Use ${v?.name ?? part}.`;
-  const line = template.replace(PART, partPhrase(cat, part));
+  const line = template.replace(PART, partPhrase(cat, part, reading));
   return template.startsWith(PART) ? cap(line) : line;
 }
 
@@ -102,7 +108,7 @@ export function failNotes(cat: WorkshopCatalog, p: WorkshopProgress, challenge: 
 /** Failure templates for a requirement: the facet's, or the practice ones. */
 export function failTemplates(cat: WorkshopCatalog, facet: string, reading: ReadingLevel): readonly string[] {
   const bank = facet.startsWith('practice.') ? cat.practiceFail : cat.stories?.[facet]?.fail;
-  return bank?.[reading]?.length ? bank[reading] : [`You needed ${PARTS}.`];
+  return readingLines(bank, reading) ?? [reading === 'starter' ? STARTER_FAIL : `You needed ${PARTS}.`];
 }
 
 /** The lines for saved notes at a reading level (notes for requirements no longer in the challenge are skipped). */
@@ -113,6 +119,7 @@ export function failLines(cat: WorkshopCatalog, challenge: Challenge, notes: rea
     if (!req || !note.parts.length) return [];
     const templates = failTemplates(cat, req.facet, reading);
     const template = templates[Math.abs(challenge.seed + k) % templates.length];
-    return [fillParts(cat, template, note.parts, reading)];
+    const fallback = reading === 'starter' && templates === failTemplates(cat, req.facet, 'easy');
+    return [fillParts(cat, template, note.parts, fallback ? 'easy' : reading)];
   });
 }

@@ -12,6 +12,7 @@ import { ProfileMenuButton } from '../ui/ProfileMenuButton';
 import { menuBackground, playerMenuColor } from '../ui/profileMenu';
 import { checkName, NAME_MESSAGES } from '../ui/profileName';
 import { addBackButton, addHeader } from '../ui/screenChrome';
+import { READING_LEVELS } from '../core/types';
 import { buildLevelPicker } from './reading/levelPicker';
 
 const NO_INPUT = { navX: 0, navY: 0, confirm: false, back: false };
@@ -71,7 +72,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
     objs.push(...buttons, back);
     group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
     group.set([...buttons, back]);
-    group.focus(buttons[1]);
+    group.focus(buttons[READING_LEVELS.indexOf('medium')]);
   };
 
   const done = (value: string) => {

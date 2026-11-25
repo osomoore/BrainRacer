@@ -135,7 +135,9 @@ test('join, touch: one tap, one player, no key prompts', async ({ browser }) => 
     await tapAt(576, 386); // A
     await tapAt(1216, 898); // Done
     await expect.poll(() => profileTexts(page)).toContain('A, how well do you read?');
-    await tapAt(960, 560); // Medium
+    await expect.poll(() => profileTexts(page)).toEqual(expect.arrayContaining(['Starter', 'Easy', 'Medium', 'Hard']));
+    await tapAt(282, 560); // Starter
+    await expect.poll(() => page.evaluate(() => (window as any).__ws.contexts()[0].reading())).toBe('starter');
     await screens(page).toBe('pickWorkshop');
   } finally { await ctx.close(); }
 });
@@ -149,7 +151,9 @@ test('profile chooser lists profiles from the shared store, and a Brain Racer pr
   expect(texts).toEqual(expect.arrayContaining(['Robin', 'Sam', '+ New']));
   await key(page, 'Space'); // Robin: never played the workshop -> reading level once
   await screens(page).toBe('reading');
-  await key(page, 'Space'); // preselected level
+  await key(page, 'KeyA'); await key(page, 'KeyA'); // Medium -> Easy -> Starter
+  await key(page, 'Space');
+  expect(await page.evaluate(() => (window as any).__ws.contexts()[0].reading())).toBe('starter');
   await screens(page).toBe('pickWorkshop');
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hub.profiles')!).map((p: { id: string; name: string }) => `${p.id}:${p.name}`));
   expect(stored).toEqual(['p1:Robin', 'p2:Sam']);

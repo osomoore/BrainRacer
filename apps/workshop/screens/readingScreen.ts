@@ -1,5 +1,6 @@
 /** reading: reading-level chooser for an existing profile entering the workshop the first time. B returns to the profiles. */
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
+import { READING_LEVELS } from '../core/types';
 import { engine } from '../logic';
 import type { ShellPaneContext } from '../shell/paneContext';
 import { shell } from '../shell/shell';
@@ -34,7 +35,7 @@ const readingScreen: ScreenFactory = (): Screen => {
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
       group.set([...buttons, back]);
       const cur = ctx.reading();
-      group.focus(buttons[['easy', 'medium', 'hard'].indexOf(cur)] ?? buttons[1]);
+      group.focus(buttons[READING_LEVELS.indexOf(cur)] ?? buttons[READING_LEVELS.indexOf('medium')]);
     },
     update() {
       for (const a of ctx.input.poll()) {

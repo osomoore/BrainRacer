@@ -7,7 +7,7 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 5;
+export const CHALLENGE_RULES_VERSION = 6;
 
 /**
  * Easy shows only these aspects per workshop (the others stay pinned to their first starter; parts bought there
@@ -86,6 +86,7 @@ export const WS_UI = {
   adminPill: { inset: 5, h: 40, padX: 16, font: 28 },
   /** Reading-level sample sentences (profile creation / reading screens). */
   readingSamples: {
+    starter: 'Hop in!',
     easy: 'The red car can go.',
     medium: 'Build a car that can cross the muddy field.',
     hard: 'Equip your vehicle with enough traction to cross slippery ground.',

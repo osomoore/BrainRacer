@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../content';
-import type { Challenge, LeveledPhrases, ReadingLevel, RunResult, WorkshopCatalog } from '../core/types';
+import { READING_LEVELS } from '../core/types';
+import type { Challenge, LeveledPhrases, RunResult, WorkshopCatalog } from '../core/types';
 import { resolveSpec } from './text';
 import { successReasons } from './successReasons';
 import { validateCatalog } from './validateCatalog';
 import { evaluate } from './evaluate';
 import { defaultModel } from './stats';
-
-const readings: ReadingLevel[] = ['easy', 'medium', 'hard'];
 
 function oneRequirement(cat: WorkshopCatalog, seed = 17): Challenge {
   const scenario = cat.scenarios[0];
@@ -30,7 +29,7 @@ describe.each(Object.values(CATALOGS))('$title success reasons', (cat) => {
   it('chooses seeded quality reasons deterministically from both catalogs', () => {
     const challenge = oneRequirement(cat);
     const result = resultFor(challenge, 'stat');
-    for (const reading of readings) {
+    for (const reading of READING_LEVELS) {
       const a = Array.from({ length: 24 }, (_, seed) => successReasons(cat, { ...challenge, seed }, result, reading)[0]);
       const b = Array.from({ length: 24 }, (_, seed) => successReasons(cat, { ...challenge, seed }, result, reading)[0]);
       const allowed = cat.successPhrases![challenge.stages[0].requirements[0].facet].quality[reading];
@@ -96,6 +95,7 @@ describe.each(Object.values(CATALOGS))('$title success reasons', (cat) => {
         const phrase = phraseBanks[facet.id]!;
         const qualityByLevel: Record<number, LeveledPhrases> = {};
         for (const level of [1, 2, 3]) qualityByLevel[level] = {
+          starter: ['You did it!', 'A smart fix!'],
           easy: [`facet${i}-level${level}-one`, `facet${i}-level${level}-two`],
           medium: [`facet${i}-level${level}-one`, `facet${i}-level${level}-two`],
           hard: [`facet${i}-level${level}-one`, `facet${i}-level${level}-two`],
