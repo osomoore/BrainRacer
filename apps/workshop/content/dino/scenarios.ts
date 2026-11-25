@@ -98,6 +98,6 @@ export const DINO_SCENARIOS: readonly ScenarioDef[] = [
       [tag('camo:desert'), atLeast('stealth', 6)],
       [tag('camo:desert'), atLeast('stealth', 8)],
     ], 'color', 1),
-    facet('desert.cool', [[atMost('warmth', 3)], [atMost('warmth', 0)]], 'extra', 0),
+    facet('desert.cool', [[atMost('warmth', 3)], [atMost('warmth', 0)]], 'body', 0),
   ]),
 ];
