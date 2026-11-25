@@ -9,7 +9,7 @@ import { BUILD_ID } from '../buildInfo';
 import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
 import { developerModeSettings, MAP_LABEL, RACE_MAPS } from '../core/progression';
 import { earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
-import { racerIds, racerName, racerProfiles, validRacerName, withRacerProfile } from '../core/racerProfiles';
+import { racerIds, racerName, racerProfiles, racerSettingsOf, validRacerName } from '../core/racerProfiles';
 import { services } from '../core/services';
 import { isRaceMap, loadSettings, loadoutForProfile, saveSettings } from '../core/settings';
 import type { QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
@@ -25,6 +25,8 @@ import { familySync } from '../../shared/sync/runtime';
 import { openProfilesPanel } from '../../shared/profilesPanel';
 import { renameManagedProfile, replaceProfileSlot } from '../../shared/profileManager';
 import { subscribeProfileReplacements } from '../../shared/sync/changes';
+import { resolveActiveProfileId, resolveProfileId } from '../../shared/profiles';
+import { waitForRelease } from '../ui/menu/releaseGate';
 
 /**
  * Hidden advanced settings. Open with LT+RT+Start on a gamepad or F9 on a keyboard.
@@ -101,6 +103,7 @@ export class ConfigScene extends Phaser.Scene {
   private rows: Row[] = [];
   private subRows: Row[] = [];
   private subPanel?: Phaser.GameObjects.Container;
+  private showingRacerProfiles = false;
   private contentPage = 0;
   private contentRacer = 0;
   private profilePage = 0;
@@ -115,6 +118,8 @@ export class ConfigScene extends Phaser.Scene {
   private recentKeys: { code: string; at: number }[] = [];
   private readoutAt = 0;
   private frame = 0;
+  /** After a DOM profile panel closes, ignore its still-held Back press until released. */
+  private waitForBackRelease = false;
 
   constructor() { super(SCENE.config); }
 
@@ -151,6 +156,11 @@ export class ConfigScene extends Phaser.Scene {
       this.registry.set(REG.settings, { ...current, players, racerProfiles: latest.racerProfiles });
     });
     this.events.once('shutdown', unsubscribeReplacements);
+    const unsubscribeProfiles = familySync.subscribeProfiles(() => {
+      if (this.modal && resolveActiveProfileId(this.modal.id) !== this.modal.id) this.closeModal();
+      if (this.showingRacerProfiles && !this.modal) this.showProfiles(this.profilePage, this.cursor);
+    });
+    this.events.once('shutdown', unsubscribeProfiles);
     this.input.keyboard?.on('keydown-F9', () => {
       const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
       if (!panels.__familySyncDialogOpen && !panels.__profilesPanelOpen) this.toggle();
@@ -243,8 +253,9 @@ export class ConfigScene extends Phaser.Scene {
       this.adminCursor = this.cursor;
       this.showContent();
     });
-    const profiles = action(1, rowY(8), 'Profiles', () => { openProfilesPanel(); });
-    profiles.setSize(profiles.w, profiles.h).setInteractive().on('pointerdown', () => openProfilesPanel());
+    const openProfiles = () => openProfilesPanel({ onClose: () => { this.waitForBackRelease = true; } });
+    const profiles = action(1, rowY(8), 'Profiles', openProfiles);
+    profiles.setSize(profiles.w, profiles.h).setInteractive().on('pointerdown', openProfiles);
     action(1, rowY(9), 'Racer Profiles', () => {
       this.adminCursor = this.cursor;
       this.showProfiles();
@@ -307,6 +318,7 @@ export class ConfigScene extends Phaser.Scene {
   /** Replaces the main panel with a full-screen settings page. */
   private openSub(title: string, subtitle: string, hint: string): Phaser.GameObjects.Container {
     this.subPanel?.destroy();
+    this.showingRacerProfiles = false;
     this.panel.setVisible(false);
     const cx = GAME_WIDTH / 2;
     const panel = this.add.container(0, 0).setDepth(DEPTH);
@@ -324,6 +336,7 @@ export class ConfigScene extends Phaser.Scene {
     const pages = pageCount(ids.length, PROFILES_PER_PAGE);
     this.profilePage = clampPage(page, pages);
     const panel = this.openSub('RACER PROFILES', '', 'Up / Down move    Left / Right change    Back to Admin Settings');
+    this.showingRacerProfiles = true;
     const color = hexNum(PLAYER_COLORS[0]);
     const colW = 840;
     const xs = [490, 1430];
@@ -331,10 +344,11 @@ export class ConfigScene extends Phaser.Scene {
     const rowStep = 68;
     const opts = { width: colW, height: 60, fontSize: 40, valueX: 130, arrowSpan: 105 };
     const save = (id: RacerProfileId, mutate: (p: RacerProfile) => void): void => {
-      const cur = racerProfiles(this.settings())[id];
+      const cur = racerProfiles(loadSettings())[id];
+      if (!cur) { this.showProfiles(this.profilePage, this.cursor); return; }
       const next: RacerProfile = { difficulty: cur.difficulty, questionTypes: { ...cur.questionTypes }, roundSec: cur.roundSec, jbq: { ...cur.jbq } };
       mutate(next);
-      this.patchSettings(withRacerProfile(this.settings(), id, next));
+      this.patchSettings({ racerProfiles: { [id]: next } });
     };
     // Page row first, then one racer block per column; Up/Down walks one racer at a time.
     const pageRow = new OptionRow(this, GAME_WIDTH / 2, 148, 'Page', { ...opts, width: 700, valueX: 150, arrowSpan: 130 });
@@ -342,6 +356,7 @@ export class ConfigScene extends Phaser.Scene {
     const changePage = (dir: 1 | -1) => this.showProfiles(Phaser.Math.Wrap(this.profilePage + dir, 0, pages), 0);
     this.subRows.push({ selectable: pageRow, refresh: () => pageRow.setValue(`${this.profilePage + 1} / ${pages}`), change: changePage, activate: () => changePage(1), bump: d => pageRow.bump(d) });
     pageItems(ids, this.profilePage, PROFILES_PER_PAGE).forEach((id, col) => {
+      const settings = () => racerSettingsOf(this.settings(), id);
       const x = xs[col];
       panel.add(bigText(this, x, y0, racerName(this.settings(), id).toUpperCase(), 52, MENU.yellow, { font: FONT_HEAD }));
       let n = 0;
@@ -352,7 +367,7 @@ export class ConfigScene extends Phaser.Scene {
         const band = AGE_BANDS[Phaser.Math.Wrap(AGE_BANDS.indexOf(difficultyBand(p.difficulty)) + dir, 0, AGE_BANDS.length)];
         p.difficulty = bandDifficulty(band); p.roundSec = bandRoundSec(band);
       });
-      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(ageLabel(racerProfiles(this.settings())[id].difficulty)), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
+      this.subRows.push({ selectable: diff, refresh: () => diff.setValue(ageLabel(settings().difficulty)), change: changeDiff, activate: () => changeDiff(1), bump: d => diff.bump(d) });
       for (const { type, label } of PROFILE_TYPES) {
         const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 150, arrowSpan: 105 });
         panel.add(row);
@@ -362,26 +377,26 @@ export class ConfigScene extends Phaser.Scene {
           if (!on && PROFILE_TYPES.filter(t => p.questionTypes[t.type]).length <= 1) return;
           p.questionTypes[type] = on;
         });
-        this.subRows.push({ selectable: row, refresh: () => row.setValue(racerProfiles(this.settings())[id].questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
+        this.subRows.push({ selectable: row, refresh: () => row.setValue(settings().questionTypes[type] ? 'On' : 'Off'), change: toggle, activate: toggle, bump: d => row.bump(d) });
       }
       for (const [label, rowId] of [['JBQ points', ROW_POINTS], ['JBQ scope', ROW_SCOPE]] as const) {
         // Basics is a fixed set (Q1-144), so the scope row does not apply.
-        if (rowId === ROW_SCOPE && racerProfiles(this.settings())[id].jbq.points === 'basics') continue;
+        if (rowId === ROW_SCOPE && settings().jbq.points === 'basics') continue;
         const row = new OptionRow(this, x, rowY(), label, { ...opts, valueX: 115, arrowSpan: 150 });
         panel.add(row);
         const change = (dir: 1 | -1) => {
-          const was = racerProfiles(this.settings())[id].jbq.points === 'basics';
+          const was = settings().jbq.points === 'basics';
           save(id, p => { p.jbq = changeJbq(p.jbq, rowId, dir); });
           // Entering or leaving Basics adds or removes the scope row: rebuild the page after this input.
-          if (was !== (racerProfiles(this.settings())[id].jbq.points === 'basics')) this.time.delayedCall(0, () => this.showProfiles(this.profilePage, this.cursor));
+          if (was !== (settings().jbq.points === 'basics')) this.time.delayedCall(0, () => this.showProfiles(this.profilePage, this.cursor));
         };
-        const text = () => { const j = racerProfiles(this.settings())[id].jbq; return rowId === ROW_POINTS ? jbqPointsLabel(j.points) : jbqScopeLabel(j.points, j.scope); };
+        const text = () => { const j = settings().jbq; return rowId === ROW_POINTS ? jbqPointsLabel(j.points) : jbqScopeLabel(j.points, j.scope); };
         this.subRows.push({ selectable: row, refresh: () => row.setValue(text()), change, activate: () => change(1), bump: d => row.bump(d) });
       }
       const time = new OptionRow(this, x, rowY(), 'Race time', { ...opts, valueX: 150, arrowSpan: 105 });
       panel.add(time);
       const changeTime = (dir: 1 | -1) => save(id, p => { p.roundSec = cycleNum(RACER_ROUND_SEC, p.roundSec, dir); });
-      this.subRows.push({ selectable: time, refresh: () => time.setValue(minutes(racerProfiles(this.settings())[id].roundSec)), change: changeTime, activate: () => changeTime(1), bump: d => time.bump(d) });
+      this.subRows.push({ selectable: time, refresh: () => time.setValue(minutes(settings().roundSec)), change: changeTime, activate: () => changeTime(1), bump: d => time.bump(d) });
       const rename = new MenuButton(this, x, rowY(), colW, 60, 'Rename', color, 44, false);
       panel.add(rename);
       this.subRows.push({ selectable: rename, activate: () => this.openRename(id) });
@@ -416,7 +431,9 @@ export class ConfigScene extends Phaser.Scene {
 
   private openDelete(id: RacerProfileId): void {
     this.closeModal();
+    this.waitForBackRelease = true;
     openProfilesPanel({ profileId: id, initialAction: 'delete', onClose: () => {
+      this.waitForBackRelease = true;
       if (this.subPanel) this.showProfiles(this.profilePage, 0);
     } });
   }
@@ -551,6 +568,7 @@ export class ConfigScene extends Phaser.Scene {
 
   private closeSub(): void {
     this.subPanel?.destroy();
+    this.showingRacerProfiles = false;
     this.subPanel = undefined;
     this.subRows = [];
     this.panel.setVisible(true);
@@ -564,7 +582,23 @@ export class ConfigScene extends Phaser.Scene {
   }
 
   private patchSettings(patch: Partial<Settings>): void {
-    const next = { ...this.settings(), ...patch };
+    const cached = this.settings();
+    const latest = loadSettings();
+    const next = { ...cached, ...latest, ...patch };
+    // Keep profile preferences changed in this menu, while retaining any other tab's newer edits.
+    if (patch.racerProfiles) {
+      const prefs = { ...(latest.racerProfiles ?? {}) };
+      for (const [id, value] of Object.entries(patch.racerProfiles)) {
+        if (resolveActiveProfileId(id) === id) prefs[id] = value;
+      }
+      next.racerProfiles = prefs;
+    }
+    next.players = (patch.players ?? latest.players ?? cached.players).map(player => {
+      const id = player.profile;
+      if (!id) return player;
+      const active = resolveProfileId(id);
+      return active === id ? player : { ...player, ...(active && loadoutForProfile(active)), profile: active };
+    });
     saveSettings(next);
     this.registry.set(REG.settings, next);
     services.audio.setVolumes(next.musicVolume, next.sfxVolume);
@@ -648,6 +682,9 @@ export class ConfigScene extends Phaser.Scene {
 
   private updateOpen(): void {
     const inp = services.input.any();
+    const releaseGate = waitForRelease(this.waitForBackRelease, inp.back);
+    this.waitForBackRelease = releaseGate.waiting;
+    if (releaseGate.ignore) return;
     if (this.updateModal(inp)) return;
     if (inp.back && this.subPanel) { this.closeSub(); return; }
     if (inp.pause || inp.back) { this.toggle(); return; }

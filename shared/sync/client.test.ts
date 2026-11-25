@@ -160,6 +160,141 @@ describe('family sync', () => {
     expect(b.transport.redirected).toEqual([['source', ID]]);
   });
 
+  it('keeps a later rename and newer game scalars after a stale device gets a 409', async () => {
+    const server = new FakeFamilyServer();
+    const a = device(server.fetch, 100, baseProfile());
+    const b = device(server.fetch, 200);
+    expect(await a.client.makeFamily()).toBe(true);
+    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+    modify(a, p => {
+      p.workshop!.workshops.race!.wallet = 70;
+      p.racer.settings = { difficulty: 'hard', roundSec: 300, questionTypes: { math: true, reading: false, jbq: false },
+        jbq: { points: 20, scope: 'all' } };
+    });
+    expect(await a.client.flush()).toBe(true);
+    modify(b, p => { p.profile.name = 'Juniper'; });
+    expect(await b.createClient().flush()).toBe(true);
+    expect(await a.client.syncNow()).toBe(true);
+    expect(a.saves.get(ID)).toEqual(b.saves.get(ID));
+    expect(a.saves.get(ID)?.profile.name).toBe('Juniper');
+    expect(a.saves.get(ID)?.workshop?.workshops.race?.wallet).toBe(70);
+    expect(a.saves.get(ID)?.racer.settings?.difficulty).toBe('hard');
+  });
+
+  it.each(['pull', '409'])('restores a pending merge destination deleted remotely via %s', async mode => {
+    const server = new FakeFamilyServer();
+    const a = device(server.fetch, 100, baseProfile());
+    const source = baseProfile();
+    source.profile = { id: 'duplicate', name: 'June', createdAt: 20 };
+    a.saves.set(source.profile.id, source);
+    const b = device(server.fetch, 200);
+    expect(await a.client.makeFamily()).toBe(true);
+    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+    a.transport.offline = true;
+    modify(a, p => {
+      p.workshop!.workshops.race!.wallet = 70;
+      p.racer.jbq = { 7: 2 };
+    });
+    a.local.hide(source.profile.id, ID);
+    a.client.noteChange(source.profile.id, true, ID);
+    b.local.hide(ID);
+    b.client.noteChange(ID, true);
+    expect(await b.client.flush()).toBe(true);
+
+    a.transport.offline = false;
+    const reopened = a.createClient();
+    expect(await (mode === 'pull' ? reopened.syncNow() : reopened.flush())).toBe(true);
+    expect(await b.client.syncNow()).toBe(true);
+    expect([...a.saves.keys()]).toEqual([ID]);
+    expect([...b.saves.keys()]).toEqual([ID]);
+    expect(a.saves.get(ID)?.workshop?.workshops.race?.wallet).toBe(70);
+    expect(b.saves.get(ID)?.racer.jbq).toEqual({ 7: 2 });
+  });
+
+  it('drops an in-flight pull when another tab commits a merge on this device', async () => {
+    const server = new FakeFamilyServer();
+    let finishPull: (() => void) | undefined;
+    let delayPull = false;
+    const a = device(async (input, init) => {
+      const response = await server.fetch(input, init);
+      if (delayPull && (init?.method ?? 'GET') === 'GET') {
+        await new Promise<void>(resolve => { finishPull = resolve; });
+      }
+      return response;
+    }, 100, baseProfile());
+    const source = baseProfile();
+    source.profile = { id: 'duplicate', name: 'June', createdAt: 20 };
+    a.saves.set(source.profile.id, source);
+    expect(await a.client.makeFamily()).toBe(true);
+    // Force this pull to contain the still-live source.
+    const remote = device(server.fetch, 150);
+    expect(await remote.client.joinFamily(a.client.state.code!)).toBe(true);
+    remote.saves.get(source.profile.id)!.racer.jbq = { 2: 1 };
+    remote.client.noteChange(source.profile.id);
+    expect(await remote.client.flush()).toBe(true);
+
+    const tab = a.createClient();
+    delayPull = true;
+    const pull = tab.syncNow();
+    await expect.poll(() => finishPull).toBeTypeOf('function');
+    modify(a, p => { p.racer.jbq = { 1: 3 }; });
+    a.local.hide(source.profile.id, ID);
+    a.client.noteChange(source.profile.id, true, ID);
+    finishPull!();
+    await pull;
+    expect([...a.saves.keys()]).toEqual([ID]);
+    expect(a.saves.get(ID)?.racer.jbq).toEqual({ 1: 3 });
+    expect(tab.state.pending).toBe(2);
+  });
+
+  it('keeps the combined destination when the same pull restores an edited duplicate', async () => {
+    const server = new FakeFamilyServer();
+    const a = device(server.fetch, 100, baseProfile());
+    const source = baseProfile();
+    source.profile = { id: 'duplicate', name: 'June', createdAt: 20 };
+    const duplicateId = source.profile.id;
+    a.saves.set(duplicateId, source);
+    const b = device(server.fetch, 200);
+    expect(await a.client.makeFamily()).toBe(true);
+    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+
+    modify(a, p => { p.workshop!.workshops.race!.wallet = 70; });
+    a.local.hide(duplicateId, ID);
+    a.client.noteChange(duplicateId, true, ID);
+    b.saves.get(duplicateId)!.racer.jbq = { 7: 2 };
+    b.client.noteChange(duplicateId);
+    b.local.hide(ID);
+    b.client.noteChange(ID, true);
+    expect(await b.client.flush()).toBe(true);
+    expect(await a.client.syncNow()).toBe(true);
+    expect(a.saves.get(ID)?.workshop?.workshops.race?.wallet).toBe(70);
+    expect(a.saves.get(duplicateId)?.racer.jbq).toEqual({ 7: 2 });
+  });
+
+  it('recovers a committed offline merge before sync if the tab closed before queuing it', async () => {
+    const server = new FakeFamilyServer();
+    const a = device(server.fetch, 100, baseProfile());
+    const source = baseProfile();
+    source.profile = { id: 'duplicate', name: 'June', createdAt: 20 };
+    const duplicateId = source.profile.id;
+    a.saves.set(duplicateId, source);
+    const b = device(server.fetch, 200);
+    expect(await a.client.makeFamily()).toBe(true);
+    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+
+    a.saves.get(ID)!.workshop!.workshops.race!.wallet = 70;
+    a.local.hide(duplicateId);
+    a.local.replacementOf = id => id === duplicateId ? ID : undefined;
+    b.local.hide(ID);
+    b.client.noteChange(ID, true);
+    expect(await b.client.flush()).toBe(true);
+
+    expect(await a.createClient().syncNow()).toBe(true);
+    expect(await b.client.syncNow()).toBe(true);
+    expect(b.saves.get(ID)?.workshop?.workshops.race?.wallet).toBe(70);
+    expect(b.saves.has(duplicateId)).toBe(false);
+  });
+
   it('keeps a duplicate visible when its unsynced local edit has not reached the combined save', async () => {
     const server = new FakeFamilyServer();
     const source = baseProfile();

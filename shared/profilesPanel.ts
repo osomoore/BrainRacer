@@ -2,6 +2,7 @@ import { createMenuInput, keyActions, type MenuAction } from './input/menuInput'
 import { listManagedProfiles, renameManagedProfile, deleteManagedProfile, mergeManagedProfiles } from './profileManager';
 import { PROFILE_NAME } from './profiles';
 import { createAdminPanelRoot, styleAdminPanelButton } from './sync/panel';
+import { familySync } from './sync/runtime';
 
 type ManagedProfile = ReturnType<typeof listManagedProfiles>[number];
 type PanelWindow = Window & { __profilesPanelOpen?: boolean };
@@ -29,6 +30,7 @@ export function openProfilesPanel(options: { onClose?: () => void; profileId?: s
     input.dispose();
     root.remove();
     window.removeEventListener('keydown', onKey, true);
+    unsubscribeProfiles();
     delete (window as PanelWindow).__profilesPanelOpen;
     options.onClose?.();
   };
@@ -211,6 +213,9 @@ export function openProfilesPanel(options: { onClose?: () => void; profileId?: s
     handle(action);
   }
   window.addEventListener('keydown', onKey, true);
+  const unsubscribeProfiles = familySync.subscribeProfiles(() => {
+    queueMicrotask(() => { if (view === 'list') render(); });
+  });
   render();
   const poll = () => {
     if (closed) return;

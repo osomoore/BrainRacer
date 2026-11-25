@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { DEFAULT_SETTINGS, GAME_HEIGHT, GAME_WIDTH, PLAYER_COLORS } from '../config/gameConfig';
 import { MAP_LABEL, RACE_MAPS } from '../core/progression';
-import { playerRacer, racerName } from '../core/racerProfiles';
+import { applyRacerProfile, playerRacer, racerName, racerProfiles } from '../core/racerProfiles';
 import { loadAllProgress, racerProgressOf, teamMaps, teamPlayableMap } from '../core/racerProgress';
 import { services } from '../core/services';
-import { loadSettings, saveSettings } from '../core/settings';
+import { loadSettings, loadoutForProfile, saveSettings } from '../core/settings';
 import type { PlayerId, RaceMap, Settings } from '../core/types';
 import type { MusicTrack } from '../core/types';
 import { isQueuedMap } from '../config/queuedMaps';
@@ -13,6 +13,8 @@ import { stepMap } from '../ui/menu/trackLogic';
 import { MenuButton } from '../ui/menu/MenuButton';
 import { bigText, FONT_HEAD, hexNum } from '../ui/menu/style';
 import { REG, SCENE } from './keys';
+import { duplicateProfileSlots } from '../ui/menu/joinLogic';
+import { resolveProfileId } from '../../shared/profiles';
 
 const COLS = 4;
 const TILE_W = 440, TILE_H = 140, TILE_GAP = 20;
@@ -125,8 +127,8 @@ export class TrackSelectScene extends Phaser.Scene {
     if (inp.back) {
       this.leaving = true;
       services.audio.sfx('menuMove');
-      this.persist();
-      this.scene.start(SCENE.setup, { keepReady: true });
+      const { deletedSlots } = this.persist();
+      this.scene.start(SCENE.setup, { keepReady: true, deletedSlots });
       return;
     }
     const comboHeld = inp.brake > 0.5 && inp.throttle > 0.5;
@@ -155,15 +157,31 @@ export class TrackSelectScene extends Phaser.Scene {
     this.leaving = true;
     this.startBtn.pulse();
     services.audio.sfx('menuSelect');
-    this.persist();
-    this.scene.start(SCENE.race);
+    const { duplicates, deletedSlots } = this.persist();
+    if (duplicates || deletedSlots.length) this.scene.start(SCENE.setup, { deletedSlots });
+    else this.scene.start(SCENE.race);
   }
 
   private persist() {
     // Family sync may have refreshed profile settings while this scene was open.
-    const latest = this.registry.get(REG.settings) as Settings | undefined;
-    const settings: Settings = { ...(latest ?? this.settings), map: this.map };
-    saveSettings({ ...settings, seed: loadSettings().seed });
+    const latest = loadSettings();
+    const preferences = racerProfiles(latest);
+    const deletedSlots: number[] = [];
+    const players = (this.settings.players.length ? this.settings.players : latest.players).map((player, slot) => {
+      const id = player.profile;
+      if (typeof id !== 'string') return player;
+      const active = resolveProfileId(id);
+      if (active === id) return player;
+      if (!active) {
+        deletedSlots.push(slot);
+        return { ...player, profile: undefined };
+      }
+      return { ...applyRacerProfile({ ...player, profile: active }, slot, { racerProfiles: preferences }), ...loadoutForProfile(active), profile: active };
+    });
+    const settings: Settings = { ...latest, players, racerProfiles: preferences, map: this.map };
+    const duplicates = duplicateProfileSlots(settings.players.map((p, i) => playerRacer(p, i, settings)), settings.players.map(p => p.profile === undefined));
+    saveSettings(settings);
     this.registry.set(REG.settings, settings);
+    return { duplicates: duplicates.length > 0, deletedSlots };
   }
 }

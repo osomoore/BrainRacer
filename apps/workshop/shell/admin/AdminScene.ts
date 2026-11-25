@@ -38,6 +38,7 @@ export class AdminScene extends Phaser.Scene {
   private group?: FocusGroup;
   private opened = 0;
   private startGate = false;
+  private suppressNextAdminActions = false;
 
   constructor() { super('admin'); }
 
@@ -49,6 +50,17 @@ export class AdminScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
       if (this.view.kind === 'gate' && /^Digit[0-9]$|^Numpad[0-9]$/.test(e.code)) this.gateDigit(Number(e.code.slice(-1)));
     });
+    const unsubscribeProfiles = familySync.subscribeProfiles((id) => {
+      if (!this.scene.isActive()) return;
+      const view = this.view;
+      if (view.kind === 'player' || view.kind === 'workshop') {
+        if (view.profile !== id && !listProfiles().some((p) => p.id === view.profile)) {
+          this.stack = [];
+          this.show({ kind: 'main' });
+        } else this.show(view, true);
+      } else if (view.kind === 'main') this.show({ kind: 'main' }, true);
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribeProfiles);
     this.open(this.startGate);
   }
 
@@ -62,6 +74,11 @@ export class AdminScene extends Phaser.Scene {
   // ---------------------------------------------------------------- views
 
   private show(v: View, keepFocus = false): void {
+    if ((v.kind === 'player' || v.kind === 'workshop') && !listProfiles().some((p) => p.id === v.profile)) {
+      this.stack = [];
+      this.show({ kind: 'main' });
+      return;
+    }
     const prevFocus = this.ls.focus;
     this.view = v;
     this.clear();
@@ -102,14 +119,14 @@ export class AdminScene extends Phaser.Scene {
       });
       rows.push({ kind: 'note', label: 'On: all parts open, 10 test challenges, nothing is saved.' });
       rows.push({ kind: 'section', label: 'Players' });
-      rows.push({ kind: 'action', label: 'Profiles', tag: '>', run: () => openProfilesPanel() });
+      rows.push({ kind: 'action', label: 'Profiles', tag: '>', run: () => openProfilesPanel({ onClose: () => this.parentPanelClosed() }) });
       const profiles = listProfiles();
       if (profiles.length === 0) rows.push({ kind: 'note', label: 'No players yet.' });
       for (const p of profiles) {
         rows.push({ kind: 'action', label: p.name, tag: shell.store.hasPlayer(p.id) ? '>' : 'no workshop save > ', run: () => this.push({ kind: 'player', profile: p.id }) });
       }
       if (familySync.enabled) {
-        rows.push({ kind: 'action', label: 'Family sync', tag: '>', run: () => openFamilySyncPanel() });
+        rows.push({ kind: 'action', label: 'Family sync', tag: '>', run: () => openFamilySyncPanel({ onClose: () => this.parentPanelClosed() }) });
       }
       rows.push({ kind: 'section', label: '' });
       rows.push({ kind: 'action', label: 'Close', run: () => this.close() });
@@ -121,7 +138,7 @@ export class AdminScene extends Phaser.Scene {
         rows.push({
           kind: 'value', label: 'Reading level', value: save.reading,
           options: READING_LEVELS.map((l) => ({ id: l, label: READING_LABEL[l] })),
-          set: (id) => shell.store.setPlayer(v.profile, { ...save, reading: id as ReadingLevel }),
+          set: (id) => this.mutate(v, (s) => ({ ...s, reading: id as ReadingLevel }), undefined, true),
         });
       }
       for (const ws of WORKSHOP_IDS) rows.push({ kind: 'action', label: WS_TITLE[ws], tag: '>', run: () => this.push({ kind: 'workshop', profile: v.profile, ws }) });
@@ -177,6 +194,7 @@ export class AdminScene extends Phaser.Scene {
   /** Applies a change to the player's REAL save (even in Admin Mode), then redraws. */
   private mutate(v: View, f: (s: PlayerSave) => PlayerSave, msg?: string, keep = false): void {
     if (v.kind !== 'workshop' && v.kind !== 'player') return;
+    if (!listProfiles().some((p) => p.id === v.profile)) { this.stack = []; this.show({ kind: 'main' }); return; }
     const save = this.realSave(v.profile) ?? engine.newPlayerSave('medium');
     shell.store.setPlayer(v.profile, f(save));
     this.show(v, keep);
@@ -191,6 +209,13 @@ export class AdminScene extends Phaser.Scene {
   }
 
   private close(): void { shell.closeAdmin(); }
+
+  private parentPanelClosed(): void {
+    // The manager can close on the same B edge the paused game input router sees. Drop that
+    // frame before admin navigation resumes, so one press cannot also close this parent menu.
+    this.suppressNextAdminActions = true;
+    if (this.scene.isActive() && this.view.kind === 'main') this.show({ kind: 'main' });
+  }
 
   // ---------------------------------------------------------------- list rendering
 
@@ -328,8 +353,9 @@ export class AdminScene extends Phaser.Scene {
 
   override update(): void {
     const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
-    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
     shell.router.step(this.game.getFrame());
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
+    if (this.suppressNextAdminActions) { this.suppressNextAdminActions = false; return; }
     if (this.game.getFrame() === this.opened) return;
     const actions = shell.router.rawActions();
     for (const a of actions) {

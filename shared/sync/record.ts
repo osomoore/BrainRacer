@@ -4,13 +4,15 @@ import { validProfileName } from '../profiles';
 import { object, profileId, stamp } from './protocol';
 import { parseRacerSnapshot, type ProfileSnapshot } from './storage';
 
-export interface ProfileRecord extends ProfileSnapshot { schema: 1; updatedAt: number }
+export interface ProfileRecord extends ProfileSnapshot { schema: 1; updatedAt: number; identityUpdatedAt?: number }
 export interface Revision { id: string; rev: number; value: ProfileValue }
 export type ProfileValue =
   | { deleted: true; updatedAt: number; mergedInto?: string }
   | { deleted: false; data: ProfileRecord };
 
-export const timeOf = (value: ProfileValue): number => value.deleted ? value.updatedAt : value.data.updatedAt;
+export const identityTimeOf = (data: ProfileRecord): number => data.identityUpdatedAt ?? data.updatedAt;
+export const timeOf = (value: ProfileValue): number =>
+  value.deleted ? value.updatedAt : Math.max(value.data.updatedAt, identityTimeOf(value.data));
 
 const stringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every(s => typeof s === 'string');
@@ -83,13 +85,14 @@ export function readRevision(value: unknown): Revision | undefined {
     return { id, rev, value: { deleted: true, updatedAt: deletedAt ?? value.updatedAt, mergedInto } };
   }
   if (!object(data) || data.schema !== 1 || !stamp(data.updatedAt) || !object(data.profile)
+    || (data.identityUpdatedAt !== undefined && !stamp(data.identityUpdatedAt))
     || data.profile.id !== id || !stamp(data.profile.createdAt) || !workshopSave(data.workshop)) return undefined;
   const name = validProfileName(data.profile.name);
   const racer = parseRacerSnapshot(data.racer);
   if (!name || name !== data.profile.name || !racer) return undefined;
   return { id, rev, value: { deleted: false, data: {
     schema: 1, profile: { id, name, createdAt: data.profile.createdAt }, racer,
-    workshop: data.workshop, updatedAt: data.updatedAt,
+    workshop: data.workshop, updatedAt: data.updatedAt, identityUpdatedAt: data.identityUpdatedAt,
   } } };
 }
 
@@ -152,17 +155,31 @@ function mergeRacer(older: ProfileSnapshot['racer'], newer: ProfileSnapshot['rac
 
 /** Equal edit times prefer the server's scalars, with deletion winning ties. */
 export function mergeProfile(local: ProfileValue, remote: ProfileValue): ProfileValue {
-  const [older, newer] = timeOf(local) > timeOf(remote) ? [remote, local] : [local, remote];
-  if (older.deleted || newer.deleted) return older.deleted && timeOf(older) === timeOf(newer) ? older : newer;
+  if (local.deleted || remote.deleted) {
+    if (timeOf(local) > timeOf(remote) || (timeOf(local) === timeOf(remote) && local.deleted)) return local;
+    return remote;
+  }
+  const [older, newer] = local.data.updatedAt > remote.data.updatedAt ? [remote.data, local.data] : [local.data, remote.data];
+  const identity = identityTimeOf(local.data) > identityTimeOf(remote.data) ? local.data : remote.data;
   return { deleted: false, data: {
-    ...newer.data, racer: mergeRacer(older.data.racer, newer.data.racer),
-    workshop: mergeWorkshop(older.data.workshop, newer.data.workshop),
+    ...newer, profile: identity.profile,
+    identityUpdatedAt: identity.identityUpdatedAt ?? (identity.updatedAt !== newer.updatedAt ? identity.updatedAt : undefined),
+    racer: mergeRacer(older.racer, newer.racer),
+    workshop: mergeWorkshop(older.workshop, newer.workshop),
   } };
 }
 
 /** Stable across object insertion order and excludes sync metadata. */
 export function snapshotHash(snapshot: ProfileSnapshot): string {
-  const text = JSON.stringify({ profile: snapshot.profile, racer: snapshot.racer, workshop: snapshot.workshop },
+  return dataHash({ profile: snapshot.profile, racer: snapshot.racer, workshop: snapshot.workshop });
+}
+
+export function gameSaveHash(snapshot: ProfileSnapshot): string {
+  return dataHash({ racer: snapshot.racer, workshop: snapshot.workshop });
+}
+
+function dataHash(value: object): string {
+  const text = JSON.stringify(value,
     (_key, v: unknown) => object(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
   return textHash(text);
 }

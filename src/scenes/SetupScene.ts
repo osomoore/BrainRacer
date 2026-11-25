@@ -7,7 +7,7 @@ import { loadAllProgress, racerProgressOf, racerLoadouts, teamPlayableMap, type 
 import { isRaceMap, loadoutForProfile, loadSettings, saveSettings, savedSecondPlayer } from '../core/settings';
 import type { CarKind, GuideKind, InputDevice, JbqSettings, PlayerId, PlayerSettings, QuestionTypes, RacerProfileId, Settings } from '../core/types';
 import { FaceButtonBadge } from '../ui/menu/FaceButtonBadge';
-import { allReady, canAdvance, claimSlot, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
+import { allReady, canAdvance, claimSlot, duplicateProfileSlots, isLocked, leaveSlot, newJoinPlayer, nextRacer, setReady, waitingFor, type JoinSlot } from '../ui/menu/joinLogic';
 import { JoinPanel, type PanelView } from '../ui/menu/JoinPanel';
 import { AdminGate, ensureGearTexture } from '../ui/menu/AdminGate';
 import { MenuButton } from '../ui/menu/MenuButton';
@@ -19,6 +19,7 @@ import { REG, SCENE } from './keys';
 import { familySync } from '../../shared/sync/runtime';
 import { subscribeProfileReplacements } from '../../shared/sync/changes';
 import { syncDotColor } from '../../shared/sync/panel';
+import { resolveActiveProfileId, resolveProfileId } from '../../shared/profiles';
 
 /** Stand-in id for "New Profile": matches no shared profile, so no saved progress: only the starter cars/guides and City. */
 const NEW_PROFILE_ID = 'new-profile' as RacerProfileId;
@@ -26,7 +27,7 @@ const NEXT_GRACE_MS = 500;
 type SetupPlayer = PlayerSettings & { questionTypes: QuestionTypes; jbq: JbqSettings };
 
 /** Data passed when entering: `device` = fresh start from Title (that device claims panel 1); otherwise the registry players are restored. */
-export interface JoinSceneData { device?: InputDevice; keepReady?: boolean }
+export interface JoinSceneData { device?: InputDevice; keepReady?: boolean; deletedSlots?: readonly number[] }
 
 /**
  * Join screen: four panels. A device claims the next free panel with its confirm button, then each player picks
@@ -94,10 +95,19 @@ export class SetupScene extends Phaser.Scene {
       reg!.players.slice(0, this.maxPlayers).forEach((p) => {
         if (!p.device) return;
         this.slots = claimSlot(this.slots, p.device);
-        this.cursors.push(ROW_RACER); this.questionCursors.push(undefined); this.chipFocus.push(0); this.isNew.push(false);
-        this.cfg.players.push(p as SetupPlayer);
+        const id = p.profile;
+        const active = typeof id === 'string'
+          ? (resolveActiveProfileId(id) ?? (resolveProfileId(id) === id ? id : undefined))
+          : id;
+        const deleted = (active === undefined && id !== undefined) || !!data.deletedSlots?.includes(this.cfg.players.length);
+        this.cursors.push(ROW_RACER); this.questionCursors.push(undefined); this.chipFocus.push(0); this.isNew.push(deleted);
+        const restored = active ? { ...applyRacerProfile({ ...p, profile: active }, this.cfg.players.length, this.cfg), ...loadoutForProfile(active), profile: active } : { ...p, profile: active };
+        this.cfg.players.push(deleted
+          ? { ...restored, questionTypes: { ...NEW_RACER.defaultQuestionTypes }, jbq: { ...NEW_RACER.defaultJbq } } as SetupPlayer
+          : restored as SetupPlayer);
       });
-      this.slots = this.slots.map((s) => ({ ...s, ready: data.keepReady === true && !this.mobile }));
+      this.slots = this.slots.map((s, i) => ({ ...s, ready: data.keepReady === true && !this.mobile && !this.isNew[i] }));
+      this.reconcileDuplicateProfiles();
       this.applyRacers();
       this.refreshAvailability();
     }
@@ -107,16 +117,8 @@ export class SetupScene extends Phaser.Scene {
     const dot = color === null ? undefined : this.add.circle(GAME_WIDTH - 122, 40, 11, color).setStrokeStyle(2, 0xffffff);
     const unsubscribeSync = familySync.subscribe(() => { if (dot) dot.setFillStyle(syncDotColor()!); });
     const unsubscribeReplacements = subscribeProfileReplacements((sourceId, targetId) => {
-      const latest = loadSettings();
-      this.cfg.racerProfiles = racerProfiles(latest);
-      this.cfg.players = this.cfg.players.map((player, slot): SetupPlayer => {
-        if (player.profile === undefined || (player.profile !== sourceId && player.profile !== targetId)) return player as SetupPlayer;
-        this.isNew[slot] = !targetId;
-        this.slots = setReady(this.slots, slot, false);
-        const updated = applyRacerProfile({ ...player, profile: targetId }, slot, this.cfg);
-        const loadout = targetId ? loadoutForProfile(targetId) : undefined;
-        return { ...updated, ...loadout, profile: targetId };
-      });
+      this.applyProfileReplacement(sourceId, resolveActiveProfileId(targetId));
+      this.reconcileDuplicateProfiles();
       this.refreshAvailability();
       this.refreshAll();
     });
@@ -240,6 +242,36 @@ export class SetupScene extends Phaser.Scene {
     this.applyRacers();
     this.refreshAvailability();
     this.refreshAll();
+  }
+
+  private applyProfileReplacement(sourceId: string, targetId?: string): void {
+    this.cfg.racerProfiles = racerProfiles(loadSettings());
+    const loadout = targetId ? loadoutForProfile(targetId) : undefined;
+    this.cfg.players = this.cfg.players.map((player, slot): SetupPlayer => {
+      if (player.profile === undefined || (player.profile !== sourceId && player.profile !== targetId)) return player as SetupPlayer;
+      if (!targetId) return this.clearProfileChoice(player, slot);
+      this.isNew[slot] = false;
+      this.slots = setReady(this.slots, slot, false);
+      return { ...applyRacerProfile({ ...player, profile: targetId }, slot, this.cfg), ...loadout };
+    });
+  }
+
+  private clearProfileChoice(player: PlayerSettings, slot: number): SetupPlayer {
+    this.isNew[slot] = true;
+    this.slots = setReady(this.slots, slot, false);
+    this.cursors[slot] = ROW_RACER;
+    this.questionCursors[slot] = undefined;
+    this.chipFocus[slot] = 0;
+    return { ...player, profile: undefined, questionTypes: { ...NEW_RACER.defaultQuestionTypes }, jbq: { ...NEW_RACER.defaultJbq } };
+  }
+
+  /** A merge can make two already-selected slots point at one racer. Keep the first and reopen the later slot. */
+  private reconcileDuplicateProfiles(): void {
+    const duplicates = new Set(duplicateProfileSlots(
+      this.cfg.players.map((player, slot) => playerRacer(player, slot, this.cfg)), this.isNew,
+    ));
+    this.cfg.players = this.cfg.players.map((player, slot) => duplicates.has(slot)
+      ? this.clearProfileChoice(player, slot) : player as SetupPlayer);
   }
 
   private loadout(player: number): { car: CarKind; guide: GuideKind } {
@@ -490,11 +522,24 @@ export class SetupScene extends Phaser.Scene {
     const ps = this.cfg.players[p];
     const id = playerRacer(ps, p, this.cfg);
     if (!id) return;
-    Object.assign(this.cfg, withRacerProfile(this.cfg, id, { ...racerSettingsOf(this.cfg, id), questionTypes: { ...ps.questionTypes }, jbq: { ...ps.jbq } }));
-    this.persist();
+    if (ps.profile && resolveActiveProfileId(ps.profile) !== ps.profile) return;
+    const profile = { ...racerSettingsOf(this.cfg, id), questionTypes: { ...ps.questionTypes }, jbq: { ...ps.jbq } };
+    Object.assign(this.cfg, withRacerProfile(this.cfg, id, profile));
+    this.persist({ id, profile });
   }
 
   private goNext() {
+    for (const { profile } of this.cfg.players) {
+      const active = resolveProfileId(profile);
+      if (profile && active !== profile) this.applyProfileReplacement(profile, active);
+    }
+    this.reconcileDuplicateProfiles();
+    if (!allReady(this.slots)) {
+      this.statusText.setText('CHOOSE A RACER FOR EACH PLAYER');
+      this.refreshAvailability();
+      this.refreshAll();
+      return;
+    }
     this.leaving = true;
     services.audio.sfx('menuSelect');
     this.applyRacers();
@@ -503,8 +548,27 @@ export class SetupScene extends Phaser.Scene {
     this.scene.start(SCENE.track);
   }
 
-  private persist() {
-    const settings: Settings = { ...this.cfg, seed: loadSettings().seed };
+  private persist(profileEdit?: { id: RacerProfileId; profile: ReturnType<typeof racerSettingsOf> }) {
+    const latest = loadSettings();
+    const profiles = racerProfiles(latest);
+    // Setup writes question edits immediately. Bring forward only newly created racers absent from storage.
+    for (const id of racerIds(this.cfg)) {
+      if (latest.racerProfiles?.[id] === undefined && this.cfg.racerProfiles?.[id]) profiles[id] = this.cfg.racerProfiles[id];
+    }
+    if (profileEdit && resolveActiveProfileId(profileEdit.id) === profileEdit.id && racerIds(this.cfg).includes(profileEdit.id)) {
+      profiles[profileEdit.id] = profileEdit.profile;
+    }
+    const players = this.cfg.players.map((player, slot) => {
+      const id = player.profile;
+      // The resolver leaves Racer's supported synthetic IDs intact and canonicalizes retired shared IDs.
+      const active = typeof id === 'string'
+        ? (resolveActiveProfileId(id) ?? (resolveProfileId(id) === id ? id : undefined))
+        : id;
+      if (active === id) return player;
+      if (active) return { ...applyRacerProfile({ ...player, profile: active }, slot, { racerProfiles: profiles }), ...loadoutForProfile(active), profile: active };
+      return { ...player, profile: undefined, questionTypes: { ...NEW_RACER.defaultQuestionTypes }, jbq: { ...NEW_RACER.defaultJbq } };
+    });
+    const settings: Settings = { ...this.cfg, players, racerProfiles: profiles, seed: latest.seed };
     saveSettings(settings);
     this.registry.set(REG.settings, settings);
   }

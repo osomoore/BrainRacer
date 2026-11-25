@@ -4,8 +4,9 @@ import { JbqProgressStore } from '../src/challenge/jbqProgress';
 import { playerRacer } from '../src/core/racerProfiles';
 import { loadSettings, savedSecondPlayer } from '../src/core/settings';
 import { combineProfileRecords, deleteManagedProfile, mergeManagedProfiles, renameManagedProfile } from './profileManager';
-import { listProfiles } from './profiles';
-import { listenForProfileChanges, subscribeProfileReplacements } from './sync/changes';
+import { listProfiles, resolveActiveProfileId } from './profiles';
+import { listenForProfileChanges, profileEditTime, profileIdentityTime, subscribeProfileIdentities,
+  subscribeProfileReplacements } from './sync/changes';
 import type { ProfileRecord } from './sync/record';
 import { readLocalProfile } from './sync/storage';
 
@@ -147,5 +148,98 @@ describe('profile manager', () => {
     expect(loadSettings().players[0].profile).toBeUndefined();
     expect(savedSecondPlayer()?.profile).toBeUndefined();
     expect(JSON.parse(values.get('workshop.players.v1')!)).toHaveProperty('p2');
+  });
+
+  it.each(['hub.profileReplacements.v1', 'hub.profiles'])(
+    'keeps both visible profiles and their saves when writes stop at %s', interrupted => {
+      const { source, target } = records();
+      const { values, storage } = installStorage(source, target);
+      let unwritable = false;
+      storage.setItem.mockImplementation((key, raw) => {
+        unwritable ||= key === interrupted;
+        if (unwritable) throw new DOMException('Quota', 'QuotaExceededError');
+        values.set(key, raw);
+      });
+      expect(() => mergeManagedProfiles('p2', 'p1')).toThrow('Check this device');
+      expect(listProfiles()).toEqual([target.profile, source.profile]);
+      expect(readLocalProfile('p2')).toMatchObject({ workshop: source.workshop,
+        racer: { progress: source.racer.progress, jbq: source.racer.jbq, settings: source.racer.settings,
+          loadout: { car: 'motorTrike' } } });
+    });
+
+  it('keeps the combined profile visible if storage stops accepting writes after retirement', () => {
+    const { source, target } = records();
+    const { values, storage } = installStorage(source, target);
+    let committed = false;
+    storage.setItem.mockImplementation((key, raw) => {
+      if (committed) throw new DOMException('Quota', 'QuotaExceededError');
+      values.set(key, raw);
+      if (key === 'hub.profiles') committed = true;
+    });
+    mergeManagedProfiles('p2', 'p1');
+    expect(listProfiles()).toEqual([target.profile]);
+    expect(readLocalProfile('p1')?.racer.jbq).toEqual({ 1: 8, 2: 4, 3: 6 });
+    expect(readLocalProfile('p1')?.workshop?.workshops.race?.bought).toEqual(['gears.power', 'wheels.mud']);
+    expect(JSON.parse(values.get('brainracer.settings.v1')!).racerProfiles.p1).toEqual(source.racer.settings);
+    expect(JSON.parse(values.get('workshop.players.v1')!)).toHaveProperty('p2');
+  });
+
+  it('records a managed rename without changing the local game edit time', () => {
+    const { source, target } = records();
+    installStorage(source, target);
+    renameManagedProfile('p2', 'Robin');
+    const profile = listProfiles().find(p => p.id === 'p2')!;
+    expect(profileEditTime('p2', profile.createdAt)).toBe(source.updatedAt);
+    expect(profileIdentityTime('p2', profile)).toBeGreaterThan(source.updatedAt);
+  });
+
+  it('normalizes migrated Racer quiz preferences before merging', () => {
+    const { source, target } = records();
+    const { values } = installStorage(source, target);
+    const key = 'brainracer.settings.v1';
+    const settings = JSON.parse(values.get(key)!);
+    settings.racerProfiles.p2 = {
+      difficulty: 'hard', roundSec: 240, questionTypes: { addition: true, multiplication: true, spelling: false },
+    };
+    values.set(key, JSON.stringify(settings));
+    mergeManagedProfiles('p2', 'p1');
+    expect(readLocalProfile('p1')?.racer.settings).toEqual({
+      difficulty: 'hard', roundSec: 240, questionTypes: { math: true, reading: false, jbq: false },
+      jbq: { points: 10, scope: 'week' },
+    });
+  });
+
+  it('reconciles committed merges, renames and deletes from storage events in another tab', () => {
+    const { source, target } = records();
+    const { values } = installStorage(source, target);
+    const tab = new EventTarget();
+    vi.stubGlobal('addEventListener', tab.addEventListener.bind(tab));
+    vi.stubGlobal('removeEventListener', tab.removeEventListener.bind(tab));
+    const emitChangesFromOtherTab = (operation: () => void) => {
+      const key = 'hub.profiles';
+      const oldValue = values.get(key);
+      operation();
+      tab.dispatchEvent(Object.assign(new Event('storage'), { key, oldValue, newValue: values.get(key) }));
+    };
+    const replaced = vi.fn();
+    const identity = vi.fn();
+    const changedTab = () => {
+      const stopReplacements = subscribeProfileReplacements(replaced);
+      const stopIdentity = subscribeProfileIdentities(identity);
+      return () => { stopReplacements(); stopIdentity(); };
+    };
+    // Apply the operations before attaching this tab's listeners, as a second document would.
+    for (const operation of [
+      () => mergeManagedProfiles('p2', 'p1'),
+      () => renameManagedProfile('p1', 'Robin'),
+      () => deleteManagedProfile('p1'),
+    ]) {
+      let stop: (() => void) | undefined;
+      try { emitChangesFromOtherTab(() => { operation(); stop = changedTab(); }); }
+      finally { stop?.(); }
+    }
+    expect(replaced.mock.calls).toEqual([['p2', 'p1'], ['p1', undefined]]);
+    expect(identity.mock.calls).toEqual([['p2'], ['p1'], ['p1'], ['p1']]);
+    expect(resolveActiveProfileId('p2')).toBeUndefined();
   });
 });

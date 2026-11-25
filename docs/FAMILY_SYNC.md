@@ -43,8 +43,9 @@ All family routes take header `Authorization: Family <code>`.
   Families unused for 400 days may be purged (documented, not automatic yet).
 
 ## Profile record (the opaque `data`)
-`{ schema: 1, profile: PlayerProfile, racer: {...per-profile Brain Racer data}, workshop: PlayerSave, updatedAt }`
-Device-local state is never in it. Version it (`schema`) so later builds can upgrade.
+`{ schema: 1, profile: PlayerProfile, racer: {...per-profile Brain Racer data}, workshop: PlayerSave, updatedAt, identityUpdatedAt? }`
+`updatedAt` dates the game saves. `identityUpdatedAt` dates the profile identity and name. Older records use
+`updatedAt` for both. The Worker continues to store this JSON as opaque data.
 
 ## Client sync (offline-first)
 - Local storage stays the source of truth for play; sync never blocks the game or the title screen.
@@ -58,7 +59,9 @@ Device-local state is never in it. Version it (`schema`) so later builds can upg
   - Scalars (wallet, reading level, settings, model/current build, open challenge board, buddy points) come from the
     record with the newer `updatedAt`. If the board/challenges came from the older record, re-deal is allowed
     (CHALLENGE_RULES_VERSION rule: no migrations).
-  - Profile name: newer wins. Deletion: tombstone wins over older edits, loses to a newer edit.
+  - Profile identity uses its own edit time, so a rename on a stale device keeps game progress from the newer save.
+    A deletion wins a tie and loses to a newer game or identity edit. When a remote deletion conflicts with a
+    pending merge, the combined destination is kept visible and re-uploaded before the duplicate is removed.
 - Never wipe local data because the server is unreachable or returns an error. Unknown/garbled server data is ignored
   and reported in the admin sync panel.
 
@@ -79,7 +82,11 @@ Before Family sync, two devices could create separate profiles with the same nam
 3. Choose **Merge** on the same-name hint to keep the oldest matching profile, or choose **Merge into…** on the profile you want to retire and pick the one to keep. Confirm the source and destination. For three or more copies, repeat for the remaining copies.
 4. Use **Sync now** on the device where you merged, then on the other devices. The combined save uploads before the old profile is removed. If an additional save for the retired profile reaches sync, it can reappear with that progress. Sync both devices and merge the remaining copy again.
 
-The chosen profile keeps its name and creation date. Parts, challenge clears and their history, buddies, worlds, and collectibles from both saves are combined. JBQ counts keep the higher count for each question. Settings, wallets and current builds use the newer saved values from the existing sync rules. Older unsynced saves with no recorded edit time use their creation date. A local storage error during a merge leaves both profiles available. When a merge changes a profile selected by two Workshop panes, one pane keeps the combined profile and the other returns to the profile picker.
+The chosen profile keeps its name and creation date. Parts, challenge clears and their history, buddies, worlds, and collectibles from both saves are combined. JBQ counts keep the higher count for each question. Settings, wallets and current builds use the newer game save. Older unsynced saves with no recorded edit time use their creation date. Brain Racer's legacy quiz preferences are normalized before merging.
+
+The device writes and verifies the combined saves before retiring the source profile. It cleans up source entries after retirement. If storage stops accepting writes, the remaining visible profiles still provide access to the saves. Sync can recover a committed merge from the saved replacement if the tab closes before queuing its upload.
+
+Open tabs on the same origin receive profile changes even with Family sync disabled. A merged profile switches to its replacement. If two slots or panes would use the replacement, one keeps it and the other returns to profile selection. Deleting a selected profile returns its slot or pane to profile selection.
 
 **Delete** also acts across both games and asks for confirmation twice. Use **Merge** when both profiles contain progress you want to keep.
 
@@ -102,7 +109,8 @@ The chosen profile keeps its name and creation date. Parts, challenge clears and
 | `hub.profiles` | localStorage | Shared profile identities and names | Per-profile | `profile` |
 | `hub.profileSeq` | localStorage | Monotonic legacy `p<n>` allocator | Device-local metadata | Advanced when importing or hiding `p<n>` identities |
 | `hub.legacyIds` | localStorage | Old Brain Racer racer ID → shared profile ID migration map | Device-local migration metadata | Never uploaded |
-| `hub.profileEditTimes.v1` | localStorage | Last local edit by profile when selecting merge scalars | Device-local metadata | Uses sync edit times when linked |
+| `hub.profileEditTimes.v1` | localStorage | Last game-save edit by profile when selecting merge scalars | Device-local metadata | Uses sync game-save edit times when linked |
+| `hub.profileIdentityTimes.v1` | localStorage | Last identity edit keyed by profile, including name and creation date | Device-local metadata | Maps to `identityUpdatedAt` |
 | `hub.profileReplacements.v1` | localStorage | Retired profile ID → replacement ID or deletion, used by screens with a cached selection | Device-local metadata | Merge tombstones carry the replacement ID |
 | `hub.lastGame` | localStorage | Last launcher game | Device-only preference | Never uploaded |
 | `hub.familySync.v1` | localStorage | Family code and per-profile revision/dirty/hash/device sync state | Device-local sync metadata | Never uploaded |

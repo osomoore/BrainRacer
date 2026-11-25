@@ -5,7 +5,8 @@ import { migrateLegacyRacers } from '../src/core/legacyRacers';
 import { racerLoadouts, racerMaps, racerProgressOf, PROGRESS_KEY } from '../src/core/racerProgress';
 import { listProfiles, PROFILE_REPLACEMENTS, validProfileName, type PlayerProfile } from './profiles';
 import { SHARED_PREFIX } from './storage';
-import { notifyProfileChanged, notifyProfileDeleted, profileEditTime, publishProfileReplacement, useSyncProfileIds } from './sync/changes';
+import { notifyProfileChanged, notifyProfileDeleted, notifyProfileRenamed, profileEditTime, profileIdentityTime,
+  PROFILE_IDENTITY_TIMES, publishProfileReplacement, useSyncProfileIds } from './sync/changes';
 import { MAX_PROFILE_DATA_BYTES, object, profileId, type JsonObject } from './sync/protocol';
 import { mergeProfile, readRevision, type ProfileRecord } from './sync/record';
 import {
@@ -17,6 +18,7 @@ const PROFILES_KEY = `${SHARED_PREFIX}profiles`;
 const SEQUENCE_KEY = `${SHARED_PREFIX}profileSeq`;
 const LEGACY_IDS_KEY = `${SHARED_PREFIX}legacyIds`;
 const REPLACEMENTS_KEY = `${SHARED_PREFIX}${PROFILE_REPLACEMENTS}`;
+const IDENTITY_TIMES_KEY = `${SHARED_PREFIX}${PROFILE_IDENTITY_TIMES}`;
 const STORAGE_ERROR = 'Could not update the profiles. Check this device’s storage and try again.';
 const UNREADABLE_SAVE = 'A profile save could not be read. Both profiles are still available.';
 
@@ -48,7 +50,7 @@ export function listManagedProfiles() {
 export function combineProfileRecords(source: ProfileRecord, target: ProfileRecord): ProfileRecord {
   const merged = mergeProfile({ deleted: false, data: source }, { deleted: false, data: target });
   if (merged.deleted) throw new Error(UNREADABLE_SAVE);
-  return { ...merged.data, profile: target.profile };
+  return { ...merged.data, profile: target.profile, identityUpdatedAt: target.identityUpdatedAt };
 }
 
 /** Keeps slot positions and controllers, changing only the profile and its personal loadout. */
@@ -107,7 +109,11 @@ function editStorage(edit: (read: (key: string) => unknown, write: (key: string,
       try {
         if (original == null) localStorage.removeItem(key);
         else localStorage.setItem(key, original);
-      } catch { /* Try the remaining keys if storage became unavailable during rollback. */ }
+        if (localStorage.getItem(key) !== (original ?? null)) throw new Error(STORAGE_ERROR);
+      } catch {
+        // If the identity is already retired and can't be restored, keep its combined saves.
+        if (key === PROFILES_KEY) break;
+      }
     }
     if (!applied.length && error instanceof Error && !(error instanceof DOMException)) throw error;
     throw new Error(STORAGE_ERROR, { cause: error });
@@ -144,7 +150,8 @@ function readProfileRecord(profile: PlayerProfile, read: Read): ProfileRecord {
     || (jbq !== undefined && !parseRacerSnapshot({ jbq }))
     || (prefs !== undefined && !snapshot.racer.settings)
     || (loadout !== undefined && !snapshot.racer.loadout)) throw new Error(UNREADABLE_SAVE);
-  const data: ProfileRecord = { ...snapshot, schema: 1, updatedAt: profileEditTime(id, createdAt) };
+  const data: ProfileRecord = { ...snapshot, schema: 1, updatedAt: profileEditTime(id, createdAt),
+    identityUpdatedAt: profileIdentityTime(id, profile) ?? createdAt };
   const valid = () => readRevision({ id, rev: 1, updatedAt: data.updatedAt, data });
   if (!valid()) {
     // Legacy Workshop saves can be repaired through the same reader the game uses.
@@ -198,24 +205,30 @@ export function renameManagedProfile(id: string, name: string): void {
     const current = profiles.find(profile => profile.id === id);
     if (!current) throw new Error(STORAGE_ERROR);
     if (current.name === normalized) return;
+    const updatedAt = Math.max(Date.now(), (profileIdentityTime(id, current) ?? current.createdAt) + 1);
+    write(IDENTITY_TIMES_KEY, { ...readMap(read(IDENTITY_TIMES_KEY)), [id]: { ...current, name: normalized, updatedAt } });
     write(PROFILES_KEY, profiles.map(profile => profile.id === id ? { ...profile, name: normalized } : profile));
     renamed = true;
   });
-  if (renamed) notifyProfileChanged(id);
+  if (renamed) notifyProfileRenamed(id);
 }
 
 /** Retires a shared identity, keeping the underlying game saves for recovery as sync tombstones do. */
 export function retireLocalProfile(sourceId: string, targetId?: string): boolean {
   let removed = false;
+  let racer: ProfileSnapshot['racer'] | undefined;
   editStorage((read, write) => {
     const profiles = profileList(read);
     removed = profiles.some(profile => profile.id === sourceId);
     if (!removed && !targetId) return;
     const target = profiles.find(profile => profile.id === targetId);
-    const racer = target ? profileSnapshot(target, read).racer : undefined;
-    replaceSettings(read, write, sourceId, targetId, racer);
+    racer = target ? profileSnapshot(target, read).racer : undefined;
     retireProfile(read, write, profiles, sourceId, targetId);
   });
+  if (removed || targetId) {
+    try { editStorage((read, write) => replaceSettings(read, write, sourceId, targetId, racer)); }
+    catch { /* The remaining settings can still be resolved through the committed retirement. */ }
+  }
   return removed;
 }
 
@@ -228,35 +241,48 @@ export function deleteManagedProfile(id: string): void {
 export function mergeManagedProfiles(sourceId: string, targetId: string): void {
   if (!profileId(sourceId) || !profileId(targetId) || sourceId === targetId) throw new Error('Choose two different profiles.');
   migrateLegacyRacers();
-  let merged = false;
+  let combined: ProfileRecord | undefined;
+  const saveEntries = ({ racer, workshop }: ProfileRecord) => [
+    [PROGRESS_KEY, racer.progress], [JBQ_PROGRESS_KEY, racer.jbq],
+    [LOADOUTS_KEY, racer.loadout], [WORKSHOP_PLAYERS_KEY, workshop ?? undefined],
+  ] as const;
   editStorage((read, write) => {
     const profiles = profileList(read);
     const target = profiles.find(profile => profile.id === targetId);
     if (!target) throw new Error(STORAGE_ERROR);
     const source = profiles.find(profile => profile.id === sourceId);
     if (!source) return;
-    const combined = combineProfileRecords(readProfileRecord(source, read), readProfileRecord(target, read));
+    combined = combineProfileRecords(readProfileRecord(source, read), readProfileRecord(target, read));
     const outgoing = { ...combined, updatedAt: Math.max(combined.updatedAt + 1, Date.now()) };
     if (useSyncProfileIds() && new TextEncoder().encode(JSON.stringify(outgoing)).length > MAX_PROFILE_DATA_BYTES) {
       throw new Error('The combined profile is too large for Family sync.');
     }
-    const { racer, workshop } = combined;
-    const saves = [
-      [PROGRESS_KEY, racer.progress], [JBQ_PROGRESS_KEY, racer.jbq],
-      [LOADOUTS_KEY, racer.loadout], [WORKSHOP_PLAYERS_KEY, workshop ?? undefined],
-    ] as const;
-    for (const [key, save] of saves) {
+    // The source still owns all of its saves until the combined entries and identity are durable.
+    for (const [key, save] of saveEntries(combined)) {
       const map = readMap(read(key));
-      if (save === undefined) continue;
-      const next = { ...map, [targetId]: save };
-      delete next[sourceId];
-      write(key, next);
+      if (save !== undefined) write(key, { ...map, [targetId]: save });
     }
-    replaceSettings(read, write, sourceId, targetId, racer);
+    if (combined.racer.settings) {
+      const settings = readMap(read(SETTINGS_KEY));
+      const prefs = readMap(settings.racerProfiles);
+      write(SETTINGS_KEY, { ...settings, racerProfiles: { ...prefs, [targetId]: combined.racer.settings } });
+    }
     retireProfile(read, write, profiles, sourceId, targetId);
-    merged = true;
   });
-  if (!merged) return;
+  const committed = combined;
+  if (!committed) return;
+  try {
+    editStorage((read, write) => {
+      replaceSettings(read, write, sourceId, targetId, committed.racer);
+      for (const [key] of saveEntries(committed)) {
+        const map = readMap(read(key));
+        if (!Object.hasOwn(map, sourceId)) continue;
+        const next = { ...map };
+        delete next[sourceId];
+        write(key, next);
+      }
+    });
+  } catch { /* The combined profile is already visible; leftover source entries are recoverable. */ }
   notifyProfileChanged(targetId);
   notifyProfileDeleted(sourceId, targetId);
   publishProfileReplacement(sourceId, targetId);

@@ -2,9 +2,10 @@
 import type { PlayerSave } from '../../apps/workshop/core/types';
 import { JBQ_PROGRESS_KEY, parseJbqProgress, type JbqCounts } from '../../src/challenge/jbqProgress';
 import { PROGRESS_KEY, parseProgress, type RacerProgress } from '../../src/core/racerProgress';
+import { racerSettingsOf } from '../../src/core/racerProfiles';
 import type { CarKind, GuideKind, RacerProfile } from '../../src/core/types';
 import { listProfiles, PROFILE_REPLACEMENTS, type PlayerProfile } from '../profiles';
-import { PROFILE_EDIT_TIMES_KEY } from './changes';
+import { PROFILE_EDIT_TIMES_KEY, profileIdentityTime, rememberProfileIdentityTime } from './changes';
 import { readShared, writeShared } from '../storage';
 import { migrateLegacyRacers } from '../../src/core/legacyRacers';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../../src/config/collectibles';
@@ -127,7 +128,11 @@ export function profileSnapshot(profile: PlayerProfile, read: (key: string) => u
   if (allProgress && id in allProgress) racer.progress = parseProgress(allProgress[id]);
   if (allJbq && id in allJbq) racer.jbq = parseJbqProgress({ [id]: allJbq[id] })[id];
   const rp = record(settings?.racerProfiles)?.[id];
-  const parsed = parseRacerSnapshot({ settings: rp });
+  const questions = record(record(rp)?.questionTypes);
+  const legacy = questions && Object.keys(questions).length === 3
+    && ['addition', 'multiplication', 'spelling'].every(key => typeof questions[key] === 'boolean');
+  const parsed = parseRacerSnapshot({ settings: legacy
+    ? racerSettingsOf({ racerProfiles: { [id]: rp as RacerProfile } }, id) : rp });
   if (parsed?.settings) racer.settings = parsed.settings;
   const loadouts = record(read(LOADOUTS_KEY));
   const savedLoadout = record(loadouts?.[id]);
@@ -153,10 +158,6 @@ export function applyLocalProfile(snapshot: ProfileSnapshot): void {
   if (!snapshot || !snapshot.profile || typeof snapshot.profile.id !== 'string' || typeof snapshot.profile.name !== 'string') return;
   const p = snapshot.profile;
   bumpProfileSequence(p.id);
-  const profiles = listProfiles();
-  writeShared('profiles', profiles.some(x => x.id === p.id)
-    ? profiles.map(x => x.id === p.id ? p : x)
-    : [...profiles, p]);
   const racer = parseRacerSnapshot(snapshot.racer);
   if (racer) {
     if (racer.progress) writeJson(PROGRESS_KEY, { ...(record(readJson(PROGRESS_KEY)) ?? {}), [p.id]: racer.progress });
@@ -168,6 +169,10 @@ export function applyLocalProfile(snapshot: ProfileSnapshot): void {
     if (racer.loadout) writeJson(LOADOUTS_KEY, { ...(record(readJson(LOADOUTS_KEY)) ?? {}), [p.id]: racer.loadout });
   }
   if (snapshot.workshop) writeJson(WORKSHOP_PLAYERS_KEY, { ...(record(readJson(WORKSHOP_PLAYERS_KEY)) ?? {}), [p.id]: snapshot.workshop });
+  const profiles = listProfiles();
+  writeShared('profiles', profiles.some(x => x.id === p.id)
+    ? profiles.map(x => x.id === p.id ? p : x)
+    : [...profiles, p]);
 }
 
 /** Removes only the visible identity; app data remains available for later recovery. */
@@ -221,7 +226,12 @@ export function rekeyLocalProfile(oldId: string, newId: string): boolean {
     return false;
   }
   const nextProfiles = profiles.map(p => p.id === oldId ? { ...p, id: newId } : p);
-  if (!writeJsonVerified('hub.profiles', nextProfiles)) {
+  const replacements = readShared<Record<string, string | null>>(PROFILE_REPLACEMENTS, {});
+  const nextReplacements = Object.fromEntries(Object.entries(replacements).map(([k, v]) => [k, v === oldId ? newId : v]));
+  nextReplacements[oldId] = newId;
+  const replacementsKey = `hub.${PROFILE_REPLACEMENTS}`;
+  if (!writeJsonVerified(replacementsKey, nextReplacements) || !writeJsonVerified('hub.profiles', nextProfiles)) {
+    writeJsonVerified(replacementsKey, replacements);
     if (movedSettings && settings) writeJsonVerified(SETTINGS_KEY, settings);
     if (movedSecond && second) writeJsonVerified(secondKey, second);
     return false;
@@ -229,10 +239,8 @@ export function rekeyLocalProfile(oldId: string, newId: string): boolean {
   bumpProfileSequence(oldId);
   const legacy = readShared<Record<string, string>>('legacyIds', {});
   writeShared('legacyIds', Object.fromEntries(Object.entries(legacy).map(([k, v]) => [k, v === oldId ? newId : v])));
-  const replacements = readShared<Record<string, string | null>>(PROFILE_REPLACEMENTS, {});
-  if (Object.values(replacements).includes(oldId)) {
-    writeShared(PROFILE_REPLACEMENTS, Object.fromEntries(Object.entries(replacements).map(([k, v]) => [k, v === oldId ? newId : v])));
-  }
+  const identityTime = profileIdentityTime(oldId, old);
+  if (identityTime !== undefined) rememberProfileIdentityTime(newId, old, identityTime);
   const edits = record(readJson(PROFILE_EDIT_TIMES_KEY));
   if (edits && Object.hasOwn(edits, oldId)) {
     edits[newId] = edits[oldId];

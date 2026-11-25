@@ -1,5 +1,7 @@
 import { retireLocalProfile } from '../profileManager';
-import { listenForProfileChanges, profileEditTime, publishProfileReplacement, rememberProfileEditTime } from './changes';
+import { resolveActiveProfileId } from '../profiles';
+import { listenForProfileChanges, profileEditTime, profileIdentityTime, publishProfileReplacement, rememberProfileEditTime,
+  rememberProfileIdentityTime, subscribeProfileIdentities } from './changes';
 import { FamilySyncClient } from './client';
 import { FakeFamilyServer } from './fake';
 import { FamilyApi } from './protocol';
@@ -32,6 +34,8 @@ function api(): FamilyApi | undefined {
 const online = () => navigator.onLine !== false;
 const client = new FamilySyncClient(api(), {
   ids: listLocalProfileIds, read: readLocalProfile, apply: applyLocalProfile, editTime: profileEditTime,
+  identityTime: profileIdentityTime, rememberIdentityTime: rememberProfileIdentityTime,
+  replacementOf: resolveActiveProfileId,
   hide: (id, mergedInto) => {
     if (retireLocalProfile(id, mergedInto)) publishProfileReplacement(id, mergedInto);
   },
@@ -50,7 +54,11 @@ export const familySync = {
   enabled,
   get state() { return client.state; },
   subscribe: (listener: () => void) => client.subscribe(listener),
-  subscribeProfiles: (listener: (id: string) => void) => client.subscribeProfiles(listener),
+  subscribeProfiles(listener: (id: string) => void) {
+    const unsubscribeSync = client.subscribeProfiles(listener);
+    const unsubscribeIdentity = subscribeProfileIdentities(listener);
+    return () => { unsubscribeSync(); unsubscribeIdentity(); };
+  },
   makeFamily: () => client.makeFamily(),
   joinFamily: (code: string) => client.joinFamily(code),
   leaveFamily: () => client.leaveFamily(),
@@ -65,8 +73,8 @@ export const familySync = {
       const enrolled = !!client.state.code;
       if (enrolled === watching) return;
       watching = enrolled;
-      listenForProfileChanges(enrolled ? (id, deleted, mergedInto) => {
-        client.noteChange(id, deleted, mergedInto);
+      listenForProfileChanges(enrolled ? (id, deleted, mergedInto, identityOnly) => {
+        client.noteChange(id, deleted, mergedInto, identityOnly);
         clearTimeout(debounce);
         debounce = setTimeout(() => { if (online()) void client.flush(); }, 3000);
       } : undefined, enrolled ? id => client.editTime(id) : undefined);
