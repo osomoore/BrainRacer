@@ -10,17 +10,40 @@ test('one online visit prepares the launcher and both games for offline play', a
   // A controlling worker has finished installing and precaching its manifest.
   await page.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated');
 
-  // Mark the current network HTML so serving the old precached HTML would fail this check.
-  await context.route('**/racer.html', async (route) => {
+  // The worker must fetch each navigation from the network using its private reload
+  // nonce. Mark those responses so an old cache-first response cannot pass as current.
+  const navigations = [
+    ['/', ''], ['/', '1'],
+    ['/index.html', ''], ['/index.html', '1'],
+    ['/workshop.html', ''], ['/workshop.html', '1'],
+    ['/racer.html', '1'], ['/racer.html', ''],
+  ] as const;
+  const isReloadRequest = (url: URL) => url.searchParams.has('_br_reload');
+  const nonces = new Set<string>();
+  await context.route(isReloadRequest, async (route) => {
+    const url = new URL(route.request().url());
+    const nonce = url.searchParams.get('_br_reload')!;
     const response = await route.fetch();
-    await route.fulfill({ response, headers: { ...response.headers(), 'x-test-build': 'current' } });
+    await route.fulfill({ response, headers: {
+      ...response.headers(), 'x-test-reload': nonce, 'x-test-query': url.searchParams.get('visible') ?? '',
+    } });
   });
+
+  for (const [path, query] of navigations) {
+    const visibleUrl = `${path}${query ? `?visible=${query}` : ''}`;
+    const response = await page.goto(visibleUrl);
+    expect(response?.fromServiceWorker(), visibleUrl).toBe(true);
+    const nonce = await response?.headerValue('x-test-reload');
+    expect(nonce, `network request for ${visibleUrl}`).toBeTruthy();
+    expect(await response?.headerValue('x-test-query')).toBe(query);
+    expect(new URL(response!.url()).searchParams.has('_br_reload')).toBe(false);
+    nonces.add(nonce!);
+  }
+  expect(nonces.size).toBe(navigations.length);
+  await context.unroute(isReloadRequest);
+
   const racerTitle = () => page.waitForFunction(() => window.__game?.scene.isActive('Title'));
-  const racer = await page.goto('./racer.html');
   await racerTitle();
-  expect(racer?.fromServiceWorker()).toBe(true);
-  expect(await racer?.headerValue('x-test-build')).toBe('current');
-  await context.unroute('**/racer.html');
 
   await context.setOffline(true);
   expect((await page.reload())?.fromServiceWorker()).toBe(true);

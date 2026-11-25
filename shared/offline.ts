@@ -9,7 +9,11 @@ async function registerOfflineWorker(): Promise<void> {
   }
 
   // Use the browser API directly so activation never reloads a running game.
-  await navigator.serviceWorker.register(workerUrl, { updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register(workerUrl, { updateViaCache: 'none' });
+  if (registration.active && navigator.onLine) {
+    // A repeat registration can return the existing worker without checking for a new script.
+    void registration.update().catch(() => { /* Keep the active worker if the check fails. */ });
+  }
 }
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

@@ -7,22 +7,24 @@ const htmlByPath = new Map(['', 'index.html', 'racer.html', 'workshop.html'].map
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.mode !== 'navigate') return;
+  if (request.mode !== 'navigate' || request.method !== 'GET') return;
 
   const url = new URL(request.url);
   const fallbackUrl = htmlByPath.get(url.pathname);
   if (url.origin !== self.location.origin || !fallbackUrl) return;
 
-  event.respondWith(loadPage(request, fallbackUrl));
+  event.respondWith(loadPage(url, fallbackUrl));
 });
 
-async function loadPage(request, fallbackUrl) {
+async function loadPage(url, fallbackUrl) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 3000);
   let response;
   try {
-    // Revalidate even when the browser's HTTP cache considers the HTML fresh.
-    response = await fetch(request, { cache: 'no-cache', signal: controller.signal });
+    // Give shared caches a fresh HTML URL without changing the address bar or the app's query.
+    const nonce = crypto.randomUUID?.() ?? crypto.getRandomValues(new Uint32Array(4)).join('-');
+    url.searchParams.set('_br_reload', nonce);
+    response = await fetch(url, { cache: 'no-store', redirect: 'manual', signal: controller.signal });
     if (response.ok || response.type === 'opaqueredirect') return response;
   } catch {
     // Offline or the network timed out.

@@ -15,11 +15,6 @@ function gitHash(): string {
   }
 }
 
-/** Build time as "2026-11-20 21:45 UTC". */
-function buildTime(): string {
-  return new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
-}
-
 export default defineConfig(async ({ command }) => ({
   base: './',
   plugins: command === 'build' ? [
@@ -54,8 +49,8 @@ export default defineConfig(async ({ command }) => ({
     rolldownOptions: { input: { index: page('index.html'), racer: page('racer.html'), workshop: page('workshop.html') } },
   },
   define: {
-    __BUILD_ID__: JSON.stringify(gitHash()),
-    __BUILD_TIME__: JSON.stringify(buildTime()),
+    __BUILD_ID__: JSON.stringify(process.env.BRAINRACER_BUILD_ID || gitHash()),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   test: {
     include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'apps/**/*.test.ts', 'scripts/**/*.test.ts', 'server/**/*.test.ts'],
