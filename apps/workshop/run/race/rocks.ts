@@ -1,128 +1,184 @@
-/**
- * Rocks: forest trail. Obstacles in order: rocks (rocks.tough, more/bigger per level), a high boulder (rocks.clearance),
- * a fallen log (rocks.log). Any combination can appear in one stage.
- * Pass: bonks happily over rocks / belly passes over the boulder / pushes the log away (a squirrel rides it).
- * Fail: bonk, hubcap rolls away and a bandage appears / stuck on the boulder like a turtle / log will not budge, boing back.
- */
+import { raceGeom, raceLooks } from '../../art/race/geometry';
+import { BUMPER } from '../../art/race/looks';
+import { WS_RUN } from '../../config';
+import { crossingStop, facetTime, hopLift } from '../common/choreography';
 import { along } from '../common/fx';
 import { planStage, racePlayer } from '../common/phases';
 import { P } from '../common/props';
+import { raceSpectator } from '../common/raceSpectator';
 import { SideStage } from '../common/side';
+
+const cfg = WS_RUN.rocks;
 
 export default racePlayer('rocks', async (ctx) => {
   const plan = planStage(ctx, ['rocks.tough', 'rocks.clearance', 'rocks.log']);
-  const rig = ctx.rig;
-  const S = new SideStage(ctx, { worldW: 5200, ground: ['#7bbf5a', '#8a6a42', '#6a4e2e'], sky: ['#8fd3c8', '#eefaf0'], clouds: 3, hills: [{ color: '#7fc08a', h: 300, f: 0.12 }, { color: '#4fa468', h: 210, f: 0.28, seed: 11 }] });
-  for (const x of [250, 700, 2300, 3300, 4300, 4800]) S.put('back', x % 200 ? P.pine() : P.tree('#3f9f48'), x, -4, 1);
-  let cursor = 1000;
-  const spots: Record<string, number> = {};
-  for (const p of plan.all) { spots[p.facet] = cursor; cursor += 1100; }
-  const roof = rig.anchor('roof'), front = rig.anchor('front');
-  S.place(250);
-  rig.play('drive');
-  const eng = ctx.audio.loop('engine', { volume: 0.4 });
-  const rockH = (lv: number): number => 40 + lv * 22;
-  const rocks: ReturnType<typeof S.put>[] = [];
-  let boulder: ReturnType<typeof S.put> | null = null, log: ReturnType<typeof S.put> | null = null;
-  let boulderH = 0;
-  if (plan.has('rocks.tough')) {
-    const lv = plan.level('rocks.tough'), n = 2 + lv, x0 = spots['rocks.tough'];
-    for (let i = 0; i < n; i++) rocks.push(S.put('mid', P.rock(90 + lv * 20, rockH(lv) - (i % 2) * 12, i + 1), x0 + i * 230, 4));
+  const { rig } = ctx;
+  const looks = raceLooks(ctx.model), geo = raceGeom(looks);
+  const nose = rig.anchor('front');
+  const axle = rig.anchor('wheelFront');
+  const bellyY = (geo.bottom - geo.rideRaise) * looks.scale;
+  const last = plan.plays.at(-1)?.facet;
+  const phaseMs = (facet: string): number => facetTime(cfg.actionMs, plan.plays.length, facet === last);
+  const S = new SideStage(ctx, {
+    worldW: 5400, ground: ['#8cb964', '#98724b', '#715235'], sky: ['#90d8d3', '#f2fcf3'], clouds: 3,
+    hills: [{ color: '#89c899', h: 300, f: 0.12 }, { color: '#55a97b', h: 210, f: 0.28, seed: 11 }],
+  });
+  S.fx.seed(ctx.rng);
+  for (let x = 150; x < 5200; x += 470) {
+    S.put('back', P.pine(), x + ctx.rng.int(-65, 65), 0, ctx.rng.range(0.8, 1.17));
+    S.put('back', P.bush(), x + 180, 0, 0.73);
   }
-  if (plan.has('rocks.clearance')) {
-    const lv = plan.level('rocks.clearance'); boulderH = 150 + lv * 40;
-    boulder = S.put('mid', P.boulder(360, boulderH), spots['rocks.clearance'], 4);
-  }
-  if (plan.has('rocks.log')) {
-    const lv = plan.level('rocks.log');
-    log = S.put('mid', P.log(300 + lv * 60, 80 + lv * 30), spots['rocks.log'], 4);
-  }
-  const dome = (x: number, c: number, w: number, h: number): number => (Math.abs(x - c) > w / 2 ? 0 : h * Math.cos(((x - c) / (w / 2)) * Math.PI / 2) ** 0.8);
 
-  const ride = (to: number, ms: number): Promise<void> => S.driveTo(to, ms, 'Sine.easeInOut');
+  let obstacleX = 1050;
+  const spots = new Map<string, number>();
+  for (const p of plan.all) {
+    spots.set(p.facet, obstacleX);
+    const length = p.facet === 'rocks.tough' ? cfg.count[Math.min(p.level, 3) - 1] * 230 : 490;
+    obstacleX += length + 435;
+  }
+  const toughX = spots.get('rocks.tough') ?? 1050;
+  const clearX = spots.get('rocks.clearance') ?? 1050;
+  const logX = spots.get('rocks.log') ?? 1050;
+  const tough = Math.min(3, plan.level('rocks.tough')) - 1;
+  const clearance = Math.min(2, plan.level('rocks.clearance')) - 1;
+  const push = Math.min(2, plan.level('rocks.log')) - 1;
+  const rockH = cfg.rockHeight[tough];
+  const rockbed = plan.has('rocks.tough') ? Array.from({ length: cfg.count[tough] }, (_, i) =>
+    S.put('mid', P.rock(80 + tough * 17, rockH - i % 2 * 12, ctx.rng.int(1, 999)), toughX + i * 230, 3)) : [];
+  const peakW = Math.round((axle.x - rig.anchor('wheelRear').x) * 0.54);
+  const catches = plan.gag?.facet === 'rocks.clearance';
+  const peakH = Math.round(catches
+    ? Math.max(-bellyY + 31 + clearance * 15, cfg.boulderHeight[clearance] * 0.47)
+    : Math.max(18, Math.min(-bellyY - 16, cfg.boulderHeight[clearance] * 0.43)));
+  if (plan.has('rocks.clearance')) S.put('mid', P.boulder(peakW, peakH), clearX, 2);
+  const log = plan.has('rocks.log') ? S.put('mid', P.log(cfg.logLength[push], cfg.logHeight[push]), logX, 4) : null;
+  const squirrel = log ? S.put('front', P.squirrel(), logX + 48, -cfg.logHeight[push] + 8, 1.22) : null;
+  const turtle = plan.has('rocks.clearance') ? S.put('back', P.turtle(), clearX + 340, 0, 0.85) : null;
+  const watchers = new Map(plan.all.map((p, i) => [
+    p.facet, raceSpectator(S, spots.get(p.facet)! + 330, ['#ed8651', '#a45cc1', '#4697bc'][i], '#f6d15c'),
+  ]));
+  S.put('back', P.signpost('#f0c75a'), 590);
+  const finishX = obstacleX - 275;
+  S.put('back', P.checker(), finishX, 0, 1.25);
+  S.place(490);
+  rig.play('idle');
+  await ctx.wait(850);
+  const engine = ctx.audio.loop('engine', { volume: 0.4 });
 
   await plan.run({
     'rocks.tough': async (p) => {
-      const x0 = spots['rocks.tough'];
-      await ride(x0 - 220, 1600);
+      const ms = phaseMs(p.facet), first = rockbed[0];
+      const tireLead = axle.x + geo.wheelRadius * looks.scale * 0.66;
+      await S.driveTo(crossingStop(first.x - first.displayWidth * 0.28, tireLead, 2), ms * 0.36, 'Quad.easeIn');
       if (p.pass) {
-        for (let i = 0; i < rocks.length; i++) {
-          const rx = rocks[i].x;
-          const sx = S.car.x;
-          await along(ctx, 850, (t) => { S.car.x = sx + (rx + 160 - sx) * t; S.car.y = -Math.sin(Math.min(1, Math.max(0, (S.car.x - rx + 120) / 240)) * Math.PI) * (rockH(plan.level('rocks.tough')) * 0.6); S.car.rotation = -Math.sin(t * Math.PI * 2) * 0.05; }, 'Linear');
-          ctx.audio.sfx('thud', { volume: 0.35, rate: 1.4 }); ctx.audio.sfx('boing', { volume: 0.3 });
-          S.car.y = 0;
-        }
-      } else {
-        await ride(rocks[0].x - Math.abs(front.x) - 110, 1100);
-        ctx.audio.sfx('thud', { volume: 0.9 });
-        ctx.audio.sfx('crash', { volume: 0.4, rate: 1.6 });
-        void S.squash(0.92, 1.05, 100);
-        rig.play('idle');
-        const hc = S.put('front', P.hubcap(), S.car.x + rig.anchor('wheelFront').x, -40, 1.2);
-        S.fx.bits.add({ obj: hc, vx: 420, vy: -700, vr: 12, floorY: -10, bounce: 0.5 });
-        const band = S.put('front', P.bandage(), S.car.x + front.x - 24, S.car.y + front.y + 10, 1);
-        void band;
-        ctx.audio.sfx('sad', { volume: 0.5 });
-        await along(ctx, 700, (t) => { S.car.rotation = Math.sin(t * 30) * 0.04 * (1 - t); });
-        S.dizzy();
-        await ctx.wait(1500);
+        const x0 = S.car.x, x1 = rockbed.at(-1)!.x + 280;
+        let next = 0;
+        await along(ctx, ms * 0.64, (t) => {
+          const x = x0 + (x1 - x0) * t;
+          // Each axle lifts from the same rock. The difference tips the body over the bump.
+          const lift = (wheelX: number): number => rockbed.reduce((h, rock) =>
+            Math.max(h, hopLift((x + wheelX - rock.x + 91) / 182, rock.displayHeight * 0.65)), 0);
+          const front = lift(axle.x), rear = lift(rig.anchor('wheelRear').x);
+          S.car.setPosition(x, -(front + rear) / 2).setRotation(Math.atan2(rear - front, rig.width * 0.65));
+          if (next < rockbed.length && x + axle.x > rockbed[next].x - 50) {
+            ctx.audio.sfx('thud', { volume: 0.42, rate: 1.5 });
+            S.fx.burst(S.layers.front, 'dust', rockbed[next].x, -38, 5);
+            next++;
+          }
+        });
+        watchers.get(p.facet)?.cheer();
+        return;
       }
+
+      watchers.get(p.facet)?.gasp();
+      ctx.audio.sfx('thud', { volume: 0.8 });
+      S.dust(11);
+      void S.squash(0.87, 1.1, 105);
+      rig.play('idle');
+      const wheel = S.put('front', P.hubcap(), S.car.x + axle.x, axle.y, 1.24);
+      S.fx.bits.add({ obj: wheel, vx: 390, vy: -570, vr: 12, floorY: -20, bounce: 0.5 });
+      await along(ctx, ms * 0.25, (t) => { S.car.rotation = Math.sin(t * 24) * 0.11 * (1 - t); });
+      S.put('front', P.bandage(), S.car.x + nose.x - 18, nose.y - 12, 0.9);
+      await ctx.wait(ms * 0.39);
     },
     'rocks.clearance': async (p) => {
-      const c = boulder!.x, w = 360;
-      await ride(c - w / 2 - 260, 1700);
-      const sx = S.car.x;
+      const ms = phaseMs(p.facet);
+      await S.driveTo(clearX - rig.width * 0.68, ms * 0.34);
+      const start = S.car.x, end = p.pass ? clearX + rig.width * 0.72 : clearX;
+      const axleBack = rig.anchor('wheelRear');
+      const perched = Math.max(0, peakH + bellyY - 2);
+      await along(ctx, ms * (p.pass ? 0.66 : 0.36), (t) => {
+        const x = start + (end - start) * t;
+        const wheelLift = (wheelX: number): number => hopLift((x + wheelX - clearX + peakW * 0.69) / (peakW * 1.38), peakH);
+        const front = wheelLift(axle.x), rear = wheelLift(axleBack.x);
+        const contact = p.pass ? 0 : perched * Math.max(0, (t - 0.63) / 0.37);
+        S.car.setPosition(x, -Math.max(contact, (front + rear) * 0.56));
+        S.car.rotation = Math.atan2(rear - front, axle.x - axleBack.x);
+      }, 'Sine.easeInOut');
       if (p.pass) {
-        await along(ctx, 2200, (t) => { S.car.x = sx + (c + w / 2 + 260 - sx) * t; const lift = dome(S.car.x, c, w + 60, boulderH * 0.8); S.car.y = -lift; S.car.rotation = -Math.sin((S.car.x - c) / (w / 2) * Math.PI) * 0.0 + (S.car.x < c ? -0.12 : 0.12) * (lift > 4 ? 1 : 0); }, 'Linear');
-      } else {
-        const stopX = c - 40;
-        await ride(stopX, 1800);
-        const top = -boulderH * 0.85;
-        ctx.audio.sfx('thud', { volume: 0.7 });
-        await along(ctx, 500, (t) => { S.car.y = top * t; S.car.rotation = -0.2 * t; }, 'Quad.easeOut');
-        const spin = ctx.audio.loop('spin', { volume: 0.5 });
-        rig.play('spinWheels');
-        await ctx.wait(1500);
-        spin(); eng();
-        ctx.audio.sfx('sad', { volume: 0.5 });
-        await ctx.wait(700);
+        S.fx.burst(S.layers.front, 'sparkle', clearX, -peakH - 18, 8);
+        watchers.get(p.facet)?.cheer();
+        return;
       }
+      watchers.get(p.facet)?.gasp();
+      ctx.audio.sfx('thud', { volume: 0.64 });
+      const spin = ctx.audio.loop('spin', { volume: 0.5 });
+      rig.play('spinWheels');
+      if (turtle) void S.hop(turtle, turtle.x + 100, 0, 650, 32);
+      await along(ctx, ms * 0.30, (t) => {
+        S.car.rotation = Math.sin(t * 25) * 0.064 * (1 - t);
+      });
+      spin();
     },
     'rocks.log': async (p) => {
-      const lg = log!;
-      const lw = lg.displayWidth;
-      await ride(lg.x - lw / 2 - Math.abs(front.x) - 40 + 60, 1700);
+      const ms = phaseMs(p.facet), trunk = log!, rider = squirrel!;
+      const bumper = BUMPER[ctx.model.bumpers] ?? BUMPER['bumpers.small'];
+      const bumperReach = nose.x + (bumper.depth - 6) * looks.scale;
+      const touch = crossingStop(trunk.x - cfg.logLength[push] / 2, bumperReach, -5);
+      await S.driveTo(touch, ms * 0.37, 'Quad.easeIn');
+      const x = S.car.x, start = trunk.x;
+      ctx.audio.sfx('thud', { volume: 0.7 });
       if (p.pass) {
-        const sq = S.put('front', P.squirrel(), lg.x, -120, 0.9);
-        ctx.audio.sfx('thud', { volume: 0.6 });
-        const x0 = S.car.x, l0 = lg.x;
-        await along(ctx, 2400, (t) => { S.car.x = x0 + 520 * t; lg.x = l0 + 700 * t; lg.rotation = 0; sq.x = lg.x; sq.y = -lg.displayHeight - 6; }, 'Sine.easeInOut');
-        ctx.audio.sfx('cheer', { volume: 0.5 });
-        await along(ctx, 1000, (t) => { lg.x += 8 + t * 20; sq.x = lg.x; });
-      } else {
-        ctx.audio.sfx('thud', { volume: 0.8 });
-        const sp = ctx.audio.loop('spin', { volume: 0.5 });
-        rig.play('spinWheels');
-        const x0 = S.car.x;
-        await along(ctx, 1100, (t) => { S.car.x = x0 + Math.sin(t * 40) * 3; S.car.rotation = Math.sin(t * 28) * 0.012; });
-        sp();
-        rig.play('idle');
-        ctx.audio.sfx('boing', { volume: 0.8 });
-        void S.squash(0.9, 1.04, 140);
-        await along(ctx, 600, (t) => { S.car.x = x0 - 150 * Math.sin(t * Math.PI / 2); }, 'Quad.easeOut');
-        S.dizzy();
-        ctx.audio.sfx('sad', { volume: 0.5 });
-        await ctx.wait(1500);
+        S.fx.burst(S.layers.front, 'leaves', trunk.x, -cfg.logHeight[push], 12);
+        await along(ctx, ms * 0.63, (t) => {
+          const shove = 490 * t;
+          const release = Math.max(0, (t - 0.6) / 0.4);
+          S.car.x = x + shove - 95 * release;
+          trunk.setPosition(start + shove + 135 * release, 4 + 96 * release - hopLift(release, 45))
+            .setRotation(Math.sin(t * Math.PI * 2) * 0.08 + 0.11 * release);
+          rider.setPosition(trunk.x + 48, trunk.y - cfg.logHeight[push] + 4 - hopLift(release, 84));
+        }, 'Sine.easeInOut');
+        S.layers.back.add([trunk, rider]);
+        watchers.get(p.facet)?.cheer();
+        return;
       }
+      watchers.get(p.facet)?.gasp();
+      rig.play('spinWheels');
+      const spin = ctx.audio.loop('spin', { volume: 0.5 });
+      const dust = S.spray('dust', 'wheelRear', {}, 105);
+      await along(ctx, ms * 0.40, (t) => {
+        const shudder = Math.sin(t * 38) * (1 - t);
+        S.car.x = x + shudder * 7;
+        trunk.rotation = shudder * 0.016;
+        rider.rotation = shudder * 0.1;
+      });
+      spin();
+      dust.stop();
+      rig.play('idle');
+      ctx.audio.sfx('boing', { volume: 0.67 });
+      await along(ctx, ms * 0.23, (t) => S.car.setPosition(x - 150 * t, -hopLift(t, 40)), 'Quad.easeOut');
     },
   });
-  eng();
+  engine();
   if (plan.ok) {
-    rig.play('drive');
-    await S.driveTo(S.car.x + 400, 900);
-    await S.cheer(600);
-    await S.exit();
+    await S.driveTo(Math.max(finishX, S.car.x + 145), 720);
+    await S.cheer(780);
+    await S.exit(590);
+  } else {
+    rig.play('dizzy');
+    const stars = S.dizzy();
+    ctx.audio.sfx('sad', { volume: 0.54 });
+    await ctx.wait(WS_RUN.failHoldMs);
+    stars.stop();
   }
-  void roof; void rocks;
 });

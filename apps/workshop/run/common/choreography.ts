@@ -16,3 +16,15 @@ export function waterEnvelope(progress: number): number {
 export function crossingStop(crossingLeft: number, noseOffset: number, gap: number): number {
   return crossingLeft - noseOffset - gap;
 }
+
+/** Height of a hop, with its peak between the takeoff and contact poses. */
+export function hopLift(progress: number, height: number): number {
+  const t = clamp(progress);
+  return 4 * height * t * (1 - t);
+}
+
+/** Give the deciding beat more time when several obstacles share one stage. */
+export function facetTime(total: number, count: number, deciding: boolean): number {
+  if (count <= 1) return total;
+  return total * (deciding ? 2 : 1) / (count + 1);
+}

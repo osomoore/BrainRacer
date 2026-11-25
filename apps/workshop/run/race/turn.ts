@@ -1,133 +1,268 @@
-/**
- * Turn (top view): race track with sharp corners lined with hay bales and cones; corners by turn.handling level
- * (1 = one corner, 2 = zig-zag, 3 = hairpins).
- * Pass: zips round every corner on the line with little skid marks, checkered finish. Fail: takes a corner too wide,
- * slides straight on into the hay bales (poof, hay rains down, a straw sticks out of the window), dizzy stars.
- */
-import { PAL } from '../common/draw';
+import { WS_RUN } from '../../config';
+import { hopLift } from '../common/choreography';
+import { PAL, line, spec } from '../common/draw';
 import { along } from '../common/fx';
-import { type Pt, RoundedPath, trackVerts } from '../common/path';
+import { type PathPose, RoundedPath, trackVerts } from '../common/path';
 import { planStage, racePlayer } from '../common/phases';
+import { P } from '../common/props';
+import { raceSpectator } from '../common/raceSpectator';
+import { SideStage } from '../common/side';
 import { T, TopStage } from '../common/top';
+import type { StageContext } from '../types';
 
-export default racePlayer('turn', async (ctx) => {
-  const plan = planStage(ctx, ['turn.handling']);
-  const lv = Math.min(3, plan.level('turn.handling', 1));
-  const S = new TopStage(ctx, { carMaxLateral: 120 });
+const cfg = WS_RUN.turn;
+
+async function topTurn(ctx: StageContext, level: number, passed: boolean): Promise<void> {
+  const S = new TopStage(ctx, { carMaxLateral: 109 - level * 5 });
   const { w, h } = S;
-  const roadW = 210;
-  const path = new RoundedPath(trackVerts(w, h, lv), 150);
+  const roadW = cfg.roadWidth[level];
+  const path = new RoundedPath(trackVerts(w, h, level + 1), cfg.radius[level]);
+  const end = path.length - 190;
+  S.fx.seed(ctx.rng);
   S.bg((g) => {
-    g.lineJoin = 'round'; g.lineCap = 'round';
-    const trace = (): void => { g.beginPath(); path.pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); };
-    trace(); g.strokeStyle = PAL.ink; g.lineWidth = roadW + 18; g.stroke();
-    trace(); g.strokeStyle = '#c9b88c'; g.lineWidth = roadW + 8; g.stroke();
-    trace(); g.strokeStyle = '#6b7280'; g.lineWidth = roadW - 6; g.stroke();
-    g.setLineDash([34, 30]); trace(); g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.setLineDash([]);
-    // finish line near the end
-    const fp = path.at(path.length - 300), n = { x: -Math.sin(fp.a), y: Math.cos(fp.a) };
-    for (let i = -5; i < 5; i++) for (let j = 0; j < 2; j++) {
-      g.fillStyle = (i + j) % 2 ? '#111' : '#fff';
-      const cx = fp.x + n.x * (i + 0.5) * (roadW / 10) + Math.cos(fp.a) * (j - 0.5) * 24, cy = fp.y + n.y * (i + 0.5) * (roadW / 10) + Math.sin(fp.a) * (j - 0.5) * 24;
-      g.save(); g.translate(cx, cy); g.rotate(fp.a); g.fillRect(-12, -roadW / 20, 24, roadW / 10); g.restore();
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    for (const [color, width] of [[PAL.ink, roadW + 16], ['#e3caa4', roadW + 8], ['#545f70', roadW]] as const) {
+      g.beginPath();
+      path.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y));
+      g.strokeStyle = color;
+      g.lineWidth = width;
+      g.stroke();
     }
-  });
-  // decor: trees away from the road
-  const far = (x: number, y: number, m: number): boolean => path.pts.every((p) => Math.hypot(p.x - x, p.y - y) > m);
-  for (let i = 0, n = 0; i < 60 && n < 9; i++) {
-    const x = ctx.rng.range(60, w - 60), y = ctx.rng.range(60, h - 60), d = ctx.rng.int(110, 170);
-    if (far(x, y, roadW / 2 + d / 2 + 30)) { S.put('back', T.treeTop(d, i % 2 ? '#3fae4a' : '#4cbd57'), x, y); n++; }
+    for (let d = 190; d < end - 50; d += 56) {
+      const a = path.at(d), b = path.at(d + 24);
+      line(g, a.x, a.y, b.x, b.y, 6, '#fff6be');
+    }
+    const finish = path.at(end - 50);
+    g.save();
+    g.translate(finish.x, finish.y);
+    g.rotate(finish.a);
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 2; j++) {
+      g.fillStyle = (i + j) % 2 ? '#242638' : '#fff';
+      g.fillRect(j * 20 - 20, (i - 5) * roadW / 10, 20.5, roadW / 10 + 0.5);
+    }
+    g.restore();
+  }, ['#82cb72', '#76c367']);
+
+  const roadSamples = Array.from({ length: Math.ceil(path.length / 40) }, (_, i) => path.at(i * 40));
+  const far = (x: number, y: number, margin: number): boolean =>
+    roadSamples.every((p) => Math.hypot(p.x - x, p.y - y) > margin);
+  for (let i = 0, count = 0; i < 60 && count < 8; i++) {
+    const x = ctx.rng.range(64, w - 64), y = ctx.rng.range(68, h - 68), d = ctx.rng.int(79, 125);
+    if (far(x, y, roadW / 2 + d / 2 + 45)) {
+      S.put('back', T.treeTop(d, count % 2 ? '#44a862' : '#60b75d'), x, y);
+      count++;
+    }
   }
-  // hay bales on the outside of every corner (runoff) and cones along the first straight
-  const bales: { img: ReturnType<typeof S.put>; cx: number; cy: number }[][] = [];
-  path.corners.forEach((c) => {
-    const row: { img: ReturnType<typeof S.put>; cx: number; cy: number }[] = [];
-    const out = { x: c.din.x - c.dout.x, y: c.din.y - c.dout.y };
-    const ol = Math.hypot(out.x, out.y) || 1;
-    // runoff barrier: straight ahead of the incoming direction, beyond the corner vertex
-    const bx = c.vertex.x + c.din.x * (roadW / 2 + 70), by = c.vertex.y + c.din.y * (roadW / 2 + 70);
-    const perp = { x: -c.din.y, y: c.din.x };
-    for (const k of [-1, 0, 1]) {
-      const x = bx + perp.x * k * 128 + (out.x / ol) * 0, y = by + perp.y * k * 128;
-      const img = S.put('mid', T.hayTop(), x, y, 1, Math.atan2(perp.y, perp.x) + Math.PI / 2 - Math.PI / 2);
-      row.push({ img, cx: x, cy: y });
+  const cones: ReturnType<typeof S.put>[] = [];
+  for (const c of path.corners) for (const d of [c.s0 + 35, (c.s0 + c.s1) / 2, c.s1 - 14]) {
+    const p = path.at(d);
+    for (const side of [-1, 1]) {
+      const offset = side * (roadW / 2 - 15);
+      const x = p.x - Math.sin(p.a) * offset, y = p.y + Math.cos(p.a) * offset;
+      if (cones.every((cone) => Math.hypot(cone.x - x, cone.y - y) >= 44)) {
+        cones.push(S.put('mid', T.cone(), x, y, 0.72));
+      }
     }
-    bales.push(row);
-  });
-  const cone0 = path.at(260);
-  for (const k of [-1, 1]) S.put('mid', T.cone(), cone0.x - Math.sin(cone0.a) * k * (roadW / 2 + 22), cone0.y + Math.cos(cone0.a) * k * (roadW / 2 + 22), 0.9);
-
-  S.setPose(path.at(0));
-  ctx.audio.sfx('engineRev', { volume: 0.4 });
-  const eng = ctx.audio.loop('engine', { volume: 0.45 });
-  const speed = 640;
-  const skid = (d: number, p: { x: number; y: number; a: number }): void => {
-    if (!path.corners.some((c) => d > c.s0 && d < c.s1)) return;
-    for (const k of [-1, 1]) {
-      const m = ctx.scene.add.rectangle(p.x - Math.sin(p.a) * k * (S.carWid * 0.32) - Math.cos(p.a) * S.carLen * 0.3, p.y + Math.cos(p.a) * k * (S.carWid * 0.32) - Math.sin(p.a) * S.carLen * 0.3, 18, 7, 0x1b1b3a, 0.28).setRotation(p.a);
-      S.layers.back.add(m);
-    }
+  }
+  const corner = path.corners[[0, 1, 3][level]];
+  const cx = corner.vertex.x + corner.din.x * (roadW / 2 + 62);
+  const cy = corner.vertex.y + corner.din.y * (roadW / 2 + 62);
+  const heading = Math.atan2(corner.din.y, corner.din.x);
+  const bales = [-1, 0, 1].map((i) => S.put('mid', T.hayTop(), cx - corner.din.y * i * 105,
+    cy + corner.din.x * i * 105, 0.82, heading + Math.PI / 2));
+  const audience = [
+    S.put('front', T.squirrelTop(), cx + corner.din.x * 68 - corner.din.y * 85, cy + corner.din.y * 68 + corner.din.x * 85, 1.6, heading + Math.PI),
+    S.put('front', T.squirrelTop(), cx + corner.din.x * 70 + corner.din.y * 76, cy + corner.din.y * 70 - corner.din.x * 76, 1.3, heading + Math.PI),
+  ];
+  const watch = (cheer: boolean): void => {
+    audience.forEach((squirrel, i) => {
+      void ctx.tween({ targets: squirrel, angle: squirrel.angle + (i ? -24 : 24), duration: 220, yoyo: true, repeat: 1 });
+      S.fx.burst(S.layers.front, cheer ? 'sparkle' : 'leaves', squirrel.x, squirrel.y, 6);
+    });
   };
+  const start = 174;
+  S.setPose(path.at(start));
+  ctx.rig.play('idle');
+  await ctx.wait(870);
+  ctx.audio.sfx('engineRev', { volume: 0.44 });
+  const engine = ctx.audio.loop('engine', { volume: 0.45 });
+  ctx.rig.play('drive');
 
-  if (plan.ok) {
-    let finished = false;
-    let lastSkid = 0;
-    let sk = false;
-    const ms = Math.max(4500, Math.min(8500, (path.length / speed) * 1000));
-    ctx.rig.play('drive');
-    await along(ctx, ms, (t) => {
-      const d = path.length * t;
+  if (passed) {
+    const trace = path.corners.flatMap((c) => [0.12, 0.38, 0.64, 0.9].map((part) => {
+      const d = c.s0 + (c.s1 - c.s0) * part;
       const p = path.at(d);
+      const mark = ctx.scene.add.rectangle(p.x, p.y, 28, 8, 0x98ffbb, 0.94).setRotation(p.a).setVisible(false);
+      S.layers.back.add(mark);
+      return { mark, d };
+    }));
+    let previousCorner = -1;
+    await along(ctx, cfg.driveMs[level], (t) => {
+      const d = start + (end - start) * t, p = path.at(d);
+      const tireLine = path.corners.findIndex((c) => d >= c.s0 && d <= c.s1);
       S.setPose(p);
-      if (!sk && path.corners.some((c) => d > c.s0 && d < c.s1)) { sk = true; ctx.audio.sfx('skid', { volume: 0.5 }); }
-      if (sk && !path.corners.some((c) => d > c.s0 && d < c.s1)) sk = false;
-      if (d - lastSkid > 26) { lastSkid = d; skid(d, p); }
-      if (t > 0.82 && !finished) { finished = true; S.fx.burst(S.layers.front, 'sparkle', p.x, p.y); ctx.audio.sfx('cheer', { volume: 0.6 }); ctx.audio.sfx('sparkle'); }
+      if (tireLine >= 0 && tireLine !== previousCorner) {
+        previousCorner = tireLine;
+        ctx.audio.sfx('skid', { volume: 0.23, rate: 1.65 });
+      }
+      trace.forEach(({ mark, d: at }) => { if (!mark.visible && d > at + S.carLen / 2) mark.setVisible(true); });
     }, 'Sine.easeInOut');
-    eng();
-    await ctx.wait(150);
+    engine();
+    const finish = path.at(end);
+    watch(true);
+    S.fx.burst(S.layers.front, 'confetti', finish.x, finish.y, 24);
+    ctx.audio.sfx('cheer', { volume: 0.66 });
+    ctx.audio.sfx('sparkle');
+    ctx.rig.play('celebrate');
+    await ctx.wait(1150);
     return;
   }
 
-  // fail: follow the track to the chosen corner, then slide straight on
-  const ci = Math.min(path.corners.length - 1, lv - 1);
-  const c = path.corners[ci];
-  const dFail = c.s0 + 40;
-  let lastSkid = 0;
-  ctx.rig.play('drive');
-  await along(ctx, Math.max(2200, (dFail / speed) * 1000), (t) => {
-    const d = dFail * t;
-    const p = path.at(d);
+  const slideStart = corner.s0 + 22;
+  await along(ctx, cfg.driveMs[level] * 0.57, (t) => S.setPose(path.at(start + (slideStart - start) * t)), 'Quad.easeIn');
+  ctx.audio.sfx('skid', { volume: 0.85 });
+  const from = path.at(slideStart);
+  const hitX = cx - corner.din.x * (S.carLen * 0.42 + 16);
+  const hitY = cy - corner.din.y * (S.carLen * 0.42 + 16);
+  const drift = (t: number): PathPose => ({
+    x: from.x + (hitX - from.x) * t,
+    y: from.y + (hitY - from.y) * t,
+    a: from.a + corner.turn * Math.sin(t * Math.PI / 2) * 0.92,
+  });
+  const marks = Array.from({ length: 10 }, (_, i) => {
+    const at = i / 11;
+    const p = drift(at);
+    return [-1, 1].map((side) => {
+      const offset = side * S.carWid * 0.33;
+      const m = ctx.scene.add.rectangle(p.x - Math.sin(p.a) * offset - Math.cos(p.a) * S.carLen * 0.24,
+        p.y + Math.cos(p.a) * offset - Math.sin(p.a) * S.carLen * 0.24, 24, 8, 0x242638, 0.66)
+        .setRotation(p.a).setVisible(false);
+      S.layers.back.add(m);
+      return m;
+    });
+  });
+  await along(ctx, cfg.slideMs, (t) => {
+    const p = drift(t);
     S.setPose(p);
-    if (d - lastSkid > 26) { lastSkid = d; skid(d, p); }
-  }, 'Sine.easeIn');
-  ctx.audio.sfx('skid', { volume: 0.8 });
-  const p0 = path.at(dFail);
-  const row = bales[ci];
-  const hit = (): Pt => ({ x: row[1].cx - c.din.x * (S.carLen * 0.5 + 62), y: row[1].cy - c.din.y * (S.carLen * 0.5 + 62) });
-  const h1 = hit();
-  const dist = Math.hypot(h1.x - p0.x, h1.y - p0.y);
-  const turnDir = c.turn;
-  await along(ctx, 900 + dist * 0.6, (t) => {
-    S.car.x = p0.x + (h1.x - p0.x) * t; S.car.y = p0.y + (h1.y - p0.y) * t;
-    S.car.rotation = p0.a + turnDir * 0.5 * Math.sin(t * Math.PI * 0.5) * 1.1;
-    if (Math.round(t * 40) % 3 === 0) skid(c.s0 + 1, { x: S.car.x, y: S.car.y, a: S.car.rotation });
+    marks.forEach((pair, i) => pair.forEach((m) => m.setVisible(t > i / 11)));
   }, 'Quad.easeOut');
-  eng();
+  engine();
+  watch(false);
   ctx.audio.sfx('thud', { volume: 0.7 });
-  ctx.audio.sfx('crash', { volume: 0.4, rate: 1.6 });
-  S.fx.burst(S.layers.front, 'hay', h1.x + c.din.x * 70, h1.y + c.din.y * 70, 24);
-  S.fx.burst(S.layers.front, 'dust', h1.x + c.din.x * 70, h1.y + c.din.y * 70, 6);
-  row.forEach((b, i) => { void ctx.tween({ targets: b.img, x: b.cx + c.din.x * 36 + (i - 1) * 14, y: b.cy + c.din.y * 36, rotation: (i - 1) * 0.35, duration: 260, ease: 'Quad.easeOut' }); });
+  S.fx.burst(S.layers.front, 'hay', cx, cy, 26);
+  bales.forEach((bale, i) => {
+    void ctx.tween({ targets: bale, x: bale.x + corner.din.x * 36, y: bale.y + corner.din.y * 36,
+      rotation: bale.rotation + (i - 1) * 0.36, duration: 330, ease: 'Quad.easeOut' });
+  });
+  cones.filter((cone) => Math.hypot(cone.x - hitX, cone.y - hitY) < 160).forEach((cone) => {
+    void ctx.tween({ targets: cone, x: cone.x + corner.din.x * 56, y: cone.y + corner.din.y * 56, scaleY: cone.scaleY * 0.54,
+      duration: 410, ease: 'Quad.easeOut' });
+  });
+  const stars = S.fx.dizzy(S.layers.front, hitX, hitY, 76);
+  stars.follow(S.car, -12);
   ctx.rig.play('dizzy');
-  void along(ctx, 200, (t) => S.car.setScale(S.cs * (1 - 0.1 * Math.sin(t * Math.PI)), S.cs * (1 + 0.06 * Math.sin(t * Math.PI))));
-  // straw in the window
-  const straw = ctx.scene.add.rectangle(ctx.rig.anchor('roof').x, ctx.rig.anchor('roof').y * 0.2, 54, 5, 0xf2cf5a).setRotation(-0.5).setStrokeStyle(2, 0x1b1b3a);
-  S.car.add(straw);
-  const d = S.fx.dizzy(S.layers.front, S.car.x, S.car.y, 80);
-  d.follow(S.car, -10);
-  ctx.audio.sfx('sad', { volume: 0.6 });
-  await ctx.wait(1500);
-  d.stop();
-});
+  ctx.audio.sfx('sad', { volume: 0.57 });
+  await ctx.wait(WS_RUN.failHoldMs + 350);
+  stars.stop();
+}
 
+async function sideTurn(ctx: StageContext, level: number, passed: boolean): Promise<void> {
+  const start = 425, spacing = 350, gateCount = level + 2;
+  const end = start + (gateCount + 1) * spacing;
+  const S = new SideStage(ctx, {
+    worldW: end + 1130, groundFrac: 0.76, ground: ['#919383', '#a37950', '#845d3e'],
+    clouds: 4, hills: [{ color: '#a4d78e', h: 220, f: 0.21 }, { color: '#78bd76', h: 140, f: 0.34 }],
+  });
+  S.fx.seed(ctx.rng);
+  const amplitude = 57 + level * 11;
+  const track = (x: number): number => -65 + Math.sin((x - start) * Math.PI / spacing) * amplitude;
+  const road = spec('turn:side:' + level, spacing * 2, 420, (g) => {
+    g.fillStyle = '#555f6b';
+    g.fillRect(0, 0, spacing * 2, 420);
+    for (const y of [-185, 178]) {
+      line(g, 0, y + 210, spacing * 2, y + 210, 12, '#ddd9c9');
+    }
+    for (let x = 22; x < spacing * 2 - 24; x += 44) line(g, x, 210 + track(x), x + 21, 210 + track(x + 21), 7, '#fff3aa');
+  }, 0, 210);
+  for (let x = 0; x < S.worldW; x += spacing * 2) S.put('back', road, x, 0);
+  const gates = Array.from({ length: gateCount }, (_, i) => {
+    const x = start + (i + 0.63) * spacing;
+    const lane = 102 - level * 10;
+    return [
+      S.put('back', P.cone(), x, track(x) - lane, 0.8),
+      S.put('front', P.cone(), x, track(x) + lane, 0.95),
+    ];
+  });
+  for (let x = 145; x < end + 835; x += 535) {
+    S.put('back', P.tree(), x + ctx.rng.int(-55, 55), -196, 0.8);
+    S.put('back', P.fence(), x + 178, -198, 0.88);
+  }
+  const cornerX = start + (gateCount - 0.37) * spacing;
+  const baleX = cornerX + 208, baleY = 151;
+  const bales = [-1, 0, 1].map((i) => S.put('front', P.hay(), baleX + i * 105, baleY + i * 11, 1.05));
+  const marshal = raceSpectator(S, baleX - 90, '#e9993f', '#fff172', -197);
+  const fan = raceSpectator(S, end + 64, '#b676eb', '#ffd23f', -197);
+  S.put('back', P.checker(), end - 70, -165, 1.12);
+  const set = (x: number): void => {
+    S.car.setPosition(x, track(x)).setRotation(Math.atan2(track(x + 30) - track(x - 30), 60) * 0.23);
+  };
+  S.place(start);
+  set(start);
+  ctx.rig.play('idle');
+  await ctx.wait(870);
+  const engine = ctx.audio.loop('engine', { volume: 0.43 });
+  ctx.rig.play('drive');
+  if (passed) {
+    let gate = 0;
+    await along(ctx, cfg.driveMs[level], (t) => {
+      const x = start + (end - start) * t;
+      set(x);
+      if (gates[gate] && x > gates[gate][0].x) {
+        ctx.audio.sfx('skid', { volume: 0.22, rate: 1.6 });
+        S.fx.burst(S.layers.front, 'dust', x - 90, S.car.y, 4);
+        gate++;
+      }
+    }, 'Sine.easeInOut');
+    engine();
+    marshal.cheer();
+    fan.cheer();
+    S.fx.burst(S.layers.front, 'confetti', end, S.car.y - 220, 24);
+    await S.cheer(1050);
+    return;
+  }
+  const slideX = cornerX - 228;
+  await along(ctx, cfg.driveMs[level] * 0.55, (t) => set(start + (slideX - start) * t), 'Sine.easeIn');
+  const nose = ctx.rig.anchor('front');
+  const impactX = baleX - Math.max(134, nose.x + 54);
+  const startY = S.car.y;
+  const cloud = S.spray('dust', 'wheelRear', {}, 70);
+  ctx.audio.sfx('skid', { volume: 0.82 });
+  await along(ctx, cfg.slideMs, (t) => {
+    S.car.setPosition(slideX + (impactX - slideX) * t, startY + (baleY - startY - 19) * t ** 1.6)
+      .setRotation(0.24 * Math.sin(t * Math.PI * 0.5));
+  }, 'Quad.easeOut');
+  engine();
+  cloud.stop();
+  marshal.gasp();
+  ctx.audio.sfx('thud', { volume: 0.69 });
+  S.fx.burst(S.layers.front, 'hay', impactX + nose.x, S.car.y - 38, 25);
+  const fallen = gates.at(-1)![1];
+  void ctx.tween({ targets: fallen, x: fallen.x + 130, rotation: 1.14, duration: 430, ease: 'Quad.easeOut' });
+  bales.forEach((bale, i) => {
+    void S.hop(bale, bale.x + 63 - i * 11, bale.y + 12, 480, 32 - i * 8);
+  });
+  const y = S.car.y;
+  await along(ctx, 360, (t) => S.car.setPosition(impactX - 55 * t, y - hopLift(t, 20)).setRotation(0.24 * (1 - t)), 'Quad.easeOut');
+  ctx.rig.play('dizzy');
+  const stars = S.dizzy();
+  ctx.audio.sfx('sad', { volume: 0.55 });
+  await ctx.wait(WS_RUN.failHoldMs);
+  stars.stop();
+}
+
+export default racePlayer('turn', async (ctx) => {
+  const plan = planStage(ctx, ['turn.handling']);
+  const level = Math.min(3, plan.level('turn.handling')) - 1;
+  await (ctx.stage.view === 'top' ? topTurn : sideTurn)(ctx, level, plan.ok);
+});

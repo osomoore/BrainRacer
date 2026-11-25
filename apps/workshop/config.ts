@@ -271,6 +271,43 @@ export const WS_RUN = {
     duckIntervalMs: 260,
     dullAlpha: 0.62,
   },
+  jump: {
+    gap: [520, 760, 1060],
+    rampHeight: [130, 185, 240],
+    runUpMs: 1950,
+    flightMs: [1160, 1310, 1460],
+    landingBounce: [27, 42, 56],
+  },
+  rocks: {
+    count: [2, 3, 4],
+    rockHeight: [48, 63, 79],
+    boulderHeight: [122, 164],
+    logLength: [300, 420],
+    logHeight: [106, 156],
+    actionMs: 4800,
+  },
+  turn: {
+    radius: [150, 135, 112],
+    roadWidth: [210, 196, 178],
+    slideMs: 1250,
+    driveMs: [4400, 4650, 4900],
+  },
+  mud: {
+    width: [500, 690, 900],
+    depth: [96, 128, 174],
+    gripSink: [12, 21, 31],
+    slipSink: [48, 68, 91],
+    pullWidth: [530, 680],
+    tractorScale: [0.95, 1.22],
+    actionMs: 5100,
+  },
+  delivery: {
+    boxes: [4, 6, 8],
+    boxScale: 0.74,
+    slope: 0.48,
+    stallProgress: 0.46,
+    actionMs: 5100,
+  },
 } as const;
 
 // ---------------------------------------------------------------- art (apps/workshop/art)
