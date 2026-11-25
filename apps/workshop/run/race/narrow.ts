@@ -1,93 +1,146 @@
-/**
- * Narrow (top view): a forest path squeezing between two big trees. The gap is drawn from the car's own width
- * (level only changes how many trees line the path), so "fits" and "wedges" read exactly.
- * Pass: slips straight through, leaves rustle, a squirrel waves. Fail: wedges between the trees, wiggles left and right,
- * pops backwards out like a cork; leaves float down onto it.
- */
-import { PAL } from '../common/draw';
+/** Cones mark the pinch point. Fold the mirrors, then slip through or pop back out of the gap. */
+import { WS_RUN } from '../../config';
+import { PAL, prop } from '../common/draw';
 import { along } from '../common/fx';
 import { planStage, racePlayer } from '../common/phases';
-import { P } from '../common/props';
+import { clearanceGap } from '../common/terrain';
 import { T, TopStage } from '../common/top';
 
 export default racePlayer('narrow', async (ctx) => {
+  const cfg = WS_RUN.narrow;
   const plan = planStage(ctx, ['narrow.width']);
-  const lv = Math.min(3, plan.level('narrow.width', 1));
-  const S = new TopStage(ctx, { carMaxLateral: 150 });
+  const lv = plan.level('narrow.width');
+  const S = new TopStage(ctx, { carMaxLateral: 148 });
+  S.fx.seed(ctx.rng);
   const { w, h } = S;
-  const cy = h * 0.5;
-  const gapX = w * 0.58;
-  const gap = Math.round(plan.ok ? S.carWid + 52 : S.carWid - 26);
-  const R = 150;
-  const pathW = Math.round(S.carWid * 2.4);
+  const cy = h * 0.49;
+  const gap = clearanceGap(S.carWid, lv, plan.ok, cfg.clearance, cfg.overlap);
+  const gateLength = cfg.length[Math.min(lv, cfg.length.length) - 1];
+  const gate = Math.min(w * 0.58, w - S.carLen - gateLength - 30);
+  const gateEnd = gate + gateLength;
+  const roadW = 360;
+  const coneRadius = 25;
+  const coneY = gap / 2 + coneRadius;
   S.bg((g) => {
-    g.fillStyle = '#c9a36b'; g.fillRect(0, cy - pathW / 2, w, pathW);
-    g.fillStyle = '#b48a52';
-    for (let i = 0; i < 40; i++) g.fillRect((i * 97) % w, cy - pathW / 2 + ((i * 53) % pathW), 22, 7);
-    g.fillStyle = PAL.ink; g.fillRect(0, cy - pathW / 2 - 4, w, 4); g.fillRect(0, cy + pathW / 2, w, 4);
-  }, ['#4fae55', '#47a24e']);
-  // rows of trees along the path
-  const rowTrees = 3 + lv;
-  for (let i = 0; i < rowTrees; i++) {
-    for (const sy of [-1, 1]) {
-      const x = ((i + 0.5) / rowTrees) * w * 0.98 + ctx.rng.range(-30, 30);
-      if (Math.abs(x - gapX) < R * 2 + 40) continue;
-      S.put('back', T.treeTop(ctx.rng.int(110, 150), '#3f9f48'), x, cy + sy * (pathW / 2 + ctx.rng.range(80, 120)));
+    g.fillStyle = PAL.ink;
+    g.fillRect(0, cy - roadW / 2 - 5, w, roadW + 10);
+    g.fillStyle = '#d7b883';
+    g.fillRect(0, cy - roadW / 2, w, roadW);
+    g.fillStyle = '#c8a476';
+    g.fillRect(0, cy - roadW / 2, w, 18);
+    g.fillRect(0, cy + roadW / 2 - 18, w, 18);
+    for (let i = 0; i < 36; i++) g.fillRect((i * 173) % w, cy - roadW / 2 + ((i * 53) % roadW), 25, 5);
+  }, ['#5ca950', '#65b45a']);
+
+  for (const side of [-1, 1]) {
+    for (let x = 90; x < w; x += 240) {
+      S.put('back', T.treeTop(ctx.rng.int(142, 207), side < 0 ? '#42a448' : '#3e9746'),
+        x + ctx.rng.range(-38, 38), cy + side * (roadW / 2 + ctx.rng.range(102, 158)));
     }
+    for (const [dx, dy] of [[-164, 63], [-100, 38], [-50, 20], [gateLength + 62, 28]]) {
+      S.put('back', T.cone(), gate + dx, cy + side * (coneY + dy), 0.84);
+    }
+    S.put('back', T.wall(gateLength + 74, 78), gate + gateLength / 2, cy + side * (gap / 2 + 79));
+    S.put('front', T.cone(), gate + gateLength / 2, cy + side * coneY);
+    S.put('front', T.cone(), gateEnd, cy + side * coneY);
   }
-  // the two pinch trees
-  const t1 = S.put('mid', T.treeTop(R * 2, '#3fae4a'), gapX, cy - (gap / 2 + R));
-  const t2 = S.put('mid', T.treeTop(R * 2, '#47b84f'), gapX + 20, cy + (gap / 2 + R));
-  const squirrel = S.put('front', T.squirrelTop(), gapX + 30, cy - (gap / 2 + R) + 40, 1.2);
-  const carStart = -S.carLen;
-  S.car.setPosition(carStart, cy).setRotation(0);
-  const eng = ctx.audio.loop('engine', { volume: 0.4 });
+  const entryCones = [-1, 1].map((side) => S.put('front', T.cone(), gate, cy + side * coneY));
+  const squirrel = S.put('front', T.squirrelTop(), gateEnd + 38, cy - roadW / 2 - 32, 1.55, Math.PI * 0.75);
+  const duck = S.put('front', T.duckTop(), gateEnd + 58, cy + roadW / 2 + 38, 1.32, -Math.PI * 0.6);
+
+  const carStart = S.carLen * 0.52 + 12;
+  S.car.setPosition(carStart, cy);
+  const nose = ctx.rig.anchor('front').x * S.cs;
+  const frontAxle = ctx.rig.anchor('wheelFront').x * S.cs;
+  const mirrorX = (frontAxle - S.carLen * 0.16) / S.cs;
+  const mirrorY = (S.carWid * 0.44) / S.cs;
+  const mirrors = [-1, 1].map((side) => prop(S.scene, S.car, T.mirror(), mirrorX, side * mirrorY, 0.88));
+  const foldMirrors = (t: number): void => {
+    mirrors.forEach((mirror, i) => {
+      const side = i === 0 ? -1 : 1;
+      mirror.setPosition(mirrorX - 31 * t, side * (mirrorY - 14 * t));
+      mirror.rotation = (side > 0 ? Math.PI : 0) - side * t * 1.47;
+    });
+  };
+  foldMirrors(0);
+  const drive = (to: number, ms: number, ease = 'Sine.easeInOut'): Promise<void> => {
+    const from = S.car.x;
+    return along(ctx, ms, (t) => { S.car.x = from + (to - from) * t; }, ease);
+  };
+  const react = (happy: boolean): void => {
+    for (const [i, friend] of [squirrel, duck].entries()) {
+      const dir = i === 0 ? -1 : 1;
+      void ctx.tween({ targets: friend, y: friend.y + dir * (happy ? 60 : 42), rotation: friend.rotation + dir * 0.45,
+        duration: 210, yoyo: true, repeat: happy ? 1 : 0, ease: 'Sine.easeOut' });
+    }
+    ctx.audio.sfx(happy ? 'quack' : 'wobble', { volume: 0.41 });
+  };
+
+  ctx.rig.play('idle');
+  await ctx.wait(580);
+  const engine = ctx.audio.loop('engine', { volume: 0.38 });
   ctx.rig.play('drive');
+  await drive(gate - nose - 25, 1490);
+  ctx.rig.play('idle');
+  ctx.audio.sfx('wobble', { volume: 0.54, rate: 1.26 });
+  await along(ctx, 590, foldMirrors, 'Back.easeOut');
+  foldMirrors(1);
+  await ctx.wait(310);
 
   if (plan.ok) {
-    let rustled = false;
-    await along(ctx, 5200, (t) => {
-      S.car.x = carStart + (w + S.carLen * 1.2 - carStart) * t;
-      if (!rustled && S.car.x > gapX - S.carLen * 0.6) {
-        rustled = true;
-        ctx.audio.sfx('rustle', { volume: 0.7 });
-        S.fx.burst(S.layers.front, 'leaves', gapX, cy - gap / 2 - 30, 10);
-        S.fx.burst(S.layers.front, 'leaves', gapX, cy + gap / 2 + 30, 10);
-        void ctx.tween({ targets: [t1, t2], scaleX: 1.05 * t1.scaleX, scaleY: 1.05 * t1.scaleY, yoyo: true, duration: 180, repeat: 2 });
-        void ctx.tween({ targets: squirrel, rotation: 0.4, yoyo: true, duration: 160, repeat: 3 });
-      }
+    ctx.rig.play('drive');
+    const from = S.car.x;
+    const finish = gateEnd + S.carLen * 0.5 + 19;
+    await along(ctx, 2410, (t) => {
+      S.car.x = from + (finish - from) * t;
+      S.car.scaleY = S.cs * (1 - 0.07 * Math.sin(t * Math.PI));
     }, 'Sine.easeInOut');
-    eng();
-    ctx.audio.sfx('sparkle', { volume: 0.6 });
+    S.car.setScale(S.cs);
+    engine();
+    ctx.audio.sfx('pop', { volume: 0.48 });
+    react(true);
+    void along(ctx, 460, (t) => foldMirrors(1 - t), 'Back.easeOut');
+    await ctx.tween({ targets: S.car, scaleX: S.cs * 0.94, scaleY: S.cs * 1.12, duration: 145, yoyo: true });
+    await S.cheer(930);
+    ctx.rig.play('drive');
+    await drive(w + S.carLen * 0.65, 710, 'Quad.easeIn');
     return;
   }
 
-  const wedgeX = gapX - S.carLen * 0.5 + 40;
-  await along(ctx, 3000, (t) => { S.car.x = carStart + (wedgeX - carStart) * t; }, 'Sine.easeIn');
-  ctx.audio.sfx('thud', { volume: 0.6 });
-  S.fx.burst(S.layers.front, 'leaves', gapX, cy - gap / 2 - 40, 12);
-  S.fx.burst(S.layers.front, 'leaves', gapX, cy + gap / 2 + 40, 12);
-  ctx.rig.play('spinWheels');
-  // wiggle
-  await along(ctx, 1300, (t) => {
-    S.car.rotation = Math.sin(t * 34) * 0.07 * (1 - t * 0.3);
-    S.car.y = cy + Math.sin(t * 34 + 1) * 8;
-    S.car.x = wedgeX + Math.sin(t * 20) * 5 + t * 8;
-  }, 'Linear');
-  eng();
-  // pop out like a cork
-  ctx.audio.sfx('pop', { volume: 0.8 });
-  ctx.rig.play('idle');
-  const x1 = S.car.x;
-  await along(ctx, 600, (t) => { S.car.x = x1 - 300 * t; S.car.rotation = 0.0; S.car.y = cy - Math.sin(t * Math.PI) * 10; }, 'Back.easeOut');
-  S.car.y = cy;
-  S.fx.burst(S.layers.front, 'dust', S.car.x + 60, cy, 6);
-  // leaves float down onto the roof
-  for (let i = 0; i < 3; i++) {
-    const leaf = S.put('front', P.leaf(i % 2 ? '#4cb34f' : '#8ad24a'), S.car.x + ctx.rng.range(-60, 60), cy - 260 - i * 40, 1.3);
-    void along(ctx, 1400 + i * 250, (t) => { leaf.y = cy - 260 - i * 40 + (260 + i * 40) * t; leaf.x += Math.sin(t * 12) * 1.2; leaf.rotation = t * 5; });
+  ctx.rig.play('drive');
+  const wedge = gate - frontAxle + 2;
+  await drive(wedge, 650, 'Quad.easeIn');
+  ctx.audio.sfx('thud', { volume: 0.61 });
+  react(false);
+  for (const [i, cone] of entryCones.entries()) {
+    const dir = i === 0 ? -1 : 1;
+    const slide = ctx.rng.range(39, 58), bounce = ctx.rng.range(52, 82);
+    const scale = cone.scaleX;
+    void along(ctx, 730, (t) => {
+      cone.setPosition(gate + slide * t, cy + dir * (coneY + bounce * t));
+      cone.setScale(scale * (1 + 0.43 * Math.abs(Math.sin(t * Math.PI * 2)) * (1 - t)));
+      cone.rotation = dir * t * 3;
+    }, 'Quad.easeOut');
   }
-  ctx.rig.play('dizzy');
-  ctx.audio.sfx('sad', { volume: 0.5 });
-  await ctx.wait(1700);
+  ctx.rig.play('spinWheels');
+  await along(ctx, 1120, (t) => {
+    const wiggle = Math.sin(t * 35);
+    S.car.setPosition(wedge + wiggle * 6, cy + wiggle * 7);
+    S.car.rotation = 0.074 * wiggle;
+    S.car.scaleX = S.cs * (1 - 0.075 * Math.abs(wiggle));
+  });
+  engine();
+  const from = S.car.x;
+  const back = Math.max(carStart, gate - nose - 155);
+  ctx.audio.sfx('pop', { volume: 0.7 });
+  S.fx.burst(S.layers.front, 'dust', gate - 36, cy, 8);
+  ctx.rig.play('idle');
+  await along(ctx, 760, (t) => {
+    S.car.setPosition(from + (back - from) * t, cy);
+    S.car.setScale(S.cs * (1 + 0.11 * Math.sin(t * Math.PI)), S.cs * (1 - 0.12 * Math.sin(t * Math.PI)));
+    S.car.rotation = (1 - t) * 0.08 * Math.sin(t * Math.PI * 2);
+    foldMirrors(1 - t * 0.52);
+  }, 'Quad.easeOut');
+  ctx.audio.sfx('sad', { volume: 0.4 });
+  await ctx.wait(WS_RUN.failHoldMs);
 });
