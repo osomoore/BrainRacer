@@ -51,7 +51,7 @@ export const DINO_CATALOG: WorkshopCatalog = {
   stories: DINO_STORIES,
   practiceStories: DINO_PRACTICE_STORIES,
   practiceFail: PRACTICE_FAIL,
-  partPhrases: partPhrases(DINO_VARIANTS, { suffix: { size: 'size', color: 'skin' }, the: ['size'] }),
+  partPhrases: partPhrases(DINO_VARIANTS, { suffix: { size: 'dino size', color: 'skin' }, the: ['size'] }),
   unlockOrder: DINO_UNLOCK_ORDER,
   starters: DINO_STARTERS,
 };

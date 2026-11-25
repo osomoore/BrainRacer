@@ -39,14 +39,14 @@ describe('failure lines', () => {
   it('fill in part names the way a sentence reads them', () => {
     expect(fillParts(race, 'You needed {parts} to grip the mud.', ['wheels.mud'], 'easy')).toBe('You needed Mud Tires to grip the mud.');
     expect(fillParts(race, '{parts} would grip the mud.', ['wheels.mud', 'body.jeep'], 'medium')).toBe('Mud Tires and a Jeep would grip the mud.');
-    expect(fillParts(race, 'You needed {parts}.', ['size.small'], 'easy')).toBe('You needed the Small size.');
+    expect(fillParts(race, 'You needed {parts}.', ['size.small'], 'easy')).toBe('You needed the Small car size.');
     expect(fillParts(race, 'You needed {parts}.', ['engine.electric'], 'easy')).toBe('You needed an Electric Motor.');
   });
 
   it('name the first parts and "more" when the whole list is too long', () => {
     const line = fillParts(race, 'You needed {parts} today.',
       ['engine.efficient', 'size.tiny', 'paint.rainbow', 'body.sports'], 'easy');
-    expect(line).toBe('You needed an Efficient Engine, the Tiny size, and more today.');
+    expect(line).toBe('You needed an Efficient Engine, the Tiny car size, and more today.');
     expect(line.split(/\s+/).length).toBeLessThanOrEqual(12);
   });
 

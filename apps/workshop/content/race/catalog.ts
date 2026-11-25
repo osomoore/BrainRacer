@@ -29,7 +29,7 @@ export const RACE_CATALOG: WorkshopCatalog = {
   stories: RACE_STORIES,
   practiceStories: RACE_PRACTICE_STORIES,
   practiceFail: PRACTICE_FAIL,
-  partPhrases: partPhrases(RACE_VARIANTS, { suffix: { size: 'size', paint: 'paint', shape: 'shape' }, the: ['size'] }),
+  partPhrases: partPhrases(RACE_VARIANTS, { suffix: { size: 'car size', paint: 'paint', shape: 'shape' }, the: ['size'] }),
   unlockOrder: RACE_UNLOCK_ORDER,
   starters: RACE_STARTERS,
 };
