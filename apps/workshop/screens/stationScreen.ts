@@ -21,7 +21,7 @@ import { aspectIconTexture, starTexture } from './room/icons';
 import { roomLayout } from './room/layout';
 import { currentProgress } from './room/progress';
 import { guardBackAfterPreview, isBackGuarded } from './backGuard';
-import { cameraTarget, clampIndex, stationLayout, stripXs, windowStart, withVariant } from './station/layout';
+import { cameraTarget, clampIndex, stationLayout, stripOffset, swatchLeft, withVariant } from './station/layout';
 import { swatchTexture } from './station/swatch';
 
 const BAND = 0x232a66;
@@ -190,8 +190,8 @@ const stationScreen: ScreenFactory = (): Screen => {
         return b;
       });
       const arrow = (x: number, label: string, dir: number) => {
-        const b = new Button(scene, { x, y: L.strip.y, w: L.strip.arrowW, h: 150, label, fontSize: 72, color: COLORS.yellow, onClick: () => { if (!busy) select(index + dir); } });
-        b.setDepth(14);
+        const b = new Button(scene, { x, y: L.strip.arrowY, w: L.strip.arrowW, h: L.strip.arrowH, label, fontSize: 72, color: COLORS.yellow, onClick: () => { if (!busy) select(index + dir); } });
+        b.setDepth(15);
         objs.push(b);
         return b;
       };
@@ -203,17 +203,35 @@ const stationScreen: ScreenFactory = (): Screen => {
       use.setDepth(16); back.setDepth(16);
       objs.push(use, back);
 
-      const refresh = () => {
-        const ownedSlots = L.strip.visible - offers.length;
-        const visibleOwned = Math.min(owned.length, ownedSlots);
-        const xs = stripXs(L.strip.xs, visibleOwned + offers.length);
-        const start = windowStart(owned.length, Math.min(index, owned.length - 1), ownedSlots);
+      // Scrolling row: every option sits at its content x minus the scroll offset; the camera clips the half-visible
+      // neighbours at the pane edge and the arrows (drawn above) cover the inset.
+      const geom = () => ({ count: options.length, swatch: L.strip.swatch, gap: L.strip.gap, windowW: L.size.w - 2 * L.strip.inset, peek: WS_ROOM.swatchPeek });
+      let scroll = 0;
+      let scrollTween: Phaser.Tweens.Tween | undefined;
+      const placeSwatches = () => {
+        const reach = L.strip.swatch / 2 + 4;
         swatches.forEach((b, i) => {
-          const isOffer = i >= owned.length;
-          const slot = isOffer ? visibleOwned + i - owned.length : i - start;
-          const vis = isOffer || (slot >= 0 && slot < visibleOwned);
-          b.setVisible(vis);
-          if (vis) b.x = xs[slot];
+          b.x = L.strip.inset + swatchLeft(geom(), i) + L.strip.swatch / 2 - scroll;
+          b.setVisible(b.x + reach > 0 && b.x - reach < L.size.w);
+        });
+      };
+      const scrollTo = (animate: boolean) => {
+        placeSwatches();
+        const target = stripOffset(geom(), index, scroll);
+        scrollTween?.remove();
+        scrollTween = undefined;
+        if (!animate || target === scroll) { scroll = target; placeSwatches(); return; }
+        const state = { o: scroll };
+        scrollTween = scene.tweens.add({ targets: state, o: target, duration: WS_ROOM.swatchScrollMs, ease: 'Quad.easeOut',
+          onUpdate: () => { scroll = state.o; placeSwatches(); },
+          onComplete: () => { scroll = target; placeSwatches(); scrollTween = undefined; } });
+        tweens.push(scrollTween);
+      };
+      let firstRefresh = true;
+      const refresh = () => {
+        scrollTo(!firstRefresh);
+        firstRefresh = false;
+        swatches.forEach((b, i) => {
           b.setFocused(i === index && !ctx.input.touch);
           b.setEnabled(true);
         });

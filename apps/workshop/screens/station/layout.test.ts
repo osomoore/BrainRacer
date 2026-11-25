@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { WS_UI } from '../../config';
-import { cameraTarget, clampIndex, modelKey, stationLayout, stripXs, windowStart, withVariant } from './layout';
+import { cameraTarget, clampIndex, modelKey, stationLayout, stripContentW, stripOffset, swatchLeft, withVariant } from './layout';
 
 describe('stationLayout', () => {
   for (const kind of ['wide', 'tall'] as const) {
     const L = stationLayout(kind);
     it(`${kind}: swatches and buttons fit inside the pane and are tappable`, () => {
-      expect(L.strip.xs).toHaveLength(L.strip.visible);
-      for (const x of L.strip.xs) {
-        expect(x - L.strip.swatch / 2).toBeGreaterThanOrEqual(L.strip.arrowL + L.strip.arrowW / 2 - 4);
-        expect(x + L.strip.swatch / 2).toBeLessThanOrEqual(L.strip.arrowR - L.strip.arrowW / 2 + 4);
-      }
+      if (L.strip.inset) expect(L.strip.inset).toBeGreaterThanOrEqual(L.strip.arrowW);
+      expect(L.strip.arrowY + L.strip.arrowH / 2).toBeLessThanOrEqual(L.size.h);
       expect(L.strip.swatch).toBeGreaterThanOrEqual(WS_UI.tapMin);
       expect(L.strip.y + L.strip.swatch / 2).toBeLessThanOrEqual(L.size.h);
       expect(L.strip.y - L.strip.swatch / 2).toBeGreaterThanOrEqual(L.strip.bandY);
@@ -26,18 +23,49 @@ describe('stationLayout', () => {
   }
 });
 
-describe('strip window', () => {
-  it('centers the selection and clamps at the ends', () => {
-    expect(windowStart(10, 0, 5)).toBe(0);
-    expect(windowStart(10, 5, 5)).toBe(3);
-    expect(windowStart(10, 9, 5)).toBe(5);
-    expect(windowStart(3, 2, 5)).toBe(0);
+describe('strip scroll', () => {
+  const g = { count: 10, swatch: 200, gap: 20, windowW: 700, peek: 0.5 };
+  it('stays put while the selection and its peek are visible', () => {
+    expect(stripOffset(g, 0, 0)).toBe(0);
+    expect(stripOffset(g, 1, 0)).toBe(0);
+  });
+  it('scrolls minimally so a half neighbour shows beyond the selection', () => {
+    // swatch 2 spans 460..660; right neighbour peek ends at 660 + 20 + 100 = 780
+    expect(stripOffset(g, 2, 0)).toBe(80);
+    // going back left: swatch 1 left 240 - 120 = 120 < 80? no, stays
+    expect(stripOffset(g, 1, 80)).toBe(80);
+    expect(stripOffset(g, 0, 80)).toBe(0);
+    const o = stripOffset(g, 3, 0);
+    expect(swatchLeft(g, 3) + g.swatch + 120 - o).toBeCloseTo(g.windowW);
+  });
+  it('shows no peek past the first or last swatch', () => {
+    const last = stripOffset(g, 9, 0);
+    expect(last).toBe(stripContentW(g) - g.windowW);
+    expect(stripOffset(g, 0, last)).toBe(0);
+  });
+  it('keeps any selected swatch fully inside the window, from any previous offset', () => {
+    for (const count of [1, 3, 5, 8, 20]) for (const windowW of [700, 960, 1660]) {
+      const geo = { ...g, count, windowW };
+      for (let i = 0; i < count; i++) for (const cur of [0, 100, 400, 5000]) {
+        const o = stripOffset(geo, i, cur);
+        const left = swatchLeft(geo, i) - o;
+        if (stripContentW(geo) > windowW) {
+          expect(left).toBeGreaterThanOrEqual(0);
+          expect(left + geo.swatch).toBeLessThanOrEqual(windowW);
+        } else {
+          expect(left).toBeGreaterThanOrEqual(0);
+          expect(left + geo.swatch).toBeLessThanOrEqual(windowW);
+        }
+      }
+    }
+  });
+  it('centers a row that fits', () => {
+    expect(stripOffset({ ...g, count: 2 }, 1, 0)).toBe(-(700 - (40 + 420)) / 2);
+  });
+  it('clampIndex', () => {
     expect(clampIndex(-1, 4)).toBe(0);
     expect(clampIndex(9, 4)).toBe(3);
     expect(clampIndex(0, 0)).toBe(0);
-    expect(stripXs([100, 200, 300, 400, 500], 2)).toEqual([250, 350]);
-    expect(stripXs([100, 200, 300], 3)).toEqual([100, 200, 300]);
-    expect(stripXs([100, 200, 300], 1)).toEqual([200]);
   });
 });
 

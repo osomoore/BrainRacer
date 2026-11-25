@@ -159,9 +159,12 @@ export const WS_ROOM = {
   stationSpringsMarginPx: 24,
   /** Keep the wheels visible while showing the springs behind them. */
   stationSpringsWheelAlpha: 0.4,
-  /** Station screen swatches: visible count per layout, swatch size (px). */
-  swatchVisible: { wide: 5, tall: 3 },
-  swatchSize: { wide: 250, tall: 220 },
+  /** Station screen swatches: swatch size (px) and gap between swatches per layout. */
+  swatchSize: { wide: 250, tall: 190 },
+  swatchGap: { wide: 40, tall: 25 },
+  /** Strip: fraction of a neighbouring swatch left peeking beyond the selected one, and the edge-scroll tween (ms). */
+  swatchPeek: 0.5,
+  swatchScrollMs: 220,
   /** Board: side-view model scale (wide / tall), detail font sizes tried from large to small (px). */
   boardModelScale: { wide: 1.05, tall: 0.7 },
   detailFontsWide: [52, 48, 44, 40],
