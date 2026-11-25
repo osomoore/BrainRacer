@@ -44,5 +44,5 @@ export function partPhrases(variants: readonly Variant[], words: PartWords): Rec
 export const PRACTICE_FAIL: LeveledPhrases = tri(
   'This test needed {parts}.',
   'This test was checking for {parts}. Try again!',
-  'The test was checking for {parts}, so put that part on and try again.',
+  'This test checked for {parts}, so put it on and try again.',
 );
