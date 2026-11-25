@@ -1,14 +1,15 @@
 import { WS_RULES } from '../config';
 import { Rng } from '../core/rng';
-import type { Challenge, ChallengeId, Model, Requirement, Variant, VariantId, WorkshopCatalog, WorkshopId } from '../core/types';
-import { PRACTICE_TITLES } from '../content/practiceTitles';
+import type { ReadingLevel, Challenge, ChallengeId, Model, Requirement, Variant, VariantId, WorkshopCatalog, WorkshopId } from '../core/types';
+import { PRACTICE_TITLES, STARTER_PRACTICE_TITLES } from '../content/practiceTitles';
 import { challengeKey } from './generator';
 import { partTag } from './stats';
+import { STARTER_HINT } from './wording';
 import { practiceStory } from './failHints';
 
 /** Name the parts in the same order as their requirements on the card. */
-export function practiceTitle(workshop: WorkshopId, parts: readonly Pick<Variant, 'aspect'>[]): string {
-  return parts.map(({ aspect }) => PRACTICE_TITLES[workshop][aspect] ?? 'Practice').join(' & ');
+export function practiceTitle(workshop: WorkshopId, parts: readonly Pick<Variant, 'aspect'>[], reading?: ReadingLevel): string {
+  return parts.map(({ aspect }) => (reading === 'starter' ? STARTER_PRACTICE_TITLES[workshop][aspect] : undefined) ?? PRACTICE_TITLES[workshop][aspect] ?? 'Practice').join(' & ');
 }
 
 /** Owned-part practice keeps the board playable when the authored catalog is out of ready cards. */
@@ -29,16 +30,18 @@ export function practiceChallenge(
         id: 's0r' + i, facet: 'practice.' + part.aspect, level: 1,
         checks: [{ kind: 'tag', tag: partTag(part.id) }],
         text: {
+          starter: practiceStory(cat, part.id, 'starter'),
           easy: practiceStory(cat, part.id, 'easy'),
           medium: practiceStory(cat, part.id, 'medium'),
           hard: practiceStory(cat, part.id, 'hard'),
         },
-        hint: { aspect: part.aspect, text: { easy: hint, medium: hint, hard: hint } },
+        hint: { aspect: part.aspect, text: { starter: STARTER_HINT[1].replace('{aspect}', aspect?.label ?? part.aspect), easy: hint, medium: hint, hard: hint } },
       };
     });
     return {
       id, workshop: cat.id, title: practiceTitle(cat.id, variants),
-      intro: { easy: intro, medium: intro, hard: intro },
+      starterTitle: practiceTitle(cat.id, variants, 'starter'),
+      intro: { starter: intro, easy: intro, medium: intro, hard: intro },
       stages: [{ scenario: 'practice', view: 'side', params: {}, requirements }],
       tier, source: 'generated', seed, genVersion: WS_RULES.genVersion,
     };

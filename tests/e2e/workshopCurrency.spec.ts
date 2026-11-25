@@ -197,6 +197,9 @@ test('admin adds currency to one workshop and resets both for the selected playe
   await page.evaluate(() => (window as any).__ws.shell.openAdmin(false));
   await expect.poll(() => page.evaluate(() => (window as any).__ws.state().adminOpen)).toBe(true);
   await key(page, 'ArrowDown'); await key(page, 'Enter'); // select p1
+  await key(page, 'Enter'); // edit reading level
+  await key(page, 'ArrowLeft'); await key(page, 'Enter'); // Easy -> Starter
+  await expect.poll(() => page.evaluate(() => (window as any).__ws.store.player('p1').reading)).toBe('starter');
   await key(page, 'ArrowDown'); await key(page, 'Enter'); // Race Shop
   const adminTexts = () => page.evaluate(() => {
     const scene = (window as any).__ws.game.scene.getScene('admin');
@@ -215,6 +218,6 @@ test('admin adds currency to one workshop and resets both for the selected playe
     const save = w.store.player('p1');
     return { save, race: w.engine.progressOf(save, 'race').wallet, dino: w.engine.progressOf(save, 'dino').wallet };
   });
-  expect(reset).toMatchObject({ save: { reading: 'easy', workshops: {} }, race: 4, dino: 4 });
+  expect(reset).toMatchObject({ save: { reading: 'starter', workshops: {} }, race: 4, dino: 4 });
   expect(reset.save.workshops).toEqual({});
 });

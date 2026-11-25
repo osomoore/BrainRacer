@@ -61,7 +61,7 @@ const SCENARIOS: ScenarioDef[] = [
 ];
 
 const lev = (s: string): Record<ReadingLevel, string[]> =>
-  Object.fromEntries(READING_LEVELS.map((r) => [r, [`${s} (${r} A).`, `${s} (${r} B).`]])) as Record<ReadingLevel, string[]>;
+  Object.fromEntries(READING_LEVELS.map((r) => [r, r === 'starter' ? ['Stub A.', 'Stub B.'] : [`${s} (${r} A).`, `${s} (${r} B).`]])) as Record<ReadingLevel, string[]>;
 
 const FACET_PHRASES: FacetPhrases[] = SCENARIOS.flatMap((s) => s.facets.map((f) => ({
   facet: f.id,

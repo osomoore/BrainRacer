@@ -25,7 +25,7 @@ describe('real catalogs: every challenge text fits one page (no text pager neede
             const c = p.challenges[id];
             if (seen.has(id)) continue;
             seen.add(id);
-            for (const level of ['easy', 'medium', 'hard'] as const) {
+            for (const level of ['starter', 'easy', 'medium', 'hard'] as const) {
               // Worst case: also show the remembered fail hints (every requirement flagged failed at this level).
               const reqs = c.stages.flatMap((st) => st.requirements);
               const notes = reqs.slice(0, 2).map((r) => ({ req: r.id, parts: fixesOf(r).sort((x, y) => y.length - x.length)[0] ?? [] }));
@@ -54,7 +54,7 @@ describe('real catalogs: the story and requirements alone (no hints) always fit 
       let p = engine.newProgress(ws);
       for (let round = 0; round < 8; round++) {
         p = engine.refreshBoard(ws, p);
-        for (const id of p.active) for (const level of ['easy', 'medium', 'hard'] as const) {
+        for (const id of p.active) for (const level of ['starter', 'easy', 'medium', 'hard'] as const) {
           const plan = planDetail(buildBlocks(p.challenges[id], level), {
             maxW: L.textArea.w, indent: 96, boxH: L.textArea.h, sizes: detailFonts(kind), lineGap: WS_ROOM.detailLineGap, blockGap: 14, measure,
           });

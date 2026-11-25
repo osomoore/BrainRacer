@@ -16,6 +16,7 @@ import { shopOffers } from './shop';
 import { practiceChallenge } from './practice';
 import { flatChecks, hashSeed } from './util';
 import { advanceBuddies, normalizeBuddies, startingBuddy } from './buddies';
+import { readingText } from './wording';
 import { evaluate } from './evaluate';
 
 /** A fresh workshop; `buddySeed` (the profile's seed) picks the starting buddy. */
@@ -256,5 +257,5 @@ export function hint(p: WorkshopProgress, challenge: Challenge, result: RunResul
   const req = challenge.stages.flatMap((s) => s.requirements).find((r) => r.id === failId);
   // A hint that points at a station Easy has hidden would name a part the kid cannot reach.
   if (req && isHiddenAspect(challenge.workshop, p, req.hint.aspect)) return null;
-  return req?.hint.text[reading] ?? null;
+  return req ? readingText(req.hint.text, reading) : null;
 }

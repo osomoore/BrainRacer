@@ -10,14 +10,14 @@
 import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
 import type { Challenge, Requirement, RunResult } from '../core/types';
-import { WS_AUDIO, WS_RESULTS, WS_UI } from '../config';
+import { WS_AUDIO, WS_RESULTS, WS_UI, WS_WALLET } from '../config';
 import { playWorkshopSfx } from '../audio';
 import { currencyBadge } from '../ui/CurrencyBadge';
 import { Button } from '../ui/Button';
 import { FocusGroup } from '../ui/FocusGroup';
 import { Pager } from '../ui/Pager';
 import { addBackdrop, addHeader } from '../ui/screenChrome';
-import { circleTexture, COLORS, makeText } from '../ui/style';
+import { circleTexture, COLORS, fitText, makeText } from '../ui/style';
 import { currentProgress } from './room/progress';
 import { fitResults } from './results/layout';
 import { getOutcome } from './run/outcome';
@@ -25,6 +25,7 @@ import { CATALOGS } from '../content';
 import { cleverWinMessage } from '../logic/text';
 import { visibleAspectIds } from '../logic/aspects';
 import { successReasons } from '../logic/successReasons';
+import { challengeTitle, readingText, STARTER_RESULTS } from '../logic/wording';
 import { failLines, failNotes } from '../logic/failHints';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
@@ -57,6 +58,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const challenge: Challenge | undefined = progress?.challenges[challengeId];
       if (!ws || !progress || !result || !challenge) { toBoard(); return; }
       const reading = ctx.reading();
+      const starter = reading === 'starter';
       const outcome = getOutcome(ctx.index);
       const { w, h } = ctx.size;
       const wide = ctx.layout === 'wide';
@@ -65,9 +67,15 @@ const resultsScreen: ScreenFactory = (): Screen => {
 
       keep(addBackdrop(ctx));
       ctx.audio.sting(result.passed ? 'success' : 'fail');
-      const header = keep(addHeader(ctx, result.passed ? 'It worked!' : 'Not yet!', wide ? 78 : 66, wide ? 100 : 64));
-      if (!wide) header.setX(w - 40 - header.width / 2); // the wallet badge owns the top centre of a narrow pane
-      const title = keep(makeText(s, w / 2, wide ? 184 : 152, challenge.title,
+      const titleText = starter ? STARTER_RESULTS[result.passed ? 'win' : 'fail'] : result.passed ? 'It worked!' : 'Not yet!';
+      const header = keep(addHeader(ctx, titleText, wide ? 78 : 66, wide ? 100 : 64));
+      if (!wide) {
+        // Leave room for the wallet at the top centre of a narrow pane.
+        const right = w - 40;
+        fitText(header, right - WS_WALLET.tall.x - 112);
+        header.setX(right - header.width / 2);
+      }
+      const title = keep(makeText(s, w / 2, wide ? 184 : 152, challengeTitle(challenge, reading),
         { size: wide ? 56 : 48, color: COLORS.paper, stroke: COLORS.ink, wrap: w - 80 }));
       const titleBottom = title.y + title.height / 2;
       if (outcome.payout > 0) {
@@ -99,7 +107,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const stageGap = 20;
       const rowExtra = (row: Row, i: number) => rowGap + (multi && row.first && i > 0 ? stageGap : 0);
       const measureRows = (font: number): number[] => rows.map((row, i) => {
-        const t = makeText(s, 0, 0, row.req.text[reading], { size: font, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
+        const t = makeText(s, 0, 0, readingText(row.req.text, reading), { size: font, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
         const hh = Math.max(t.height, font + 16);
         t.destroy();
         return hh + rowExtra(row, i);
@@ -110,7 +118,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       // A failed run says what was needed, naming a part (the same lines the card remembers until a win).
       const fails = result.passed ? [] : failLines(catalog, challenge, failNotes(catalog, progress, challenge, result), reading);
       const message = result.cleverWin ? cleverWinMessage(catalog, reading, challenge.seed)
-        : !result.passed && !fails.length && outcome.hint ? `Hint: ${outcome.hint}` : '';
+        : !result.passed && !fails.length && outcome.hint ? (starter ? outcome.hint : `Hint: ${outcome.hint}`) : '';
       const lines = [...reasons, ...fails, ...(message ? [message] : [])];
       const messageTexts = lines.map((line, i) => keep(makeText(s, w / 2, 0, line, {
         size: min, color: COLORS.ink, wrap: w - 112, origin: [0.5, 0], bold: i >= reasons.length,
@@ -161,7 +169,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
           const mark = row.reached
             ? makeText(s, markX, y, row.ok ? '✓' : '✗', { size: font + 8, color: row.ok ? COLORS.green : COLORS.red, stroke: COLORS.paper, strokeW: 8, origin: [0, 0] })
             : makeText(s, markX, y, '–', { size: font + 8, color: WS_RESULTS.unreachedText, origin: [0, 0] });
-          const line = makeText(s, textX, y + 6, row.req.text[reading], { size: font, color: row.reached ? COLORS.ink : WS_RESULTS.unreachedText, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
+          const line = makeText(s, textX, y + 6, readingText(row.req.text, reading), { size: font, color: row.reached ? COLORS.ink : WS_RESULTS.unreachedText, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
           pageObjs.push(mark, line);
           y += rowHeights[i] - (multi && row.first && i > 0 ? stageGap : 0);
         }
@@ -173,7 +181,10 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const bw = wide ? 460 : 270;
       const gapX = wide ? 500 : 300;
       const fs = wide ? 56 : 44;
-      const labels = result.passed ? ['New Tests', 'Workshop'] : ['Run again', 'Pick a Test', 'Workshop'];
+      const roomLabel = ws === 'race' ? STARTER_RESULTS.shop : STARTER_RESULTS.lab;
+      const labels = starter
+        ? (result.passed ? [STARTER_RESULTS.board, roomLabel] : [STARTER_RESULTS.retry, STARTER_RESULTS.board, roomLabel])
+        : result.passed ? ['New Tests', 'Workshop'] : ['Run again', 'Pick a Test', 'Workshop'];
       const xs = labels.map((_, i) => w / 2 + (i - (labels.length - 1) / 2) * gapX);
       const make = (i: number, color: number, onClick: () => void) => new Button(s, { x: xs[i], y: by, w: bw, h: 140, label: labels[i], fontSize: fs, color, onClick });
       const again = result.passed ? undefined : make(0, COLORS.yellow, () => ctx.go('run', { challengeId }));

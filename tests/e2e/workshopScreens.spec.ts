@@ -3,7 +3,7 @@ import { seedProfiles } from './profiles';
 
 /** Adventure Workshop: room, station and board screens (keyboard, touch, 2P split). Hooks: window.__ws. */
 
-type Reading = 'easy' | 'medium' | 'hard';
+type Reading = 'starter' | 'easy' | 'medium' | 'hard';
 
 const screens = (page: Page) => page.evaluate(() => (window as any).__ws.screens() as string[]);
 const expectScreens = (page: Page, want: string) => expect.poll(async () => (await screens(page)).join(','), { timeout: 15_000 }).toBe(want);
@@ -70,7 +70,7 @@ const paneTexts = (page: Page, pane = 0) => page.evaluate((pane) => {
 const activeChallenges = (page: Page, id = 'p1', ws = 'race') =>
   page.evaluate(({ id, ws }) => {
     const p = JSON.parse(localStorage.getItem('workshop.players.v1') ?? '{}')[id]?.workshops?.[ws];
-    return (p.active as string[]).map((c) => p.challenges[c]) as { title: string; intro: Record<string, string>; stages: { requirements: { text: Record<string, string> }[] }[] }[];
+    return (p.active as string[]).map((c) => p.challenges[c]) as { title: string; starterTitle: string; intro: Record<string, string>; stages: { requirements: { text: Record<string, string> }[] }[] }[];
   }, { id, ws });
 
 const roomBuddyX = (page: Page, pane = 0) => page.evaluate((index) =>
@@ -172,7 +172,19 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(easy).toContain('Test it!');
   expect(easy).not.toContain('Wheels: Road Tires'); // no part is highlighted until the vehicle is entered
 
-  // switch the reading level: leaving Easy changes the aspects in play, so the open cards are re-dealt at the new level
+  // Starter shares Easy's board and displays its own wording.
+  await page.evaluate(() => {
+    const w = (window as any).__ws;
+    w.store.setPlayer('p1', { ...w.store.player('p1'), reading: 'starter' });
+    w.contexts()[0].go('board');
+  });
+  await expect.poll(() => paneTexts(page)).toContain(ch[0].starterTitle);
+  expect(await activeChallenges(page)).toEqual(ch);
+  const starter = await paneTexts(page);
+  expect(starter).toContain(ch[0].stages[0].requirements[0].text.starter);
+  expect(starter).not.toContain(ch[0].stages[0].requirements[0].text.easy);
+
+  // Leaving Starter changes the aspects in play, so the open cards are re-dealt at the new level
   await page.evaluate(() => {
     const w = (window as any).__ws;
     const save = w.store.player('p1');

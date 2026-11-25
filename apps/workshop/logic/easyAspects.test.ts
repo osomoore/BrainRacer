@@ -116,26 +116,42 @@ describe('texts never name hidden parts on Easy', () => {
 });
 
 describe('switching the reading level', () => {
-  const dealt = (level: 'easy' | 'medium'): PlayerSave => {
+  const dealt = (level: 'starter' | 'easy' | 'medium' | 'hard'): PlayerSave => {
     const save = engine.newPlayerSave(level, 7);
     return { ...save, workshops: { race: engine.progressOf(save, 'race') } };
   };
 
   it('re-deals the open cards when the level changes, keeping wallet, bought parts and wins', () => {
-    for (const [from, to] of [['medium', 'easy'], ['easy', 'medium']] as const) {
+    for (const [from, to] of [['medium', 'starter'], ['starter', 'hard'], ['hard', 'starter'], ['starter', 'medium'], ['easy', 'medium']] as const) {
       const save = dealt(from);
       const race = save.workshops.race!;
       race.bought = ['gears.climbing', 'wheels.mud'];
       race.wallet = 9;
       const before = [...race.active];
       const switched = engine.progressOf({ ...save, reading: to }, 'race');
-      expect(!!switched.easy).toBe(to === 'easy');
+      expect(!!switched.easy).toBe(to === 'starter');
       expect(switched.active).toHaveLength(3);
       expect(switched.active.some((id) => before.includes(id))).toBe(false);
       expect(switched.bought).toEqual(['gears.climbing', 'wheels.mud']);
       expect(switched.wallet).toBe(9);
       // unchanged level keeps the cards
       expect(engine.progressOf({ ...save, reading: from }, 'race').active).toEqual(before);
+    }
+  });
+
+  it('Starter and Easy deal the same board and keep it when switching or loading', () => {
+    const starter = engine.newPlayerSave('starter', 7);
+    const easy = engine.newPlayerSave('easy', 7);
+    for (const ws of ['race', 'dino'] as const) {
+      const board = engine.progressOf(starter, ws);
+      expect(board).toEqual(engine.progressOf(easy, ws));
+      const save = { ...starter, workshops: { [ws]: board } };
+      const roundTrip = (reading: 'starter' | 'easy') => engine.normalizeSave(JSON.parse(JSON.stringify({ ...save, reading })))!;
+      expect(roundTrip('starter').reading).toBe('starter');
+      expect(roundTrip('easy').reading).toBe('easy');
+      expect(roundTrip('starter').workshops[ws]).toEqual(board);
+      expect(roundTrip('easy').workshops[ws]).toEqual(board);
+      expect(engine.progressOf({ ...easy, workshops: { [ws]: board } }, ws)).toEqual(board);
     }
   });
 

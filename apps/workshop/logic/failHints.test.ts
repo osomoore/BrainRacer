@@ -37,6 +37,7 @@ describe('failure part choice', () => {
 
 describe('failure lines', () => {
   it('fill in part names the way a sentence reads them', () => {
+    expect(fillParts(race, 'Get {parts} to pass.', ['size.small', 'engine.electric'], 'starter')).toBe('Get Small and Electric Motor.');
     expect(fillParts(race, 'You needed {parts} to grip the mud.', ['wheels.mud'], 'easy')).toBe('You needed Mud Tires to grip the mud.');
     expect(fillParts(race, '{parts} would grip the mud.', ['wheels.mud', 'body.jeep'], 'medium')).toBe('Mud Tires and a Jeep would grip the mud.');
     expect(fillParts(race, 'You needed {parts}.', ['size.small'], 'easy')).toBe('You needed the Small car size.');
@@ -53,7 +54,7 @@ describe('failure lines', () => {
   it('practice cards tell a story that names the part', () => {
     for (const r of READING_LEVELS) {
       const line = practiceStory(race, 'extra.winch', r);
-      expect(line).toContain('a Winch');
+      expect(line).toContain(r === 'starter' ? 'Winch' : 'a Winch');
       expect(line).not.toMatch(/^Use /);
     }
   });

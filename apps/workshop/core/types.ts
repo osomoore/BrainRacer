@@ -10,12 +10,13 @@ import type { BuddyKind } from '../../../shared/buddies/catalog';
 export type WorkshopId = 'race' | 'dino';
 export const WORKSHOP_IDS: readonly WorkshopId[] = ['race', 'dino'];
 
-export type ReadingLevel = 'easy' | 'medium' | 'hard';
-export const READING_LEVELS: readonly ReadingLevel[] = ['easy', 'medium', 'hard'];
-export const READING_LABEL: Record<ReadingLevel, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+export type ReadingLevel = 'starter' | 'easy' | 'medium' | 'hard';
+export const READING_LEVELS: readonly ReadingLevel[] = ['starter', 'easy', 'medium', 'hard'];
+export const READING_LABEL: Record<ReadingLevel, string> = { starter: 'Starter', easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
 /** The same sentence written for each reading level. */
-export type Leveled = Record<ReadingLevel, string>;
+/** Starter is optional for old or synthetic cards. Authored banks require all four levels. */
+export type Leveled = Record<Exclude<ReadingLevel, 'starter'>, string> & { starter?: string };
 export type LeveledPhrases = Readonly<Record<ReadingLevel, readonly string[]>>;
 
 /** Aspect id inside one workshop, e.g. 'wheels', 'teeth'. */
@@ -112,11 +113,12 @@ export interface FacetPhrases {
   facet: FacetId;
   /**
    * [levelIndex] -> reading level -> alternative sentences (>= 2 each). Alternative i at every reading level is one
-   * row: a challenge shows easy[i], medium[i] and hard[i] together, so each row says the same fix.
+   * row: a challenge uses the same row at all reading levels, so each row says the same fix.
    */
   requirement: ReadonlyArray<Readonly<Record<ReadingLevel, readonly string[]>>>;
   /** [levelIndex] -> card title naming the problem at that level, used when the stage has only this requirement. */
   title?: readonly string[];
+  starterTitle?: readonly string[];
   /** Hint sentences (point at the aspect, never give the full answer). >= 2 each. */
   hint: Readonly<Record<ReadingLevel, readonly string[]>>;
   /** Target vocabulary words this facet's sentences use (for the coverage report). */
@@ -131,6 +133,7 @@ export interface ScenarioPhrases {
    * A stage with one requirement uses that facet's level title (FacetPhrases.title) instead.
    */
   title: readonly string[];
+  starterTitle?: readonly string[];
   /** Short scene-setting sentence shown above the requirements. >= 2 per level. */
   intro: Readonly<Record<ReadingLevel, readonly string[]>>;
 }
@@ -247,6 +250,7 @@ export interface Challenge {
   boardColor?: number;
   workshop: WorkshopId;
   title: string;
+  starterTitle?: string;
   intro: Leveled;
   stages: Stage[];
   /** 0 for starters; grows with the player's wins. */
@@ -336,7 +340,7 @@ export interface WorkshopProgress {
   failHints?: Record<ChallengeId, FailNote[]>;
   /** CHALLENGE_RULES_VERSION the open cards were dealt under; a mismatch on load re-deals them. */
   rulesVersion?: number;
-  /** True when the progress is dealt for the Easy reading level: the workshop is trimmed to WS_EASY_ASPECTS. Absent = every aspect. */
+  /** True when the progress is dealt for Starter or Easy: the workshop is trimmed to WS_EASY_ASPECTS. Absent = every aspect. */
   easy?: true;
 }
 

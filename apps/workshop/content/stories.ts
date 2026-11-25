@@ -3,14 +3,16 @@
  * kind of part that helps is obvious, without being a bare instruction. A failure template names the fix: its one
  * "{parts}" is replaced by the parts (as `partPhrases` writes them). Plain ASCII.
  */
+import { STARTER_FAIL } from '../logic/wording';
 import type { AspectId, FacetStory, LeveledPhrases, Variant, VariantId } from '../core/types';
 
 /** One line per reading level (one row). */
-export const tri = (easy: string, medium: string, hard: string): LeveledPhrases => ({ easy: [easy], medium: [medium], hard: [hard] });
+export const storyRow = (starter: string, easy: string, medium: string, hard: string): LeveledPhrases =>
+  ({ starter: [starter], easy: [easy], medium: [medium], hard: [hard] });
 
-/** Story rows per facet level ([easy, medium, hard] each), then the failure templates. */
-export const story = (levels: ReadonlyArray<readonly [string, string, string]>, fail: readonly [string, string, string]): FacetStory =>
-  ({ story: levels.map(([e, m, h]) => tri(e, m, h)), fail: tri(...fail) });
+/** Story rows per facet level ([starter, easy, medium, hard] each), then the failure templates. */
+export const story = (levels: ReadonlyArray<readonly [string, string, string, string]>, fail: readonly [string, string, string, string]): FacetStory =>
+  ({ story: levels.map((row) => storyRow(...row)), fail: storyRow(...fail) });
 
 export interface PartWords {
   /** Aspect -> noun after the name ("size" makes "the Small size"). */
@@ -41,7 +43,8 @@ export function partPhrases(variants: readonly Variant[], words: PartWords): Rec
 }
 
 /** Failure lines for practice cards (both workshops). */
-export const PRACTICE_FAIL: LeveledPhrases = tri(
+export const PRACTICE_FAIL: LeveledPhrases = storyRow(
+  STARTER_FAIL,
   'This test needed {parts}.',
   'This test was checking for {parts}. Try again!',
   'This test checked for {parts}, so put it on and try again.',
