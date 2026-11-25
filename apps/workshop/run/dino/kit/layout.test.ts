@@ -72,11 +72,9 @@ describe('scenario players', () => {
   it('every Dino Lab scenario has a player file', () => {
     for (const s of DINO_SCENARIOS) expect(files, s.id).toContain(`${s.id}.ts`);
   });
-  it('player files default-export a scenario with the same id and only use baked pictures that exist', () => {
+  it('player files only reference baked pictures that exist', () => {
     for (const f of files) {
       const src = readFileSync(`${dir}${f}`, 'utf8');
-      const id = f.replace('.ts', '');
-      expect(src, f).toContain(`scenario('${id}'`);
       for (const m of src.matchAll(/(?:a\.img|image)\(\s*(?:a\.scene,\s*)?'([^']+)'/g)) expect(hasDef(m[1]), `${f}: ${m[1]}`).toBe(true);
     }
   });

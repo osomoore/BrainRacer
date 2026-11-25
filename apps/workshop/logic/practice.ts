@@ -1,19 +1,14 @@
 import { WS_RULES } from '../config';
 import { Rng } from '../core/rng';
-import type { Challenge, ChallengeId, Model, Requirement, Variant, VariantId, WorkshopCatalog } from '../core/types';
+import type { Challenge, ChallengeId, Model, Requirement, Variant, VariantId, WorkshopCatalog, WorkshopId } from '../core/types';
+import { PRACTICE_TITLES } from '../content/practiceTitles';
 import { challengeKey } from './generator';
 import { partTag } from './stats';
 import { practiceStory } from './failHints';
 
-/** Practice cards borrow scenario titles, joining two different titles for a two-part build. */
-export function practiceTitle(cat: WorkshopCatalog, seed: number, partCount: number): string {
-  const pool = [...new Set(cat.scenarioPhrases.flatMap((sp) => sp.title).filter(Boolean))];
-  if (pool.length === 0) pool.push(...cat.scenarios.map((sc) => sc.label));
-  if (pool.length === 0) return 'Practice';
-  const rng = new Rng(seed ^ 0x2f6e2b1);
-  const first = rng.pick(pool);
-  if (partCount <= 1 || pool.length < 2) return first;
-  return first + ' & ' + rng.pick(pool.filter((t) => t !== first));
+/** Name the parts in the same order as their requirements on the card. */
+export function practiceTitle(workshop: WorkshopId, parts: readonly Pick<Variant, 'aspect'>[]): string {
+  return parts.map(({ aspect }) => PRACTICE_TITLES[workshop][aspect] ?? 'Practice').join(' & ');
 }
 
 /** Owned-part practice keeps the board playable when the authored catalog is out of ready cards. */
@@ -42,7 +37,7 @@ export function practiceChallenge(
       };
     });
     return {
-      id, workshop: cat.id, title: practiceTitle(cat, seed, variants.length),
+      id, workshop: cat.id, title: practiceTitle(cat.id, variants),
       intro: { easy: intro, medium: intro, hard: intro },
       stages: [{ scenario: 'practice', view: 'side', params: {}, requirements }],
       tier, source: 'generated', seed, genVersion: WS_RULES.genVersion,

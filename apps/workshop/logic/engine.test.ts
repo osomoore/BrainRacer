@@ -11,6 +11,7 @@ import { flatChecks } from './util';
 import { challengeKey } from './generator';
 import { resolveSpec } from './text';
 import { starterChallenge } from './starters';
+import { practiceTitle } from './practice';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -410,10 +411,8 @@ describe('generator rules', () => {
       for (const s of c.stages) {
         if (s.scenario === 'practice') {
           expect(s.view).toBe('side');
-          const pool = new Set(C.scenarioPhrases.flatMap((sp) => sp.title));
-          expect(c.title).not.toMatch(/-?Part Build/);
-          for (const t of c.title.split(' & ')) expect(pool.has(t)).toBe(true);
           expect(s.requirements.every((r) => r.facet.startsWith('practice.'))).toBe(true);
+            expect(c.title).toBe(practiceTitle(C.id, s.requirements.map((r) => ({ aspect: r.hint.aspect }))));
           continue;
         }
         const sc = C.scenarios.find((x) => x.id === s.scenario)!;

@@ -7,7 +7,7 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 4;
+export const CHALLENGE_RULES_VERSION = 5;
 
 /**
  * Easy shows only these aspects per workshop (the others stay pinned to their first starter; parts bought there
@@ -194,6 +194,8 @@ export const WS_RESULTS = {
 
 // ---------------------------------------------------------------- runs (apps/workshop/run)
 export const WS_RUN = {
+  /** Timing shared by the short, one-part practice scenes. */
+  practice: { approachMs: 1350, actionMs: 1650, reactionMs: 450, holdMs: 1250, cutMs: 180 },
   /** Target length of one stage animation, seconds (keep runs short so kids retry a lot). */
   stageSec: 7,
   /** Fake camera roll between side and top views, seconds. */
