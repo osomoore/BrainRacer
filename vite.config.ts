@@ -39,7 +39,7 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime()),
   },
   test: {
-    include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'apps/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'apps/**/*.test.ts', 'scripts/**/*.test.ts', 'server/**/*.test.ts'],
     environment: 'node',
   },
 });
