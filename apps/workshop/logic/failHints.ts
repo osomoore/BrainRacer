@@ -49,15 +49,12 @@ export function fillParts(cat: WorkshopCatalog, template: string, parts: readonl
   return render('');
 }
 
-/** A practice story: the station's template with the part filled in. */
+/** A practice situation, or a direct part instruction at Starter. */
 export function practiceStory(cat: WorkshopCatalog, part: VariantId, reading: ReadingLevel): string {
-  const v = index(cat).variantById.get(part);
-  const bank = v ? cat.practiceStories?.[v.aspect] : undefined;
-  if (reading === 'starter' && !bank?.starter?.length && bank?.easy?.length) return practiceStory(cat, part, 'easy');
-  const template = bank?.[reading]?.[0] ?? (reading === 'starter' ? STARTER_PART : undefined);
-  if (!template) return `Use ${v?.name ?? part}.`;
-  const line = template.replace(PART, partPhrase(cat, part, reading));
-  return template.startsWith(PART) ? cap(line) : line;
+  const template = cat.practiceStories?.[part]?.[reading]?.[0];
+  if (reading !== 'starter') return template ?? 'The next practice run is ready.';
+  const instruction = template ?? STARTER_PART;
+  return instruction.replace(PART, partPhrase(cat, part, reading));
 }
 
 /** The complete fixes a requirement lists: its named fixes, or the parts a practice card asks for. */

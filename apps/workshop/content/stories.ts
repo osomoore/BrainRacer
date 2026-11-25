@@ -1,6 +1,6 @@
 /**
- * Shared helpers for story text (see docs/WORKSHOP.md "Content guide"). A story line describes the problem so the
- * kind of part that helps is obvious, without being a bare instruction. A failure template names the fix: its one
+ * Shared helpers for story text (see docs/WORKSHOP.md "Content guide"). A story line describes the situation.
+ * A failure template names the fix: its one
  * "{parts}" is replaced by the parts (as `partPhrases` writes them). Plain ASCII.
  */
 import { STARTER_FAIL } from '../logic/wording';
@@ -13,6 +13,16 @@ export const storyRow = (starter: string, easy: string, medium: string, hard: st
 /** Story rows per facet level ([starter, easy, medium, hard] each), then the failure templates. */
 export const story = (levels: ReadonlyArray<readonly [string, string, string, string]>, fail: readonly [string, string, string, string]): FacetStory =>
   ({ story: levels.map((row) => storyRow(...row)), fail: storyRow(...fail) });
+
+/** Each practice target gets a short situation and its station's direct Starter instruction. */
+export function practiceStories(
+  variants: readonly Variant[], starter: Readonly<Record<AspectId, string>>, clues: Readonly<Record<VariantId, string>>,
+): Record<VariantId, LeveledPhrases> {
+  return Object.fromEntries(variants.map(({ id, aspect }) => {
+    const clue = clues[id];
+    return [id, storyRow(starter[aspect], clue, clue, clue)];
+  }));
+}
 
 export interface PartWords {
   /** Aspect -> noun after the name ("size" makes "the Small size"). */

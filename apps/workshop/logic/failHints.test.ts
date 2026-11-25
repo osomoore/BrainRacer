@@ -54,15 +54,13 @@ describe('failure lines', () => {
   it.each(['flat', 'big', 'sharp', 'mega'])('omits the article for %s teeth', (kind) => {
     const dino = CATALOGS.dino;
     const part = dino.variants.find((v) => v.id === 'teeth.' + kind)!;
-    expect(practiceStory(dino, part.id, 'easy')).toBe('Smile! Show off ' + part.name + '.');
     expect(fillParts(dino, 'You needed {parts}.', [part.id], 'easy')).toBe('You needed ' + part.name + '.');
   });
 
-  it('practice cards tell a story that names the part', () => {
+  it('practice cards show a direct Starter instruction and a situation at later levels', () => {
+    expect(practiceStory(race, 'extra.winch', 'starter')).toBe('Try Winch on it.');
     for (const r of READING_LEVELS) {
-      const line = practiceStory(race, 'extra.winch', r);
-      expect(line).toContain(r === 'starter' ? 'Winch' : 'a Winch');
-      expect(line).not.toMatch(/^Use /);
+      if (r !== 'starter') expect(practiceStory(race, 'extra.winch', r)).toBe('A friend is stuck in the mud. They need help.');
     }
   });
 });

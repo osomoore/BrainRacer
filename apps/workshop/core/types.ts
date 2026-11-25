@@ -177,8 +177,8 @@ export interface WorkshopCatalog {
   successPhrases?: Readonly<Record<FacetId, SuccessPhrases>>;
   /** Story lines and failure-line templates per facet (shown as the requirement text). */
   stories?: Readonly<Record<FacetId, FacetStory>>;
-  /** Practice-card story templates per aspect, with one "{part}" each. */
-  practiceStories?: Readonly<Record<AspectId, LeveledPhrases>>;
+  /** Practice-card situations by variant, with a "{part}" instruction at Starter. */
+  practiceStories?: Readonly<Record<VariantId, LeveledPhrases>>;
   /** Practice failure-line templates, with one "{parts}" each. */
   practiceFail?: LeveledPhrases;
   /** How a part reads inside a sentence ("a Winch", "the Small size", "Fire Red paint"). Defaults to its name. */

@@ -369,7 +369,6 @@ function facetRow(cat: WorkshopCatalog, f: FacetDef, i: number, row: Readonly<Re
  * every part of every station.
  */
 function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: string, text: string) => void): void {
-  const ix = index(cat);
   const seen = new Map<string, string>();
   const sentence = (where: string, line: string, limit: number): void => {
     if (where.endsWith('[starter]')) starterSentence(cat, where, line, err);
@@ -429,26 +428,30 @@ function stories(cat: WorkshopCatalog, err: (m: string) => void, hard: (where: s
   }
 
   const practiceFail = templates('practice fail', cat.practiceFail, '{parts}');
-  for (const a of cat.aspects) {
-    const bank = cat.practiceStories?.[a.id];
-    const ok = templates(`practice story ${a.id}`, bank, '{part}');
-    for (const v of ix.byAspect.get(a.id) ?? []) {
-      if (ok) {
-        const lines = READING_LEVELS.map((r) => practiceStory(cat, v.id, r));
-        READING_LEVELS.forEach((r, k) => {
-          const at = `practice story ${v.id} [${r}]`;
-          sentence(at, lines[k], STORY_WORD_LIMIT[r]);
-          namesOne(at, lines[k], [v.id]);
-        });
-        const c = lines.slice(1).map(wordCount);
-        if (c[0] > c[1] || c[1] > c[2]) err(`practice story ${v.id}: words must go Easy <= Medium <= Hard (${c.join(' / ')})`);
-      }
-      if (practiceFail) for (const r of READING_LEVELS) for (const t of cat.practiceFail![r]) {
-        const at = `practice fail ${v.id} [${r}]`;
-        const line = fillParts(cat, t, [v.id], r);
-        sentence(at, line, FAIL_WORD_LIMIT[r]);
+  const practiceSentences = new Map<string, string>();
+  for (const v of cat.variants) {
+    const where = `practice story ${v.id}`;
+    const bank = cat.practiceStories?.[v.id];
+    if (bank) ordered(where, bank);
+    for (const r of READING_LEVELS) {
+      if (!bank?.[r]?.[0]) err(`${where} [${r}]: needs a line`);
+      const line = practiceStory(cat, v.id, r);
+      const at = `${where} [${r}]`;
+      sentence(at, line, STORY_WORD_LIMIT[r]);
+      if (r === 'starter') {
+        if (bank?.starter?.[0]?.split('{part}').length !== 2) err(`${at}: needs exactly one {part}`);
         namesOne(at, line, [v.id]);
+      } else {
+        const previous = practiceSentences.get(line);
+        if (previous && previous !== v.id) err(`${at}: same situation as ${previous}: "${line}"`);
+        practiceSentences.set(line, v.id);
       }
+    }
+    if (practiceFail) for (const r of READING_LEVELS) for (const t of cat.practiceFail![r]) {
+      const at = `practice fail ${v.id} [${r}]`;
+      const line = fillParts(cat, t, [v.id], r);
+      sentence(at, line, FAIL_WORD_LIMIT[r]);
+      namesOne(at, line, [v.id]);
     }
   }
 }

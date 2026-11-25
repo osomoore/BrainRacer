@@ -14,10 +14,6 @@ const TREX: Record<string, VariantId> = {
   move: 'move.stand', tail: 'tail.heavy', size: 'size.huge',
 };
 
-/** Variant names a Medium/Hard sentence must not use. Size words (Big, Small...) are plain vocabulary. */
-const ALLOWED_NAME_WORDS = new Set(['medium', 'small', 'big', 'huge']);
-const bannedNames = cat.variants.map((v) => v.name).filter((n) => !ALLOWED_NAME_WORDS.has(n.toLowerCase()));
-
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
 describe('dino catalog structure', () => {
@@ -155,17 +151,6 @@ describe('dino phrases', () => {
       expect(/^[A-Z]/.test(t), `${id}: ${t}`).toBe(true);
       expect(id.endsWith('hint') ? /[.?]$/.test(t) : t.endsWith('.'), `${id}: ${t}`).toBe(true);
       expect(words(t), `${id}: ${t}`).toBeLessThanOrEqual(r === 'easy' ? 6 : r === 'medium' ? 8 : 12);
-    }
-  });
-
-  it('hints never name variants (guidelines name the fix; validateCatalog checks them)', () => {
-    for (const sentence of allSentences()) {
-      const { r, t, id } = sentence;
-      if (!id.endsWith('hint')) continue;
-      for (const n of bannedNames) {
-        const re = new RegExp(`\\b${n.replace(/\s+/g, '\\s+')}\\b`, 'i');
-        expect(re.test(t), `${id} (${r}) names "${n}": ${t}`).toBe(false);
-      }
     }
   });
 

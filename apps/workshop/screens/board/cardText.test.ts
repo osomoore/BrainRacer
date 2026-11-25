@@ -26,12 +26,16 @@ describe('buildBlocks', () => {
     expect(buildBlocks(c, 'easy').map((b) => [b.kind, b.text, b.stage])).toEqual([['intro', 'Easy intro.', 0], ['req', 'E a', 0], ['req', 'E b', 0], ['req', 'E c', 1]]);
     expect(buildBlocks(c, 'hard')[1].text).toBe('H a');
   });
-  it('real generated challenges change text with the reading level', () => {
+  it('generated cards show the authored story at the chosen reading level', () => {
     const p = engine.progressOf(engine.newPlayerSave('medium'), 'race');
-    const c = p.challenges[p.active[0]];
-    const e = buildBlocks(c, 'easy').map((b) => b.text).join('|');
-    const h = buildBlocks(c, 'hard').map((b) => b.text).join('|');
-    expect(e).not.toBe(h);
+    const c = p.active.map((id) => p.challenges[id]).find(({ stages }) => stages[0].scenario !== 'practice')!;
+    const requirements = c.stages.flatMap((stage) => stage.requirements);
+    for (const reading of ['easy', 'medium', 'hard'] as const) {
+      const blocks = buildBlocks(c, reading);
+      expect(blocks.filter(({ kind }) => kind === 'req').map(({ text }) => text))
+        .toEqual(requirements.map(({ text }) => text[reading]));
+      expect(blocks.some(({ kind }) => kind === 'hint')).toBe(false);
+    }
   });
   it('Starter uses position titles and direct requirements without saved story text or intro', () => {
     const c = challenge([['mud']]);

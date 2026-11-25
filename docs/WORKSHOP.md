@@ -181,16 +181,19 @@ shared code lives in `shared/`.
   named at a facet level are accepted at that level. `validateCatalog` checks the guideline wording
   and applies the same word limits and hard-word list to clever-win messages.
 - **Stories** are what the card shows for each requirement on Easy, Medium, and Hard
-  (`content/<ws>/stories.ts`, one row per facet level).
-  A story describes the problem so the kind of part that helps is obvious ("Squish! The road is sticky mud. Wheels
-  need to grip!"), without being a bare order. It may name a part but does not have to. Up to **10 words on Easy**,
-  **12 on Medium**, **14 on Hard** (two short sentences are fine), Easy <= Medium <= Hard, complete sentences, the
-  same hard-word list, no repeats. Vary how lines start. The guidelines in `phrases.ts` define each level's named fixes.
+  (`content/<ws>/stories.ts`, one row per facet level). Before the first try, card titles and stories describe the
+  situation in kid words and leave the fix for the player to work out. Leave out shop part and station names, fix
+  instructions, and stand-ins like “fluffy coat.” For example, “The sun is hot! Your dino needs to cool off.” Up to
+  **10 words on Easy**, **12 on Medium**, and **14 on Hard** (two short sentences are fine), Easy <= Medium <= Hard,
+  complete sentences, the same hard-word list, no repeats. Vary how lines start. The guidelines in `phrases.ts`
+  define each level's named fixes and supply the direct instructions shown on Starter cards.
 - **Failure lines** are templates per facet with one `{parts}` ("You needed {parts} to grip the mud."). Parts read
   as `partPhrases` writes them ("a Winch", "the Small size", "Fire Red paint"). `validateCatalog` fills in every
   named fix of every level and checks the result: up to 12 / 14 / 16 words (long fixes end in "and more"), a
-  complete sentence that names a part of that fix. Practice cards use a story per station with one `{part}`
-  ("Vroom! Fans want to hear a Turbo Engine.") and the shared `PRACTICE_FAIL` lines, checked for every part.
+  complete sentence that names a part of that fix. After a failed try, results and remembered card hints name the
+  fix using its shop label. The fallback hints in `phrases.ts` also name a real part or station at every reading level.
+  Practice cards use a situation for each target on Easy through Hard, a direct instruction on Starter, and the
+  shared `PRACTICE_FAIL` lines after a miss.
 - **Facet levels** map difficulty to thresholds (mud depth 1–3 → mud grip ≥ 2/3/4). Phrases may differ per level
   ("muddy" → "deep, sticky mud").
 - **Tradeoffs**: variants change several stats (big engine: power+, weight+). Several builds may solve one requirement.
