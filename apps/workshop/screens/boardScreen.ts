@@ -1,14 +1,13 @@
 /**
- * board: the player's composed model and challenge board. Wide layout: model preview + challenge tabs and details.
- * Tall layout: the same single view (vehicle, challenge tabs, selected challenge text). "Test it!" starts a run: go('run', { challengeId }).
+ * board: the challenge board. Wide layout: three cards over one full-width detail panel.
+ * Tall layout: the same single view (challenge tabs, then a tall panel with the selected challenge text). "Test it!" starts a run: go('run', { challengeId }).
  */
 import type Phaser from 'phaser';
 import { WS_ROOM, WS_UI } from '../config';
-import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
+import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import type { Challenge, WorkshopProgress } from '../core/types';
 import { ensureCurrencyIcon } from '../art/icons';
 import { engine } from '../logic';
-import { visibleAspects } from '../logic/aspects';
 import { failLines } from '../logic/failHints';
 import { newAdminChallenges } from '../shell/adminMode';
 import { Button } from '../ui/Button';
@@ -20,11 +19,10 @@ import { cardColor } from '../ui/screenChrome';
 import { COLORS, circleTexture, fitText, makeText, ringTexture, roundedOriginY, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buildBlocks, planDetail, type Measure } from './board/cardText';
-import { boardLayout, detailFonts, type BoardLayout, type BoxC } from './board/layout';
-import { PartPreview } from './board/PartPreview';
+import { boardLayout, detailFonts, type BoardLayout } from './board/layout';
 import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './board/focusChoice';
 import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from './board/reward';
-import { guardBackAfterPreview, isBackGuarded } from './backGuard';
+import { isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
 
@@ -47,7 +45,6 @@ const boardScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
   let L: BoardLayout;
   let group: FocusGroup;
-  let rig: ModelRig | undefined;
   let progress: WorkshopProgress;
   let sel = 0;
   let cardPage = 0;
@@ -62,12 +59,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   let detailObjs: Phaser.GameObjects.GameObject[] = [];
   let backBtn: Button;
   let newBtn: Button | undefined;
-  let modelObjs: Phaser.GameObjects.GameObject[] = [];
   let testBtn: Button | undefined;
-  let partPreview: PartPreview | undefined;
-  /** Part selection: focus is on the vehicle; Up/Down (wide) or Left/Right (narrow) cycle, the opposite way leaves. */
-  let partMode = false;
-  let returnFocus: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
   let sessionReturnKey = '';
 
@@ -85,32 +77,6 @@ const boardScreen: ScreenFactory = (): Screen => {
     const p = currentProgress(ctx, ws());
     if (!ctx.adminMode && JSON.stringify(save.workshops[ws()]) !== JSON.stringify(p)) ctx.commit({ ...save, workshops: { ...save.workshops, [ws()]: p } });
     progress = p;
-  };
-
-  // ------------------------------------------------------------ composed model
-  const buildModel = () => {
-    const scene = ctx.scene;
-    const panel = wide() ? { x: 330, y: 470, w: 620, h: 890 } : (L.modelPanel as BoxC);
-    modelObjs.push(scene.add.image(panel.x, panel.y, roundedTexture(scene, panel.w, panel.h, 0xfff8e6, { radius: 36 })).setOrigin(0.5, roundedOriginY(panel.h)).setDepth(-300));
-    rig = ctx.buildRig(scene, ws(), progress.model, 'side');
-    const s = Math.min(WS_ROOM.boardModelScale[ctx.layout], L.model.maxW / Math.max(1, rig.width), L.model.maxH / Math.max(1, rig.height));
-    rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(-200);
-    rig.play('idle');
-    modelObjs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 26, 0x000000, 0.2).setDepth(-250));
-  };
-
-  const destroyPartPreview = () => {
-    partPreview?.destroy(); partPreview = undefined;
-  };
-
-  const buildPartPreview = () => {
-    destroyPartPreview();
-    if (!rig) return;
-    const cat = engine.catalog(ws());
-    partPreview = new PartPreview(ctx.scene, rig, visibleAspects(cat, progress), {
-      layout: L.partPreview, model: progress.model, variants: cat.variants,
-      onTap: (kind) => { if (!partMode) enterPartMode(group.focused, false); if (kind === 'arrow') ctx.audio.sfx('select'); },
-    });
   };
 
   // ------------------------------------------------------------ cards
@@ -138,18 +104,13 @@ const boardScreen: ScreenFactory = (): Screen => {
         fitText(t, slot.w - 330);
         b.add(t);
         addFooter(b, slot.h / 2 - 40, stages, reward);
-      } else if (!wide()) { // narrow tab: the title, then the reward footer (stage count is in the detail below)
+      } else { // the title above the reward footer (the stage count is in the detail on narrow tabs)
         const footerY = slot.h / 2 - CARD_PAD - FOOTER_H / 2;
         const titleBox = slot.h - 2 * CARD_PAD - FOOTER_H - CARD_PAD;
-        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: 44, wrap: slot.w - 24 });
-        for (let size = 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
+        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: wide() ? 48 : 44, wrap: slot.w - 24 });
+        for (let size = wide() ? 44 : 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
         b.add(t);
-        addFooter(b, footerY, 1, reward);
-      } else {
-        const t = makeText(scene, 0, stages > 1 ? -28 : 0, c.title, { size: 48, wrap: slot.w - 30 });
-        if (t.height > 120) t.setFontSize(40);
-        b.add(t);
-        addFooter(b, slot.h / 2 - 40, stages, reward);
+        addFooter(b, footerY, wide() ? stages : 1, reward);
       }
       if (hintsOf(c).length) { // a yellow "!" says this card remembers a hint (shown in the detail)
         const d = 56, hx = slot.w / 2 - d / 2 - 10, hy = -slot.h / 2 + d / 2 + 10;
@@ -216,9 +177,13 @@ const boardScreen: ScreenFactory = (): Screen => {
     const T = L.textArea;
     const multi = c.stages.length > 1;
     const indent = 96;
-    const plan = planDetail(buildBlocks(c, ctx.reading(), hintsOf(c)), {
-      maxW: T.w, indent, boxH: T.h, sizes: detailFonts(ctx.layout), lineGap: WS_ROOM.detailLineGap, blockGap: 22, measure,
+    const blocks = buildBlocks(c, ctx.reading(), hintsOf(c));
+    const planAt = (boxH: number) => planDetail(blocks, {
+      maxW: T.w, indent, boxH, sizes: detailFonts(ctx.layout), lineGap: WS_ROOM.detailLineGap, blockGap: 14, measure,
     });
+    // Everything normally fits on one page; only when it does not, make room for the text pager and paginate.
+    let plan = planAt(T.h);
+    if (plan.pages.length > 1) plan = planAt(T.h - L.pagerReserve);
     textPage = Math.min(textPage, plan.pages.length - 1);
     for (const pb of plan.pages[textPage] ?? []) {
       const isReq = pb.block.kind === 'req';
@@ -241,6 +206,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     }
     if (plan.pages.length > 1) {
       textPager = new Pager(scene, { x: L.textPager.x, y: L.textPager.y, gap: L.textPager.gap, pages: plan.pages.length, page: textPage, onChange: (p) => { textPage = p; buildDetail(); setFocusables(); } });
+      if (!wide() && textPage < plan.pages.length - 1) detailObjs.push(makeText(scene, L.textPager.x, L.textPager.y - 95, 'More ▼', { size: 48, color: COLORS.ink }));
       detailObjs.push(hook(() => { textPager?.destroy(); textPager = undefined; }));
     }
 
@@ -266,7 +232,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     return undefined;
   }
 
-  function saveReturn(challengeId?: string, focus = focusKey(partMode ? returnFocus : group.focused)): void {
+  function saveReturn(challengeId?: string, focus = focusKey(group.focused)): void {
     const selectedId = challenge()?.id;
     challengeId ??= focus?.startsWith('card:') ? focus.slice(5) : selectedId;
     const records = boardReturn.get(ctx) ?? new Map<string, BoardReturn>();
@@ -324,27 +290,9 @@ const boardScreen: ScreenFactory = (): Screen => {
     setFocusables(restore);
   }
 
-  function enterPartMode(from: Button | undefined, first = true): void {
-    partMode = true;
-    returnFocus = from;
-    group.focus(undefined);
-    if (first) partPreview?.showFirst();
-    ctx.audio.sfx('select');
-  }
-
-  function leavePartMode(fromBack = false): void {
-    partMode = false;
-    partPreview?.clear();
-    group.focus(returnFocus ?? cardBtns[0]);
-    lastFocus = group.focused;
-    if (fromBack) guardBackAfterPreview(ctx, ctx.scene.time.now);
-    ctx.audio.sfx('back');
-  }
-
   const handleBack = () => {
     if (isBackGuarded(ctx, ctx.scene.time.now)) return;
-    if (partMode) leavePartMode(true);
-    else leave();
+    leave();
   };
 
   const leave = () => {
@@ -391,29 +339,23 @@ const boardScreen: ScreenFactory = (): Screen => {
         newBtn = new Button(scene, { x: L.newBtn.x, y: L.newBtn.y, w: L.newBtn.w, h: L.newBtn.h, label: 'New Challenges', fontSize: 48, color: COLORS.blue, textColor: COLORS.paper, onClick: () => rebuildAdmin() });
         staticObjs.push(newBtn);
       }
-      buildModel();
-      buildPartPreview();
       refreshAll(restore);
     },
     update() {
       for (const a of ctx.input.poll()) {
         if (busy) continue;
         const f = group.focused;
-        if (partMode) {
-          const prev = wide() ? 'up' : 'left', next = wide() ? 'down' : 'right', out = wide() ? 'right' : 'down';
-          if (a === prev || a === next) { partPreview?.step(a === next ? 1 : -1); ctx.audio.sfx('select'); }
-          else if (a === out) leavePartMode();
-          else if (a === 'back') handleBack();
-          continue;
-        }
-        if (partPreview && ((wide() && a === 'left' && (f === cardBtns[0] || f === testBtn)) || (!wide() && a === 'up' && f && cardBtns.includes(f)))) {
-          enterPartMode(f);
-          continue;
-        }
         if (a === 'back') { handleBack(); continue; }
         if (a === 'confirm' && f && cardBtns.includes(f)) {
           const id = ids()[cardPage * L.perPage + cardBtns.indexOf(f)];
           startRun(id, `card:${id}`);
+          continue;
+        }
+        // Rare long text: Down from the Test button or the text pager turns to the next page, so a pad needs no hunting.
+        if (a === 'down' && textPager && f && (f === testBtn || textPager.buttons.includes(f)) && textPager.page < textPager.count - 1) {
+          ctx.audio.sfx('click');
+          textPager.go(1);
+          if (testBtn) { group.focus(testBtn); lastFocus = testBtn; }
           continue;
         }
         group.handle(a);
@@ -430,9 +372,7 @@ const boardScreen: ScreenFactory = (): Screen => {
       group?.destroy();
       cardPager?.destroy(); textPager?.destroy();
       cardPager = undefined; textPager = undefined;
-      destroyPartPreview();
-      rig?.destroy(); rig = undefined;
-      for (const list of [cardObjs, detailObjs, modelObjs, staticObjs]) kill(list);
+      for (const list of [cardObjs, detailObjs, staticObjs]) kill(list);
       cardBtns = [];
     },
   };

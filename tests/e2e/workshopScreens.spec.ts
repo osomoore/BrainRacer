@@ -198,47 +198,18 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   await expectScreens(page, 'run');
 });
 
-for (const [ws, players, first, second] of [['race', 1, 'Wheels', 'Engine'], ['dino', 1, '', ''], ['race', 2, 'Wheels', 'Engine'], ['dino', 2, '', '']] as const) {
-  test(`board ${ws} ${players}P: focus enters the vehicle part view, cycles parts, and leaves again`, async ({ page }) => {
+for (const [ws, players] of [['race', 1], ['dino', 1], ['race', 2], ['dino', 2]] as const) {
+  test(`board ${ws} ${players}P: pressing toward the model never takes focus off the challenge list`, async ({ page }) => {
     await boot(page);
     await enter(page, { players, ws, screen: 'board' });
-    const partLabel = async () => (await paneTexts(page)).find((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint')) ?? '';
-    const [enterKey, nextKey, prevKey, leaveKey] = players === 1 ? ['KeyA', 'KeyS', 'KeyW', 'KeyD'] : ['KeyW', 'KeyD', 'KeyA', 'KeyS'];
-    expect(await partLabel()).toBe('');
-    await key(page, enterKey);
-    const a = await partLabel();
-    expect(a).not.toBe('');
-    if (first) expect(a.startsWith(first)).toBe(true);
-    await key(page, nextKey);
-    const b = await partLabel();
-    expect(b).not.toBe(a);
-    if (second) expect(b.startsWith(second)).toBe(true);
-    await key(page, prevKey);
-    expect(await partLabel()).toBe(a);
-    if (ws === 'dino') {
-      await key(page, 'Escape');
-      await key(page, 'Escape'); // still inside the part view's back guard
-      await expectScreens(page, players === 2 ? 'board,board' : 'board');
-    } else {
-      await key(page, leaveKey);
-    }
-    expect(await partLabel()).toBe('');
-    // focus is back on the challenge list: Space starts the selected test
+    const toward = players === 1 ? 'KeyA' : 'KeyW';
+    for (let i = 0; i < 3; i++) await key(page, toward);
+    // no part label appears, and Space still starts the selected challenge's test
+    expect((await paneTexts(page)).some((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint'))).toBe(false);
     await key(page, 'Space');
     await expectScreens(page, players === 2 ? 'run,board' : 'run');
   });
 }
-
-test('board race: the part walk skips Gears and shows both cycle arrows', async ({ page }) => {
-  await boot(page);
-  await enter(page, { players: 1, ws: 'race', screen: 'board' });
-  const partLabel = async () => (await paneTexts(page)).find((t) => /^[^:]+: .+/.test(t) && !t.startsWith('Hint')) ?? '';
-  await key(page, 'KeyA');
-  const seen = new Set<string>();
-  for (let i = 0; i < 12; i++) { seen.add((await partLabel()).split(':')[0]); await key(page, 'KeyS'); }
-  expect(seen.has('Wheels') && seen.has('Engine')).toBe(true);
-  expect(seen.has('Gears')).toBe(false);
-});
 
 test('board: B returns to the room and reopening the board restores card focus', async ({ page }) => {
   await boot(page);
