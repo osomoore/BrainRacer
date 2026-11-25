@@ -52,16 +52,21 @@ export class MemoryStore implements SyncStore {
     return this.families.delete(familyId);
   }
 
-  async takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<boolean> {
+  async takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<number | null> {
     const bucket = `${scope}:${key}`;
     const expiresAt = now - now % windowMs + windowMs;
     const current = this.rates.get(bucket);
     if (current && current.expiresAt >= expiresAt) {
-      if (current.count >= limit) return false;
+      if (current.count >= limit) return null;
       current.count += 1;
-    } else {
-      this.rates.set(bucket, { expiresAt, count: 1 });
+      return current.expiresAt;
     }
-    return true;
+    this.rates.set(bucket, { expiresAt, count: 1 });
+    return expiresAt;
+  }
+
+  async releaseRateLimit(scope: string, key: string, expiresAt: number): Promise<void> {
+    const current = this.rates.get(`${scope}:${key}`);
+    if (current?.expiresAt === expiresAt && current.count > 0) current.count -= 1;
   }
 }

@@ -11,6 +11,12 @@ const SPECS = [
   { data: 27, ecc: 16, blocks: 4 },
 ];
 
+/** Integer pixels per module for a crisp roughly 400px QR with a four-module quiet zone. */
+export function qrPixelScale(moduleCount: number, quietZone = 4): number {
+  const totalModules = moduleCount + quietZone * 2;
+  return Math.max(1, Math.round(400 / totalModules));
+}
+
 function append(bits: number[], value: number, count: number): void {
   for (let i = count - 1; i >= 0; i--) bits.push((value >>> i) & 1);
 }

@@ -74,14 +74,11 @@ export function readRevision(value: unknown): Revision | undefined {
   if (!object(value) || !profileId(value.id) || !stamp(value.rev) || !value.rev || !stamp(value.updatedAt)
     || (value.deleted !== undefined && typeof value.deleted !== 'boolean')) return undefined;
   const { id, rev, data } = value;
-  if (value.deleted === true || (value.deleted === undefined && object(data) && data.deleted === true)) {
-    // DELETE tombstones may have no data. PUT tombstones carry the original device edit time.
-    if (data === null || data === undefined) return { id, rev, value: { deleted: true, updatedAt: value.updatedAt } };
-    if (!object(data) || data.schema !== 1) return undefined;
-    if (data.deleted !== true && !readRevision({ ...value, deleted: false })) return undefined;
-    if (data.deleted === true && !stamp(data.updatedAt)) return undefined;
-    const updatedAt = data.deleted === true ? data.updatedAt as number : value.updatedAt;
-    return { id, rev, value: { deleted: true, updatedAt } };
+  // A PUT tombstone can carry the original device edit time. Other deletions use the server time.
+  const deletedAt = object(data) && data.schema === 1 && data.deleted === true && stamp(data.updatedAt)
+    ? data.updatedAt : undefined;
+  if (value.deleted === true || (value.deleted === undefined && deletedAt !== undefined)) {
+    return { id, rev, value: { deleted: true, updatedAt: deletedAt ?? value.updatedAt } };
   }
   if (!object(data) || data.schema !== 1 || !stamp(data.updatedAt) || !object(data.profile)
     || data.profile.id !== id || !stamp(data.profile.createdAt) || !workshopSave(data.workshop)) return undefined;

@@ -1,7 +1,7 @@
 import { createMenuInput, keyActions, type MenuAction } from '../input/menuInput';
 import { familySync } from './runtime';
 import { normalizeFamilyCode } from './code';
-import { encodeQr } from './qr';
+import { encodeQr, qrPixelScale } from './qr';
 
 type DialogWindow = Window & { __familySyncDialogOpen?: boolean };
 const qrCache = new Map<string, { url: string; canvas?: HTMLCanvasElement }>();
@@ -54,7 +54,9 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
   let codeValue = options.joinCode ?? '';
   const codeInput = document.createElement('input');
   codeInput.value = codeValue;
-  codeInput.placeholder = 'TIGER-MAPLE-SOCK-42';
+  codeInput.placeholder = 'RAPTOR-TURBO-FOSSIL-WHEEL';
+  codeInput.autocapitalize = 'characters';
+  codeInput.inputMode = 'text';
   codeInput.autocomplete = 'off';
   codeInput.spellcheck = false;
   codeInput.addEventListener('input', () => { codeValue = codeInput.value; });
@@ -111,11 +113,10 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
       Object.assign(keyButton.style, { minWidth: '0', minHeight: '64px', padding: '2px', margin: '3px', fontSize: '40px' });
       grid.append(keyButton);
     }
-    const digitGrid = document.createElement('div');
-    Object.assign(digitGrid.style, { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(42px, 1fr))', maxWidth: '750px', width: '100%', margin: '8px auto' });
-    inner.append(digitGrid);
-    for (const key of '0123456789') { addKey(key); const b = controls[controls.length - 1]; Object.assign(b.style, { minWidth: '0', minHeight: '64px', padding: '2px', margin: '3px', fontSize: '40px' }); digitGrid.append(b); }
-    for (const key of ['-', '⌫', 'CLEAR']) { addKey(key); const b = controls[controls.length - 1]; Object.assign(b.style, { minWidth: '0', minHeight: '64px', padding: '2px', margin: '3px', fontSize: '40px' }); digitGrid.append(b); }
+    const utilityGrid = document.createElement('div');
+    Object.assign(utilityGrid.style, { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(42px, 1fr))', maxWidth: '450px', width: '100%', margin: '8px auto' });
+    inner.append(utilityGrid);
+    for (const key of ['-', '⌫', 'CLEAR']) { addKey(key); const b = controls[controls.length - 1]; Object.assign(b.style, { minWidth: '0', minHeight: '64px', padding: '2px', margin: '3px', fontSize: '40px' }); utilityGrid.append(b); }
   };
   const revealQr = (code: string): HTMLCanvasElement | undefined => {
     let entry = qrCache.get(code);
@@ -128,7 +129,9 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
     let modules: boolean[][];
     try { modules = encodeQr(href); }
     catch { return undefined; }
-    const quiet = 4, scale = 5, n = modules.length + quiet * 2;
+    const quiet = 4, n = modules.length + quiet * 2;
+    // Draw at native resolution so every QR module remains an integer number of pixels.
+    const scale = qrPixelScale(modules.length, quiet);
     const canvas = document.createElement('canvas'); canvas.width = n * scale; canvas.height = n * scale;
     canvas.setAttribute('aria-label', 'QR code to join this family');
     const ctx = canvas.getContext('2d');
@@ -145,11 +148,13 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
     const s = familySync.state;
     inner.replaceChildren(); controls = []; actions = [];
     addText(view === 'home' ? 'FAMILY SYNC' : view === 'leave' ? 'LEAVE FAMILY?' : view === 'delete' ? 'DELETE FAMILY?' : 'FINAL DELETE CONFIRMATION', 56);
-    if (s.lastSync) addText(`Last sync ${new Date(s.lastSync).toLocaleString()}`);
-    if (s.status === 'offline') addText('Offline. Changes stay on this device.');
-    if (s.error) addText(s.error);
-    if (s.code && !s.lastSync && !s.error && s.status !== 'offline') addText('First sync pending.');
-    if (message) addText(message);
+    if (!showCode) {
+      if (s.lastSync) addText(`Last sync ${new Date(s.lastSync).toLocaleString()}`);
+      if (s.status === 'offline') addText('Offline. Changes stay on this device.');
+      if (s.error) addText(s.error);
+      if (s.code && !s.lastSync && !s.error && s.status !== 'offline') addText('First sync pending.');
+    }
+    if (message && !showCode) addText(message);
     if (view === 'leave') {
       addText('Local profiles and progress will stay on this device.');
       addButton(busy ? 'Working…' : 'Yes, leave family', () => { busy = true; render(); familySync.leaveFamily(); busy = false; view = 'home'; message = 'This device left the family.'; render(); });
@@ -177,20 +182,25 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
       });
     } else {
       const codeText = showCode ? s.code! : 'Family code hidden';
-      addText(codeText, 48);
+      addText(codeText, showCode ? 40 : 48);
       const codeLine = inner.lastElementChild as HTMLElement;
       codeLine.style.overflowWrap = 'anywhere';
-      addButton(showCode ? 'Hide code and QR' : 'Show code and QR', () => { showCode = !showCode; render(); });
       if (showCode) {
-        const qrWrap = document.createElement('div'); Object.assign(qrWrap.style, { margin: '8px auto', width: 'max-content', padding: '8px', background: '#fff' });
+        const qrWrap = document.createElement('div'); Object.assign(qrWrap.style, { margin: '4px auto', width: 'max-content', padding: '4px', background: '#fff' });
         const qr = revealQr(s.code);
-        if (qr) { qrWrap.append(qr); inner.append(addTextNode('Scan to add another device')); inner.append(qrWrap); }
+        if (qr) {
+          qr.style.display = 'block';
+          qrWrap.append(qr); inner.append(addTextNode('Scan to add another device')); inner.append(qrWrap);
+        }
         else addText('The QR link is too long. Enter the family code on the other device.');
       }
-      addText(`Pending changes: ${s.pending}`);
-      addButton(busy ? 'Syncing…' : 'Sync now', async () => { busy = true; render(); await familySync.syncNow(); busy = false; render(); });
-      addButton('Leave family on this device', () => { view = 'leave'; render(); });
-      addButton('Delete family for all devices', () => { view = 'delete'; render(); });
+      addButton(showCode ? 'Hide code and QR' : 'Show code and QR', () => { showCode = !showCode; render(); });
+      if (!showCode) {
+        addText(`Pending changes: ${s.pending}`);
+        addButton(busy ? 'Syncing…' : 'Sync now', async () => { busy = true; render(); await familySync.syncNow(); busy = false; render(); });
+        addButton('Leave family on this device', () => { view = 'leave'; render(); });
+        addButton('Delete family for all devices', () => { view = 'delete'; render(); });
+      }
     }
     addButton('Close', finish);
     focus = Math.min(focus, controls.length - 1);

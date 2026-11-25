@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { encodeQr } from './qr';
+import { encodeQr, qrPixelScale } from './qr';
 
 describe('encodeQr', () => {
   it('matches an OpenCV version 1-M HELLO WORLD byte-mode matrix', () => {
@@ -32,5 +32,17 @@ describe('encodeQr', () => {
 
   it('rejects a payload beyond version 6-M capacity', () => {
     expect(() => encodeQr('x'.repeat(107))).toThrow(RangeError);
+  });
+});
+
+describe('qrPixelScale', () => {
+  it('uses an integer module size that renders supported QR versions around 400px', () => {
+    for (const moduleCount of [21, 25, 29, 33, 37, 41]) {
+      const scale = qrPixelScale(moduleCount);
+      const pixels = (moduleCount + 8) * scale;
+      expect(Number.isInteger(scale)).toBe(true);
+      expect(pixels).toBeGreaterThanOrEqual(360);
+      expect(pixels).toBeLessThanOrEqual(420);
+    }
   });
 });

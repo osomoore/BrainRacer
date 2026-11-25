@@ -11,12 +11,16 @@ one-time parent setup and nothing for kids to do. Must also work for other famil
 - A profile is never played on two devices at the same time. Devices may be offline for a while (C44 offline play).
 
 ## Family code
-- A family is created on one device: server returns `familyId` (random, 128-bit) and a human code of 4 words, no digits,
-  all themed on dinosaurs and cars, e.g. `RAPTOR-TURBO-FOSSIL-WHEEL` (user's choice, 2026-11-24). Word list: ~512 short,
-  kid-safe, easy-to-spell dino and car words (dino names, dino body parts, fossils/eggs/volcano; car parts, racing,
-  road words) → ~36 bits, with strict rate limiting on wrong codes (e.g. 10 failures per IP per hour).
-  Typing ignores case and accepts spaces or dashes between words; the words themselves must match exactly.
-- The code is the bearer secret ("house key"). Server stores only a SHA-256 of the code → familyId lookup.
+- When a device creates a family, the server generates an internal random 128-bit `familyId` and returns `serverTime`
+  and a code such as `RAPTOR-TURBO-FOSSIL-WHEEL`. A code contains exactly four words and no digits. Cryptographic
+  randomness selects each word from the same shared list of 512 short, kid-safe dino and car words, for 36 bits of
+  entropy. The list covers dinosaur names and body parts, fossils, eggs, volcanoes, car parts, racing, and roads.
+  Input accepts either case and spaces or dashes between words. All four words must match the list exactly. The two
+  apps and the server normalize the input to uppercase with a single dash between words.
+- In each fixed hourly window, the first 10 failed code attempts per IP return 401. Further authentication attempts
+  from that IP return 429 until the window resets. Successful authentication releases its reserved failure slot.
+- The code is the bearer secret ("house key"). The server stores only a SHA-256 hash of the normalized code for its
+  `familyId` lookup.
 - Joining a device: type the code or scan a QR (QR encodes `<site>/?join=<code>` so a phone camera opens the game
   and joins). The TV shows the QR; tablets/phones scan it; TVs type the code with the on-screen keyboard.
 - Leave family (device only) and Delete family (wipes server data) live in the admin menu.
@@ -27,8 +31,11 @@ All family routes take header `Authorization: Family <code>`.
 - `GET /v1/family` → `200 { profiles: [{ id, rev, updatedAt, deleted?, data }] }` (full snapshot; data is opaque JSON).
 - `GET /v1/family?since=<serverTime>` → only profiles changed after that time, plus `serverTime`.
 - `PUT /v1/family/profile/:id` body `{ baseRev, data, deleted? }` →
-  `200 { rev, updatedAt }` when `baseRev` equals the stored rev (or the profile is new and baseRev = 0);
-  `409 { current: { id, rev, updatedAt, data } }` otherwise (client merges and retries).
+  `200 { rev, updatedAt }` when `baseRev` equals the stored rev (or the profile is new and `baseRev` is 0).
+  A stale PUT returns `409 { current: { id, rev, updatedAt, deleted, data } }` for the client to merge and retry.
+  The `deleted` flag is true for a tombstone and false for a live record. If no record exists yet, the revision and
+  timestamp are 0, with `deleted: false` and `data: null`. A profile DELETE tombstone has `data: null`. A tombstone
+  written by PUT can retain its opaque `data`.
 - `DELETE /v1/family` → wipes the family. `DELETE /v1/family/profile/:id` → tombstone (deleted: true).
 - Limits: data ≤ 256 KB per profile, ≤ 20 profiles per family, request rate limits; 401 on unknown code (constant-time),
   413/429 as appropriate. Every response carries `serverTime`.

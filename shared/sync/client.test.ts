@@ -6,6 +6,7 @@ import { FakeFamilyServer } from './fake';
 import { FamilyApi, type Fetch } from './protocol';
 import { mergeProfile, type ProfileValue } from './record';
 import type { ProfileSnapshot } from './storage';
+import { FAMILY_WORDS } from './words';
 
 const URL = 'https://family.test';
 const ID = 'juniper';
@@ -48,10 +49,20 @@ function modify(d: ReturnType<typeof device>, change: (p: ProfileSnapshot) => vo
 }
 
 describe('family sync', () => {
-  it('normalizes a code typed with spaces, dashes and mixed case', () => {
-    expect(normalizeFamilyCode('  Tiger - maple  SOCK  42  ')).toBe('TIGER-MAPLE-SOCK-42');
-    expect(normalizeFamilyCode('tiger-maple-sock42')).toBe('TIGER-MAPLE-SOCK-42');
-    expect(normalizeFamilyCode('TIGER-MAPLE-42')).toBeNull();
+  it('round-trips all 512 distinct words through the client normalizer', () => {
+    expect(FAMILY_WORDS).toHaveLength(512);
+    expect(new Set(FAMILY_WORDS).size).toBe(512);
+    for (const word of FAMILY_WORDS) {
+      expect(normalizeFamilyCode(`  Raptor - turbo  FOSSIL  ${word.toLowerCase()}  `))
+        .toBe(`RAPTOR-TURBO-FOSSIL-${word}`);
+    }
+  });
+
+  it('requires four exact dictionary words without digits', () => {
+    for (const code of ['RAPTOR-TURBO-FOSSIL', 'RAPTOR-TURBO-FOSSIL-42', 'RAPTOR-TURBO-FOSSIL-WHEELS',
+      'RAPTOR-TURBO-FOSSIL-WHEEL-TIRE', 'RAPTOR-TURBO-FOSSILWHEEL', 'RAPTOR-TURBO-FOſSIL-WHEEL']) {
+      expect(normalizeFamilyCode(code)).toBeNull();
+    }
   });
 
   it('merges two offline branches on a 409 and converges on another pull', async () => {
@@ -59,7 +70,9 @@ describe('family sync', () => {
     const a = device(server.fetch, 100, baseProfile());
     const b = device(server.fetch, 200);
     expect(await a.client.makeFamily()).toBe(true);
-    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+    const typed = a.client.state.code!.toLowerCase().replaceAll('-', ' ');
+    expect(await b.client.joinFamily(typed)).toBe(true);
+    expect(b.client.state.code).toBe(a.client.state.code);
     expect(b.saves.get(ID)).toEqual(a.saves.get(ID));
     a.transport.offline = b.transport.offline = true;
     modify(a, p => {
@@ -108,22 +121,34 @@ describe('family sync', () => {
     expect(a.client.state.pending).toBe(0);
   });
 
-  it('applies a newer tombstone and lets a later offline edit revive a profile', async () => {
+  it.each(['PUT', 'DELETE'])('reconciles stale edits against a tombstone from %s on a 409', async (method) => {
     const server = new FakeFamilyServer();
     const a = device(server.fetch, 100, baseProfile());
     await a.client.makeFamily();
     const b = device(server.fetch, 200);
-    const c = device(server.fetch, 300);
+    const c = device(server.fetch, method === 'PUT' ? 300 : Date.now() + 60_000);
     await b.client.joinFamily(a.client.state.code!);
     await c.client.joinFamily(a.client.state.code!);
     modify(a, p => { p.profile.name = 'Old'; });
     modify(c, p => { p.profile.name = 'Newer'; });
-    b.local.hide(ID);
-    b.client.noteChange(ID, true);
-    expect(await b.client.flush()).toBe(true);
+    if (method === 'PUT') {
+      b.local.hide(ID);
+      b.client.noteChange(ID, true);
+      expect(await b.client.flush()).toBe(true);
+    } else {
+      const del = await server.fetch(`${URL}/v1/family/profile/${ID}`, {
+        method: 'DELETE', headers: { Authorization: `Family ${a.client.state.code}` },
+      });
+      expect(del.status).toBe(200);
+    }
+    const aBefore = a.transport.requests.filter(r => r.method === 'PUT').length;
     expect(await a.client.flush()).toBe(true);
+    expect(a.transport.requests.filter(r => r.method === 'PUT')).toHaveLength(aBefore + 1);
     expect(a.saves.get(ID)).toBeUndefined();
     expect(await c.client.flush()).toBe(true);
+    const retried = c.transport.requests.filter(r => r.method === 'PUT');
+    expect(retried).toHaveLength(2);
+    expect(await retried[1].json()).toMatchObject({ baseRev: 2, data: { profile: { name: 'Newer' } } });
     expect(await a.client.syncNow()).toBe(true);
     expect(a.saves.get(ID)?.profile.name).toBe('Newer');
   });
@@ -154,7 +179,7 @@ describe('family sync', () => {
       ] });
       return server.fetch(url, init);
     }, 100, baseProfile());
-    expect(await a.client.joinFamily('tiger-maple-sock-99')).toBe(false);
+    expect(await a.client.joinFamily('raptor-turbo-fossil-wheel')).toBe(false);
     expect(a.saves.get(ID)).toEqual(baseProfile());
     expect(await a.client.makeFamily()).toBe(true);
     garbled = true;

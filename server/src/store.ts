@@ -38,5 +38,7 @@ export interface SyncStore {
   // Apply revision checks, enforce capacity and capture the change atomically.
   changeProfile(familyId: string, id: string, change: ProfileChange, now: number): Promise<ChangeResult>;
   deleteFamily(familyId: string): Promise<boolean>;
-  takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<boolean>;
+  // Reserve a request and return the bucket expiry, or null when the bucket is full.
+  takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<number | null>;
+  releaseRateLimit(scope: string, key: string, expiresAt: number): Promise<void>;
 }

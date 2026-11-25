@@ -1,7 +1,8 @@
 import { normalizeFamilyCode } from './code';
 import { object, profileId, stamp, type Fetch } from './protocol';
+import { FAMILY_WORDS } from './words';
 
-interface Row { id: string; rev: number; updatedAt: number; deleted?: boolean; data: unknown }
+interface Row { id: string; rev: number; updatedAt: number; deleted: boolean; data: unknown }
 interface FakeState {
   time: number;
   families: Record<string, Record<string, Row>>;
@@ -20,7 +21,7 @@ export class FakeFamilyServer {
     const reply = (status: number, body: object = {}) =>
       Response.json({ ...body, serverTime: this.state.time }, { status });
     const tick = () => this.state.time = Math.max(Date.now(), this.state.time + 1);
-    const put = (family: Record<string, Row>, id: string, data: unknown, deleted?: boolean) => {
+    const put = (family: Record<string, Row>, id: string, data: unknown, deleted = false) => {
       const row = { id, rev: (family[id]?.rev ?? 0) + 1, updatedAt: tick(), data, deleted };
       family[id] = row;
       this.persist?.(this.state);
@@ -28,11 +29,9 @@ export class FakeFamilyServer {
     };
 
     if (url.pathname === '/v1/family' && req.method === 'POST') {
-      let n = 1;
-      let code: string;
-      do { code = `TIGER-MAPLE-SOCK-${String(n++).padStart(2, '0')}`; }
-      while (n <= 100 && this.state.families[code]);
-      if (this.state.families[code]) return reply(429);
+      const code = FAMILY_WORDS.map(word => `RAPTOR-TURBO-FOSSIL-${word}`)
+        .find(candidate => !this.state.families[candidate]);
+      if (!code) return reply(429);
       this.state.families[code] = {};
       tick();
       this.persist?.(this.state);
@@ -63,7 +62,9 @@ export class FakeFamilyServer {
       || (raw.deleted !== undefined && typeof raw.deleted !== 'boolean')) return reply(400);
     if (new TextEncoder().encode(JSON.stringify(raw.data)).length > 256 * 1024) return reply(413);
     const current = family[id];
-    if (raw.baseRev !== (current?.rev ?? 0)) return reply(409, { current: current ?? null });
+    if (raw.baseRev !== (current?.rev ?? 0)) {
+      return reply(409, { current: current ?? { id, rev: 0, updatedAt: 0, deleted: false, data: null } });
+    }
     if (!current && Object.keys(family).length >= 20) return reply(413);
     return put(family, id, raw.data, raw.deleted);
   };

@@ -79,9 +79,23 @@ test('a family profile and Workshop progress sync between two devices', async ({
     await expect(racerA.getByText('Family created. Show the code before sharing it.')).toBeVisible();
     if (SHOTS) await racerA.screenshot({ path: `${SHOTS}/family-sync-panel.png` });
     await tapPad(racerA, 0, 0);
-    const code = await racerA.getByRole('dialog').locator('p').evaluateAll((nodes) => nodes.map(n => n.textContent).find(t => /^TIGER-MAPLE-SOCK-\d\d$/.test(t ?? '')));
-    expect(code).toMatch(/^TIGER-MAPLE-SOCK-\d\d$/);
-    await expect(racerA.getByLabel('QR code to join this family')).toBeVisible();
+    const code = await racerA.getByRole('dialog').locator('p').evaluateAll((nodes) => nodes.map(n => n.textContent).find(t => /^[A-Z]{3,8}(?:-[A-Z]{3,8}){3}$/.test(t ?? '')));
+    expect(code).toMatch(/^[A-Z]{3,8}(?:-[A-Z]{3,8}){3}$/);
+    const qr = racerA.getByLabel('QR code to join this family');
+    await expect(qr).toBeVisible();
+    await expect(qr).toBeInViewport({ ratio: 1 });
+    const qrSize = await qr.evaluate((canvas: HTMLCanvasElement) => {
+      const bounds = canvas.getBoundingClientRect();
+      return { width: canvas.width, height: canvas.height, displayWidth: bounds.width, displayHeight: bounds.height };
+    });
+    expect(qrSize.width).toBeGreaterThanOrEqual(360);
+    expect(qrSize.width).toBeLessThanOrEqual(420);
+    expect(qrSize.height).toBe(qrSize.width);
+    expect(qrSize.displayWidth).toBe(qrSize.width);
+    expect(qrSize.displayHeight).toBe(qrSize.height);
+    const moduleScale = [29, 33, 37, 41, 45, 49].map(totalModules => qrSize.width / totalModules)
+      .find(scale => Number.isInteger(scale));
+    expect(moduleScale).toBeDefined();
     if (SHOTS) await racerA.screenshot({ path: `${SHOTS}/family-sync-qr.png` });
     await racerA.getByRole('button', { name: 'Close' }).click();
 

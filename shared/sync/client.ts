@@ -352,7 +352,7 @@ export class FamilySyncClient {
     const startingDevice = this.device;
     return this.perform(async () => {
       const code = normalizeFamilyCode(input);
-      if (!code) throw new SyncError('Enter the three words and two digits from the family code.');
+      if (!code) throw new SyncError('Enter all four words from the family code.');
       const incoming = await this.api!.pull(code);
       if (startingDevice !== this.device) return;
       this.device = { code, profiles: {} };

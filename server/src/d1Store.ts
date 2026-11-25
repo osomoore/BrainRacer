@@ -135,7 +135,7 @@ export class D1SyncStore implements SyncStore {
     return families.length > 0;
   }
 
-  async takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<boolean> {
+  async takeRateLimit(scope: string, key: string, now: number, windowMs: number, limit: number): Promise<number | null> {
     const expiresAt = now - now % windowMs + windowMs;
     const row = await this.statement(
       `INSERT INTO rate_limits (scope, key, expires_at, count) VALUES (?, ?, ?, 1)
@@ -143,9 +143,17 @@ export class D1SyncStore implements SyncStore {
          count = CASE WHEN expires_at < excluded.expires_at THEN 1 ELSE count + 1 END,
          expires_at = MAX(expires_at, excluded.expires_at)
        WHERE expires_at < excluded.expires_at OR count < ?
-       RETURNING count`,
+       RETURNING expires_at AS expiresAt`,
       scope, key, expiresAt, limit,
-    ).first<{ count: number }>();
-    return row !== null;
+    ).first<{ expiresAt: number }>();
+    return row?.expiresAt ?? null;
+  }
+
+  async releaseRateLimit(scope: string, key: string, expiresAt: number): Promise<void> {
+    await this.batch(this.statement(
+      `UPDATE rate_limits SET count = count - 1
+       WHERE scope = ? AND key = ? AND expires_at = ? AND count > 0`,
+      scope, key, expiresAt,
+    ));
   }
 }

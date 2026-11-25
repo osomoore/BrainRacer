@@ -64,25 +64,26 @@ Both DELETE routes return HTTP 200 JSON. Profile DELETE yields `rev`, `updatedAt
 
 ## Enable sync in GitHub Pages
 
-In the GitHub repository, open **Settings → Secrets and variables → Actions → Variables** and create the repository variable `VITE_SYNC_URL` with the deployed Worker URL as its value. If the **Build game** step in `.github/workflows/pages.yml` still needs wiring, add the variable to that step's environment.
-
-```yaml
-env:
-  VITE_SYNC_URL: ${{ vars.VITE_SYNC_URL }}
-```
-
-Run the Pages workflow with the updated build step. Vite embeds this URL in each build, so rebuild and redeploy when the URL changes.
+In the GitHub repository, open **Settings → Secrets and variables → Actions → Variables** and create the repository variable `VITE_SYNC_URL` with the deployed Worker URL as its value. The **Build game** step reads that variable from the workflow environment. Vite embeds this URL in each build, so rebuild and redeploy when the URL changes.
 
 ## Family code changes and deletion
 
 To rotate an exposed code, use a device with the latest saves to create a replacement family through the admin menu. Sync the profiles there, join the other devices with the new code, and verify their saves. Then delete the old family with `DELETE /v1/family` using its old authorization header. Use **Leave family on this device** to clear only the device's association, or **Delete family for all devices** to wipe its records from the live database.
 
+If you created a family with a code ending in digits during testing, pull its latest saves to a device before upgrading the Worker. After upgrading, create a new family from that device and use its four-word code to rejoin the other devices.
+
 ## API and limits
 
+- Each family code has four words and no digits. The Worker uses cryptographic randomness to pick each word from a
+  shared list of 512 short dino and car words. Input accepts either case and spaces or dashes between words. All four
+  words must match the list exactly. The Worker normalizes the code to uppercase with single dashes before hashing it
+  with SHA-256 and stores only the hash.
+- In each fixed hourly window, the first 10 failed code attempts per IP return 401. Further authentication attempts
+  from that IP return 429 until reset. Successful authentication releases its reserved failure slot.
 - Authenticated routes take `Authorization: Family <code>`. Use the last successful snapshot's `serverTime` as the next `since` value. The snapshot includes only profiles with `updatedAt` strictly greater than that cursor.
 - A family can have up to 20 profile records, including tombstones. Profile `data` can be up to 256 KiB of UTF-8 JSON. The PUT body has a separate size bound to limit JSON parsing work.
-- A stale PUT yields HTTP 409 with the current record's ID, revision, timestamp and data. If there is no record yet, the conflict carries revision and timestamp 0 with null data. Use a snapshot to retrieve tombstone flags.
-- D1 counts fixed-window limits of 10 family creations per IP per hour, 60 authenticated-route attempts per IP per minute, and 120 requests per family per minute. A 429 includes `Retry-After` in seconds.
+- A stale PUT yields HTTP 409 with the current record's ID, revision, timestamp, data, and a `deleted` boolean. It is true for a tombstone and false for a live record or when no record exists yet (revision and timestamp 0, data null). A profile DELETE tombstone has null data. A tombstone written by PUT may retain its opaque data.
+- D1 also limits family creation to 10 per IP per hour, authenticated-route attempts to 60 per IP per minute, and requests to 120 per family per minute. All rate-limit responses include `Retry-After` in seconds.
 - Families with no activity for 400 days are eligible for manual purge based on `families.last_seen`. Deleting a family also cascades to its profiles. Operators can prune expired counter rows from `rate_limits` using their `expires_at` timestamp in epoch milliseconds.
 
 ## Cost, retention, and privacy

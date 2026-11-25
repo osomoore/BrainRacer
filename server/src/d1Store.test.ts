@@ -115,11 +115,14 @@ describe('D1 storage SQL', () => {
       store.takeRateLimit('ip', 'one', 0, 1000, 2),
       store.takeRateLimit('ip', 'one', 500, 1000, 2),
       store.takeRateLimit('ip', 'one', 999, 1000, 2),
-    ])).toEqual([true, true, false]);
-    expect(await store.takeRateLimit('ip', 'two', 999, 1000, 2)).toBe(true);
-    expect(await store.takeRateLimit('create', 'one', 999, 1000, 2)).toBe(true);
-    expect(await store.takeRateLimit('ip', 'one', 1000, 1000, 2)).toBe(true);
-    expect(await store.takeRateLimit('ip', 'one', 500, 1000, 2)).toBe(true);
-    expect(await store.takeRateLimit('ip', 'one', 1000, 1000, 2)).toBe(false);
+    ])).toEqual([1000, 1000, null]);
+    expect(await store.takeRateLimit('ip', 'two', 999, 1000, 2)).toBe(1000);
+    expect(await store.takeRateLimit('create', 'one', 999, 1000, 2)).toBe(1000);
+    expect(await store.takeRateLimit('ip', 'one', 1000, 1000, 2)).toBe(2000);
+    expect(await store.takeRateLimit('ip', 'one', 500, 1000, 2)).toBe(2000);
+    await store.releaseRateLimit('ip', 'one', 1000);
+    expect(await store.takeRateLimit('ip', 'one', 1000, 1000, 2)).toBeNull();
+    await store.releaseRateLimit('ip', 'one', 2000);
+    expect(await store.takeRateLimit('ip', 'one', 1000, 1000, 2)).toBe(2000);
   });
 });

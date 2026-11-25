@@ -8,6 +8,7 @@ const MINUTE = 60_000;
 export const RATE_LIMITS = {
   create: { windowMs: 60 * MINUTE, limit: 10 },
   ip: { windowMs: MINUTE, limit: 60 },
+  authFailure: { windowMs: 60 * MINUTE, limit: 10 },
   family: { windowMs: MINUTE, limit: 120 },
 };
 const encoder = new TextEncoder();
@@ -53,8 +54,12 @@ function snapshotResponse(snapshot: Snapshot, headers: Headers): Response {
 }
 
 function conflictProfile(id: string, profile: Profile | null) {
-  if (!profile) return { id, rev: 0, updatedAt: 0, data: null };
-  return { id, rev: profile.rev, updatedAt: profile.updatedAt, data: JSON.parse(profile.data) as unknown };
+  if (!profile) return { id, rev: 0, updatedAt: 0, deleted: false, data: null };
+  return {
+    id, rev: profile.rev, updatedAt: profile.updatedAt,
+    deleted: profile.deleted,
+    data: JSON.parse(profile.data) as unknown,
+  };
 }
 
 class RequestError extends Error {
@@ -146,11 +151,13 @@ export async function handleRequest(request: Request, store: SyncStore, now = Da
 
   async function limit(scope: keyof typeof RATE_LIMITS, key: string) {
     const { windowMs, limit } = RATE_LIMITS[scope];
-    if (!await store.takeRateLimit(scope, key, now, windowMs, limit)) {
+    const expiresAt = await store.takeRateLimit(scope, key, now, windowMs, limit);
+    if (expiresAt === null) {
       headers.set('Retry-After', String(Math.ceil((windowMs - now % windowMs) / 1000)));
       if (corsAllowed) headers.set('Access-Control-Expose-Headers', 'Retry-After');
       throw new RequestError(429, 'Too many requests');
     }
+    return expiresAt;
   }
 
   try {
@@ -187,12 +194,15 @@ export async function handleRequest(request: Request, store: SyncStore, now = Da
     }
 
     await limit('ip', ipKey);
+    // Reserve before looking up the code so parallel guesses cannot bypass the failure limit.
+    const authWindow = await limit('authFailure', ipKey);
     const code = readFamilyCode(request.headers.get('Authorization'));
     const hash = await sha256(code ?? '');
     const family = await store.findFamily(hash);
     const hashMatches = matchesHash(hash, family?.codeHash);
     const unauthorized = () => reply(401, { error: 'Invalid family code' });
     if (!hashMatches || !family || !code) return unauthorized();
+    await store.releaseRateLimit('authFailure', ipKey, authWindow);
     await limit('family', family.id);
 
     if (request.method === 'GET') {
