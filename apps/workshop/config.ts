@@ -237,6 +237,40 @@ export const WS_RUN = {
     overlap: [20, 38],
     length: [94, 130],
   },
+  parade: {
+    colors: ['#e8434a', '#2fb84f', 'rainbow'],
+    approachMs: 1950,
+    processionMs: 2250,
+    judges: [1, 2, 3],
+  },
+  river: {
+    width: [725, 1130],
+    crossingMs: [2600, 3270],
+    approachMs: 1850,
+    floatDepth: 34,
+    bob: [8, 13],
+  },
+  beach: {
+    distance: [3450, 4700, 6200],
+    cruiseMs: 3450,
+    fuelLeft: [0.28, 0.21, 0.14],
+    shortfall: [360, 470, 575],
+  },
+  night: {
+    campsites: [2, 3],
+    quietMs: [2500, 3000],
+    hideApproachMs: 2320,
+    combinedHideApproachMs: 700,
+    beamMs: 1780,
+    shadowAlpha: 0.62,
+  },
+  fog: {
+    approachMs: 2050,
+    stopGap: 155,
+    crossingMs: 1550,
+    duckIntervalMs: 260,
+    dullAlpha: 0.62,
+  },
 } as const;
 
 // ---------------------------------------------------------------- art (apps/workshop/art)
