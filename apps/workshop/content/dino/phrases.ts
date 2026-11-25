@@ -236,7 +236,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Think about which parts add strength and weight.', 'A small dino cannot move a heavy log.']),
   ['heavy', 'push', 'log']),
   // ------------------------------------------------------------------ snow
-  fp('snow.warm', ['Cold Snow', 'Snow Storm'], ['Frost Test', 'Frost Blast'], [
+  fp('snow.warm', ['Cold Snow', 'Snow Storm'], ['Cold Test', 'Cold Blast'], [
     rows(['Get Back Sail.', 'Get a warm Back Sail.', 'Get a Back Sail to stay warm.', 'Give your dino a Back Sail to stay warm in the snow.'],
       ['Pick Feathers and Big.', 'Keep Feathers and be Big.', 'Keep your Feathers and pick the Big size.', 'Pick a Big Belly or the Big size to stay warm.']),
     rows(['Get Back Sail and Big.', 'A Back Sail and Big size.', 'Pick a Back Sail and the Big size.', 'For the cold storm, get a Back Sail and Big size.'],
@@ -245,7 +245,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Think about what keeps your dino warm.', 'A thin body gets cold fast.'],
        ['Think about which parts keep heat in or take in sun.', 'A thin body loses heat very fast.']),
   ['warm', 'cold', 'snow']),
-  fp('snow.slope', ['Snowy Hill', 'Icy Hill'], ['Frost Hill', 'Slick Hill'], [
+  fp('snow.slope', ['Snowy Hill', 'Icy Hill'], ['Cold Hill', 'Slick Hill'], [
     rows(['Get Hook Claws.', 'Get Hook Claws for the snow.', 'Get Hook Claws so you do not slide.', 'Give your dino Hook Claws so it can climb the snowy hill.'],
       ['Pick Hook Claws.', 'Hook Claws grip the snow.', 'Hook Claws or Grabby Hands grip snow.', 'Pick Hook Claws or Grabby Hands to climb without a slide.']),
     rows(['Get Grabby Hands.', 'Get Grabby Hands for ice.', 'Get Grabby Hands to climb the icy hill.', 'The hill is steep and icy, so get Grabby Hands.'],
@@ -303,7 +303,7 @@ export const DINO_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
   sp('canyon', 'No Bridge', 'Gap Test'),
   sp('nut', 'Nut Snack', 'Shell Test'),
   sp('log', 'Blocked Path', 'Log Test'),
-  sp('snow', 'Snowy Mountain', 'Frost Run'),
+  sp('snow', 'Snowy Mountain', 'Cold Run'),
   sp('birds', 'Bird Trouble', 'Nest Test'),
   sp('desert', 'Hot Desert', 'Sand Test'),
 ];

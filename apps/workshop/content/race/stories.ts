@@ -57,7 +57,7 @@ export const RACE_STORIES: Readonly<Record<string, FacetStory>> = {
     ['Do not skid!', "A sharp turn! Do not slide off the road.",
       'The road bends hard here. A wobbly car will spin out!',
       'A sharp bend runs by the lake, and a wobbly car could slide in.'],
-    ['Grip at each bend.', 'Turn, turn, turn! The car must grip the road.',
+    ['Grip on the bend.', 'Turn, turn, turn! The car must grip the road.',
       'The road curls like a snake. Stay steady and keep your grip.',
       'The road curls like a snake; stay steady and keep the tires gripping.'],
     ['Stick to the path!', 'So many turns! Grip the road. Stay low.',
@@ -80,7 +80,7 @@ export const RACE_STORIES: Readonly<Record<string, FacetStory>> = {
     '{parts} would give you power for the hill.',
     'With {parts}, the car could have climbed all the way up.']),
   'fog.bright': story([
-    ['Tint it. Help the ducks!', 'Fog! The ducks must see your car. Be bright!',
+    ['Stand out in the fog.', 'Fog! The ducks must see your car. Be bright!',
       'Fog fills the road, and ducks are crossing. Be easy to see!',
       'Gray fog hides the road as ducks cross, so your car must stand out.'],
   ], ['Get {parts} to help.', 'You needed {parts} so ducks see you.',
@@ -130,7 +130,7 @@ export const RACE_STORIES: Readonly<Record<string, FacetStory>> = {
     '{parts} would give power for the heavy load.',
     'With {parts}, the car could have carried the heavy load.']),
   'snow.grip': story([
-    ['Slip or grip in frost!', "Brr! Snow is on the road. Do not slide!",
+    ['Grip on the cold track!', "Brr! Snow is on the road. Do not slide!",
       'Fresh snow covers the road. Plain tires will slide all over.',
       'Fresh snow fell all night, so plain tires will spin and slide.'],
     ['Grip in the thick slush!', 'The snow is deep! Wheels for snow would help.',

@@ -239,7 +239,7 @@ export const DINO_STORIES: Readonly<Record<string, FacetStory>> = {
     '{parts} would push the log off the path.',
     'With {parts}, your dino could have pushed the log away.']),
   'snow.warm': story([
-    ['Get big to block frost.', 'Brrr! The snow is cold. Keep your dino warm!',
+    ['Get big to block cold.', 'Brrr! The snow is cold. Keep your dino warm!',
       'Snow falls on the mountain. Your dino must stay warm!',
       'Snow covers the mountain, so soak up sun or keep your heat in.'],
     ['Block the chill!', 'A snow storm! Be big and keep warm.',
@@ -249,7 +249,7 @@ export const DINO_STORIES: Readonly<Record<string, FacetStory>> = {
     '{parts} would keep your dino nice and warm.',
     'With {parts}, your dino could have stayed warm in the snow.']),
   'snow.slope': story([
-    ['Grip on the frost.', "A snowy hill! Hold on so you do not slide.",
+    ['Grip on the cold hill.', "A snowy hill! Hold on so you do not slide.",
       'The hill is all snow. Dig in and hold on!',
       'The snowy hill is smooth, so you need claws that dig in and hold.'],
     ['Do not slip back!', "The hill is icy! Grab on. Do not fall!",

@@ -7,12 +7,12 @@ export const RACE_SUCCESS_PHRASES: Readonly<Record<string, SuccessPhrases>> = {
     ['It had grip.', 'You did not slip in mud.', 'You got through with a firm grip.', 'You kept a firm grip even on the soft mud.'],
     ['gripped the mud as you drove.', 'kept the car from sliding in the mud.']),
   'mud.pull': {
-    ...success(['did the tug.', 'got it unstuck.'], ['pulled the tractor.', 'freed the tractor.'],
-      ['You got it unstuck.', 'You could pull it out.', 'You had a way to pull it.', 'You could pull the stuck tractor out of the mud.'],
+    ...success(['did the tug.', 'got it out.'], ['pulled the tractor.', 'freed the tractor.'],
+      ['You got it out.', 'You could pull it out.', 'You had a way to pull it.', 'You could pull the stuck tractor out of the mud.'],
       ['It did the tug.', 'You could tow it.', 'You could tow the stuck tractor.', 'You could tow the tractor back onto solid ground.']),
     qualityByLevel: { 2: qualityRows(
       ['It did the tug.', 'You had a strong pull.', 'You could pull hard enough to help.', 'You could pull hard enough to free the heavy tractor.'],
-      ['You got it unstuck.', 'You were strong enough to tow.', 'You were strong enough to tow it.', 'You were strong enough to tow the tractor free.']) },
+      ['You got it out.', 'You were strong enough to tow.', 'You were strong enough to tow it.', 'You were strong enough to tow the tractor free.']) },
   },
   'jump.speed': success(['got it past.', 'sped it up.'], ['got you across.', 'sped you up.'],
     ['You went fast.', 'You went fast enough.', 'You went fast enough to jump across.', 'You sped up enough to jump all the way across.'],

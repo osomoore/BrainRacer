@@ -29,6 +29,13 @@ describe.each(Object.values(CATALOGS))('$title Starter wording', (cat) => {
       ]));
   });
 
+  it('blocks frost in Starter titles', () => {
+    const [phrase, ...rest] = cat.facetPhrases;
+    const [, ...titles] = phrase.starterTitle ?? [];
+    expect(validateCatalog({ ...cat, facetPhrases: [{ ...phrase, starterTitle: ['Frost Run', ...titles] }, ...rest] }))
+      .toContainEqual(expect.stringContaining('Starter word "frost"'));
+  });
+
   it('rejects a one-word Starter sentence', () => {
     const phrase = cat.facetPhrases[0];
     const hint = { ...phrase.hint, starter: ['Hop! Check it.', phrase.hint.starter[1]] };

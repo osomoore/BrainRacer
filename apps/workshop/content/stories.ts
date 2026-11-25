@@ -24,7 +24,7 @@ export interface PartWords {
 }
 
 /**
- * How each part reads inside a sentence: names ending in "s" or "ing" and names with a suffix noun that is not
+ * How each part reads inside a sentence: plural names, names ending in "ing", and names with a suffix noun that is not
  * countable stay bare ("Mud Tires", "Flying", "Fire Red paint"); others get "a" or "an" ("a Winch", "an Electric Motor").
  */
 export function partPhrases(variants: readonly Variant[], words: PartWords): Record<VariantId, string> {
@@ -34,7 +34,7 @@ export function partPhrases(variants: readonly Variant[], words: PartWords): Rec
     if (exact) { out[v.id] = exact; continue; }
     const suffix = words.suffix?.[v.aspect];
     const noun = suffix ? `${v.name} ${suffix}` : v.name;
-    const bare = !suffix && (/s$/.test(v.name) || /ing$/.test(v.name) || /^[0-9]/.test(v.name));
+    const bare = !suffix && (/(?:s|ing|\bteeth|\bfeet)$/i.test(v.name) || /^[0-9]/.test(v.name));
     const uncountable = suffix === 'paint' || suffix === 'skin';
     const article = words.the?.includes(v.aspect) ? 'the' : /^[AEIOU]/.test(noun) ? 'an' : 'a';
     out[v.id] = bare || uncountable ? noun : `${article} ${noun}`;

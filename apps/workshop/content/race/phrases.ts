@@ -90,7 +90,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Big Engine.', 'Get a Big Engine for boxes.', 'Get a Big Engine to pull heavy boxes.', 'Heavy boxes need power, so put in a Big Engine.'],
       ['Pick Climbing Gears.', 'Use Climbing Gears for power.', 'Climbing Gears give power for the heavy load.', 'Pick Climbing Gears or a Turbo Engine to carry the heavy load.']),
   ], L(['Check Engine.', 'Go to Engine.'], ['Try a new engine.', 'Look at the engine.'], ['Think about what gives power.', 'Heavy things need more power.'], ['Think about which part gives the car power.', 'A heavy load needs extra power.']), ['heavy', 'power']),
-  fp('snow.grip', ['Snowy Road', 'Deep Snow', 'Snow and Ice'], ['Frost on Top', 'Deep Slush', 'Slick Slush'], [
+  fp('snow.grip', ['Snowy Road', 'Deep Snow', 'Snow and Ice'], ['Cold Track', 'Deep Slush', 'Slick Slush'], [
     rows(['Get Snow Tires to grip.', 'Get Snow Tires.', 'Get Snow Tires so you do not slide.', 'Put on Snow Tires so the wheels grip the snowy road.'],
       ['Pick 4x4 Drive.', 'Use 4x4 Drive in the snow.', 'Snow Tires or 4x4 Drive will grip snow.', 'Pick Snow Tires or 4x4 Drive so the car does not slide.']),
     rows(['Get Snow Tires.', 'Get Snow Tires for deep snow.', 'Deep snow needs Snow Tires to grip.', 'Put on Snow Tires so your car can get through deep snow.'],
@@ -176,7 +176,7 @@ export const RACE_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
   sp('lowBridge', 'Bridge Ahead', 'Fit Test'),
   sp('narrow', 'Tree Path', 'Thin Track'),
   sp('delivery', 'Heavy Delivery', 'Box Run'),
-  sp('snow', 'Snowy Pass', 'Frost Run'),
+  sp('snow', 'Snowy Pass', 'Cold Run'),
   sp('rocks', 'Rocky Trail', 'Rock Run'),
   sp('river', 'River Ahead', 'Splash Test'),
   sp('wobbly', 'Old Bridge', 'Bridge Test'),

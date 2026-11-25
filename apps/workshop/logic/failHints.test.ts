@@ -51,6 +51,13 @@ describe('failure lines', () => {
     expect(line.split(/\s+/).length).toBeLessThanOrEqual(12);
   });
 
+  it.each(['flat', 'big', 'sharp', 'mega'])('omits the article for %s teeth', (kind) => {
+    const dino = CATALOGS.dino;
+    const part = dino.variants.find((v) => v.id === 'teeth.' + kind)!;
+    expect(practiceStory(dino, part.id, 'easy')).toBe('Smile! Show off ' + part.name + '.');
+    expect(fillParts(dino, 'You needed {parts}.', [part.id], 'easy')).toBe('You needed ' + part.name + '.');
+  });
+
   it('practice cards tell a story that names the part', () => {
     for (const r of READING_LEVELS) {
       const line = practiceStory(race, 'extra.winch', r);

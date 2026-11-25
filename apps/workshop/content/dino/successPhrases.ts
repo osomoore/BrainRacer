@@ -75,7 +75,7 @@ export const DINO_SUCCESS_PHRASES: Readonly<Record<string, SuccessPhrases>> = {
   'log.push': success(['shifted the log.', 'hit the log.'], ['moved the log.', 'pushed it away.'],
     ['The log slid off.', 'You gave a strong push.', 'You pushed hard enough to move it.', 'You gave a push strong enough to clear the path.'],
     ['You got the log off.', 'You were strong enough.', 'You were strong enough to move it.', 'You were strong enough to roll the log off the path.']),
-  'snow.warm': success(['cut the chill.', 'did block frost.'], ['kept you warm.', 'kept you cozy.'],
+  'snow.warm': success(['cut the chill.', 'did block cold.'], ['kept you warm.', 'kept you cozy.'],
     ['You did not get cold.', 'You stayed warm enough.', 'You were warm enough for the snow.', 'You stayed warm enough to walk all the way through the snow.'],
     ['It kept the chill off.', 'You kept the heat in.', 'You held in heat on the snow.', 'You held in enough heat to stay warm in the snow.'],
     ['kept your dino warm in the snow.', 'held in heat while you crossed the snow.']),
