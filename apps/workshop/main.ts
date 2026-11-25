@@ -2,6 +2,7 @@
  * Adventure Workshop entry. Boots the Phaser game (title / join -> one pane per player -> screens).
  * `?dev=<Name>` boots a bare Phaser game running `apps/workshop/dev/<Name>.ts` (default export = Scene class).
  */
+import '../../shared/offline';
 import { installMobileShell } from '../../shared/mobile';
 import { ensureProfiles } from '../../shared/profiles';
 

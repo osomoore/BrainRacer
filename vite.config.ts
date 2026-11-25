@@ -20,8 +20,27 @@ function buildTime(): string {
   return new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 }
 
-export default defineConfig({
+export default defineConfig(async ({ command }) => ({
   base: './',
+  plugins: command === 'build' ? [
+    (await import('vite-plugin-pwa')).VitePWA({
+      strategies: 'generateSW',
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      manifest: false,
+      workbox: {
+        cacheId: 'brainracer', // Also used by sw-navigation.js to find the scoped precache.
+        globPatterns: ['**/*'],
+        globIgnores: ['**/*.map'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        navigateFallback: null,
+        importScripts: ['./sw-navigation.js'],
+        inlineWorkboxRuntime: true,
+        skipWaiting: true,
+        clientsClaim: true,
+      },
+    }),
+  ] : [],
   cacheDir: '.vite-cache',
   // Ignore only this checkout's nested .worktrees: a glob would also match the root of a server started inside a worktree.
   server: {
@@ -42,4 +61,4 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'shared/**/*.test.ts', 'apps/**/*.test.ts', 'scripts/**/*.test.ts'],
     environment: 'node',
   },
-});
+}));
