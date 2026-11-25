@@ -27,8 +27,9 @@ export function addBackButton(ctx: PaneContext, onClick: () => void, x = 175, y 
 }
 
 /** Shared touch-only corner control for leaving the active shop/board. */
-export function addTouchBackButton(scene: Phaser.Scene, onClick: () => void): Button {
-  return new Button(scene, { x: 145, y: 72, w: 230, h: 120, label: 'Back', fontSize: 48, color: 0xffb3b3, onClick }).setDepth(20);
+export function addTouchBackButton(scene: Phaser.Scene, onClick: () => void,
+  box: { x: number; y: number; w: number; h: number; fontSize: number } = { x: 145, y: 72, w: 230, h: 120, fontSize: 48 }): Button {
+  return new Button(scene, { ...box, label: 'Back', color: 0xffb3b3, onClick }).setDepth(20);
 }
 
 const PASTELS = [0xffe08a, 0xa8e6a1, 0x9bd7ff, 0xffb3c7, 0xd5b8ff, 0xffc58a];

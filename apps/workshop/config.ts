@@ -75,6 +75,8 @@ export const WS_UI = {
   },
   /** Minimum tap target (px) for any button a kid presses. */
   tapMin: 120,
+  /** Room's touch Back button: smaller and tucked into the top-left corner, clear of the part buttons below it. */
+  roomBack: { x: 92, y: 50, w: 170, h: 88, fontSize: 40 },
   /** Ignore another Back press for this long after leaving a variant or part view (ms). */
   backGuardMs: 500,
   radius: 28,

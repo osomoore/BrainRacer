@@ -6,7 +6,7 @@
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
 import { playWorkshopSfx } from '../audio';
-import { WS_BUDDIES, WS_ROOM } from '../config';
+import { WS_BUDDIES, WS_ROOM, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { visibleAspectIds } from '../logic/aspects';
@@ -211,7 +211,7 @@ const roomScreen: ScreenFactory = (): Screen => {
       };
       requestLeave = leave;
       if (ctx.input.touch) {
-        objs.push(addTouchBackButton(scene, goToPicker));
+        objs.push(addTouchBackButton(scene, goToPicker, WS_UI.roomBack));
       }
     },
     update(dt) {
