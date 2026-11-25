@@ -455,6 +455,9 @@ describe('mergeProfile', () => {
     a.completed[first] = { build: a.model, payout: 1, wonAt: 100 };
     b.challenges[first] = { ...b.challenges[second], id: first };
     b.completed[first] = { build: b.model, payout: 2, wonAt: 101 };
+    a.learning = { [first]: { tries: 1, firstTryAt: 100, wonAt: 100, hintShown: false, failedChecks: [''] } };
+    b.learning = { [first]: { tries: 2, firstTryAt: 99, wonAt: 101, hintShown: true, failedChecks: ['B', ''] } };
+    a.recentTries = [{ at: 100, challengeId: first, pass: true, failedChecks: '', build: a.model }];
     const aValue = { deleted: false, data: oldData } as const;
     const bValue = { deleted: false, data: newData } as const;
     const merged = mergeProfile(aValue, bValue);
@@ -463,6 +466,30 @@ describe('mergeProfile', () => {
     const progress = merged.data.workshop!.workshops.race!;
     expect(Object.keys(progress.completed)).toHaveLength(2);
     expect(progress.challenges[first]).toEqual(b.challenges[first]);
+    const alias = Object.keys(progress.completed).find(id => id !== first)!;
+    expect(progress.learning).toEqual({ [first]: b.learning[first], [alias]: a.learning[first] });
+    expect(progress.recentTries).toEqual([{ ...a.recentTries[0], challengeId: alias }]);
     expect(mergeProfile(aValue, merged)).toEqual(merged);
+  });
+
+  it('unions learning fields and overlapping logs, then caps the merged logs across rooms', () => {
+    const a = { ...baseProfile(), schema: 1 as const, updatedAt: 100 };
+    const b = { ...baseProfile(), schema: 1 as const, updatedAt: 101 };
+    const older = a.workshop!.workshops.race!;
+    const newer = b.workshop!.workshops.race!;
+    const id = older.active[0];
+    older.learning = { [id]: { tries: 2, firstTryAt: 2, hintShown: true, failedChecks: ['B', 'B'] } };
+    newer.learning = { [id]: { tries: 3, firstTryAt: 4, wonAt: 6, hintShown: false, failedChecks: ['B', 'C', ''] } };
+    const attempt = (at: number, challengeId = id) => ({ at, challengeId, pass: false, failedChecks: 'B', build: older.model });
+    older.recentTries = Array.from({ length: 200 }, (_, i) => attempt(i + 1));
+    newer.recentTries = [attempt(200)];
+    const dino = b.workshop!.workshops.dino = engine.progressOf(b.workshop!, 'dino');
+    dino.recentTries = Array.from({ length: 150 }, (_, i) => attempt(i + 201, dino.active[0]));
+    const merged = mergeProfile({ deleted: false, data: a }, { deleted: false, data: b });
+    if (merged.deleted) throw new Error('Expected a live profile');
+    const rooms = merged.data.workshop!.workshops;
+    expect(rooms.race!.learning![id]).toEqual({ tries: 3, firstTryAt: 2, wonAt: 6, hintShown: true, failedChecks: ['B', 'C', ''] });
+    expect(rooms.race!.recentTries?.map(row => row.at)).toEqual(Array.from({ length: 150 }, (_, i) => i + 51));
+    expect(rooms.dino!.recentTries).toEqual(dino.recentTries);
   });
 });

@@ -54,8 +54,12 @@ All family routes take header `Authorization: Family <code>`.
   that changes progress (debounced push, ~3 s), app hidden/closing (best-effort push with keepalive).
 - Push with `baseRev`; on 409 merge local and server and push again (bounded retries).
 - Merge rules (pure, Phaser-free, unit-tested). Same-time play doesn't happen, so mostly "newer wins" with safety nets:
-  - Growing sets are unioned: bought parts, completed challenges + history, buddies found, Brain Racer unlocks/collectibles,
+  - Growing sets are unioned: bought parts, completed challenges + history, Workshop learning stats, buddies found, Brain Racer unlocks/collectibles,
     achievements/best scores (max).
+  - Workshop learning stats are unioned by challenge ID, keeping the most detailed per-try history, maximum try
+    count, earliest first try and recorded win, and any observed hint. Recent tries are unioned by `(at, challengeId)`
+    and only the latest 300 across both shops are kept. A reused card ID follows any history alias that preserves the
+    original card. Merging duplicate profiles uses these same rules.
   - Scalars (wallet, reading level, settings, model/current build, open challenge board, buddy points) come from the
     record with the newer `updatedAt`. If the board/challenges came from the older record, re-deal is allowed
     (CHALLENGE_RULES_VERSION rule: no migrations).
@@ -127,9 +131,16 @@ Open tabs on the same origin receive profile changes even with Family sync disab
 | `brainracer.backup.preProfiles` | localStorage | Recovery backup of pre-migration Brain Racer keys | Device-local recovery data | Never uploaded |
 | `brainracer.tuning.v1` | localStorage | Device performance tuning | Device-only | Never uploaded |
 | `brainracer.mobileOverride` | sessionStorage | Per-tab mobile test override | Device-only test preference | Never uploaded |
-| `workshop.players.v1` | localStorage | `Record<profileId, PlayerSave>` (reading, wallets, models, parts, challenges, buddies, progress) | Per-profile | `workshop` |
+| `workshop.players.v1` | localStorage | `Record<profileId, PlayerSave>` (reading, wallets, models, parts, challenges, buddies, progress, per-challenge learning and recent tries) | Per-profile | `workshop`, including `workshops.<shop>.learning` and `workshops.<shop>.recentTries` |
 | `workshop.device.v1` | localStorage | Workshop admin mode | Device-only | Never uploaded |
 
 An existing `p<n>` ID that collides with a different remote profile is reassigned locally with its existing saves and slot references. New profiles created on a linked device use random IDs. Aggregate maps are updated one profile at a time.
 
 JBQ counts use the maximum for each question. Workshop board generation counters use the maximum, and two different cards with the same generated ID can both be kept in history. A newer snapshot that has never saved in one game or Workshop room keeps the older saved data for that game or room. Ties use the server's scalar values, and a tombstone wins a tie. Applying a tombstone hides the shared profile on this device and retains its underlying game saves.
+
+Each `learning` entry stores `tries`, `firstTryAt`, optional `wonAt`, `hintShown`, and one compact
+`failedChecks` string per try. A recent entry stores `at`, `challengeId`, `pass`, `failedChecks`, and the tested
+`build` as a model. Normal requirement IDs use one character each. The heavy-save test includes 300 full ten-part
+builds using the longest part IDs, 48 solved cards, and 600 Brain Racer JBQ counts. It leaves at least 32 KiB free
+under the 256 KiB per-profile limit. The permanent card archive and per-challenge summaries continue to grow with
+play. The sync limit still applies to the entire profile, and a rejected upload preserves the local save.

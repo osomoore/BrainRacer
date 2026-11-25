@@ -26,7 +26,6 @@ import { cleverWinMessage } from '../logic/text';
 import { visibleAspectIds } from '../logic/aspects';
 import { successReasons } from '../logic/successReasons';
 import { challengeTitle, readingText, STARTER_RESULTS } from '../logic/wording';
-import { failLines, failNotes } from '../logic/failHints';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
 const INPUT_GUARD_MS = 400;
@@ -115,11 +114,9 @@ const resultsScreen: ScreenFactory = (): Screen => {
 
       const catalog = CATALOGS[ws];
       const reasons = successReasons(catalog, challenge, result, reading, new Set(visibleAspectIds(catalog, progress)));
-      // A failed run says what was needed, naming a part (the same lines the card remembers until a win).
-      const fails = result.passed ? [] : failLines(catalog, challenge, failNotes(catalog, progress, challenge, result), reading);
       const message = result.cleverWin ? cleverWinMessage(catalog, reading, challenge.seed)
-        : !result.passed && !fails.length && outcome.hint ? (starter ? outcome.hint : `Hint: ${outcome.hint}`) : '';
-      const lines = [...reasons, ...fails, ...(message ? [message] : [])];
+        : !result.passed && outcome.hint ? (starter ? outcome.hint : `Hint: ${outcome.hint}`) : '';
+      const lines = [...reasons, ...outcome.failLines, ...(message ? [message] : [])];
       const messageTexts = lines.map((line, i) => keep(makeText(s, w / 2, 0, line, {
         size: min, color: COLORS.ink, wrap: w - 112, origin: [0.5, 0], bold: i >= reasons.length,
       })).setDepth(1));

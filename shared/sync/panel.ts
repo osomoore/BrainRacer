@@ -7,7 +7,7 @@ type DialogWindow = Window & { __familySyncDialogOpen?: boolean };
 const qrCache = new Map<string, { url: string; canvas?: HTMLCanvasElement }>();
 
 /** Shared grown-up panel shell and button treatment for DOM admin panels. */
-export function createAdminPanelRoot(label: string, dataKey: 'familySyncPanel' | 'profilesPanel'): HTMLDivElement {
+export function createAdminPanelRoot(label: string, dataKey: 'familySyncPanel' | 'profilesPanel' | 'progressReport'): HTMLDivElement {
   const root = document.createElement('div');
   root.dataset[dataKey] = 'true';
   root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', label); root.setAttribute('aria-modal', 'true');

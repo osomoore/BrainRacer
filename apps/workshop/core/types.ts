@@ -304,6 +304,23 @@ export interface CompletedInfo {
   payout: number;
 }
 
+export interface ChallengeLearning {
+  tries: number;
+  hintShown: boolean;
+  firstTryAt: number;
+  wonAt?: number;
+  /** One compact list of failed requirement IDs per recorded try. A pass has an empty list. */
+  failedChecks: string[];
+}
+
+export interface WorkshopTry {
+  at: number;
+  challengeId: ChallengeId;
+  pass: boolean;
+  failedChecks: string;
+  build: Model;
+}
+
 export interface WorkshopBuddies {
   unlocked: BuddyKind[];
   selected: BuddyKind;
@@ -328,6 +345,9 @@ export interface WorkshopProgress {
   completed: Record<ChallengeId, CompletedInfo>;
   /** Failed attempts per challenge (hint after WS_RULES.hintAfterFails). Reset on a win. */
   fails: Record<ChallengeId, number>;
+  learning?: Record<ChallengeId, ChallengeLearning>;
+  /** Capped across both rooms; only these tries retain a full build snapshot. */
+  recentTries?: WorkshopTry[];
   /** Build that won most recently (new challenges must not be solvable with it). */
   lastWin: Model | null;
   /** Next starter index; == starters.length once all starters were offered. */

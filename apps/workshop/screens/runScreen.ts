@@ -6,12 +6,14 @@
  */
 import type Phaser from 'phaser';
 import type { PaneContext, Screen, ScreenData, ScreenFactory } from '../core/runtime';
-import type { RunResult } from '../core/types';
+import type { Challenge, Model, RunResult } from '../core/types';
 import { WS_AUDIO } from '../config';
 import { engine } from '../logic';
 import { playRun, type RunHandle } from '../run/runner';
-import { currentProgress } from './room/progress';
-import { setOutcome } from './run/outcome';
+import { recordFail } from '../logic/board';
+import { failLines, failNotes } from '../logic/failHints';
+import { recordLearningTry } from '../logic/learning';
+import { setOutcome, type RunOutcome } from './run/outcome';
 import { fastForwardTexture } from './run/ffIcon';
 
 const FAST = 4;
@@ -24,6 +26,9 @@ const runScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
   let handle: RunHandle | undefined;
   let result: RunResult;
+  let testedCard: Challenge;
+  let testedBuild: Model;
+  let sandbox: boolean;
   let challengeId = '';
   let finished = false;
   let destroyed = false;
@@ -46,19 +51,35 @@ const runScreen: ScreenFactory = (): Screen => {
     endTimer = undefined;
     const ws = ctx.workshop!;
     const save = ctx.save();
-    const progress = currentProgress(ctx, ws);
-    const challenge = progress.challenges[challengeId];
-    const outcome = { payout: 0, hint: null as string | null };
-    if (!ctx.adminMode && challenge) {
-      if (result.passed) {
-        const win = engine.recordWin(ws, progress, challengeId, progress.model, Date.now());
-        ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: win.progress } });
+    const progress = save.workshops[ws];
+    const challenge = progress?.challenges[challengeId];
+    if (!progress || !challenge || sandbox !== ctx.adminMode || !progress.active.includes(challengeId)
+      || progress.completed[challengeId] || JSON.stringify(challenge.stages) !== JSON.stringify(testedCard.stages)) {
+      ctx.go('board');
+      return;
+    }
+    const outcome: RunOutcome = { payout: 0, hint: null, failLines: [] };
+    const commit = (next: typeof progress, at: number) => {
+      const updated = { ...save, workshops: { ...save.workshops, [ws]: next } };
+      ctx.commit(recordLearningTry(updated, challenge, result, testedBuild, at, !!outcome.hint || outcome.failLines.length > 0));
+    };
+    if (result.passed) {
+      if (!sandbox) {
+        const at = Date.now();
+        const win = engine.recordWin(ws, progress, challengeId, testedBuild, at);
+        if (win.firstWin) commit(win.progress, at);
         outcome.payout = win.payout;
         if (win.unlockedBuddy) ctx.queueBuddyUnlock(ws, win.unlockedBuddy);
-      } else {
-        const p = engine.recordFail(ws, progress, challengeId);
-        ctx.commit({ ...save, workshops: { ...save.workshops, [ws]: p } });
-        outcome.hint = engine.hint(p, challenge, result, ctx.reading());
+      }
+    } else {
+      const catalog = engine.catalog(ws);
+      const notes = failNotes(catalog, { ...progress, model: testedBuild }, challenge, result);
+      const reading = ctx.reading();
+      outcome.failLines = failLines(catalog, challenge, notes, reading);
+      if (!sandbox) {
+        const failed = recordFail(progress, challengeId, notes);
+        if (!outcome.failLines.length) outcome.hint = engine.hint(failed, challenge, result, reading);
+        commit(failed, Date.now());
       }
     }
     setOutcome(ctx.index, outcome);
@@ -79,11 +100,14 @@ const runScreen: ScreenFactory = (): Screen => {
       const progress = ws ? ctx.save().workshops[ws] : undefined;
       const challenge = progress?.challenges[challengeId];
       if (!ws || !progress?.active.includes(challengeId) || !challenge || progress.completed[challengeId]) { ctx.go('board'); return; }
+      testedCard = challenge;
+      testedBuild = { ...progress.model };
+      sandbox = ctx.adminMode;
       ctx.audio.music(WS_AUDIO.runMusic[ws]);
-      result = engine.evaluate(ws, progress.model, challenge);
+      result = engine.evaluate(ws, testedBuild, challenge);
       try {
         handle = playRun({
-          scene: ctx.scene, origin: { x: 0, y: 0 }, size: ctx.size, workshop: ws, model: progress.model,
+          scene: ctx.scene, origin: { x: 0, y: 0 }, size: ctx.size, workshop: ws, model: testedBuild,
           challenge, result, audio: ctx.audio, buildRig: ctx.buildRig, seed: challenge.seed,
           buddy: progress.buddies.selected,
         });
