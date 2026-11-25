@@ -26,6 +26,7 @@ import { cleverWinMessage } from '../logic/text';
 import { visibleAspectIds } from '../logic/aspects';
 import { successReasons } from '../logic/successReasons';
 import { challengeTitle, readingText, STARTER_RESULTS } from '../logic/wording';
+import { starterFixLine } from '../logic/failHints';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
 const INPUT_GUARD_MS = 400;
@@ -59,6 +60,9 @@ const resultsScreen: ScreenFactory = (): Screen => {
       const reading = ctx.reading();
       const starter = reading === 'starter';
       const outcome = getOutcome(ctx.index);
+      const displayTitle = starter
+        ? outcome.testTitle ?? ''
+        : challengeTitle(challenge, reading);
       const { w, h } = ctx.size;
       const wide = ctx.layout === 'wide';
       const s = ctx.scene;
@@ -74,7 +78,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
         fitText(header, right - WS_WALLET.tall.x - 112);
         header.setX(right - header.width / 2);
       }
-      const title = keep(makeText(s, w / 2, wide ? 184 : 152, challengeTitle(challenge, reading),
+      const title = keep(makeText(s, w / 2, wide ? 184 : 152, displayTitle,
         { size: wide ? 56 : 48, color: COLORS.paper, stroke: COLORS.ink, wrap: w - 80 }));
       const titleBottom = title.y + title.height / 2;
       if (outcome.payout > 0) {
@@ -102,11 +106,13 @@ const resultsScreen: ScreenFactory = (): Screen => {
         const r = byId.get(req.id);
         rows.push({ req, stage: si, first: ri === 0, ok: !!r?.passed, reached: r ? r.reached : true });
       }));
+      const starterLines = starter ? new Map(rows.map((row) => [row.req.id, starterFixLine(CATALOGS[ws], progress, row.req)])) : undefined;
+      const rowText = (row: Row) => starter ? starterLines?.get(row.req.id) ?? '' : readingText(row.req.text, reading);
       const rowGap = 22;
       const stageGap = 20;
       const rowExtra = (row: Row, i: number) => rowGap + (multi && row.first && i > 0 ? stageGap : 0);
       const measureRows = (font: number): number[] => rows.map((row, i) => {
-        const t = makeText(s, 0, 0, readingText(row.req.text, reading), { size: font, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
+        const t = makeText(s, 0, 0, rowText(row), { size: font, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
         const hh = Math.max(t.height, font + 16);
         t.destroy();
         return hh + rowExtra(row, i);
@@ -166,7 +172,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
           const mark = row.reached
             ? makeText(s, markX, y, row.ok ? '✓' : '✗', { size: font + 8, color: row.ok ? COLORS.green : COLORS.red, stroke: COLORS.paper, strokeW: 8, origin: [0, 0] })
             : makeText(s, markX, y, '–', { size: font + 8, color: WS_RESULTS.unreachedText, origin: [0, 0] });
-          const line = makeText(s, textX, y + 6, readingText(row.req.text, reading), { size: font, color: row.reached ? COLORS.ink : WS_RESULTS.unreachedText, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
+          const line = makeText(s, textX, y + 6, rowText(row), { size: font, color: row.reached ? COLORS.ink : WS_RESULTS.unreachedText, wrap: textW, origin: [0, 0], bold: false, align: 'left' });
           pageObjs.push(mark, line);
           y += rowHeights[i] - (multi && row.first && i > 0 ? stageGap : 0);
         }

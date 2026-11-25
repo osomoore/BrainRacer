@@ -18,6 +18,10 @@ export const readingText = (text: Leveled, reading: ReadingLevel): string => tex
 export const challengeTitle = (challenge: Challenge, reading: ReadingLevel): string =>
   reading === 'starter' ? challenge.starterTitle ?? challenge.title : challenge.title;
 
+/** Position-based label for the three starter tests. */
+export const starterTestTitle = (position: number): string => `Test ${position + 1}`;
+export const starterBoardLabel = (position: number): string => String(position + 1);
+
 export const STARTER_HINT = ['Check {aspect}.', 'Go to {aspect}.'] as const;
 export const STARTER_PART = 'Get {part}.';
 export const STARTER_SHORT_FIX = 'Get {parts}.';

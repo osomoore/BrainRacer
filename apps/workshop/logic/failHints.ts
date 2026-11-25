@@ -83,6 +83,12 @@ export function chooseFix(cat: WorkshopCatalog, p: Pick<WorkshopProgress, 'walle
   return [...ranked[0].fix];
 }
 
+/** A direct Starter requirement using one complete currently visible fix, or empty when no fix is visible. */
+export function starterFixLine(cat: WorkshopCatalog, p: WorkshopProgress, req: Requirement): string {
+  const fix = chooseFix(cat, p, fixesOf(req));
+  return fix?.length ? STARTER_SHORT_FIX.replace(PARTS, joinParts(fix.map((id) => partPhrase(cat, id, 'starter')))) : '';
+}
+
 /** Parts not installed yet come first (they are the news), keeping fix order otherwise. */
 function orderParts(fix: readonly VariantId[], model: Model): VariantId[] {
   const installed = new Set(Object.values(model));

@@ -32,8 +32,8 @@ the decisions made on top of it and how the code is split.
   (each pane 960×1080). Each player has their own profile, workshop, model, board and progress.
 - **Profiles** are the shared ones (`shared/profiles.ts`). A new profile = name (on-screen letter grid) + reading
   level. An existing profile entering the workshop for the first time picks a reading level once.
-- **Reading levels: Starter / Easy / Medium / Hard.** Starter uses short, sound-out-able wording and shares
-  Easy's four stations, challenge rules, and economy. Medium and Hard use all ten stations.
+- **Reading levels: Starter / Easy / Medium / Hard.** Starter uses numbered cards and short, direct instructions.
+  It shares Easy's four stations, challenge rules, and economy. Medium and Hard use all ten stations.
 - **Two workshops**, 10 aspects each, 2 starter variants per aspect (frozen lists in `content/*/variants.ts`).
 - **Challenges are generated** from hand-built scenarios (scene types such as mud field, low bridge, tall tree),
   each with facets (requirement templates with difficulty levels) and phrase banks (several sentences per facet,
@@ -180,12 +180,12 @@ shared code lives in `shared/`.
   `partAliases`. Use “and” for parts that belong together and “or” for alternative builds. All the fix options
   named at a facet level are accepted at that level. `validateCatalog` checks the guideline wording
   and applies the same word limits and hard-word list to clever-win messages.
-- **Stories** are what the card shows for each requirement (`content/<ws>/stories.ts`, one row per facet level).
+- **Stories** are what the card shows for each requirement on Easy, Medium, and Hard
+  (`content/<ws>/stories.ts`, one row per facet level).
   A story describes the problem so the kind of part that helps is obvious ("Squish! The road is sticky mud. Wheels
   need to grip!"), without being a bare order. It may name a part but does not have to. Up to **10 words on Easy**,
   **12 on Medium**, **14 on Hard** (two short sentences are fine), Easy <= Medium <= Hard, complete sentences, the
-  same hard-word list, no repeats. Vary how lines start. The guideline lines above stay in `phrases.ts`: they are
-  no longer shown, but they define each level's named fixes.
+  same hard-word list, no repeats. Vary how lines start. The guidelines in `phrases.ts` define each level's named fixes.
 - **Failure lines** are templates per facet with one `{parts}` ("You needed {parts} to grip the mud."). Parts read
   as `partPhrases` writes them ("a Winch", "the Small size", "Fire Red paint"). `validateCatalog` fills in every
   named fix of every level and checks the result: up to 12 / 14 / 16 words (long fixes end in "and more"), a
@@ -288,6 +288,14 @@ C52 measured the first rendered stage frame in Edge at 1920×1080 with one and t
 throttling, the median cold launch across Snack, Ferns and Chase dropped from 365 ms to 265 ms. Across Mud and
 Turn it dropped from 361 ms to 298 ms. The measurements used a desktop GPU. Check cold starts and retries on the
 Android tablet and Mali-G310 TV box.
+
+### Starter challenge cards (C57)
+
+In each player's pane, the three cards read **1**, **2**, **3** from left to right. Each card keeps its color
+and its Ready (✓), Affordable ($), or Future (X) badge. The selected card shows short part instructions such
+as “Get Mud Tires.” and direct tips after a failed try. Instructions use fixes from the available stations.
+The run plays without a title, and results uses the number from the board when the test started, even if a win
+changes the board. The grown-up Progress report still shows the saved challenge titles.
 
 ### Progress report (C55)
 
