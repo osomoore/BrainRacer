@@ -22,6 +22,7 @@ import { buildBlocks, planDetail, type Measure } from './board/cardText';
 import { boardLayout, detailFonts, type BoardLayout } from './board/layout';
 import { chooseBoardFocus, restoreChallengeIndex, type BoardFocusKey } from './board/focusChoice';
 import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from './board/reward';
+import { CARD_STATUS_BADGE, cardStatuses } from './board/cardStatus';
 import { isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
 import { roomLayout } from './room/layout';
@@ -40,6 +41,10 @@ const measure: Measure = (text, size) => {
   canvasCtx.font = `bold ${size}px ${WS_UI.font}`;
   return canvasCtx.measureText(text).width;
 };
+
+/** Corner badge diameter (px) and how far it pokes out past the card corner. */
+const BADGE_D = 56;
+const BADGE_OUT = 14;
 
 const boardScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
@@ -86,6 +91,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     const scene = ctx.scene;
     const list = ids();
     const first = cardPage * L.perPage;
+    const statuses = cardStatuses(engine.catalog(ws()), progress);
     pageItems(list, cardPage, L.perPage).forEach((id, k) => {
       const c = progress.challenges[id];
       const slot = L.cards[k];
@@ -107,13 +113,20 @@ const boardScreen: ScreenFactory = (): Screen => {
       } else { // the title above the reward footer (the stage count is in the detail on narrow tabs)
         const footerY = slot.h / 2 - CARD_PAD - FOOTER_H / 2;
         const titleBox = slot.h - 2 * CARD_PAD - FOOTER_H - CARD_PAD;
-        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: wide() ? 48 : 44, wrap: slot.w - 24 });
+        // keep the corner badges (status top-right, hint top-left) clear of the centred title
+        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, c.title, { size: wide() ? 48 : 44, wrap: slot.w - 24 - 2 * (BADGE_D - BADGE_OUT) });
         for (let size = wide() ? 44 : 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
         b.add(t);
         addFooter(b, footerY, wide() ? stages : 1, reward);
       }
-      if (hintsOf(c).length) { // a yellow "!" says this card remembers a hint (shown in the detail)
-        const d = 56, hx = slot.w / 2 - d / 2 - 10, hy = -slot.h / 2 + d / 2 + 10;
+      { // top-right badge: check = you own everything, $ = you can buy what is missing, X = not yet
+        const badge = CARD_STATUS_BADGE[statuses.of(c)];
+        const d = BADGE_D, bx = slot.w / 2 - d / 2 + BADGE_OUT, by = -slot.h / 2 + d / 2 - BADGE_OUT;
+        b.add([scene.add.image(bx, by, circleTexture(scene, d, COLORS[badge.color])),
+          makeText(scene, bx, by + 2, badge.glyph, { size: 40, color: badge.color === 'yellow' ? COLORS.ink : COLORS.paper })]);
+      }
+      if (hintsOf(c).length) { // a yellow "!" (top-left) says this card remembers a hint (shown in the detail)
+        const d = BADGE_D, hx = -slot.w / 2 + d / 2 - BADGE_OUT, hy = -slot.h / 2 + d / 2 - BADGE_OUT;
         b.add([scene.add.image(hx, hy, circleTexture(scene, d, COLORS.yellow)), makeText(scene, hx, hy, '!', { size: 40, color: COLORS.ink })]);
       }
       cardBtns.push(b);
