@@ -17,6 +17,7 @@ import { waitingScreen } from './placeholderScreen';
 import { sandboxSave } from './sandboxes';
 import { createScreen } from './screenRegistry';
 import { shell } from './shell';
+import { resolveActiveProfileId } from '../../../shared/profiles';
 
 interface HistoryEntry { id: string; data: ScreenData }
 
@@ -81,12 +82,15 @@ export class PaneScene extends Phaser.Scene {
       },
       commit(save: PlayerSave): void {
         const id = pane.profileId;
-        if (!id) return;
+        const activeId = resolveActiveProfileId(id);
+        // A retired id can resolve to a merge target; a cached full save from the retired
+        // pane must never replace the newly combined target save.
+        if (!activeId || activeId !== id) return;
         if (shell.adminMode()) {
           const ws = pane.workshopId;
-          if (ws && save.workshops[ws]) shell.sandboxes.set(id, ws, save.workshops[ws]!);
+          if (ws && save.workshops[ws]) shell.sandboxes.set(activeId, ws, save.workshops[ws]!);
         } else {
-          shell.store.setPlayer(id, save);
+          shell.store.setPlayer(activeId, save);
         }
         pane.updateWallet();
       },
@@ -103,11 +107,16 @@ export class PaneScene extends Phaser.Scene {
       },
       reading(): ReadingLevel { return ctx.save().reading; },
       setProfile(id) {
-        if (id !== pane.profileId) {
+        const activeId = resolveActiveProfileId(id);
+        if (!activeId) return;
+        if (activeId !== pane.profileId) {
+          // Screens can still own callbacks that write through ctx.commit. Tear them down before
+          // changing identity so no late callback can commit the previous player's state.
+          pane.unmount();
           pane.workshopId = undefined;
           pane.buddyUnlocks.clear();
         }
-        pane.profileId = id;
+        pane.profileId = activeId;
       },
       setWorkshop(id) { pane.workshopId = id; },
       go(screen: ScreenId, data?: ScreenData) { pane.pending = { id: screen, data: data ?? {}, push: true }; },
@@ -134,10 +143,25 @@ export class PaneScene extends Phaser.Scene {
 
   /** Re-creates the current screen (after the admin closed: saves / Admin Mode may have changed). */
   refresh(): void {
+    if (this.pending) return;
     if (this.exited && this.current.id === '__waiting') return;
     this.pending = { id: this.current.id, data: this.current.data, push: false };
     this.ctx.input.poll();
     this.ctx.input.text();
+  }
+
+  /** Called when an admin deletes or merges this pane's active profile. */
+  replaceProfile(sourceId: string, targetId?: string, duplicateTarget = false): void {
+    if (this.profileId !== sourceId) return;
+    const replacement = targetId && !duplicateTarget ? targetId : undefined;
+    this.unmount();
+    this.profileId = replacement;
+    this.workshopId = undefined;
+    this.buddyUnlocks.clear();
+    this.history = [];
+    this.exited = false;
+    const next = replacement ? (shell.store.hasPlayer(replacement) ? 'pickWorkshop' : 'reading') : 'profile';
+    this.pending = { id: next, data: {}, push: false };
   }
 
   private mount(id: string, data: ScreenData): void {

@@ -1,5 +1,6 @@
 export type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 export type JsonObject = Record<string, unknown>;
+export const MAX_PROFILE_DATA_BYTES = 256 * 1024;
 
 export const object = (value: unknown): value is JsonObject =>
   value !== null && typeof value === 'object' && !Array.isArray(value);

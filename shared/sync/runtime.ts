@@ -1,8 +1,11 @@
-import { listenForProfileChanges } from './changes';
+import { retireLocalProfile } from '../profileManager';
+import { resolveActiveProfileId } from '../profiles';
+import { listenForProfileChanges, profileEditTime, profileIdentityTime, publishProfileReplacement, rememberProfileEditTime,
+  rememberProfileIdentityTime, subscribeProfileIdentities } from './changes';
 import { FamilySyncClient } from './client';
 import { FakeFamilyServer } from './fake';
 import { FamilyApi } from './protocol';
-import { applyLocalProfile, hideLocalProfile, listLocalProfileIds, readLocalProfile, rekeyLocalProfile } from './storage';
+import { applyLocalProfile, listLocalProfileIds, readLocalProfile, rekeyLocalProfile } from './storage';
 
 const SYNC_KEY = 'hub.familySync.v1';
 const FAKE_KEY = 'hub.familySyncFake.v1';
@@ -30,8 +33,17 @@ function api(): FamilyApi | undefined {
 
 const online = () => navigator.onLine !== false;
 const client = new FamilySyncClient(api(), {
-  ids: listLocalProfileIds, read: readLocalProfile, apply: applyLocalProfile,
-  hide: hideLocalProfile, rekey: rekeyLocalProfile,
+  ids: listLocalProfileIds, read: readLocalProfile, apply: applyLocalProfile, editTime: profileEditTime,
+  identityTime: profileIdentityTime, rememberIdentityTime: rememberProfileIdentityTime,
+  replacementOf: resolveActiveProfileId,
+  hide: (id, mergedInto) => {
+    if (retireLocalProfile(id, mergedInto)) publishProfileReplacement(id, mergedInto);
+  },
+  rekey: (oldId, newId) => {
+    if (!rekeyLocalProfile(oldId, newId)) return false;
+    publishProfileReplacement(oldId, newId);
+    return true;
+  },
 }, enabled ? storage() : undefined, devFake ? FAKE_KEY : SYNC_KEY, online);
 const deviceKey = devFake ? FAKE_KEY : SYNC_KEY;
 
@@ -42,7 +54,11 @@ export const familySync = {
   enabled,
   get state() { return client.state; },
   subscribe: (listener: () => void) => client.subscribe(listener),
-  subscribeProfiles: (listener: (id: string) => void) => client.subscribeProfiles(listener),
+  subscribeProfiles(listener: (id: string) => void) {
+    const unsubscribeSync = client.subscribeProfiles(listener);
+    const unsubscribeIdentity = subscribeProfileIdentities(listener);
+    return () => { unsubscribeSync(); unsubscribeIdentity(); };
+  },
   makeFamily: () => client.makeFamily(),
   joinFamily: (code: string) => client.joinFamily(code),
   leaveFamily: () => client.leaveFamily(),
@@ -57,13 +73,17 @@ export const familySync = {
       const enrolled = !!client.state.code;
       if (enrolled === watching) return;
       watching = enrolled;
-      listenForProfileChanges(enrolled ? (id, deleted) => {
-        client.noteChange(id, deleted);
+      listenForProfileChanges(enrolled ? (id, deleted, mergedInto, identityOnly) => {
+        client.noteChange(id, deleted, mergedInto, identityOnly);
         clearTimeout(debounce);
         debounce = setTimeout(() => { if (online()) void client.flush(); }, 3000);
-      } : undefined);
+      } : undefined, enrolled ? id => client.editTime(id) : undefined);
     };
     client.subscribe(watch);
+    client.subscribeProfiles(id => {
+      const updatedAt = client.editTime(id);
+      if (updatedAt !== undefined && readLocalProfile(id)) rememberProfileEditTime(id, updatedAt);
+    });
     watch();
     addEventListener('online', () => { client.refreshView(); void client.syncNow(); });
     addEventListener('offline', () => client.refreshView());

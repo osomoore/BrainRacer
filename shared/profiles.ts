@@ -7,7 +7,9 @@
  */
 import { readShared, writeShared } from './storage';
 import { runLegacyMigration } from './legacyProfiles';
-import { newSyncProfileId, notifyProfileChanged, notifyProfileDeleted, useSyncProfileIds } from './sync/changes';
+import { newSyncProfileId, notifyProfileChanged, notifyProfileDeleted, notifyProfileRenamed, PROFILE_IDENTITY_TIMES,
+  PROFILE_REPLACEMENTS, profileIdentityTime, useSyncProfileIds } from './sync/changes';
+export { PROFILE_REPLACEMENTS } from './sync/changes';
 
 export interface PlayerProfile { id: string; name: string; createdAt: number }
 
@@ -40,6 +42,28 @@ export function getProfile(id: string | undefined): PlayerProfile | undefined {
   return id === undefined ? undefined : listProfiles().find((p) => p.id === id);
 }
 
+/** Resolves a cached player id after a merge, including a series of merges. */
+export function resolveProfileId(id: string | undefined): string | undefined {
+  if (id === undefined) return undefined;
+  const replacements = readShared<Record<string, string | null>>(PROFILE_REPLACEMENTS, {});
+  const visited = new Set<string>();
+  let current = id;
+  while (replacements && Object.hasOwn(replacements, current)) {
+    if (getProfile(current)) return current; // A newer edit can restore a profile on sync.
+    if (visited.has(current)) return undefined;
+    visited.add(current);
+    const target = replacements[current];
+    if (typeof target !== 'string') return undefined;
+    current = target;
+  }
+  return current;
+}
+
+/** Resolves a cached id to a profile that can still be selected or saved. */
+export function resolveActiveProfileId(id: string | undefined): string | undefined {
+  return getProfile(resolveProfileId(id))?.id;
+}
+
 /** Next opaque id `p<n>`; the counter never goes back, so a deleted profile's id is never reused. */
 function nextId(list: readonly PlayerProfile[]): string {
   if (useSyncProfileIds()) {
@@ -65,9 +89,13 @@ export function createProfile(name: string): PlayerProfile | null {
 export function renameProfile(id: string, name: string): boolean {
   const n = validProfileName(name);
   const list = listProfiles();
-  if (!n || !list.some((p) => p.id === id)) return false;
+  const current = list.find(p => p.id === id);
+  if (!n || !current) return false;
+  if (current.name === n) return true;
+  const updatedAt = Math.max(Date.now(), (profileIdentityTime(id, current) ?? current.createdAt) + 1);
+  writeShared(PROFILE_IDENTITY_TIMES, { ...readShared(PROFILE_IDENTITY_TIMES, {}), [id]: { ...current, name: n, updatedAt } });
   writeShared(PROFILES_KEY, list.map((p) => (p.id === id ? { ...p, name: n } : p)));
-  notifyProfileChanged(id);
+  notifyProfileRenamed(id);
   return true;
 }
 

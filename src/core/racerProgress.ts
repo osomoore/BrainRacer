@@ -73,9 +73,12 @@ export function loadAllProgress(): AllProgress {
 }
 
 export function saveAllProgress(all: AllProgress): void {
+  const previous = loadAllProgress();
   volatile = structuredClone(all);
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(all)); } catch { /* session-only fallback */ }
-  for (const id of Object.keys(all)) notifyProfileChanged(id);
+  for (const [id, progress] of Object.entries(all)) {
+    if (JSON.stringify(previous[id]) !== JSON.stringify(progress)) notifyProfileChanged(id);
+  }
 }
 
 export function loadRacerProgress(id: RacerProfileId): RacerProgress {

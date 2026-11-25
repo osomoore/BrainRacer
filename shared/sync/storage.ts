@@ -2,8 +2,10 @@
 import type { PlayerSave } from '../../apps/workshop/core/types';
 import { JBQ_PROGRESS_KEY, parseJbqProgress, type JbqCounts } from '../../src/challenge/jbqProgress';
 import { PROGRESS_KEY, parseProgress, type RacerProgress } from '../../src/core/racerProgress';
+import { racerSettingsOf } from '../../src/core/racerProfiles';
 import type { CarKind, GuideKind, RacerProfile } from '../../src/core/types';
-import { listProfiles, type PlayerProfile } from '../profiles';
+import { listProfiles, PROFILE_REPLACEMENTS, type PlayerProfile } from '../profiles';
+import { PROFILE_EDIT_TIMES_KEY, profileIdentityTime, rememberProfileIdentityTime } from './changes';
 import { readShared, writeShared } from '../storage';
 import { migrateLegacyRacers } from '../../src/core/legacyRacers';
 import { COLLECTIBLES, UNLOCK_GUIDE_IDS, UNLOCK_VEHICLE_IDS } from '../../src/config/collectibles';
@@ -22,9 +24,10 @@ export interface ProfileSnapshot {
   workshop: PlayerSave | null;
 }
 
-const WORKSHOP_PLAYERS_KEY = 'workshop.players.v1';
-const SETTINGS_KEY = 'brainracer.settings.v1';
-const LOADOUTS_KEY = 'brainracer.loadouts.v1';
+export const WORKSHOP_PLAYERS_KEY = 'workshop.players.v1';
+export const SETTINGS_KEY = 'brainracer.settings.v1';
+export const LOADOUTS_KEY = 'brainracer.loadouts.v1';
+export const SECOND_PLAYER_KEY = 'brainracer.secondPlayer.v1';
 
 function localStorageSafe(): Storage | undefined {
   try { return globalThis.localStorage; } catch { return undefined; }
@@ -113,20 +116,29 @@ export function readLocalProfile(id: string): ProfileSnapshot | undefined {
   migrateLegacyRacers();
   const profile = listProfiles().find(p => p.id === id);
   if (!profile) return undefined;
-  const allProgress = record(readJson(PROGRESS_KEY));
-  const allJbq = record(readJson(JBQ_PROGRESS_KEY));
-  const settings = record(readJson(SETTINGS_KEY));
+  return profileSnapshot(profile, readJson);
+}
+
+export function profileSnapshot(profile: PlayerProfile, read: (key: string) => unknown): ProfileSnapshot {
+  const { id } = profile;
+  const allProgress = record(read(PROGRESS_KEY));
+  const allJbq = record(read(JBQ_PROGRESS_KEY));
+  const settings = record(read(SETTINGS_KEY));
   const racer: RacerSnapshot = {};
   if (allProgress && id in allProgress) racer.progress = parseProgress(allProgress[id]);
   if (allJbq && id in allJbq) racer.jbq = parseJbqProgress({ [id]: allJbq[id] })[id];
   const rp = record(settings?.racerProfiles)?.[id];
-  const parsed = parseRacerSnapshot({ settings: rp });
+  const questions = record(record(rp)?.questionTypes);
+  const legacy = questions && Object.keys(questions).length === 3
+    && ['addition', 'multiplication', 'spelling'].every(key => typeof questions[key] === 'boolean');
+  const parsed = parseRacerSnapshot({ settings: legacy
+    ? racerSettingsOf({ racerProfiles: { [id]: rp as RacerProfile } }, id) : rp });
   if (parsed?.settings) racer.settings = parsed.settings;
-  const loadouts = record(readJson(LOADOUTS_KEY));
+  const loadouts = record(read(LOADOUTS_KEY));
   const savedLoadout = record(loadouts?.[id]);
   const slots = Array.isArray(settings?.players) ? settings!.players as unknown[] : [];
   const fromSlot = slots.map(record).find(v => v?.profile === id);
-  const second = record(readJson('brainracer.secondPlayer.v1'));
+  const second = record(read(SECOND_PLAYER_KEY));
   const loadout = savedLoadout ?? (fromSlot && typeof fromSlot.car === 'string' ? fromSlot : undefined)
     ?? (second?.profile === id && typeof second.car === 'string' ? second : undefined);
   if (loadout && typeof loadout.car === 'string') {
@@ -137,7 +149,7 @@ export function readLocalProfile(id: string): ProfileSnapshot | undefined {
     } });
     if (parsedLoadout?.loadout) racer.loadout = parsedLoadout.loadout;
   }
-  const saves = record(readJson(WORKSHOP_PLAYERS_KEY));
+  const saves = record(read(WORKSHOP_PLAYERS_KEY));
   return { profile, racer, workshop: (saves?.[id] as PlayerSave | undefined) ?? null };
 }
 
@@ -146,10 +158,6 @@ export function applyLocalProfile(snapshot: ProfileSnapshot): void {
   if (!snapshot || !snapshot.profile || typeof snapshot.profile.id !== 'string' || typeof snapshot.profile.name !== 'string') return;
   const p = snapshot.profile;
   bumpProfileSequence(p.id);
-  const profiles = listProfiles();
-  writeShared('profiles', profiles.some(x => x.id === p.id)
-    ? profiles.map(x => x.id === p.id ? p : x)
-    : [...profiles, p]);
   const racer = parseRacerSnapshot(snapshot.racer);
   if (racer) {
     if (racer.progress) writeJson(PROGRESS_KEY, { ...(record(readJson(PROGRESS_KEY)) ?? {}), [p.id]: racer.progress });
@@ -161,6 +169,10 @@ export function applyLocalProfile(snapshot: ProfileSnapshot): void {
     if (racer.loadout) writeJson(LOADOUTS_KEY, { ...(record(readJson(LOADOUTS_KEY)) ?? {}), [p.id]: racer.loadout });
   }
   if (snapshot.workshop) writeJson(WORKSHOP_PLAYERS_KEY, { ...(record(readJson(WORKSHOP_PLAYERS_KEY)) ?? {}), [p.id]: snapshot.workshop });
+  const profiles = listProfiles();
+  writeShared('profiles', profiles.some(x => x.id === p.id)
+    ? profiles.map(x => x.id === p.id ? p : x)
+    : [...profiles, p]);
 }
 
 /** Removes only the visible identity; app data remains available for later recovery. */
@@ -206,7 +218,7 @@ export function rekeyLocalProfile(oldId: string, newId: string): boolean {
     if (!writeJsonVerified(SETTINGS_KEY, { ...settings, players: slots, racerProfiles })) return false;
     movedSettings = true;
   }
-  const secondKey = 'brainracer.secondPlayer.v1';
+  const secondKey = SECOND_PLAYER_KEY;
   const second = record(readJson(secondKey));
   const movedSecond = !!second && second.profile === oldId;
   if (movedSecond && !writeJsonVerified(secondKey, { ...second, profile: newId })) {
@@ -214,7 +226,12 @@ export function rekeyLocalProfile(oldId: string, newId: string): boolean {
     return false;
   }
   const nextProfiles = profiles.map(p => p.id === oldId ? { ...p, id: newId } : p);
-  if (!writeJsonVerified('hub.profiles', nextProfiles)) {
+  const replacements = readShared<Record<string, string | null>>(PROFILE_REPLACEMENTS, {});
+  const nextReplacements = Object.fromEntries(Object.entries(replacements).map(([k, v]) => [k, v === oldId ? newId : v]));
+  nextReplacements[oldId] = newId;
+  const replacementsKey = `hub.${PROFILE_REPLACEMENTS}`;
+  if (!writeJsonVerified(replacementsKey, nextReplacements) || !writeJsonVerified('hub.profiles', nextProfiles)) {
+    writeJsonVerified(replacementsKey, replacements);
     if (movedSettings && settings) writeJsonVerified(SETTINGS_KEY, settings);
     if (movedSecond && second) writeJsonVerified(secondKey, second);
     return false;
@@ -222,6 +239,14 @@ export function rekeyLocalProfile(oldId: string, newId: string): boolean {
   bumpProfileSequence(oldId);
   const legacy = readShared<Record<string, string>>('legacyIds', {});
   writeShared('legacyIds', Object.fromEntries(Object.entries(legacy).map(([k, v]) => [k, v === oldId ? newId : v])));
+  const identityTime = profileIdentityTime(oldId, old);
+  if (identityTime !== undefined) rememberProfileIdentityTime(newId, old, identityTime);
+  const edits = record(readJson(PROFILE_EDIT_TIMES_KEY));
+  if (edits && Object.hasOwn(edits, oldId)) {
+    edits[newId] = edits[oldId];
+    delete edits[oldId];
+    writeJson(PROFILE_EDIT_TIMES_KEY, edits);
+  }
   // Cleanup is safe only after the new identity and settings are durable. Failed cleanup leaves
   // an orphaned duplicate entry, never a missing save.
   for (const key of copied) {
