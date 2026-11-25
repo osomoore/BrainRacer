@@ -1,3 +1,4 @@
+import '../../shared/offline';
 import { installMobileShell } from '../../shared/mobile';
 import { GAMES, gameUrl, goToGame, lastGame, type GameId } from '../../shared/hub';
 import { ensureProfiles } from '../../shared/profiles';

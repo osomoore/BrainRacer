@@ -6,7 +6,7 @@ const baseURL = `http://localhost:${port}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 120_000,
-  use: { baseURL, viewport: { width: 1600, height: 900 }, channel: 'msedge' },
+  use: { baseURL, viewport: { width: 1600, height: 900 }, channel: 'msedge', serviceWorkers: 'block' },
   webServer: {
     command: `npm run build && npm run preview -- --port ${port} --strictPort`,
     url: baseURL,

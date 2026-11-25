@@ -1,3 +1,4 @@
+import '../shared/offline';
 import Phaser from 'phaser';
 import { DINO_RIDE, GAME_HEIGHT, GAME_WIDTH, VEHICLE_CONDITION } from './config/gameConfig';
 import { dinoBoardDistance } from './entities/dinoRide';
