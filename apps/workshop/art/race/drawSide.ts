@@ -35,16 +35,32 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
   const padX = Math.max(44, JEEP_SPARE.depth + (mount?.extension ?? 0) + 4);
   const ty0 = geo.roofTop - PAD - 4, ty1 = 8;
   const w = b.len + padX * 2;
+  const radii = b.kind === 'sports'
+    ? geo.chassis.map((p) => p.y === geo.bottom ? s.r * 0.75 : s.r + 9)
+    : [s.r * 0.8, s.r, s.r, s.r * 0.8];
+  // Older painted bodies still have solid wheel wells. Use the same opening as the code-drawn body.
+  const clearWheelArches = (g: G) => {
+    g.save();
+    g.beginPath();
+    const archClip = geo.chassis.map((p) => p.y === geo.bottom ? { x: p.x, y: p.y + OL + 2 } : p);
+    roundedPolyPath(g, archClip, radii);
+    g.clip();
+    g.globalCompositeOperation = 'destination-out';
+    for (const axle of [geo.frontAxle, geo.rearAxle]) {
+      g.beginPath();
+      circle(g, axle, geo.hubY, geo.wheelRadius + 4);
+      g.fill();
+    }
+    g.restore();
+  };
   return {
     key: `ws:r:body:${ids.body}:${ids.shape}:${paintId}:${geo.wheelRadius}:${l.lift}`,
     w, h: ty1 - ty0, ox: w / 2, oy: -ty0,
+    finishPaint: clearWheelArches,
     draw: (g) => {
       const y0 = geo.roofTop, y1 = geo.bottom;
       const fill = paint.bands ? rainbowFill(paint.bands, b.len, ty0, ty1) : paintFill(g, paint, y0, y1);
       const shapes: Shape[] = [];
-      const radii = b.kind === 'sports'
-        ? geo.chassis.map((p) => p.y === geo.bottom ? s.r * 0.75 : s.r + 9)
-        : [s.r * 0.8, s.r, s.r, s.r * 0.8];
       if (mount) {
         const spare = JEEP_SPARE;
         const { x, y, extension } = mount;
@@ -90,19 +106,7 @@ export function bodySide(l: RaceLooks, geo: RaceGeom, paintId: string, ids: { bo
       const footRadius = Math.min(14, s.rc);
       shapes.push({ path: (c) => roundedPolyPath(c, geo.cabin, [footRadius, s.rc, s.rc, footRadius]), fill });
       drawShapes(g, shapes, OL);
-      // Clear the opening inside each arch so the suspension can show through the wheel.
-      g.save();
-      g.beginPath();
-      const archClip = geo.chassis.map((p) => p.y === geo.bottom ? { x: p.x, y: p.y + OL + 2 } : p);
-      roundedPolyPath(g, archClip, radii);
-      g.clip();
-      g.globalCompositeOperation = 'destination-out';
-      for (const axle of [geo.frontAxle, geo.rearAxle]) {
-        g.beginPath();
-        circle(g, axle, geo.hubY, geo.wheelRadius + 4);
-        g.fill();
-      }
-      g.restore();
+      clearWheelArches(g);
       // windows
       const curvedGlass = s.rc >= 20;
       const [rearSill, rearRoof, frontRoof, frontSill] = geo.cabin;

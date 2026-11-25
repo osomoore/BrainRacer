@@ -11,7 +11,8 @@ export interface PaintedManifest { version: 1; model?: string; entries: Record<s
 
 const BASE = 'art/workshop/';
 const images = new Map<string, HTMLImageElement>();
-const watching = new Map<string, Phaser.Textures.CanvasTexture[]>();
+type FinishPaint = (g: CanvasRenderingContext2D) => void;
+const watching = new Map<string, { tex: Phaser.Textures.CanvasTexture; finishPaint?: FinishPaint }[]>();
 let started: Promise<void> | null = null;
 let manifest: PaintedManifest | null = null;
 let finished = false;
@@ -25,25 +26,26 @@ export function paintedEnabled(): boolean {
 export function paintedManifest(): PaintedManifest | null { return manifest; }
 
 /** Replace a baked shape texture's pixels with the painted image (same size only). */
-function applyPainted(tex: Phaser.Textures.CanvasTexture, img: HTMLImageElement): boolean {
+function applyPainted(tex: Phaser.Textures.CanvasTexture, img: HTMLImageElement, finishPaint?: FinishPaint): boolean {
   const c = tex.getSourceImage() as HTMLCanvasElement;
   if (img.naturalWidth !== c.width || img.naturalHeight !== c.height) return false;
   const g = tex.getContext();
   g.clearRect(0, 0, c.width, c.height);
   g.drawImage(img, 0, 0);
+  finishPaint?.(g);
   tex.refresh();
   return true;
 }
 
 /** Paint a baked texture by its registered key. Return false when the baker should draw the fallback now. */
-export function paintTexture(tex: Phaser.Textures.CanvasTexture): boolean {
+export function paintTexture(tex: Phaser.Textures.CanvasTexture, finishPaint?: FinishPaint): boolean {
   if (!paintedEnabled()) return false;
   const key = tex.key;
   const im = images.get(key);
-  if (im) return applyPainted(tex, im);
+  if (im) return applyPainted(tex, im, finishPaint);
   if (finished || (manifest && !Object.hasOwn(manifest.entries, key))) return false;
   const list = watching.get(key) ?? [];
-  list.push(tex);
+  list.push({ tex, finishPaint });
   watching.set(key, list);
   void startPaintedArt();
   return false;
@@ -73,7 +75,9 @@ export function startPaintedArt(): Promise<void> {
         const im = await loadImage(`${BASE}${e.file}`);
         if (!im) return;
         images.set(key, im);
-        for (const tex of watching.get(key) ?? []) { try { applyPainted(tex, im); } catch { /* texture gone */ } }
+        for (const { tex, finishPaint } of watching.get(key) ?? []) {
+          try { applyPainted(tex, im, finishPaint); } catch { /* texture gone */ }
+        }
         watching.delete(key);
       }));
     } catch { /* offline or no art: code shapes */ }

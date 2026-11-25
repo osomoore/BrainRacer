@@ -21,13 +21,22 @@ export interface PartSpec {
   ox: number;
   oy: number;
   draw: (g: CanvasRenderingContext2D) => void;
+  /** Apply any required cutouts to a painted replacement in design coordinates. */
+  finishPaint?: (g: CanvasRenderingContext2D) => void;
 }
 
 export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   if (scene.textures.exists(spec.key)) return;
   const tex = scene.textures.createCanvas(spec.key, Math.ceil(spec.w * Q), Math.ceil(spec.h * Q));
   if (!tex) return;
-  if (paintTexture(tex)) return;
+  const { finishPaint } = spec;
+  if (paintTexture(tex, finishPaint && ((g) => {
+    g.save();
+    g.scale(Q, Q);
+    g.translate(spec.ox, spec.oy);
+    finishPaint(g);
+    g.restore();
+  }))) return;
   const g = tex.getContext();
   g.save();
   g.scale(Q, Q);

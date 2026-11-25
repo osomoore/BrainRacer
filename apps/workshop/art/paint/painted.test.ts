@@ -6,6 +6,7 @@ import { allArtJobs } from './jobs';
 
 const DINO = 'ws:dino-run:far:hills';
 const RACE = 'wsr:t:cone';
+const BODY = 'ws:r:body:body.car:shape.boxy:paint.yellow:38:16';
 
 function fakeScene() {
   const textures = new Map<string, ReturnType<typeof makeTexture>>();
@@ -46,8 +47,8 @@ afterEach(() => vi.unstubAllGlobals());
 it.each(['paint first', 'shape first', 'forced shapes', 'wrong-sized paint'])('uses both scenery job keys with %s', async (order) => {
   vi.resetModules();
   vi.stubGlobal('location', { search: order === 'forced shapes' ? '?art=shapes' : '' });
-  const entries = Object.fromEntries(allArtJobs().filter((j) => j.key === DINO || j.key === RACE)
-    .map(({ key, w, h, specHash }) => [key, { file: key === DINO ? 'dino.png' : 'race.png', w, h, specHash }]));
+  const entries = Object.fromEntries(allArtJobs().filter((j) => [DINO, RACE, BODY].includes(j.key))
+    .map(({ key, file, w, h, specHash }) => [key, { file: file + '.png', w, h, specHash }]));
   const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ version: 1, entries }) }));
   vi.stubGlobal('fetch', fetch);
   class FakeImage {
@@ -63,12 +64,17 @@ it.each(['paint first', 'shape first', 'forced shapes', 'wrong-sized paint'])('u
   }
   vi.stubGlobal('Image', FakeImage);
   const { startPaintedArt } = await import('./painted');
+  const { ensureTexture } = await import('../bake');
   const { prop: raceProp } = await import('../../run/common/draw');
   const { image: dinoImage } = await import('../../run/dino/kit/paint');
   await import('../../run/dino/kit/art');
   const { scene, textures } = fakeScene();
 
   if (order === 'paint first') await startPaintedArt();
+  const finishPaint = vi.fn();
+  const draw = vi.fn();
+  const body = entries[BODY];
+  ensureTexture(scene, { key: BODY, w: body.w / Q, h: body.h / Q, ox: 10, oy: 20, draw, finishPaint });
   const dino = dinoImage(scene, 'far:hills', 12, 560, 0.75);
   const race = raceProp(scene, null, T.cone(), 200, 300, 0.9);
   const sprites = [
@@ -79,6 +85,16 @@ it.each(['paint first', 'shape first', 'forced shapes', 'wrong-sized paint'])('u
     expect(textures.get(key)!.getContext().drawImage).toHaveBeenCalledTimes(order === 'paint first' ? 1 : 0);
   }
   await startPaintedArt();
+
+  const bodyContext = textures.get(BODY)!.getContext();
+  expect(draw).toHaveBeenCalledTimes(order === 'paint first' ? 0 : 1);
+  if (order === 'paint first' || order === 'shape first') {
+    expect(finishPaint).toHaveBeenCalledExactlyOnceWith(bodyContext);
+    expect(bodyContext.drawImage.mock.invocationCallOrder[0]).toBeLessThan(finishPaint.mock.invocationCallOrder[0]);
+    expect(bodyContext.translate).toHaveBeenCalledWith(10, 20);
+  } else {
+    expect(finishPaint).not.toHaveBeenCalled();
+  }
 
   for (const [im, key, x, y, ox, oy, scale] of sprites) {
     const tex = textures.get(key)!;
