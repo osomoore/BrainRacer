@@ -263,3 +263,7 @@ The review kept these cases on their existing rules.
   challenge; the last-win rule; determinism; admin sandbox never mutates the real save.
 - e2e: `tests/e2e/workshop*.spec.ts`. Hooks: `window.__ws` (pane contexts, engine) for tests.
 - Dev-server ports per package: shell 5191, audio 5192 (render 5193), art 5194, screens 5195, runs 5196/5197.
+
+## Easy uses four aspects (WS_EASY_ASPECTS)
+
+On the Easy reading level each workshop shows only the aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`): race = wheels, engine, paint, size; dino = color, teeth, body, size. The other aspects stay pinned to their first starter for judging, rendering and runs; their bought parts stay owned and return on Medium/Hard. `WorkshopProgress.easy` marks a progress dealt for Easy; changing to or from Easy re-deals the open cards (`progressOf` / `normalizeSave`). Pure helpers live in `logic/aspects.ts`. Facets that cannot be solved inside the four aspects are never dealt on Easy (the board only offers cards the solver can meet with the shown aspects).

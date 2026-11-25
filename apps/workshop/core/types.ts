@@ -336,6 +336,8 @@ export interface WorkshopProgress {
   failHints?: Record<ChallengeId, FailNote[]>;
   /** CHALLENGE_RULES_VERSION the open cards were dealt under; a mismatch on load re-deals them. */
   rulesVersion?: number;
+  /** True when the progress is dealt for the Easy reading level: the workshop is trimmed to WS_EASY_ASPECTS. Absent = every aspect. */
+  easy?: true;
 }
 
 export interface PlayerSave {

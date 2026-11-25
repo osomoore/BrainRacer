@@ -9,6 +9,7 @@ import { playWorkshopSfx } from '../audio';
 import { WS_BUDDIES, WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
+import { visibleAspectIds } from '../logic/aspects';
 import { Button } from '../ui/Button';
 import { Confirm } from '../ui/Confirm';
 import { FocusGroup } from '../ui/FocusGroup';
@@ -59,7 +60,7 @@ const roomScreen: ScreenFactory = (): Screen => {
       ctx.audio.music(ws === 'race' ? 'raceShop' : 'dinoLab');
       const progress = currentProgress(ctx, ws);
       const cat = engine.catalog(ws);
-      const L = roomLayout(ctx.layout, cat.aspects.map((a) => a.id));
+      const L = roomLayout(ctx.layout, visibleAspectIds(cat, progress));
       bakeBuddyTextures(scene);
 
       const bg = roomBackdrop(scene, ws, ctx.layout, L.floorY);

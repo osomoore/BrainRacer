@@ -1,4 +1,4 @@
-import type { Challenge, ReadingLevel, RunResult, VariantId, WorkshopCatalog } from '../core/types';
+import type { AspectId, Challenge, ReadingLevel, RunResult, VariantId, WorkshopCatalog } from '../core/types';
 import { Rng } from '../core/rng';
 import { index } from './catalogIndex';
 import { PHRASE_WORD_LIMIT, wordCount } from './wording';
@@ -15,7 +15,8 @@ export function namedReason(cat: WorkshopCatalog, parts: readonly VariantId[], e
 }
 
 /** Pick up to two reasons for a win. Prefer higher difficulty, breaking ties in challenge order. */
-export function successReasons(cat: WorkshopCatalog, challenge: Challenge, result: RunResult, reading: ReadingLevel): string[] {
+export function successReasons(cat: WorkshopCatalog, challenge: Challenge, result: RunResult, reading: ReadingLevel,
+  visible?: ReadonlySet<AspectId>): string[] {
   if (!result.passed) return [];
   const rng = new Rng(challenge.seed ^ 0x673cb9a1);
   const byId = new Map(result.requirements.map((req) => [req.id, req]));
@@ -23,7 +24,9 @@ export function successReasons(cat: WorkshopCatalog, challenge: Challenge, resul
     const passed = byId.get(req.id);
     const phrases = cat.successPhrases?.[req.facet];
     if (!passed?.passed || !passed.reached || !phrases) return [];
-    const parts = passed.route === 'named' ? passed.parts : undefined;
+    const named = passed.route === 'named' ? passed.parts : undefined;
+    // Easy never names a part from a hidden aspect: such a win is praised by its quality line instead.
+    const parts = named && (!visible || named.every((id) => visible.has(index(cat).variantById.get(id)?.aspect ?? ''))) ? named : undefined;
     const bank = parts?.length ? phrases.named : phrases.qualityByLevel?.[req.level] ?? phrases.quality;
     const choices = bank[reading];
     if (!choices?.length) return [];

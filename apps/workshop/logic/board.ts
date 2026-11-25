@@ -4,6 +4,7 @@ import type { PurchaseOutcome, WinOutcome } from '../core/engineApi';
 import type {
   Challenge, ChallengeId, FailNote, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
+import { easyFlag, isHiddenAspect, visibleAspectIds } from './aspects';
 import { availableFor, sanitizeModel } from './available';
 import { affordability, BOARD_CATEGORIES, boardCategory, type BoardCategory } from './affordability';
 import { challengeKey, generateChallenge } from './generator';
@@ -16,8 +17,9 @@ import { advanceBuddies, normalizeBuddies, startingBuddy } from './buddies';
 import { evaluate } from './evaluate';
 
 /** A fresh workshop; `buddySeed` (the profile's seed) picks the starting buddy. */
-export function newProgress(cat: WorkshopCatalog, buddySeed?: number): WorkshopProgress {
+export function newProgress(cat: WorkshopCatalog, buddySeed?: number, reading?: ReadingLevel): WorkshopProgress {
   return {
+    ...easyFlag(reading),
     model: defaultModel(cat), wallet: WS_RULES.startWallet, bought: [], overrides: {}, challenges: {}, active: [], completed: {}, fails: {}, failHints: {},
     lastWin: null, nextStarter: 0, firstWins: 0, genSeq: 1, rulesVersion: CHALLENGE_RULES_VERSION,
     buddies: normalizeBuddies(undefined, buddySeed === undefined ? undefined : startingBuddy(buddySeed)),
@@ -108,7 +110,8 @@ export function refreshBoard(cat: WorkshopCatalog, p0: WorkshopProgress): Worksh
 function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudget, usedKeys: Set<string>): void {
   const current = computeModel(cat, p.model);
   const last = p.lastWin && computeModel(cat, p.lastWin);
-  const starters = currencyStarters(cat);
+  const starters = currencyStarters(cat, p.easy);
+  const shown = new Set(visibleAspectIds(cat, p));
   const occupied = new Set(p.active.map((id) => categoryOf(p.challenges[id], budget, p.wallet)));
   const exhausted = new Set<BoardCategory>();
 
@@ -145,9 +148,9 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
     let challenge = onlyCurrent ? undefined : (generateChallenge(cat, id, 'generated', seed, opts)
       ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true }))?.challenge;
     if (!challenge && category === 'ready') {
-      challenge = practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys)
+      challenge = practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, false, shown)
         ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true, strictCurrent: false })?.challenge
-        ?? practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, true)
+        ?? practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, true, shown)
         ?? undefined;
     }
     if (challenge) p.genSeq++;
@@ -218,7 +221,7 @@ export function recordWin(cat: WorkshopCatalog, p: WorkshopProgress, challengeId
 }
 
 export function regenerate(cat: WorkshopCatalog, p: WorkshopProgress): WorkshopProgress {
-  return refreshBoard(cat, { ...p, active: [], nextStarter: currencyStarters(cat).length });
+  return refreshBoard(cat, { ...p, active: [], nextStarter: currencyStarters(cat, p.easy).length });
 }
 
 export function setOverride(cat: WorkshopCatalog, p: WorkshopProgress, variant: VariantId, value: VariantOverride | 'auto'): WorkshopProgress {
@@ -242,5 +245,7 @@ export function hint(p: WorkshopProgress, challenge: Challenge, result: RunResul
   const stage = result.stages[result.endStage];
   const failId = stage?.firstFail ?? result.requirements.find((r) => !r.passed)?.id;
   const req = challenge.stages.flatMap((s) => s.requirements).find((r) => r.id === failId);
+  // A hint that points at a station Easy has hidden would name a part the kid cannot reach.
+  if (req && isHiddenAspect(challenge.workshop, p, req.hint.aspect)) return null;
   return req?.hint.text[reading] ?? null;
 }

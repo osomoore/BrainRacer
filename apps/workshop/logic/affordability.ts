@@ -7,7 +7,7 @@ export const BOARD_CATEGORIES = ['ready', 'affordable', 'future'] as const;
 export type BoardCategory = typeof BOARD_CATEGORIES[number];
 
 /** Find the cheapest complete build across all options, including zero-cost owned solutions. */
-export function affordability(cat: WorkshopCatalog, progress: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides'>) {
+export function affordability(cat: WorkshopCatalog, progress: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides' | 'easy'>) {
   const owned = available(cat, progress);
   const routes = purchaseRoutes(cat, progress);
   const prices = new Map([...routes].map(([id, route]) => [id, route.cost]));
@@ -33,6 +33,6 @@ export function boardCategory(cost: number, wallet: number): BoardCategory {
   return cost <= wallet ? 'affordable' : 'future';
 }
 
-export function solveAffordable(cat: WorkshopCatalog, checks: readonly Check[], progress: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides'>) {
+export function solveAffordable(cat: WorkshopCatalog, checks: readonly Check[], progress: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides' | 'easy'>) {
   return affordability(cat, progress).solve(checks);
 }

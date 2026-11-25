@@ -10,7 +10,7 @@ describe('roomLayout', () => {
   for (const kind of kinds) for (const [name, aspects] of [['race', RACE_ASPECTS], ['dino', DINO_ASPECTS]] as const) {
     const ids = aspects.map((a) => a.id);
     const L = roomLayout(kind, ids);
-    it(`${kind}/${name}: eleven stations, all inside the pane and tappable`, () => {
+    it(`${kind}/${name}: ten stations, all inside the pane and tappable`, () => {
       expect(L.stations).toHaveLength(10);
       for (const s of [...L.stations, L.buddyStation]) {
         expect(s.x - s.w / 2).toBeGreaterThanOrEqual(0);
@@ -31,6 +31,21 @@ describe('roomLayout', () => {
       const wallet = { ...WS_WALLET[kind], w: 192, h: 92 };
       expect(rectsOverlap(wallet, L.buddyBar)).toBe(false);
       expect(rectsOverlap(wallet, L.buddyStation)).toBe(false);
+    });
+  }
+
+  for (const kind of kinds) {
+    it(`${kind}: the four Easy stations fit, never overlap anything, and stay tappable`, () => {
+      const L = roomLayout(kind, ['a', 'b', 'c', 'd']);
+      expect(L.stations).toHaveLength(4);
+      const rects = [...L.stations, L.buddyStation, L.buddyBar, L.board];
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) expect(rectsOverlap(rects[i], rects[j])).toBe(false);
+      for (const s of L.stations) {
+        expect(s.x - s.w / 2).toBeGreaterThanOrEqual(0);
+        expect(s.x + s.w / 2).toBeLessThanOrEqual(L.size.w);
+        expect(s.y + s.h / 2).toBeLessThanOrEqual(L.floorY);
+        expect(Math.min(s.w, s.h)).toBeGreaterThanOrEqual(WS_UI.tapMin);
+      }
     });
   }
 

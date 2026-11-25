@@ -9,6 +9,7 @@ import { playWorkshopSfx } from '../audio';
 import { WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
+import { visibleAspectIds } from '../logic/aspects';
 import { priceOf } from '../logic/shop';
 import { showBanner } from '../ui/Banner';
 import { Button } from '../ui/Button';
@@ -51,11 +52,12 @@ const stationScreen: ScreenFactory = (): Screen => {
       ctx = c;
       const scene = ctx.scene;
       const ws = ctx.workshop ?? 'race';
-      const aspect = data.aspect ?? engine.catalog(ws).aspects[0].id;
-      const springsCloseup = ws === 'race' && aspect === 'springs';
       const cat = engine.catalog(ws);
-      const aspectDef = cat.aspects.find((a) => a.id === aspect) ?? cat.aspects[0];
       let progress = currentProgress(ctx, ws);
+      const shown = visibleAspectIds(cat, progress);
+      const aspect = data.aspect && shown.includes(data.aspect) ? data.aspect : shown[0];
+      const springsCloseup = ws === 'race' && aspect === 'springs';
+      const aspectDef = cat.aspects.find((a) => a.id === aspect) ?? cat.aspects[0];
       let owned = engine.availableFor(ws, progress, aspect);
       let offers = ctx.adminMode ? [] : engine.shopOffers(ws, progress, aspect);
       let options = [...owned, ...offers.map((offer) => offer.variant)];
@@ -63,7 +65,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const nameOf = (id: string) => cat.variants.find((v) => v.id === id)?.name ?? id;
       let index = Math.max(0, options.indexOf(installed));
       const L = stationLayout(ctx.layout);
-      const RL = roomLayout(ctx.layout, cat.aspects.map((a) => a.id));
+      const RL = roomLayout(ctx.layout, shown);
       ctx.audio.music(ws === 'race' ? 'raceShop' : 'dinoLab');
 
       // ---- world: room backdrop + model, zoomed like a camera

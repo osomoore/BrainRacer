@@ -8,6 +8,7 @@ import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runti
 import type { Challenge, WorkshopProgress } from '../core/types';
 import { ensureCurrencyIcon } from '../art/icons';
 import { engine } from '../logic';
+import { visibleAspects } from '../logic/aspects';
 import { failLines } from '../logic/failHints';
 import { newAdminChallenges } from '../shell/adminMode';
 import { Button } from '../ui/Button';
@@ -106,7 +107,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     destroyPartPreview();
     if (!rig) return;
     const cat = engine.catalog(ws());
-    partPreview = new PartPreview(ctx.scene, rig, cat.aspects, {
+    partPreview = new PartPreview(ctx.scene, rig, visibleAspects(cat, progress), {
       layout: L.partPreview, model: progress.model, variants: cat.variants,
       onTap: (kind) => { if (!partMode) enterPartMode(group.focused, false); if (kind === 'arrow') ctx.audio.sfx('select'); },
     });

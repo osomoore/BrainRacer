@@ -23,6 +23,7 @@ import { fitResults } from './results/layout';
 import { getOutcome } from './run/outcome';
 import { CATALOGS } from '../content';
 import { cleverWinMessage } from '../logic/text';
+import { visibleAspectIds } from '../logic/aspects';
 import { successReasons } from '../logic/successReasons';
 import { failLines, failNotes } from '../logic/failHints';
 
@@ -105,7 +106,7 @@ const resultsScreen: ScreenFactory = (): Screen => {
       });
 
       const catalog = CATALOGS[ws];
-      const reasons = successReasons(catalog, challenge, result, reading);
+      const reasons = successReasons(catalog, challenge, result, reading, new Set(visibleAspectIds(catalog, progress)));
       // A failed run says what was needed, naming a part (the same lines the card remembers until a win).
       const fails = result.passed ? [] : failLines(catalog, challenge, failNotes(catalog, progress, challenge, result), reading);
       const message = result.cleverWin ? cleverWinMessage(catalog, reading, challenge.seed)

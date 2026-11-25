@@ -76,7 +76,7 @@ describe('hint memory', () => {
       expect(blocks.filter((b) => b.kind === 'hint').map((b) => b.text)).toEqual(lines);
     }
     // The same notes come back from the save.
-    const saved = eng.normalizeSave(JSON.parse(JSON.stringify({ ...eng.newPlayerSave('easy'), workshops: { race: p } })))!;
+    const saved = eng.normalizeSave(JSON.parse(JSON.stringify({ ...eng.newPlayerSave('medium'), workshops: { race: p } })))!;
     expect(saved.workshops.race!.failHints?.[id]).toEqual(notes);
     // A win clears them.
     const won = eng.recordWin('race', p, id, winning(p, c), 1).progress;
