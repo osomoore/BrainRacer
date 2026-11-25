@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { STAGE, WS_ADMIN } from '../../apps/workshop/config';
 import { seedProfiles } from './profiles';
 
 /** Adventure Workshop shell: join, panes, profile creation, mobile taps, admin. Hooks: window.__ws. */
@@ -151,6 +152,37 @@ test('keyboard 2P: both layouts join, panes split and work independently', async
   await screens(page).toBe('profile,reading');
   const locked = await page.evaluate(() => (window as any).__ws.contexts()[0].otherProfileId());
   expect(locked).toBe('p2');
+});
+
+test('desktop join gear opens grown-up settings through the multiplication gate', async ({ page }) => {
+  await page.setViewportSize({ width: STAGE.w, height: STAGE.h });
+  await boot(page, '/workshop.html?mobile=0');
+  const canvas = await page.locator('canvas').boundingBox();
+  if (!canvas) throw new Error('Workshop canvas missing');
+  const click = (x: number, y: number) => page.mouse.click(
+    canvas.x + x * canvas.width / STAGE.w, canvas.y + y * canvas.height / STAGE.h,
+  );
+  await click(STAGE.w - WS_ADMIN.gearHit / 2, WS_ADMIN.gearHit / 2);
+  await expect.poll(async () => (await ws(page)).adminOpen).toBe(true);
+  await expect.poll(() => page.evaluate(() => {
+    const { gear, zone } = (window as any).__ws.game.scene.getScene('overlay');
+    return gear.visible || zone.input.enabled;
+  })).toBe(false);
+
+  const question = await page.waitForFunction(() => {
+    const admin = (window as any).__ws.game.scene.getScene('admin');
+    for (const child of admin.children.list) {
+      const factors = /^(\d+) x (\d+) = \?$/.exec(child.text ?? '');
+      if (factors) return Number(factors[1]) * Number(factors[2]);
+    }
+  });
+  const keypad = ['7', '8', '9', '4', '5', '6', '1', '2', '3', 'DEL', '0', 'OK'];
+  for (const label of [...String(await question.jsonValue()), 'OK']) {
+    const i = keypad.indexOf(label);
+    await click(STAGE.w / 2 + (i % 3 - 1) * 134, 500 + Math.floor(i / 3) * 134);
+  }
+  await page.waitForFunction(() => (window as any).__ws.game.scene.getScene('admin').children.list
+    .some((child: any) => child.text === 'Grown-up settings'));
 });
 
 test('mobile: tap to play gives one pane; gear opens the grown-up gate', async ({ browser }, testInfo) => {

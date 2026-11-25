@@ -103,7 +103,7 @@ export const WS_UI = {
 
 // ---------------------------------------------------------------- admin (apps/workshop/shell/admin)
 export const WS_ADMIN = {
-  /** Mobile gear gate: a x b with both factors in [min, max]. */
+  /** Admin gear gate: a x b with both factors in [min, max]. */
   gateMin: 6,
   gateMax: 9,
   gateMaxDigits: 3,
@@ -111,7 +111,7 @@ export const WS_ADMIN = {
   font: 40,
   rowH: 84,
   visibleRows: 9,
-  /** Mobile gear icon: faint visible size and the larger invisible tap area (px). */
+  /** Admin gear icon: faint visible size and the larger invisible pointer hit area (px). */
   gearSize: 56,
   gearHit: 150,
   gearAlpha: 0.35,

@@ -13,7 +13,7 @@ the decisions made on top of it and how the code is split.
   (letter grid + reading level) → Race Shop / Dino Lab → workshop room (character walks to 10 stations) → station
   (camera zooms to the part, live preview) → board (read-only part labels + 3 challenges at the reading level; 10 in
   Admin Mode) → test run (15 Race Shop and 15 Dino Lab scenes, pass + funny fail per requirement) → results (✓/✗ per
-  requirement, unlocks, hint after 3 fails). Admin: F9 / LT+RT+Start / mobile gear + multiplication gate.
+  requirement, unlocks, hint after 3 fails). Admin: F9 / LT+RT+Start / gear on every device + multiplication gate.
 - **Art**: code-drawn first pass (Codex polished the dinos once). Final art comes from the ComfyUI pipeline
   (`docs/WORKSHOP_ART_PIPELINE.md`); shape fixes are queued for Codex (`docs/CODEX_JOBS.md`); scenery still to paint is
   in `docs/WORKSHOP_PAINT_BACKLOG.md`; new part ideas in `docs/WORKSHOP_FUTURE_VARIANTS.md`.
@@ -53,7 +53,7 @@ the decisions made on top of it and how the code is split.
   board to a station.
 - **Kid content rule (workshop exception to CLAUDE.md rule 11):** dinos may cartoon-eat other animals (gulp whole,
   belly bulge, burp, "nom" puff). No blood, no dismemberment, nothing scary. A T-Rex must be buildable late.
-- **Admin:** LT+RT+Start/Menu on a pad, F9 on a keyboard, gear icon + multiplication question on mobile.
+- **Admin:** LT+RT+Start/Menu on a pad, F9 on a keyboard, click or tap the gear on any device from the join screen or the 1P profile screen, then answer the multiplication question.
   - Per player: reading level; each variant Auto / Open / Locked; Regenerate challenges; reset workshop progress.
   - **Admin Mode** (one switch for the whole device): every part open, 10 sandbox challenges across all tiers with a
     **New Challenges** button, the player's model copied into a sandbox. Nothing is saved: no unlocks, wins, fails,

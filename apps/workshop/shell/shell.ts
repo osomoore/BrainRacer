@@ -31,7 +31,7 @@ export interface Shell {
   setAdminMode(on: boolean): void;
   startPanes(devices: readonly DeviceId[]): void;
   toTitle(fromBoot?: boolean): void;
-  /** Opens the grown-up admin (gate = ask the multiplication question first: mobile gear). */
+  /** Opens the grown-up admin (gate = ask the multiplication question first: gear). */
   openAdmin(gate: boolean): void;
   closeAdmin(): void;
 }
