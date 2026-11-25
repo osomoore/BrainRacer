@@ -1,5 +1,4 @@
 /** Choose a shared profile, then ask for a reading level on its first Workshop visit. */
-import { buildLabel } from '../../../src/buildInfo';
 import { listProfiles, type PlayerProfile } from '../../../shared/profiles';
 import { drawJoinPanelFrame } from '../../../shared/ui/menu/JoinPanel';
 import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
@@ -71,9 +70,7 @@ const profileScreen: ScreenFactory = (): Screen => {
       drawJoinPanelFrame(frame, wide ? w - 220 : w - 76, 630, color, true, false);
       objs.push(menuBackground(ctx.scene, w, h), frame,
         bigText(ctx.scene, w / 2, 113, 'WHO IS PLAYING?', wide ? 96 : 74, MENU.yellow, { font: FONT_HEAD }),
-        bigText(ctx.scene, w / 2, 265, `PLAYER ${ctx.index + 1}`, 48, `#${color.toString(16)}`, { font: FONT_HEAD }),
-        // Build stamp so a parent can tell when an update has landed (same label as Brain Racer's title).
-        bigText(ctx.scene, w - 24, h - 16, buildLabel(), 30, '#ffffff', { origin: [1, 1], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85));
+        bigText(ctx.scene, w / 2, 265, `PLAYER ${ctx.index + 1}`, 48, `#${color.toString(16)}`, { font: FONT_HEAD }));
       group = new FocusGroup({
         audio: ctx.audio, touch: ctx.input.touch,
         onEdge: (dir) => { if (dir === 'left') pager.go(-1); else if (dir === 'right') pager.go(1); },

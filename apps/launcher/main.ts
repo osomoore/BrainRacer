@@ -1,4 +1,5 @@
 import '../../shared/offline';
+import { buildLabel } from '../../src/buildInfo';
 import { installMobileShell } from '../../shared/mobile';
 import { GAMES, gameUrl, goToGame, lastGame, type GameId } from '../../shared/hub';
 import { ensureProfiles } from '../../shared/profiles';
@@ -67,6 +68,8 @@ h1{margin:0;position:absolute;top:70px;width:100%;text-align:center;font:900 140
 .prompt{position:absolute;top:935px;width:700px;text-align:center;font:bold 64px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:24px}
 .badge{display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;background:#2ecc40;
   border:5px solid #fff;font:900 56px "Arial Black",Arial,sans-serif;color:#fff}
+.build-stamp{position:absolute;right:24px;bottom:16px;font-size:32px;color:#fff;opacity:.85;
+  -webkit-text-stroke:6px #14213d;paint-order:stroke fill}
 `;
 
 function start(): void {
@@ -95,6 +98,10 @@ function start(): void {
   prompt.className = 'prompt';
   prompt.innerHTML = '<span class="badge">A</span><span>Play</span>';
   stage.appendChild(prompt);
+  const stamp = document.createElement('div');
+  stamp.className = 'build-stamp';
+  stamp.textContent = buildLabel();
+  stage.appendChild(stamp);
 
   const last = lastGame() ?? 'racer';
   sel = Math.max(0, GAMES.findIndex((g) => g.id === last));

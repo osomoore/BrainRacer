@@ -5,6 +5,7 @@ import type { DeviceId } from '../../../shared/input/deviceInput';
 import { ConfirmPrompt, FaceButtonBadge } from '../../../shared/ui/menu/FaceButtonBadge';
 import { JoinCard } from '../../../shared/ui/menu/JoinCard';
 import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
+import { buildLabel } from '../../../src/buildInfo';
 import { STAGE, WS_UI } from '../config';
 import { carIconTexture, dinoIconTexture } from '../ui/icons';
 import { ProfileMenuButton } from '../ui/ProfileMenuButton';
@@ -33,6 +34,7 @@ export class TitleScene extends Phaser.Scene {
     this.buildBetaNotice();
     if (shell.mobile) this.buildMobile();
     else this.buildJoin();
+    bigText(this, STAGE.w - 24, STAGE.h - 16, buildLabel(), 32, '#ffffff', { origin: [1, 1], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
 
