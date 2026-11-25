@@ -1,5 +1,5 @@
 /**
- * Grown-up admin (full stage, text >= 36 px). Opened by the pad chord / F9 (straight in) or the mobile gear
+ * Grown-up admin (full stage, text >= 36 px). Opened by the pad chord / F9 (straight in) or the gear
  * (multiplication gate first). Pauses the panes while open; they refresh when it closes.
  */
 import Phaser from 'phaser';

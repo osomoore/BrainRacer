@@ -1,4 +1,4 @@
-/** Always-on top layer: the 2P divider, the Admin Mode pill and (mobile) the faint admin gear. */
+/** Always-on top layer: the 2P divider, the Admin Mode pill and the faint admin gear. */
 import Phaser from 'phaser';
 import { STAGE, WS_ADMIN, WS_UI } from '../config';
 import { COLORS, makeText, roundedOriginY, roundedTexture } from '../ui/style';
@@ -49,14 +49,12 @@ export class OverlayScene extends Phaser.Scene {
       t,
     ]).setSize(w, h).setVisible(false);
 
-    if (shell.mobile) {
-      const sz = WS_ADMIN.gearSize;
-      const x = STAGE.w - WS_ADMIN.gearHit / 2, y = WS_ADMIN.gearHit / 2;
-      this.gear = this.add.image(x, y, gearTexture(this)).setDisplaySize(sz, sz).setAlpha(WS_ADMIN.gearAlpha).setVisible(false);
-      this.zone = this.add.zone(x, y, WS_ADMIN.gearHit, WS_ADMIN.gearHit).setInteractive();
-      this.zone.on('pointerdown', () => { if (this.gear?.visible) shell.openAdmin(true); });
-      this.zone.input!.enabled = false;
-    }
+    const sz = WS_ADMIN.gearSize;
+    const x = STAGE.w - WS_ADMIN.gearHit / 2, y = WS_ADMIN.gearHit / 2;
+    this.gear = this.add.image(x, y, gearTexture(this)).setDisplaySize(sz, sz).setAlpha(WS_ADMIN.gearAlpha).setVisible(false);
+    this.zone = this.add.zone(x, y, WS_ADMIN.gearHit, WS_ADMIN.gearHit).setInteractive({ useHandCursor: true });
+    this.zone.on('pointerdown', () => { if (this.gear?.visible) shell.openAdmin(true); });
+    this.zone.input!.enabled = false;
   }
 
   override update(): void {
