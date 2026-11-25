@@ -117,8 +117,12 @@ export const WS_ADMIN = {
   gearAlpha: 0.35,
 } as const;
 
-/** Wallet badge centre in pane coordinates; the same on every screen that shows it, per layout. */
-export const WS_WALLET = { wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 } } as const;
+/** Wallet badge centres in pane coordinates; touchRoom/touchBoard leave the shared touch Back target clear. */
+export const WS_WALLET = {
+  wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 },
+  /** Touch-only placements leave the shared top-left Back target clear. */
+  touchRoom: { x: 385, y: 80 }, touchBoard: { x: 126, y: 185 },
+} as const;
 
 export const WS_BUDDIES = {
   winsPerUnlock: 10,

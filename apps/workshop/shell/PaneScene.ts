@@ -179,7 +179,11 @@ export class PaneScene extends Phaser.Scene {
     const ws = this.workshopId;
     if (!ws) return;
     if (!['room', 'station', 'buddyStation', 'board', 'run', 'results'].includes(id)) return;
-    const at = WS_WALLET[this.ctx.layout === 'wide' ? 'wide' : 'tall'];
+    const at = this.ctx.input.touch && id === 'room'
+      ? WS_WALLET.touchRoom
+      : this.ctx.input.touch && id === 'board'
+        ? WS_WALLET.touchBoard
+        : WS_WALLET[this.ctx.layout === 'wide' ? 'wide' : 'tall'];
     this.wallet = currencyBadge(this, ws, at.x, at.y, '');
     this.wallet.root.setDepth(10_001);
     this.updateWallet();

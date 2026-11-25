@@ -64,6 +64,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const installed = progress.model[aspect];
       const nameOf = (id: string) => cat.variants.find((v) => v.id === id)?.name ?? id;
       let index = Math.max(0, options.indexOf(installed));
+      let lastTouchTap: number | undefined;
       const L = stationLayout(ctx.layout);
       const RL = roomLayout(ctx.layout, shown);
       ctx.audio.music(ws === 'race' ? 'raceShop' : 'dinoLab');
@@ -165,6 +166,15 @@ const stationScreen: ScreenFactory = (): Screen => {
         const b = new Button(scene, { x: 0, y: L.strip.y, w: L.strip.swatch, h: L.strip.swatch, color: offer ? (offer.affordable ? 0xffe4b8 : 0xe3dce5) : cardColor(i + 2), onClick: () => {
           if (busy) return;
           if (popup) return;
+          if (ctx.input.touch) {
+            if (lastTouchTap !== i) {
+              if (i !== index) select(i);
+              lastTouchTap = i;
+              return;
+            }
+            apply('equip', true);
+            return;
+          }
           if (i !== index) select(i);
           if (i === index || i >= owned.length) apply();
         } });
@@ -200,7 +210,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const left = arrow(L.strip.arrowL, '<', -1);
       const right = arrow(L.strip.arrowR, '>', 1);
 
-      const use = new Button(scene, { x: L.use.x, y: L.use.y, w: L.use.w, h: L.use.h, label: 'Use it!', fontSize: 64, color: COLORS.green, textColor: COLORS.paper, badge: promptLabel(ctx.input, 'confirm'), onClick: () => apply() });
+      const use = new Button(scene, { x: L.use.x, y: L.use.y, w: L.use.w, h: L.use.h, label: 'Use it!', fontSize: 64, color: COLORS.green, textColor: COLORS.paper, badge: promptLabel(ctx.input, 'confirm'), onClick: () => apply('equip', ctx.input.touch) });
       const back = new Button(scene, { x: L.back.x, y: L.back.y, w: L.back.w, h: L.back.h, label: 'Back', fontSize: 52, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick: () => leave() });
       use.setDepth(16); back.setDepth(16);
       objs.push(use, back);
@@ -234,17 +244,15 @@ const stationScreen: ScreenFactory = (): Screen => {
         scrollTo(!firstRefresh);
         firstRefresh = false;
         swatches.forEach((b, i) => {
-          b.setFocused(i === index && !ctx.input.touch);
+          b.setFocused(i === index);
           b.setEnabled(true);
         });
-        // mark the selection on touch as well: a ring-less highlight via scale
-        swatches.forEach((b, i) => { if (ctx.input.touch) b.setScale(i === index ? 1.08 : 1); });
         left.setEnabled(index > 0).setVisible(options.length > 1);
         right.setEnabled(index < options.length - 1).setVisible(options.length > 1);
         const v = options[index];
         const offer = offers[index - owned.length];
-        use.setLabel(offer ? `Buy for ${priceOf(cat, v)}` : 'Use it!');
-        status.setText('');
+        use.setLabel(ctx.input.touch ? (offer ? `Buy ${priceOf(cat, v)}` : 'OK') : (offer ? `Buy for ${priceOf(cat, v)}` : 'Use it!'));
+        status.setText(ctx.input.touch ? (offer ? `Price: ${priceOf(cat, v)} ${currency}` : 'Owned') : '');
         nameText.setText(nameOf(v) + (v === installed ? '  ✓' : ''));
         nameText.setFontSize(L.name.size);
         fitText(nameText, L.name.maxW);
@@ -266,6 +274,7 @@ const stationScreen: ScreenFactory = (): Screen => {
       const select = (i: number) => {
         const n = clampIndex(i, options.length);
         if (n === index) return;
+        lastTouchTap = undefined;
         index = n;
         ctx.audio.sfx('click');
         refresh();
@@ -278,7 +287,7 @@ const stationScreen: ScreenFactory = (): Screen => {
         if (viaBack) guardBackAfterPreview(ctx, scene.time.now);
         timer = scene.time.delayedCall(zoomOut(), () => ctx.go('room', { from: aspect }));
       };
-      const apply = (cue: 'equip' | 'buy' = 'equip') => {
+      const apply = (cue: 'equip' | 'buy' = 'equip', touchConfirm = false) => {
         if (busy) return;
         const variant = options[index];
         if (index >= owned.length) {
@@ -295,6 +304,8 @@ const stationScreen: ScreenFactory = (): Screen => {
           if (!offer.affordable) {
             playWorkshopSfx(ctx.audio, 'notEnough');
             open(`You have ${currentProgress(ctx, ws).wallet} ${currency}. You need ${priceOf(cat, variant)}.`, true, () => {});
+          } else if (touchConfirm) {
+            buy(variant);
           } else {
             ctx.audio.sfx('select');
             open(`Pay ${priceOf(cat, variant)} ${currency}?`, false, () => buy(variant));

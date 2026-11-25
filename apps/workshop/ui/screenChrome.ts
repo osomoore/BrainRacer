@@ -26,5 +26,10 @@ export function addBackButton(ctx: PaneContext, onClick: () => void, x = 175, y 
   return new Button(ctx.scene, { x, y, w: 220, h: WS_UI.tapMin, label, fontSize: 48, color: 0xffb3b3, badge: promptLabel(ctx.input, 'back'), onClick });
 }
 
+/** Shared touch-only corner control for leaving the active shop/board. */
+export function addTouchBackButton(scene: Phaser.Scene, onClick: () => void): Button {
+  return new Button(scene, { x: 145, y: 72, w: 230, h: 120, label: 'Back', fontSize: 48, color: 0xffb3b3, onClick }).setDepth(20);
+}
+
 const PASTELS = [0xffe08a, 0xa8e6a1, 0x9bd7ff, 0xffb3c7, 0xd5b8ff, 0xffc58a];
 export function cardColor(i: number): number { return PASTELS[i % PASTELS.length]; }
