@@ -46,6 +46,11 @@ export class AdminSandboxes {
 
   clear(): void { this.map.clear(); }
 
+  /** Drops cached practice state for one profile after a delete or merge. */
+  removeProfile(profileId: string): void {
+    for (const key of this.map.keys()) if (key.startsWith(`${profileId}:`)) this.map.delete(key);
+  }
+
   get size(): number { return this.map.size; }
 }
 

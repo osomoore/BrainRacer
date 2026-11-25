@@ -17,6 +17,7 @@ import { bigText, carName, FONT_HEAD, guideName, hexNum, MENU } from '../ui/menu
 import { isMobile } from '../../shared/device';
 import { REG, SCENE } from './keys';
 import { familySync } from '../../shared/sync/runtime';
+import { subscribeProfileReplacements } from '../../shared/sync/changes';
 import { syncDotColor } from '../../shared/sync/panel';
 
 /** Stand-in id for "New Profile": matches no shared profile, so no saved progress: only the starter cars/guides and City. */
@@ -105,6 +106,20 @@ export class SetupScene extends Phaser.Scene {
     const color = syncDotColor();
     const dot = color === null ? undefined : this.add.circle(GAME_WIDTH - 122, 40, 11, color).setStrokeStyle(2, 0xffffff);
     const unsubscribeSync = familySync.subscribe(() => { if (dot) dot.setFillStyle(syncDotColor()!); });
+    const unsubscribeReplacements = subscribeProfileReplacements((sourceId, targetId) => {
+      const latest = loadSettings();
+      this.cfg.racerProfiles = racerProfiles(latest);
+      this.cfg.players = this.cfg.players.map((player, slot): SetupPlayer => {
+        if (player.profile === undefined || (player.profile !== sourceId && player.profile !== targetId)) return player as SetupPlayer;
+        this.isNew[slot] = !targetId;
+        this.slots = setReady(this.slots, slot, false);
+        const updated = applyRacerProfile({ ...player, profile: targetId }, slot, this.cfg);
+        const loadout = targetId ? loadoutForProfile(targetId) : undefined;
+        return { ...updated, ...loadout, profile: targetId };
+      });
+      this.refreshAvailability();
+      this.refreshAll();
+    });
     const unsubscribeProfiles = familySync.subscribeProfiles((id) => {
       const latest = loadSettings();
       this.cfg.racerProfiles = racerProfiles(latest);
@@ -121,6 +136,7 @@ export class SetupScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.RESUME, this.refreshAdvanced, this);
       unsubscribeSync();
+      unsubscribeReplacements();
       unsubscribeProfiles();
     });
   }

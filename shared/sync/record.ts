@@ -7,7 +7,7 @@ import { parseRacerSnapshot, type ProfileSnapshot } from './storage';
 export interface ProfileRecord extends ProfileSnapshot { schema: 1; updatedAt: number }
 export interface Revision { id: string; rev: number; value: ProfileValue }
 export type ProfileValue =
-  | { deleted: true; updatedAt: number }
+  | { deleted: true; updatedAt: number; mergedInto?: string }
   | { deleted: false; data: ProfileRecord };
 
 export const timeOf = (value: ProfileValue): number => value.deleted ? value.updatedAt : value.data.updatedAt;
@@ -78,7 +78,9 @@ export function readRevision(value: unknown): Revision | undefined {
   const deletedAt = object(data) && data.schema === 1 && data.deleted === true && stamp(data.updatedAt)
     ? data.updatedAt : undefined;
   if (value.deleted === true || (value.deleted === undefined && deletedAt !== undefined)) {
-    return { id, rev, value: { deleted: true, updatedAt: deletedAt ?? value.updatedAt } };
+    const mergedInto = deletedAt !== undefined && object(data) && profileId(data.mergedInto) && data.mergedInto !== id
+      ? data.mergedInto : undefined;
+    return { id, rev, value: { deleted: true, updatedAt: deletedAt ?? value.updatedAt, mergedInto } };
   }
   if (!object(data) || data.schema !== 1 || !stamp(data.updatedAt) || !object(data.profile)
     || data.profile.id !== id || !stamp(data.profile.createdAt) || !workshopSave(data.workshop)) return undefined;
@@ -177,4 +179,4 @@ function textHash(text: string): string {
 }
 
 export const valueHash = (value: ProfileValue): string =>
-  value.deleted ? 'deleted' : snapshotHash(value.data);
+  value.deleted ? (value.mergedInto ? `merged:${value.mergedInto}` : 'deleted') : snapshotHash(value.data);

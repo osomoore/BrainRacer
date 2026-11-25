@@ -8,10 +8,10 @@ import { audioDiagnostics } from '../audio';
 import { BUILD_ID } from '../buildInfo';
 import { collectibleName, WORLD_REWARDS, worldRewards } from '../config/collectibles';
 import { developerModeSettings, MAP_LABEL, RACE_MAPS } from '../core/progression';
-import { deleteRacerProgress, earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
-import { deleteRacer, racerIds, racerName, racerProfiles, renameRacer, validRacerName, withRacerProfile } from '../core/racerProfiles';
+import { earned, loadRacerProgress, setRacerOverride, type Content } from '../core/racerProgress';
+import { racerIds, racerName, racerProfiles, validRacerName, withRacerProfile } from '../core/racerProfiles';
 import { services } from '../core/services';
-import { isRaceMap, loadSettings, saveSettings } from '../core/settings';
+import { isRaceMap, loadSettings, loadoutForProfile, saveSettings } from '../core/settings';
 import type { QuestionType, RaceMap, RacerProfile, RacerProfileId, Settings } from '../core/types';
 import { faceButton, xboxFaceLetter } from '../input/buttonPrompts';
 import { LetterPicker } from '../ui/menu/LetterPicker';
@@ -22,6 +22,9 @@ import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/st
 import { REG, SCENE } from './keys';
 import { consumeFamilyJoinCode, openFamilySyncPanel } from '../../shared/sync/panel';
 import { familySync } from '../../shared/sync/runtime';
+import { openProfilesPanel } from '../../shared/profilesPanel';
+import { renameManagedProfile, replaceProfileSlot } from '../../shared/profileManager';
+import { subscribeProfileReplacements } from '../../shared/sync/changes';
 
 /**
  * Hidden advanced settings. Open with LT+RT+Start on a gamepad or F9 on a keyboard.
@@ -137,7 +140,21 @@ export class ConfigScene extends Phaser.Scene {
     };
     window.addEventListener('keydown', onKey);
     this.events.once('shutdown', () => window.removeEventListener('keydown', onKey));
-    this.input.keyboard?.on('keydown-F9', () => this.toggle());
+    const unsubscribeReplacements = subscribeProfileReplacements((sourceId, targetId) => {
+      const latest = loadSettings();
+      const current = this.settings();
+      const loadout = targetId ? loadoutForProfile(targetId) : undefined;
+      const players = current.players.map(slot => {
+        if (targetId && slot.profile === targetId) return replaceProfileSlot(slot, targetId, targetId, loadout) as Settings['players'][number];
+        return replaceProfileSlot(slot, sourceId, targetId, loadout) as Settings['players'][number];
+      });
+      this.registry.set(REG.settings, { ...current, players, racerProfiles: latest.racerProfiles });
+    });
+    this.events.once('shutdown', unsubscribeReplacements);
+    this.input.keyboard?.on('keydown-F9', () => {
+      const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
+      if (!panels.__familySyncDialogOpen && !panels.__profilesPanelOpen) this.toggle();
+    });
     // Mobile setup gear (after its math gate) asks for the menu through a game-level event, so no contract change is needed.
     const onAdminOpen = (): void => { if (!this.isOpen) this.toggle(); };
     this.game.events.on('admin:open', onAdminOpen);
@@ -226,12 +243,14 @@ export class ConfigScene extends Phaser.Scene {
       this.adminCursor = this.cursor;
       this.showContent();
     });
-    action(1, rowY(8), 'Racer Profiles', () => {
+    const profiles = action(1, rowY(8), 'Profiles', () => { openProfilesPanel(); });
+    profiles.setSize(profiles.w, profiles.h).setInteractive().on('pointerdown', () => openProfilesPanel());
+    action(1, rowY(9), 'Racer Profiles', () => {
       this.adminCursor = this.cursor;
       this.showProfiles();
     });
     if (familySync.enabled) {
-      const sync = action(1, rowY(9), 'Family sync', () => { openFamilySyncPanel(); });
+      const sync = action(1, rowY(10), 'Family sync', () => { openFamilySyncPanel(); });
       sync.setSize(sync.w, sync.h).setInteractive().on('pointerdown', () => openFamilySyncPanel());
     }
     const close = action(1, 987, 'Close', () => this.close());
@@ -397,20 +416,9 @@ export class ConfigScene extends Phaser.Scene {
 
   private openDelete(id: RacerProfileId): void {
     this.closeModal();
-    const color = hexNum(PLAYER_COLORS[0]);
-    const c = this.add.container(0, 0).setDepth(DEPTH + 1);
-    c.add(this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0b1329));
-    c.add(bigText(this, GAME_WIDTH / 2, 330, `Delete ${racerName(this.settings(), id).toUpperCase()}?`, 72, MENU.yellow, { font: FONT_HEAD }));
-    c.add(bigText(this, GAME_WIDTH / 2, 430, 'Their unlocks are lost, and the name is removed from every game.', 52, MENU.white));
-    const yes = new MenuButton(this, GAME_WIDTH / 2, 600, 600, 80, 'Yes, delete', color, 52, false);
-    const no = new MenuButton(this, GAME_WIDTH / 2, 710, 600, 80, 'No', color, 52, false);
-    c.add([yes, no]);
-    const rows: Row[] = [
-      { selectable: yes, activate: () => this.deleteRacerNow(id) },
-      { selectable: no, activate: () => this.closeModal() },
-    ];
-    this.modal = { container: c, rows, cursor: 1, id };
-    this.refreshModal();
+    openProfilesPanel({ profileId: id, initialAction: 'delete', onClose: () => {
+      if (this.subPanel) this.showProfiles(this.profilePage, 0);
+    } });
   }
 
   private refreshModal(): void {
@@ -423,15 +431,6 @@ export class ConfigScene extends Phaser.Scene {
   private closeModal(): void {
     this.modal?.container.destroy();
     this.modal = undefined;
-  }
-
-  private deleteRacerNow(id: RacerProfileId): void {
-    const s = this.settings();
-    const players = s.players.map(p => (p.profile === id ? { ...p, profile: undefined } : p)) as Settings['players'];
-    this.patchSettings({ ...deleteRacer(s, id), players });
-    deleteRacerProgress(id);
-    this.closeModal();
-    this.showProfiles(this.profilePage, 0);
   }
 
   /** Returns true while a modal (rename picker / delete confirm) swallows input. */
@@ -448,7 +447,7 @@ export class ConfigScene extends Phaser.Scene {
         if (!name) m.msg?.setText('Use letters only.');
         else if (taken) { m.msg?.setText(`${name.toUpperCase()} is already taken.`); services.audio.sfx('menuMove'); }
         else {
-          renameRacer(m.id, name);
+          renameManagedProfile(m.id, name);
           this.closeModal();
           this.showProfiles(this.profilePage, this.cursor);
         }
@@ -632,7 +631,8 @@ export class ConfigScene extends Phaser.Scene {
 
   // ───────────────────────── frame ─────────────────────────
   update(time: number): void {
-    if ((window as Window & { __familySyncDialogOpen?: boolean }).__familySyncDialogOpen) return;
+    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
     this.frame++;
     if (this.isOpen) {
       services.input.poll();

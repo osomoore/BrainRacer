@@ -70,6 +70,15 @@ export function savedSecondPlayer(): PlayerSettings | undefined {
 }
 
 export function saveSettings(s: Settings): void {
+  const changed = new Set<string>();
+  let previous: Partial<Settings> | null = null;
+  try {
+    const raw = globalThis.localStorage?.getItem(KEY);
+    previous = raw ? JSON.parse(raw) as Partial<Settings> : null;
+  } catch { /* A normal save can restore unreadable settings. */ }
+  for (const [id, profile] of Object.entries(s.racerProfiles ?? {})) {
+    if (JSON.stringify(previous?.racerProfiles?.[id]) !== JSON.stringify(profile)) changed.add(id);
+  }
   try {
     globalThis.localStorage?.setItem(KEY, JSON.stringify(s));
     if (s.players[1]) globalThis.localStorage?.setItem(SECOND_PLAYER_KEY, JSON.stringify(s.players[1]));
@@ -79,10 +88,11 @@ export function saveSettings(s: Settings): void {
     const loadouts = raw ? JSON.parse(raw) as Record<string, unknown> : {};
     for (const p of s.players ?? []) if (p.profile) {
       const { car, guide, devCar, devGuide } = p;
-      loadouts[p.profile] = { car, guide, devCar, devGuide };
+      const loadout = { car, guide, devCar, devGuide };
+      if (JSON.stringify(loadouts[p.profile]) !== JSON.stringify(loadout)) changed.add(p.profile);
+      loadouts[p.profile] = loadout;
     }
     globalThis.localStorage?.setItem(LOADOUTS_KEY, JSON.stringify(loadouts));
   } catch { /* ignore */ }
-  const ids = new Set([...(s.players ?? []).map(p => p.profile), ...Object.keys(s.racerProfiles ?? {})]);
-  for (const id of ids) if (id) notifyProfileChanged(id);
+  changed.forEach(notifyProfileChanged);
 }

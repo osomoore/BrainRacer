@@ -1,8 +1,9 @@
-import { listenForProfileChanges } from './changes';
+import { retireLocalProfile } from '../profileManager';
+import { listenForProfileChanges, profileEditTime, publishProfileReplacement, rememberProfileEditTime } from './changes';
 import { FamilySyncClient } from './client';
 import { FakeFamilyServer } from './fake';
 import { FamilyApi } from './protocol';
-import { applyLocalProfile, hideLocalProfile, listLocalProfileIds, readLocalProfile, rekeyLocalProfile } from './storage';
+import { applyLocalProfile, listLocalProfileIds, readLocalProfile, rekeyLocalProfile } from './storage';
 
 const SYNC_KEY = 'hub.familySync.v1';
 const FAKE_KEY = 'hub.familySyncFake.v1';
@@ -30,8 +31,15 @@ function api(): FamilyApi | undefined {
 
 const online = () => navigator.onLine !== false;
 const client = new FamilySyncClient(api(), {
-  ids: listLocalProfileIds, read: readLocalProfile, apply: applyLocalProfile,
-  hide: hideLocalProfile, rekey: rekeyLocalProfile,
+  ids: listLocalProfileIds, read: readLocalProfile, apply: applyLocalProfile, editTime: profileEditTime,
+  hide: (id, mergedInto) => {
+    if (retireLocalProfile(id, mergedInto)) publishProfileReplacement(id, mergedInto);
+  },
+  rekey: (oldId, newId) => {
+    if (!rekeyLocalProfile(oldId, newId)) return false;
+    publishProfileReplacement(oldId, newId);
+    return true;
+  },
 }, enabled ? storage() : undefined, devFake ? FAKE_KEY : SYNC_KEY, online);
 const deviceKey = devFake ? FAKE_KEY : SYNC_KEY;
 
@@ -57,13 +65,17 @@ export const familySync = {
       const enrolled = !!client.state.code;
       if (enrolled === watching) return;
       watching = enrolled;
-      listenForProfileChanges(enrolled ? (id, deleted) => {
-        client.noteChange(id, deleted);
+      listenForProfileChanges(enrolled ? (id, deleted, mergedInto) => {
+        client.noteChange(id, deleted, mergedInto);
         clearTimeout(debounce);
         debounce = setTimeout(() => { if (online()) void client.flush(); }, 3000);
-      } : undefined);
+      } : undefined, enrolled ? id => client.editTime(id) : undefined);
     };
     client.subscribe(watch);
+    client.subscribeProfiles(id => {
+      const updatedAt = client.editTime(id);
+      if (updatedAt !== undefined && readLocalProfile(id)) rememberProfileEditTime(id, updatedAt);
+    });
     watch();
     addEventListener('online', () => { client.refreshView(); void client.syncNow(); });
     addEventListener('offline', () => client.refreshView());

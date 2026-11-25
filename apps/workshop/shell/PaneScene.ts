@@ -134,10 +134,24 @@ export class PaneScene extends Phaser.Scene {
 
   /** Re-creates the current screen (after the admin closed: saves / Admin Mode may have changed). */
   refresh(): void {
+    if (this.pending) return;
     if (this.exited && this.current.id === '__waiting') return;
     this.pending = { id: this.current.id, data: this.current.data, push: false };
     this.ctx.input.poll();
     this.ctx.input.text();
+  }
+
+  /** Called when an admin deletes or merges this pane's active profile. */
+  replaceProfile(sourceId: string, targetId?: string, duplicateTarget = false): void {
+    if (this.profileId !== sourceId) return;
+    const replacement = targetId && !duplicateTarget ? targetId : undefined;
+    this.profileId = replacement;
+    this.workshopId = undefined;
+    this.buddyUnlocks.clear();
+    this.history = [];
+    this.exited = false;
+    const next = replacement ? (shell.store.hasPlayer(replacement) ? 'pickWorkshop' : 'reading') : 'profile';
+    this.pending = { id: next, data: {}, push: false };
   }
 
   private mount(id: string, data: ScreenData): void {

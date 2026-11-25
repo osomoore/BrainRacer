@@ -1,4 +1,5 @@
 import { notifyProfileChanged } from '../../shared/sync/changes';
+import { resolveProfileId } from '../../shared/profiles';
 
 /**
  * Per-racer JBQ progress: how many times each question was answered correctly.
@@ -48,12 +49,14 @@ export class JbqProgressStore {
 
   /** Correct-answer count for one question (0 if unknown). Racers without a profile id are in-memory only. */
   count(profile: string | undefined, id: number): number {
+    profile = resolveProfileId(profile);
     if (profile === undefined) return this.anon[id] ?? 0;
     return this.load()[profile]?.[id] ?? 0;
   }
 
   /** Counts one more correct answer and saves. */
   recordCorrect(profile: string | undefined, id: number): void {
+    profile = resolveProfileId(profile);
     if (profile === undefined) { this.anon = bumpCount(this.anon, id); return; }
     const all = this.load();
     const next: JbqProgressAll = { ...all, [profile]: bumpCount(all[profile] ?? {}, id) };

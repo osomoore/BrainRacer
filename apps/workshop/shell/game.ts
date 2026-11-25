@@ -17,6 +17,7 @@ import { screenIds } from './screenRegistry';
 import { shell } from './shell';
 import { SaveStore } from './store';
 import { TitleScene } from './TitleScene';
+import { subscribeProfileReplacements } from '../../../shared/sync/changes';
 
 const MAIN_SCENES = ['title', 'pane0', 'pane1'] as const;
 
@@ -31,6 +32,7 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
   });
 
   const store = new SaveStore();
+  const sandboxes = new AdminSandboxes();
   const router = new InputRouter();
   // The real audio needs the files BootScene preloads, so it is built after the preload (`shell.initAudio`);
   // until then (and if loading fails) this forwarder is silent.
@@ -46,7 +48,7 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
 
   Object.assign(shell, {
     game, store, router, baseAudio, panes,
-    sandboxes: new AdminSandboxes(),
+    sandboxes,
     mixer: new AudioMixer(baseAudio),
     initAudio() {
       if (realAudio) return;
@@ -104,7 +106,23 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
       if (shell.count > 0) panes.slice(0, shell.count).forEach((p) => p.refresh());
     },
   });
-  router.onAdmin = () => { if (shell.adminOpen) shell.closeAdmin(); else shell.openAdmin(false); };
+  router.onAdmin = () => {
+    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
+    if (shell.adminOpen) shell.closeAdmin();
+    else shell.openAdmin(false);
+  };
+
+  const unsubscribeProfileReplacements = subscribeProfileReplacements((sourceId, targetId) => {
+    sandboxes.removeProfile(sourceId);
+    const sourcePanes = panes.filter((pane) => pane.profileId === sourceId);
+    for (const pane of sourcePanes) {
+      const duplicateTarget = targetId !== undefined && panes.some((other) => other !== pane && other.profileId === targetId);
+      pane.replaceProfile(sourceId, targetId, duplicateTarget);
+    }
+    panes.slice(0, shell.count).forEach((pane) => pane.refresh());
+  });
+  game.events.once(Phaser.Core.Events.DESTROY, unsubscribeProfileReplacements);
 
   // Mobile / browser audio unlock on the first gesture (Phaser also unlocks its own context on touch).
   const unlock = () => {

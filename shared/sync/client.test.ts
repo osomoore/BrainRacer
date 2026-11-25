@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { engine } from '../../apps/workshop/logic';
+import { combineProfileRecords } from '../profileManager';
 import { FamilySyncClient, type LocalProfiles } from './client';
 import { normalizeFamilyCode } from './code';
 import { FakeFamilyServer } from './fake';
@@ -22,11 +23,11 @@ function device(send: Fetch, clock: number, initial?: ProfileSnapshot) {
   const values = new Map<string, string>();
   const storage = { getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => { values.set(key, value); } };
-  const transport: { offline: boolean; requests: Request[] } = { offline: false, requests: [] };
+  const transport: { offline: boolean; requests: Request[]; redirected: [string, string][] } = { offline: false, requests: [], redirected: [] };
   const local: LocalProfiles = {
     ids: () => [...saves.keys()], read: id => saves.get(id),
     apply: ({ profile, racer, workshop }) => { saves.set(profile.id, structuredClone({ profile, racer, workshop })); },
-    hide: id => { saves.delete(id); },
+    hide: (id, target) => { saves.delete(id); if (target) transport.redirected.push([id, target]); },
     rekey: (id, next) => {
       const save = saves.get(id)!;
       saves.delete(id);
@@ -119,6 +120,65 @@ describe('family sync', () => {
     expect(race.buddies.unlocked).toContain('star');
     expect(Object.keys(race.completed)).toHaveLength(2);
     expect(a.client.state.pending).toBe(0);
+  });
+
+  it('uploads the combined target before tombstoning the source and sends the replacement to another device', async () => {
+    const server = new FakeFamilyServer();
+    let rejectTarget = false;
+    const send: Fetch = (input, init) => rejectTarget && init?.method === 'PUT' && String(input).endsWith(`/${ID}`)
+      ? Promise.resolve(new Response('', { status: 413 })) : server.fetch(input, init);
+    const source = baseProfile();
+    source.profile = { id: 'source', name: 'June', createdAt: 20 };
+    source.racer = { jbq: { 1: 4 } };
+    const target = baseProfile();
+    const a = device(send, 200, source);
+    a.saves.set(ID, target);
+    expect(await a.client.makeFamily()).toBe(true);
+    const b = device(server.fetch, 300);
+    expect(await b.client.joinFamily(a.client.state.code!)).toBe(true);
+
+    const withMetadata = (snapshot: ProfileSnapshot) => ({ ...snapshot, schema: 1 as const, updatedAt: snapshot.profile.createdAt });
+    const { profile, racer, workshop } = combineProfileRecords(withMetadata(source), withMetadata(target));
+    a.saves.set(ID, { profile, racer, workshop });
+    a.saves.delete('source');
+    a.client.noteChange(ID);
+    a.client.noteChange('source', true, ID);
+    a.transport.requests.length = 0;
+    rejectTarget = true;
+    expect(await a.client.flush()).toBe(false);
+    expect(a.transport.requests.filter(req => req.method === 'PUT').map(req => req.url.split('/').at(-1))).toEqual([ID]);
+    await b.client.syncNow();
+    expect(b.saves.has('source')).toBe(true);
+
+    rejectTarget = false;
+    a.transport.requests.length = 0;
+    expect(await a.createClient().flush()).toBe(true);
+    expect(a.transport.requests.filter(req => req.method === 'PUT').map(req => req.url.split('/').at(-1))).toEqual([ID, 'source']);
+    expect(await b.client.syncNow()).toBe(true);
+    expect(b.saves.has('source')).toBe(false);
+    expect(b.saves.get(ID)?.racer.jbq).toEqual({ 1: 4 });
+    expect(b.transport.redirected).toEqual([['source', ID]]);
+  });
+
+  it('keeps a duplicate visible when its unsynced local edit has not reached the combined save', async () => {
+    const server = new FakeFamilyServer();
+    const source = baseProfile();
+    source.profile = { id: 'source', name: 'June', createdAt: 20 };
+    const a = device(server.fetch, 300, source);
+    a.saves.set(ID, baseProfile());
+    await a.client.makeFamily();
+    const b = device(server.fetch, 100);
+    await b.client.joinFamily(a.client.state.code!);
+
+    b.saves.get('source')!.racer.jbq = { 8: 3 };
+    b.client.noteChange('source');
+    a.saves.delete('source');
+    a.client.noteChange('source', true, ID);
+    expect(await a.client.flush()).toBe(true);
+    expect(await b.client.syncNow()).toBe(true);
+    expect(b.saves.get('source')?.racer.jbq).toEqual({ 8: 3 });
+    expect(await a.client.syncNow()).toBe(true);
+    expect(a.saves.get('source')?.racer.jbq).toEqual({ 8: 3 });
   });
 
   it.each(['PUT', 'DELETE'])('reconciles stale edits against a tombstone from %s on a 409', async (method) => {

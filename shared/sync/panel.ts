@@ -6,6 +6,21 @@ import { encodeQr, qrPixelScale } from './qr';
 type DialogWindow = Window & { __familySyncDialogOpen?: boolean };
 const qrCache = new Map<string, { url: string; canvas?: HTMLCanvasElement }>();
 
+/** Shared grown-up panel shell and button treatment for DOM admin panels. */
+export function createAdminPanelRoot(label: string, dataKey: 'familySyncPanel' | 'profilesPanel'): HTMLDivElement {
+  const root = document.createElement('div');
+  root.dataset[dataKey] = 'true';
+  root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', label); root.setAttribute('aria-modal', 'true');
+  Object.assign(root.style, { position: 'fixed', inset: '0', zIndex: '2147483000', background: '#101d3b', color: '#fff',
+    font: 'bold 40px Arial, sans-serif', overflow: 'auto', padding: '20px', boxSizing: 'border-box', textAlign: 'center' });
+  return root;
+}
+
+export function styleAdminPanelButton(button: HTMLButtonElement, fontSize = 40): void {
+  Object.assign(button.style, { minHeight: '72px', minWidth: '130px', padding: '8px 20px', margin: '7px', border: '4px solid #fff',
+    borderRadius: '14px', background: '#ffd43b', color: '#14213d', font: `bold ${fontSize}px Arial`, cursor: 'pointer', maxWidth: 'calc(100vw - 56px)', whiteSpace: 'normal' });
+}
+
 export function syncDotColor(): number | null {
   if (!familySync.enabled) return null;
   const status = familySync.state.status;
@@ -30,13 +45,7 @@ function siteRoot(): string {
 export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () => void } = {}): () => void {
   if (!familySync.enabled) return () => {};
   const input = createMenuInput();
-  const root = document.createElement('div');
-  root.dataset.familySyncPanel = 'true';
-  root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', 'Family sync');
-  root.setAttribute('aria-modal', 'true');
-  Object.assign(root.style, { position: 'fixed', inset: '0', zIndex: '2147483000', background: '#101d3b', color: '#fff',
-    font: 'bold 40px Arial, sans-serif', overflow: 'auto', padding: '20px', boxSizing: 'border-box', textAlign: 'center' });
+  const root = createAdminPanelRoot('Family sync', 'familySyncPanel');
   const inner = document.createElement('div');
   Object.assign(inner.style, { maxWidth: '1200px', margin: '0 auto' });
   root.append(inner); document.body.append(root);
@@ -91,8 +100,7 @@ export function openFamilySyncPanel(options: { joinCode?: string; onClose?: () =
   };
   const addButton = (label: string, run: () => void, aria = label): void => {
     const b = document.createElement('button'); b.textContent = label; b.setAttribute('aria-label', aria);
-    Object.assign(b.style, { minHeight: '72px', minWidth: '130px', padding: '8px 20px', margin: '7px', border: '4px solid #fff',
-      borderRadius: '14px', background: '#ffd43b', color: '#14213d', font: 'bold 40px Arial', cursor: 'pointer', maxWidth: 'calc(100vw - 56px)', whiteSpace: 'normal' });
+    styleAdminPanelButton(b);
     const index = controls.length;
     b.onclick = () => { focus = index; setFocus(); if (!busy && !familySync.state.busy) run(); };
     controls.push(b); actions.push(run); inner.append(b);

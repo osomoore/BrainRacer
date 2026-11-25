@@ -70,6 +70,19 @@ Device-local state is never in it. Version it (`schema`) so later builds can upg
 - `?join=<code>` on any entry page: confirm with a parent-style prompt in the admin menu, then join and pull.
 - Sync is off and hidden when the build has no `VITE_SYNC_URL`.
 
+## Merge duplicate profiles after joining
+
+Before Family sync, two devices could create separate profiles with the same name. Joining keeps both profiles so each device’s progress is preserved. When both entries belong to the same child:
+
+1. Use **Family sync → Sync now** on each device so recent saves reach the family before you merge.
+2. Open **Profiles** in Adventure Workshop’s grown-up settings or Brain Racer’s **Admin Settings**. Compare creation dates and the progress summaries from both games.
+3. Choose **Merge** on the same-name hint to keep the oldest matching profile, or choose **Merge into…** on the profile you want to retire and pick the one to keep. Confirm the source and destination. For three or more copies, repeat for the remaining copies.
+4. Use **Sync now** on the device where you merged, then on the other devices. The combined save uploads before the old profile is removed. If an additional save for the retired profile reaches sync, it can reappear with that progress. Sync both devices and merge the remaining copy again.
+
+The chosen profile keeps its name and creation date. Parts, challenge clears and their history, buddies, worlds, and collectibles from both saves are combined. JBQ counts keep the higher count for each question. Settings, wallets and current builds use the newer saved values from the existing sync rules. Older unsynced saves with no recorded edit time use their creation date. A local storage error during a merge leaves both profiles available. When a merge changes a profile selected by two Workshop panes, one pane keeps the combined profile and the other returns to the profile picker.
+
+**Delete** also acts across both games and asks for confirmation twice. Use **Merge** when both profiles contain progress you want to keep.
+
 ## Deployment (the user does this once; Codex can't log in to Cloudflare)
 - `server/` holds the Worker (own package.json, wrangler.toml with a D1 binding, migrations, tests).
 - `server/README.md`: `npx wrangler login`, `npx wrangler d1 create brainracer-sync`, apply migrations, `npx wrangler deploy`,
@@ -89,6 +102,8 @@ Device-local state is never in it. Version it (`schema`) so later builds can upg
 | `hub.profiles` | localStorage | Shared profile identities and names | Per-profile | `profile` |
 | `hub.profileSeq` | localStorage | Monotonic legacy `p<n>` allocator | Device-local metadata | Advanced when importing or hiding `p<n>` identities |
 | `hub.legacyIds` | localStorage | Old Brain Racer racer ID → shared profile ID migration map | Device-local migration metadata | Never uploaded |
+| `hub.profileEditTimes.v1` | localStorage | Last local edit by profile when selecting merge scalars | Device-local metadata | Uses sync edit times when linked |
+| `hub.profileReplacements.v1` | localStorage | Retired profile ID → replacement ID or deletion, used by screens with a cached selection | Device-local metadata | Merge tombstones carry the replacement ID |
 | `hub.lastGame` | localStorage | Last launcher game | Device-only preference | Never uploaded |
 | `hub.familySync.v1` | localStorage | Family code and per-profile revision/dirty/hash/device sync state | Device-local sync metadata | Never uploaded |
 | `hub.familySyncFake.v1` | localStorage | Credentials and revisions for fake sync | Development-only sync metadata | Kept separate from real family credentials |

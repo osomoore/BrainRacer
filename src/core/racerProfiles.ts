@@ -6,7 +6,7 @@
 import { NEW_RACER_DEFAULTS } from '../config/gameConfig';
 import { normalizeJbq, normalizeQuestionTypes } from '../config/questionsPolicy';
 import { bandDifficulty, bandRoundSec, type AgeBand } from './ageBands';
-import { createProfile, deleteProfile, getProfile, listProfiles, renameProfile, validProfileName } from '../../shared/profiles';
+import { createProfile, deleteProfile, getProfile, listProfiles, renameProfile, resolveProfileId, validProfileName } from '../../shared/profiles';
 import type { Difficulty, JbqSettings, PlayerSettings, QuestionTypes, RacerProfile, RacerProfileId, Settings } from './types';
 
 const DIFFS: readonly Difficulty[] = ['easy', 'easyPlus', 'normal', 'hard'];
@@ -58,7 +58,8 @@ export function racerSettingsOf(settings: Src, id: RacerProfileId | undefined): 
  * (profile 1 for slot 1, ...), else none (the player makes one in Setup; quick races run as an unnamed racer).
  */
 export function playerRacer(player: Pick<PlayerSettings, 'profile'> | undefined, slot: number, _settings?: Src): RacerProfileId | undefined {
-  const p = player?.profile;
+  const p = resolveProfileId(player?.profile);
+  if (p === undefined && player?.profile !== undefined) return undefined;
   if (isRacerProfileId(p)) return p;
   return listProfiles()[slot]?.id;
 }

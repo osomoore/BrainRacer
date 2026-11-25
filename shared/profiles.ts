@@ -17,6 +17,7 @@ export const PROFILE_NAME = { maxLen: 10, chars: /^[\p{L} ]+$/u };
 const PROFILES_KEY = 'profiles';
 const SEQ_KEY = 'profileSeq';
 const LEGACY_IDS_KEY = 'legacyIds';
+export const PROFILE_REPLACEMENTS = 'profileReplacements.v1';
 
 /** Normalized name (trimmed, single spaces, letters/spaces only, max length) or undefined if empty/invalid. */
 export function validProfileName(name: unknown): string | undefined {
@@ -38,6 +39,23 @@ export function listProfiles(): PlayerProfile[] {
 
 export function getProfile(id: string | undefined): PlayerProfile | undefined {
   return id === undefined ? undefined : listProfiles().find((p) => p.id === id);
+}
+
+/** Resolves a cached player id after a merge, including a series of merges. */
+export function resolveProfileId(id: string | undefined): string | undefined {
+  if (id === undefined) return undefined;
+  const replacements = readShared<Record<string, string | null>>(PROFILE_REPLACEMENTS, {});
+  const visited = new Set<string>();
+  let current = id;
+  while (replacements && Object.hasOwn(replacements, current)) {
+    if (getProfile(current)) return current; // A newer edit can restore a profile on sync.
+    if (visited.has(current)) return undefined;
+    visited.add(current);
+    const target = replacements[current];
+    if (typeof target !== 'string') return undefined;
+    current = target;
+  }
+  return current;
 }
 
 /** Next opaque id `p<n>`; the counter never goes back, so a deleted profile's id is never reused. */

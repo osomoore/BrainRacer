@@ -11,6 +11,7 @@ interface ProfileSync {
   updatedAt: number;
   hash: string;
   lastPushedHash?: string;
+  mergedInto?: string;
 }
 
 interface DeviceState {
@@ -24,8 +25,9 @@ type SyncStorage = Pick<Storage, 'getItem' | 'setItem'>;
 export interface LocalProfiles {
   ids(): string[];
   read(id: string): ProfileSnapshot | undefined;
+  editTime?(id: string, createdAt: number): number;
   apply(snapshot: ProfileSnapshot): void;
-  hide(id: string): void;
+  hide(id: string, mergedInto?: string): void;
   rekey(oldId: string, newId: string): boolean;
 }
 
@@ -92,6 +94,8 @@ export class FamilySyncClient {
 
   refreshView(): void { this.listeners.forEach(listener => listener()); }
 
+  editTime(id: string): number | undefined { return this.device.profiles[id]?.updatedAt; }
+
   reloadDevice(): void {
     const state = readDevice(this.storage, this.key);
     if (!this.running || this.device.code !== state.code) {
@@ -115,18 +119,17 @@ export class FamilySyncClient {
     if (prior?.hash === hash) return;
     this.device.profiles[id] = {
       ...prior, rev: prior?.rev ?? 0, dirty: true, deleted: false, hash,
-      updatedAt: edited || prior ? Math.max(this.now(), (prior?.updatedAt ?? 0) + 1) : snapshot.profile.createdAt,
+      updatedAt: edited || prior ? Math.max(this.now(), (prior?.updatedAt ?? 0) + 1)
+        : (this.local.editTime?.(id, snapshot.profile.createdAt) ?? snapshot.profile.createdAt),
     };
   }
 
-  noteChange(id: string, deleted = false): void {
+  noteChange(id: string, deleted = false, mergedInto?: string): void {
     if (!this.device.code || !profileId(id)) return;
     if (deleted) {
       const prior = this.device.profiles[id];
-      this.device.profiles[id] = {
-        ...prior, rev: prior?.rev ?? 0, dirty: true, deleted: true,
-        hash: 'deleted', updatedAt: Math.max(this.now(), (prior?.updatedAt ?? 0) + 1),
-      };
+      const tombstone = { deleted: true as const, updatedAt: Math.max(this.now(), (prior?.updatedAt ?? 0) + 1), mergedInto };
+      this.device.profiles[id] = { ...prior, ...tombstone, rev: prior?.rev ?? 0, dirty: true, hash: valueHash(tombstone) };
     } else this.observe(id, true);
     this.persist();
   }
@@ -139,7 +142,7 @@ export class FamilySyncClient {
   private value(id: string): ProfileValue | undefined {
     const meta = this.device.profiles[id];
     if (!meta) return undefined;
-    if (meta.deleted) return { deleted: true, updatedAt: meta.updatedAt };
+    if (meta.deleted) return { deleted: true, updatedAt: meta.updatedAt, mergedInto: meta.mergedInto };
     const snapshot = this.local.read(id);
     if (!snapshot) return undefined;
     const data = { ...snapshot, schema: 1 as const, updatedAt: meta.updatedAt };
@@ -167,12 +170,22 @@ export class FamilySyncClient {
       this.observe(newId, false);
       local = undefined;
     }
-    const merged = local ? mergeProfile(local, value) : value;
-    const hash = valueHash(merged);
     const remoteHash = valueHash(value);
+    // A source edited elsewhere since the last pull may contain progress the grown-up never
+    // saw. Keep that version visible so it can be reviewed and merged in a second pass.
+    const unseenRemoteSource = local?.deleted && local.mergedInto && prior?.dirty && !value.deleted
+      && rev > prior.rev && remoteHash !== prior.lastPushedHash;
+    let merged = unseenRemoteSource || !local ? value : mergeProfile(local, value);
+    if (local && !local.deleted && prior?.dirty && value.deleted && value.mergedInto) {
+      merged = { deleted: false, data: { ...local.data, updatedAt: Math.max(local.data.updatedAt, value.updatedAt + 1) } };
+    }
+    const hash = valueHash(merged);
     const changed = !local || valueHash(local) !== hash;
     if (changed) {
-      if (merged.deleted) this.local.hide(id);
+      if (merged.deleted) {
+        try { this.local.hide(id, this.resolveMergeTarget(id, merged.mergedInto)); }
+        catch { throw new ProfileError('Could not update the local profile selection. Check device storage.'); }
+      }
       else this.local.apply(merged.data);
     }
     const stored = this.local.read(id);
@@ -181,10 +194,22 @@ export class FamilySyncClient {
     }
     this.device.profiles[id] = {
       rev, hash, lastPushedHash: remoteHash, deleted: merged.deleted, updatedAt: timeOf(merged),
+      mergedInto: merged.deleted ? merged.mergedInto : undefined,
       dirty: hash !== remoteHash || timeOf(merged) !== timeOf(value),
     };
     this.persist();
     if (changed) this.profileListeners.forEach(listener => listener(id));
+  }
+
+  private resolveMergeTarget(id: string, target: string | undefined): string | undefined {
+    const visited = new Set([id]);
+    while (target && !visited.has(target)) {
+      visited.add(target);
+      const next = this.device.profiles[target]?.mergedInto;
+      if (!next) return target;
+      target = next;
+    }
+    return undefined;
   }
 
   private acceptPull(pull: { profiles: unknown[]; serverTime: number }, first?: string) {
@@ -202,8 +227,14 @@ export class FamilySyncClient {
     // GET is a family-wide endpoint. Prioritize applying the chosen profile locally.
     const chosen = rows.findIndex(row => row.id === first);
     if (chosen > 0) rows.unshift(rows.splice(chosen, 1)[0]);
-    for (const row of rows) {
+    const ordered = [...rows.filter(row => !row.value.deleted), ...rows.filter(row => row.value.deleted)];
+    for (const row of ordered) {
       if (blocked.has(row.id)) continue;
+      const target = row.value.deleted ? this.resolveMergeTarget(row.id, row.value.mergedInto) : undefined;
+      if (target && blocked.has(target)) {
+        blocked.add(row.id);
+        continue;
+      }
       try { this.accept(row); } catch (failure) {
         if (!(failure instanceof ProfileError)) throw failure;
         blocked.add(row.id);
@@ -219,7 +250,7 @@ export class FamilySyncClient {
   private body(id: string, value: ProfileValue): Record<string, unknown> {
     const baseRev = this.device.profiles[id].rev;
     return value.deleted
-      ? { baseRev, deleted: true, data: { schema: 1, deleted: true, updatedAt: value.updatedAt } }
+      ? { baseRev, deleted: true, data: { schema: 1, deleted: true, updatedAt: value.updatedAt, mergedInto: value.mergedInto } }
       : { baseRev, data: value.data };
   }
 
@@ -256,14 +287,35 @@ export class FamilySyncClient {
 
   private async push(device: DeviceState, blocked?: Set<string>): Promise<SyncError | undefined> {
     let error: SyncError | undefined;
-    for (const id of Object.keys(device.profiles)) {
-      if (blocked?.has(id)) continue;
+    const ids = Object.keys(device.profiles);
+    // Save the combined records before removing their sources. A rejected or interrupted target
+    // upload leaves its source available on the server until the target can be synced.
+    const ordered = [...ids.filter(id => !device.profiles[id].mergedInto), ...ids.filter(id => device.profiles[id].mergedInto)];
+    for (const id of ordered) {
+      if (blocked?.has(id) || !device.profiles[id].dirty) continue;
+      if (!this.mergeTargetReady(device, id, blocked)) {
+        error ??= new ProfileError('The combined profile must finish syncing before its duplicate can be removed.');
+        continue;
+      }
       try { await this.pushProfile(device, id); } catch (failure) {
         if (!(failure instanceof ProfileError || (failure instanceof SyncError && failure.status === 413))) throw failure;
         error ??= failure;
       }
     }
     return error;
+  }
+
+  private mergeTargetReady(device: DeviceState, id: string, blocked?: Set<string>): boolean {
+    const visited = new Set([id]);
+    let target = device.profiles[id].mergedInto;
+    while (target) {
+      if (visited.has(target) || blocked?.has(target)) return false;
+      visited.add(target);
+      const meta = device.profiles[target];
+      if (!meta?.mergedInto) return !!meta?.rev && !meta.dirty && !meta.deleted;
+      target = meta.mergedInto;
+    }
+    return true;
   }
 
   private perform(action: () => Promise<void>): Promise<boolean> {
@@ -322,7 +374,7 @@ export class FamilySyncClient {
     // reconciles any receipts the browser could not process before the page closed.
     this.observeAll();
     for (const [id, meta] of Object.entries(device.profiles)) {
-      if (!meta.dirty || this.sendingOnHide.has(meta)) continue;
+      if (!meta.dirty || this.sendingOnHide.has(meta) || !this.mergeTargetReady(device, id)) continue;
       let value: ProfileValue | undefined;
       try { value = this.value(id); } catch { continue; } // Leave an unreadable local save pending.
       if (!value) continue;

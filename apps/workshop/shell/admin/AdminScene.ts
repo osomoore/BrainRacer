@@ -18,6 +18,7 @@ import { shell } from '../shell';
 import { applyKey, firstRow, scrollTop, type AdminRow, type ListKey, type ListState } from './adminModel';
 import { openFamilySyncPanel } from '../../../../shared/sync/panel';
 import { familySync } from '../../../../shared/sync/runtime';
+import { openProfilesPanel } from '../../../../shared/profilesPanel';
 
 type View = { kind: 'gate' } | { kind: 'main' } | { kind: 'player'; profile: string } | { kind: 'workshop'; profile: string; ws: WorkshopId };
 
@@ -101,6 +102,7 @@ export class AdminScene extends Phaser.Scene {
       });
       rows.push({ kind: 'note', label: 'On: all parts open, 10 test challenges, nothing is saved.' });
       rows.push({ kind: 'section', label: 'Players' });
+      rows.push({ kind: 'action', label: 'Profiles', tag: '>', run: () => openProfilesPanel() });
       const profiles = listProfiles();
       if (profiles.length === 0) rows.push({ kind: 'note', label: 'No players yet.' });
       for (const p of profiles) {
@@ -325,7 +327,8 @@ export class AdminScene extends Phaser.Scene {
   }
 
   override update(): void {
-    if ((window as Window & { __familySyncDialogOpen?: boolean }).__familySyncDialogOpen) return;
+    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
     shell.router.step(this.game.getFrame());
     if (this.game.getFrame() === this.opened) return;
     const actions = shell.router.rawActions();

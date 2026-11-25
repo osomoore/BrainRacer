@@ -59,9 +59,10 @@ export class SaveStore {
 
   setPlayer(profileId: string, save: PlayerSave): void {
     const raw = this.read(PLAYERS_KEY);
-    const others = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const others = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+    const changed = JSON.stringify(others[profileId]) !== JSON.stringify(save);
     this.write(PLAYERS_KEY, { ...others, [profileId]: save });
-    notifyProfileChanged(profileId);
+    if (changed) notifyProfileChanged(profileId);
   }
 
   device(): DeviceSave {
