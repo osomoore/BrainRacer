@@ -38,13 +38,20 @@ export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLa
   if (kind === 'wide') {
     const top = 110, ys = [225, 430, 635, 840];
     const lx = 190, rx = size.w - 190;
+    if (aspects.length <= WS_ROOM.fewStations) {
+      // few stations (Easy): two on the top wall, one on each side, so the room stays balanced
+      slots.push({ x: 760, y: top }, { x: 1160, y: top }, { x: rx, y: 430 }, { x: lx, y: 430 });
+    } else {
     // clockwise from the top: two on the top wall, four down the right side, four up the left side
     slots.push({ x: 760, y: top }, { x: 1160, y: top });
     for (const y of ys) slots.push({ x: rx, y });
     for (const y of [...ys].reverse()) slots.push({ x: lx, y });
+    }
   } else {
     const lx = 125, rx = size.w - 125;
-    for (let i = 0; i < 5; i++) { const y = 100 + i * 175; slots.push({ x: lx, y }, { x: rx, y }); }
+    // few stations (Easy): two rows, spread down the sides
+    const rows = aspects.length <= WS_ROOM.fewStations ? [100, 350] : [0, 1, 2, 3, 4].map((i) => 100 + i * 175);
+    for (const y of rows) slots.push({ x: lx, y }, { x: rx, y });
   }
   const stations: StationSlot[] = aspects.map((aspect, i) => {
     const p = slots[i] ?? { x: size.w / 2, y: size.h / 2 };

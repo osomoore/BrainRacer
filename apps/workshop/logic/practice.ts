@@ -20,10 +20,10 @@ export function practiceTitle(cat: WorkshopCatalog, seed: number, partCount: num
 export function practiceChallenge(
   cat: WorkshopCatalog, id: ChallengeId, seed: number, tier: number, owned: ReadonlySet<VariantId>,
   current: Model, lastWin: Model | null, usedKeys: ReadonlySet<string>,
-  allowCurrent = false,
+  allowCurrent = false, visible?: ReadonlySet<string>,
 ): Challenge | null {
   const rng = new Rng(seed);
-  const parts = rng.shuffle(cat.variants.filter((part) => owned.has(part.id)
+  const parts = rng.shuffle(cat.variants.filter((part) => owned.has(part.id) && (!visible || visible.has(part.aspect))
     && (allowCurrent || cat.variants.some((other) => other.aspect === part.aspect && other.id !== part.id && owned.has(other.id)))));
   const intro = '';
   const make = (variants: Variant[]): Challenge => {

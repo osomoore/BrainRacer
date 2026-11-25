@@ -5,10 +5,11 @@ import type {
   WorkshopId, WorkshopProgress,
 } from '../core/types';
 import { READING_LEVELS, WORKSHOP_IDS } from '../core/types';
+import { easyFlag } from './aspects';
 import { index } from './catalogIndex';
 import { sanitizeModel } from './available';
 import { affordability } from './affordability';
-import { newProgress, refreshBoard, sortBoard } from './board';
+import { copyProgress, newProgress, refreshBoard, sortBoard } from './board';
 import { normalizeBuddies } from './buddies';
 
 type Obj = Record<string, unknown>;
@@ -53,10 +54,10 @@ function validChallenge(c: unknown, id: string, workshop: WorkshopId): c is Chal
     && (s.requirements as unknown[]).every((r) => isObj(r) && typeof r.id === 'string' && Array.isArray(r.checks) && r.checks.length > 0 && r.checks.every(validCheck) && isObj(r.text) && isObj(r.hint)));
 }
 
-export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopProgress | null {
+export function normalizeProgress(cat: WorkshopCatalog, raw: unknown, reading?: ReadingLevel): WorkshopProgress | null {
   if (!isObj(raw)) return null;
   const ix = index(cat);
-  const base = newProgress(cat);
+  const base = newProgress(cat, undefined, reading);
   const freeStarters = new Set(Object.values(base.model));
   const out: WorkshopProgress = { ...base, buddies: normalizeBuddies(raw.buddies) };
   out.model = repairModel(cat, raw.model, base.model);
@@ -121,16 +122,24 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown): WorkshopP
   }
   out.genSeq = seq;
   sortBoard(out, affordability(cat, out));
-  // Rules changed since this workshop was saved: don't migrate open cards, re-deal them.
-  if (raw.rulesVersion !== CHALLENGE_RULES_VERSION) {
-    for (const id of Object.keys(out.challenges)) if (!out.completed[id]) delete out.challenges[id];
-    out.active = [];
-    out.fails = {};
-    out.failHints = {};
-    out.rulesVersion = CHALLENGE_RULES_VERSION;
-    return refreshBoard(cat, out);
-  }
+  // Rules changed (or Easy switched on or off, which decides the aspects in play) since this workshop was saved:
+  // don't migrate open cards, re-deal them.
+  if (raw.rulesVersion !== CHALLENGE_RULES_VERSION || !!raw.easy !== (reading === 'easy')) return redeal(cat, out);
   return out;
+}
+
+/** Throw away the unfinished cards and deal a fresh board from the current rules. Wallet, bought parts and wins stay. */
+function redeal(cat: WorkshopCatalog, p: WorkshopProgress): WorkshopProgress {
+  const out = copyProgress(p);
+  for (const id of Object.keys(out.challenges)) if (!out.completed[id]) delete out.challenges[id];
+  out.active = [];
+  out.fails = {};
+  out.failHints = {};
+  out.rulesVersion = CHALLENGE_RULES_VERSION;
+  // The build and the last win keep only parts the level can use (hidden aspects fall back to their first starter).
+  out.model = sanitizeModel(cat, out, out.model);
+  if (out.lastWin) out.lastWin = sanitizeModel(cat, out, out.lastWin);
+  return refreshBoard(cat, out);
 }
 
 export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCatalog>>, raw: unknown): PlayerSave | null {
@@ -139,7 +148,7 @@ export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCata
   const save = newPlayerSave(reading, isNum(raw.buddySeed) ? raw.buddySeed : undefined);
   if (isObj(raw.workshops)) {
     for (const id of WORKSHOP_IDS) {
-      const p = normalizeProgress(catalogs[id], raw.workshops[id]);
+      const p = normalizeProgress(catalogs[id], raw.workshops[id], reading);
       if (p) save.workshops[id] = p;
     }
   }
@@ -150,5 +159,12 @@ export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCata
 }
 
 export function progressOf(cat: WorkshopCatalog, save: PlayerSave): WorkshopProgress {
-  return refreshBoard(cat, save.workshops[cat.id] ?? newProgress(cat, save.buddySeed));
+  const saved = save.workshops[cat.id];
+  if (!saved) return refreshBoard(cat, newProgress(cat, save.buddySeed, save.reading));
+  // The reading level changed since the cards were dealt: Easy and Medium/Hard use different aspects.
+  if (!!saved.easy !== (save.reading === 'easy')) {
+    const { easy: _easy, ...rest } = saved;
+    return redeal(cat, { ...rest, ...easyFlag(save.reading) });
+  }
+  return refreshBoard(cat, saved);
 }

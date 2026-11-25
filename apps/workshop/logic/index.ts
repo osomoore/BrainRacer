@@ -30,7 +30,7 @@ export function createEngine(catalogs: Readonly<Record<WorkshopId, WorkshopCatal
     purchase: (id, p, aspect, variant) => purchase(c(id), p, aspect, variant),
     evaluate: (id, model, challenge) => evaluate(c(id), model, challenge),
     hint,
-    newProgress: (id, buddySeed) => newProgress(c(id), buddySeed),
+    newProgress: (id, buddySeed, level) => newProgress(c(id), buddySeed, level),
     refreshBoard: (id, p) => refreshBoard(c(id), p),
     // The run tests the saved model, so evaluating it again tells which requirements failed.
     recordFail: (id, p, challengeId) => {

@@ -172,7 +172,7 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(easy).toContain('Test it!');
   expect(easy).not.toContain('Wheels: Road Tires'); // no part is highlighted until the vehicle is entered
 
-  // switch the reading level: the text changes, nothing else
+  // switch the reading level: leaving Easy changes the aspects in play, so the open cards are re-dealt at the new level
   await page.evaluate(() => {
     const w = (window as any).__ws;
     const save = w.store.player('p1');
@@ -180,14 +180,20 @@ test('board: three challenge cards at the player reading level, Test it! opens t
     w.contexts()[0].go('board');
   });
   await page.waitForTimeout(500);
+  // read the live save (the stored copy is written later)
+  const dealt = await page.evaluate(() => {
+    const p = (window as any).__ws.contexts()[0].save().workshops.race;
+    return (p.active as string[]).map((c) => p.challenges[c]) as typeof ch;
+  });
+  expect(dealt).toHaveLength(3);
   const hard = await paneTexts(page);
-  expect(hard).toContain(ch[0].stages[0].requirements[0].text.hard);
-  expect(hard).not.toContain(ch[0].stages[0].requirements[0].text.easy);
+  expect(hard).toContain(dealt[0].stages[0].requirements[0].text.hard);
+  expect(hard).not.toContain(dealt[0].stages[0].requirements[0].text.easy);
 
   // move to the second card: the detail follows; A on a card starts its test run
   await key(page, 'KeyD');
   await page.waitForTimeout(300);
-  expect(await paneTexts(page)).toContain(ch[1].stages[0].requirements[0].text.hard);
+  expect(await paneTexts(page)).toContain(dealt[1].stages[0].requirements[0].text.hard);
   await key(page, 'Space');
   await expectScreens(page, 'run');
 });

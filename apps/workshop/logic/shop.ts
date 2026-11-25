@@ -2,9 +2,10 @@
 import { WS_RULES } from '../config';
 import type { ShopOffer } from '../core/engineApi';
 import type { AspectId, VariantId, WorkshopCatalog, WorkshopProgress } from '../core/types';
+import { visibleAspectIds } from './aspects';
 import { index } from './catalogIndex';
 
-type ShopProgress = Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides'>;
+type ShopProgress = Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides' | 'easy'>;
 
 function aspectOrder(cat: WorkshopCatalog, aspect: AspectId): VariantId[] {
   const a = cat.aspects.find((item) => item.id === aspect);
@@ -28,7 +29,7 @@ function unownedOrder(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): 
 /** Cheapest purchases that reveal and buy each unowned variant, including later offers. */
 export function purchaseRoutes(cat: WorkshopCatalog, p: ShopProgress) {
   const routes = new Map<VariantId, { variants: VariantId[]; cost: number }>();
-  for (const { id } of cat.aspects) {
+  for (const id of visibleAspectIds(cat, p)) {
     const ordered = unownedOrder(cat, p, id);
     const prices = ordered.map((variant) => priceOf(cat, variant));
     let revealCost = 0;
@@ -43,6 +44,7 @@ export function purchaseRoutes(cat: WorkshopCatalog, p: ShopProgress) {
 
 /** Up to the next two ordinary variants at a station; admin-open parts are omitted. */
 export function shopOffers(cat: WorkshopCatalog, p: ShopProgress, aspect: AspectId): ShopOffer[] {
+  if (!visibleAspectIds(cat, p).includes(aspect)) return [];
   const ordered = unownedOrder(cat, p, aspect);
   return ordered.slice(0, WS_RULES.offersPerAspect).map((variant) => {
     const price = priceOf(cat, variant);

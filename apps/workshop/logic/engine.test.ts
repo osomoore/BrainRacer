@@ -611,7 +611,7 @@ describe('saves', () => {
   it('loads a current-version save unchanged', () => {
     const p = fresh();
     expect(p.rulesVersion).toBe(CHALLENGE_RULES_VERSION);
-    const save = { ...eng.newPlayerSave('easy'), workshops: { race: p } };
+    const save = { ...eng.newPlayerSave('medium'), workshops: { race: p } };
     expect(eng.normalizeSave(JSON.parse(JSON.stringify(save)))).toEqual(save);
   });
 
@@ -629,7 +629,7 @@ describe('saves', () => {
       version: 2, reading: 'bogus', lastWorkshop: 'nope',
       workshops: {
         race: {
-          ...p,
+          ...p, easy: true,
           model: { ...p.model, wheels: 'wheels.ghost', engine: 'paint.red' },
           bought: ['wheels.racing', 'wheels.racing', 'ghost.part', 'wheels.road', 5], wallet: 3,
           overrides: { 'wheels.mud': 'open', 'ghost.x': 'open', 'engine.big': 'maybe' },
@@ -667,7 +667,7 @@ describe('saves', () => {
       delete legacy.boardColor;
       return [id, legacy];
     }));
-    const save = { ...eng.newPlayerSave('easy'), workshops: { race: {
+    const save = { ...eng.newPlayerSave('medium'), workshops: { race: {
       ...p, active: [...p.active].reverse(), challenges,
     } } };
     const normalized = eng.normalizeSave(save)!;

@@ -1,6 +1,7 @@
 /** Simulated player: solves affordable challenges and spends the payouts at the stations. */
 import { WS_RULES } from '../config';
-import type { WorkshopCatalog, WorkshopProgress } from '../core/types';
+import type { ReadingLevel, WorkshopCatalog, WorkshopProgress } from '../core/types';
+import { visibleAspectIds } from './aspects';
 import { affordability } from './affordability';
 import { available } from './available';
 import { newProgress, purchase, newestVariant, recordWin, refreshBoard, tierOf } from './board';
@@ -12,6 +13,8 @@ import { flatChecks } from './util';
 export interface SimOptions {
   maxSteps?: number;
   seed?: number;
+  /** Reading level to play at (Easy trims the aspects). Default: every aspect. */
+  level?: ReadingLevel;
 }
 
 export interface SimReport {
@@ -28,16 +31,17 @@ export interface SimReport {
 
 export function simulate(cat: WorkshopCatalog, opts: SimOptions = {}): SimReport {
   const maxSteps = opts.maxSteps ?? 400;
-  let p = refreshBoard(cat, { ...newProgress(cat), genSeq: opts.seed ?? 1 });
+  let p = refreshBoard(cat, { ...newProgress(cat, undefined, opts.level), genSeq: opts.seed ?? 1 });
   const stalls: string[] = [];
   let steps = 0;
   let newestCases = 0;
   let newestNeeded = 0;
   let changedSum = 0;
   let mismatches = 0;
-  const target = cat.variants.length - cat.aspects.length;
+  const shown = new Set(visibleAspectIds(cat, p));
+  const target = cat.variants.filter((v) => shown.has(v.aspect)).length - shown.size;
   const remainingCost = (): number => cat.variants
-    .filter((v) => !p.bought.includes(v.id) && !cat.aspects.some((a) => a.starters[0] === v.id))
+    .filter((v) => shown.has(v.aspect) && !p.bought.includes(v.id) && !cat.aspects.some((a) => a.starters[0] === v.id))
     .reduce((sum, v) => sum + priceOf(cat, v.id), 0);
 
   while (steps < maxSteps && p.bought.length < target) {

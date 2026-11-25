@@ -10,16 +10,19 @@ export function starterChallenge(cat: WorkshopCatalog, spec: StarterSpec): Chall
   return resolveSpec(cat, spec, { id: spec.id, source: 'starter', tier: 0, seed: hashSeed(`${cat.id}:${spec.id}`) });
 }
 
-const starterCache = new WeakMap<WorkshopCatalog, Challenge[]>();
+const starterCache = new WeakMap<WorkshopCatalog, Map<string, Challenge[]>>();
 
 /** Keep only starters whose cheapest fresh-profile build needs one base-price purchase. */
-export function currencyStarters(cat: WorkshopCatalog): readonly Challenge[] {
-  let starters = starterCache.get(cat);
+export function currencyStarters(cat: WorkshopCatalog, easy?: boolean): readonly Challenge[] {
+  let byLevel = starterCache.get(cat);
+  if (!byLevel) { byLevel = new Map(); starterCache.set(cat, byLevel); }
+  const key = easy ? 'easy' : 'all';
+  let starters = byLevel.get(key);
   if (!starters) {
-    const fresh = { bought: [], overrides: {}, wallet: WS_RULES.startWallet };
+    const fresh = { bought: [], overrides: {}, wallet: WS_RULES.startWallet, ...(easy ? { easy: true as const } : {}) };
     starters = cat.starters.map((spec) => starterChallenge(cat, spec)).filter((challenge) =>
       solveAffordable(cat, flatChecks(challenge), fresh)?.cost === WS_RULES.basePrice);
-    starterCache.set(cat, starters);
+    byLevel.set(key, starters);
   }
   return starters;
 }

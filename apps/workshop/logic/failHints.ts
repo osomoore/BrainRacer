@@ -7,6 +7,7 @@ import { WS_RULES } from '../config';
 import type {
   Challenge, FailNote, Model, ReadingLevel, Requirement, RunResult, VariantId, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
+import { partsVisible } from './aspects';
 import { available } from './available';
 import { index } from './catalogIndex';
 import { purchaseRoutes } from './shop';
@@ -61,8 +62,10 @@ export function fixesOf(req: Requirement): VariantId[][] {
 }
 
 /** Owned fix first, then one the wallet covers, then any; cheaper and shorter fixes win ties. */
-export function chooseFix(cat: WorkshopCatalog, p: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides'>,
-  fixes: readonly (readonly VariantId[])[]): VariantId[] | null {
+export function chooseFix(cat: WorkshopCatalog, p: Pick<WorkshopProgress, 'wallet' | 'bought' | 'overrides' | 'easy'>,
+  allFixes: readonly (readonly VariantId[])[]): VariantId[] | null {
+  // Never name a part from an aspect that is hidden on Easy.
+  const fixes = allFixes.filter((fix) => partsVisible(cat, p, fix));
   if (!fixes.length) return null;
   const owned = available(cat, p);
   const routes = purchaseRoutes(cat, p);

@@ -60,7 +60,7 @@ export interface WorkshopEngine {
   hint(progress: WorkshopProgress, challenge: Challenge, result: RunResult, reading: ReadingLevel): string | null;
 
   // --- progression (all return a NEW progress object; callers commit it)
-  newProgress(id: WorkshopId, buddySeed?: number): WorkshopProgress;
+  newProgress(id: WorkshopId, buddySeed?: number, level?: ReadingLevel): WorkshopProgress;
   /** Rechecks affordability, preserving valid active cards and filling empty slots. */
   refreshBoard(id: WorkshopId, progress: WorkshopProgress): WorkshopProgress;
   recordFail(id: WorkshopId, progress: WorkshopProgress, challengeId: ChallengeId): WorkshopProgress;

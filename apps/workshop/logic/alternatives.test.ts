@@ -93,7 +93,7 @@ describe('alternative challenge fixes', () => {
       ...initial, active: [legacy.id, peek.id], fails: { [legacy.id]: 2 },
       challenges: { [legacy.id]: legacy, [peek.id]: peek },
     };
-    const save = { ...engine.newPlayerSave('easy'), workshops: { dino: progress } };
+    const save = { ...engine.newPlayerSave('medium'), workshops: { dino: progress } };
     const normalized = engine.normalizeSave(JSON.parse(JSON.stringify(save)))!;
     expect(normalized.workshops.dino).toMatchObject(progress);
     expect(engine.normalizeSave(JSON.parse(JSON.stringify(normalized)))).toEqual(normalized);
