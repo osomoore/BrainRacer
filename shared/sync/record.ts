@@ -1,5 +1,6 @@
 import { READING_LEVELS, WORKSHOP_IDS, type PlayerSave, type WorkshopProgress } from '../../apps/workshop/core/types';
 import { challengeKey } from '../../apps/workshop/logic/generator';
+import { capRecentTries, mergeLearning, validLearningEntry, validLearningTry } from '../../apps/workshop/logic/learning';
 import { validProfileName } from '../profiles';
 import { object, profileId, stamp } from './protocol';
 import { parseRacerSnapshot, type ProfileSnapshot } from './storage';
@@ -56,6 +57,9 @@ function workshopProgress(value: unknown, workshop: string): boolean {
     && Object.entries(value.completed).every(([id, v]) => Object.hasOwn(cards, id) && object(v)
       && stringMap(v.build) && stamp(v.wonAt) && stamp(v.payout))
     && object(value.fails) && Object.values(value.fails).every(stamp)
+    && (value.learning === undefined || (object(value.learning) && Object.entries(value.learning).every(
+      ([id, entry]) => profileId(id) && validLearningEntry(entry))))
+    && (value.recentTries === undefined || (Array.isArray(value.recentTries) && value.recentTries.every(validLearningTry)))
     && (value.lastWin === null || stringMap(value.lastWin))
     && stamp(value.firstWins) && stamp(value.nextStarter) && stamp(value.genSeq)
     && (value.rulesVersion === undefined || stamp(value.rulesVersion))
@@ -92,7 +96,7 @@ export function readRevision(value: unknown): Revision | undefined {
   if (!name || name !== data.profile.name || !racer) return undefined;
   return { id, rev, value: { deleted: false, data: {
     schema: 1, profile: { id, name, createdAt: data.profile.createdAt }, racer,
-    workshop: data.workshop, updatedAt: data.updatedAt, identityUpdatedAt: data.identityUpdatedAt,
+    workshop: data.workshop && capRecentTries(data.workshop), updatedAt: data.updatedAt, identityUpdatedAt: data.identityUpdatedAt,
   } } };
 }
 
@@ -101,21 +105,27 @@ function union<T>(older: T[], newer: T[]): T[] { return [...new Set([...older, .
 function mergeProgress(older: WorkshopProgress, newer: WorkshopProgress): WorkshopProgress {
   const challenges = { ...newer.challenges };
   const completed = { ...newer.completed };
-  for (const [id, win] of Object.entries(older.completed)) {
-    const card = older.challenges[id];
+  const aliases = new Map<string, string>();
+  const attempted = new Set(older.recentTries?.map(attempt => attempt.challengeId));
+  for (const [id, card] of Object.entries(older.challenges)) {
+    const win = older.completed[id];
+    if (!win && !older.learning?.[id] && !attempted.has(id)) continue;
     const key = challengeKey(card);
     const baseId = id.replace(/-history-\d+-\d+-\d+$/, '');
     const base = challenges[baseId];
     // Offline generation can reuse the same sequence ID for different cards.
     // Keep the newer card at its board position and give the older win a stable history ID.
-    const target = base && challengeKey(base) !== key ? `${baseId}-history-${textHash(key).replaceAll(':', '-')}` : baseId;
-    if (!Object.hasOwn(completed, target) || win.wonAt > completed[target].wonAt) {
+    const history = `${baseId}-history-${textHash(key).replaceAll(':', '-')}`;
+    const target = (base && challengeKey(base) !== key) || Object.hasOwn(challenges, history) ? history : baseId;
+    if (id !== target) aliases.set(id, target);
+    if (win && (!Object.hasOwn(completed, target) || win.wonAt > completed[target].wonAt)) {
       completed[target] = win;
       challenges[target] ??= { ...card, id: target };
     }
   }
   return {
     ...newer,
+    ...mergeLearning(older, newer, aliases),
     bought: union(older.bought, newer.bought),
     buddies: { ...newer.buddies, unlocked: union(older.buddies.unlocked, newer.buddies.unlocked) },
     challenges, completed, active: newer.active.filter(id => !Object.hasOwn(completed, id)),
@@ -126,14 +136,17 @@ function mergeProgress(older: WorkshopProgress, newer: WorkshopProgress): Worksh
 }
 
 function mergeWorkshop(older: PlayerSave | null, newer: PlayerSave | null): PlayerSave | null {
-  if (!older || !newer) return newer ?? older;
+  if (!older || !newer) {
+    const save = newer ?? older;
+    return save && capRecentTries(save);
+  }
   const workshops = { ...older.workshops, ...newer.workshops };
   for (const id of WORKSHOP_IDS) {
     const a = older.workshops[id];
     const b = newer.workshops[id];
     if (a && b) workshops[id] = mergeProgress(a, b);
   }
-  return { ...newer, workshops };
+  return capRecentTries({ ...newer, workshops });
 }
 
 function mergeRacer(older: ProfileSnapshot['racer'], newer: ProfileSnapshot['racer']): ProfileSnapshot['racer'] {

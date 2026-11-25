@@ -304,6 +304,14 @@ Tap a station part once to preview it. The selected part shows its owned status 
 button to the Race Shop / Dino Lab picker. The mobile title has a **Back** button to the game launcher.
 Pad and keyboard controls keep their previous behavior. See [Workshop touch navigation](WORKSHOP.md#touch-navigation-c53).
 
+## Adventure Workshop progress report
+
+Open **Grown-up settings → player name → Progress report** to see the Race Shop or Dino Lab record. Solved tests
+show the win date and tries (no hint column: every failed try already names a fix). The report compares average tries across the latest two groups of ten
+wins and shows the share of measured wins solved on the first try. Older wins still appear with unknown tries.
+The learning record follows the profile through Family sync and duplicate-profile merges. See the
+[Workshop progress report notes](WORKSHOP.md#progress-report-c55).
+
 ## Family sync
 
 On a build configured with `VITE_SYNC_URL`, open **Family sync** from either game's grown-up settings menu. On the first device, choose **Make a family**, then **Show code**. On another device, choose **Join a family** and enter that code, or scan the QR and confirm the join in the grown-up panel. Links with `?join=<code>` work from the launcher and either game. Keep the code and QR private. Anyone with either can access the family's profiles and saved progress.

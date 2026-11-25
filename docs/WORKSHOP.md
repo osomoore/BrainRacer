@@ -289,6 +289,20 @@ throttling, the median cold launch across Snack, Ferns and Chase dropped from 36
 Turn it dropped from 361 ms to 298 ms. The measurements used a desktop GPU. Check cold starts and retries on the
 Android tablet and Mali-G310 TV box.
 
+### Progress report (C55)
+
+In **Grown-up settings**, select a player, open **Progress report**, then pick **Race Shop** or **Dino Lab**.
+Solved tests appear newest first with the title at the child's current reading level, the win date, tries, and
+whether results showed a part tip or hint before the win. Wins from before C55 show a dash for tries and hint use.
+The two trend averages use the last ten wins and the preceding ten. The first-try percentage uses all wins with
+a recorded try count in that shop. Wins with unknown counts are excluded from the calculations.
+
+Starting with C55, live tests record each try, the date of the first try and win, hint exposure, and the IDs of
+failed requirements in stages the test reached. The compact per-card history stays through ordinary gameplay and
+board re-deals. Only the latest 300 tries across both shops also keep the exact tested build. Admin Mode and
+practice cards are excluded. An explicit grown-up progress reset still starts that local save fresh.
+The [Family sync inventory](FAMILY_SYNC.md#local-storage-inventory-and-sync-mapping) describes storage and merges.
+
 ## Testing
 
 - Unit tests next to pure code (`apps/**/*.test.ts`, run by `npm test`).

@@ -35,6 +35,7 @@ export const WS_RULES = {
   hintAfterFails: 3,
   /** Failure lines (each naming a fix) on the results screen and remembered on the card. */
   failLinesMax: 2,
+  recentTriesPerPlayer: 300,
   /** New challenges: every solution must differ from the last winning build in at least this many aspects (relaxed to 1 if impossible, never 0). */
   minChangedAspects: 2,
   /** Maximum unfinished challenges retained (active ones never dropped). */

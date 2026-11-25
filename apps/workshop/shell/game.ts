@@ -107,8 +107,8 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
     },
   });
   router.onAdmin = () => {
-    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
-    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
+    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean; __progressReportOpen?: boolean };
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen || panels.__progressReportOpen) return;
     if (shell.adminOpen) shell.closeAdmin();
     else shell.openAdmin(false);
   };

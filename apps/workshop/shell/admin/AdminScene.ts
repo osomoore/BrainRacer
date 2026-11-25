@@ -19,6 +19,7 @@ import { applyKey, firstRow, scrollTop, type AdminRow, type ListKey, type ListSt
 import { openFamilySyncPanel } from '../../../../shared/sync/panel';
 import { familySync } from '../../../../shared/sync/runtime';
 import { openProfilesPanel } from '../../../../shared/profilesPanel';
+import { openProgressReport } from '../../../../shared/progressReport';
 
 type View = { kind: 'gate' } | { kind: 'main' } | { kind: 'player'; profile: string } | { kind: 'workshop'; profile: string; ws: WorkshopId };
 
@@ -141,6 +142,13 @@ export class AdminScene extends Phaser.Scene {
           set: (id) => this.mutate(v, (s) => ({ ...s, reading: id as ReadingLevel }), undefined, true),
         });
       }
+      rows.push({ kind: 'action', label: 'Progress report', tag: '>', run: () => {
+        const player = listProfiles().find(profile => profile.id === v.profile);
+        if (player) openProgressReport(this.realSave(player.id) ?? engine.newPlayerSave('medium'), {
+          playerName: player.name,
+          onClose: () => this.parentPanelClosed(),
+        });
+      } });
       for (const ws of WORKSHOP_IDS) rows.push({ kind: 'action', label: WS_TITLE[ws], tag: '>', run: () => this.push({ kind: 'workshop', profile: v.profile, ws }) });
       rows.push({ kind: 'action', label: 'Reset this player (fresh start)', run: () => {
         this.confirm = new Confirm(this, {
@@ -352,9 +360,9 @@ export class AdminScene extends Phaser.Scene {
   }
 
   override update(): void {
-    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean };
+    const panels = window as Window & { __familySyncDialogOpen?: boolean; __profilesPanelOpen?: boolean; __progressReportOpen?: boolean };
     shell.router.step(this.game.getFrame());
-    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen) return;
+    if (panels.__familySyncDialogOpen || panels.__profilesPanelOpen || panels.__progressReportOpen) return;
     if (this.suppressNextAdminActions) { this.suppressNextAdminActions = false; return; }
     if (this.game.getFrame() === this.opened) return;
     const actions = shell.router.rawActions();

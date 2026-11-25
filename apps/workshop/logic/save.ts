@@ -11,6 +11,7 @@ import { sanitizeModel } from './available';
 import { affordability } from './affordability';
 import { copyProgress, newProgress, refreshBoard, sortBoard } from './board';
 import { normalizeBuddies } from './buddies';
+import { capRecentTries, validLearningEntry, validLearningId, validLearningTry } from './learning';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -98,6 +99,13 @@ export function normalizeProgress(cat: WorkshopCatalog, raw: unknown, reading?: 
   if (isObj(raw.fails)) {
     for (const [k, v] of Object.entries(raw.fails)) if (out.challenges[k] && isNum(v) && v > 0) out.fails[k] = Math.floor(v);
   }
+  if (isObj(raw.learning)) {
+    out.learning = Object.fromEntries(Object.entries(raw.learning).flatMap(([id, entry]) =>
+      validLearningId(id) && validLearningEntry(entry) ? [[id, { ...entry, failedChecks: [...entry.failedChecks] }]] : []));
+  }
+  if (Array.isArray(raw.recentTries)) {
+    out.recentTries = raw.recentTries.filter(validLearningTry).map(attempt => ({ ...attempt, build: { ...attempt.build } }));
+  }
   out.failHints = {};
   if (isObj(raw.failHints)) {
     for (const [k, v] of Object.entries(raw.failHints)) {
@@ -155,7 +163,7 @@ export function normalizeSave(catalogs: Readonly<Record<WorkshopId, WorkshopCata
   if (typeof raw.lastWorkshop === 'string' && (WORKSHOP_IDS as readonly string[]).includes(raw.lastWorkshop)) {
     save.lastWorkshop = raw.lastWorkshop as WorkshopId;
   }
-  return save;
+  return capRecentTries(save);
 }
 
 export function progressOf(cat: WorkshopCatalog, save: PlayerSave): WorkshopProgress {

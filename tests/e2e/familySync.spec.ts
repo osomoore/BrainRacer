@@ -131,10 +131,39 @@ test('a family profile and Workshop progress sync between two devices', async ({
       return { bought: saved?.bought, wallet: saved?.wallet };
     }, { timeout: 20_000 }).toEqual({ bought: ['wheels.mud'], wallet: 2 });
 
+    const attemptId = await workshopB.evaluate(() => {
+      const context = (window as any).__ws.contexts()[0];
+      const save = context.save();
+      const progress = save.workshops.race;
+      const id = Object.keys(progress.challenges).find((key) =>
+        !progress.challenges[key].stages.some((stage: any) => stage.scenario === 'practice'));
+      if (!id) throw new Error('No learning challenge found for sync record');
+      const at = Date.now() - 2_000;
+      const build = { ...progress.model };
+      progress.completed[id] = { build, wonAt: at + 1_000, payout: 0 };
+      progress.active = progress.active.filter((key: string) => key !== id);
+      progress.learning = { ...progress.learning, [id]: { tries: 2, firstTryAt: at, wonAt: at + 1_000, hintShown: true, failedChecks: ['A', ''] } };
+      progress.recentTries = [...(progress.recentTries ?? []),
+        { at, challengeId: id, pass: false, failedChecks: 'A', build },
+        { at: at + 1_000, challengeId: id, pass: true, failedChecks: '', build }];
+      context.commit({ ...save, workshops: { ...save.workshops, race: progress } });
+      return id;
+    });
+    await expect.poll(async () => {
+      const saved = (await serverProfiles(server, code!)).find(row => row.id === profileId)?.data?.workshop?.workshops?.race as any;
+      return { tries: saved?.learning?.[attemptId]?.tries, hintShown: saved?.learning?.[attemptId]?.hintShown,
+        failedChecks: saved?.learning?.[attemptId]?.failedChecks, lastTries: saved?.recentTries?.slice(-2).map((item: any) => [item.challengeId, item.pass, item.failedChecks]) };
+    }, { timeout: 20_000 }).toEqual({ tries: 2, hintShown: true, failedChecks: ['A', ''], lastTries: [[attemptId, false, 'A'], [attemptId, true, '']] });
+
     await profileA.reload();
     await expect.poll(() => profileA.evaluate((id) => {
       const save = JSON.parse(localStorage.getItem('workshop.players.v1') ?? '{}')[id]?.workshops?.race;
       return { bought: save?.bought, wallet: save?.wallet };
     }, profileId), { timeout: 25_000 }).toEqual({ bought: ['wheels.mud'], wallet: 2 });
+    await expect.poll(() => profileA.evaluate(({ id, attemptId }) => {
+      const progress = JSON.parse(localStorage.getItem('workshop.players.v1') ?? '{}')[id]?.workshops?.race;
+      return { tries: progress?.learning?.[attemptId]?.tries, hintShown: progress?.learning?.[attemptId]?.hintShown,
+        lastTries: progress?.recentTries?.slice(-2).map((item: any) => [item.challengeId, item.pass, item.failedChecks]) };
+    }, { id: profileId, attemptId }), { timeout: 25_000 }).toEqual({ tries: 2, hintShown: true, lastTries: [[attemptId, false, 'A'], [attemptId, true, '']] });
   } finally { await contextA.close(); await contextB.close(); }
 });

@@ -20,11 +20,14 @@ function records() {
   const [first, second] = race.active;
   const saved = { ...race, bought: ['wheels.mud'], wallet: 33 };
   saved.completed = { [first]: { build: race.model, wonAt: 4, payout: 2 } };
+  saved.learning = { [first]: { tries: 1, hintShown: false, firstTryAt: 4, wonAt: 4, failedChecks: [''] } };
   target.workshop!.workshops.race = saved;
   const other = engine.progressOf(source.workshop!, 'race');
   // Two offline boards can reuse the same id for different cards.
   other.challenges[first] = { ...other.challenges[second], id: first };
   other.completed[first] = { build: other.model, wonAt: 3, payout: 8 };
+  other.learning = { [first]: { tries: 2, hintShown: true, firstTryAt: 2, wonAt: 3, failedChecks: ['B', ''] } };
+  other.recentTries = [{ at: 3, challengeId: first, pass: true, failedChecks: '', build: other.model }];
   other.bought = ['gears.power'];
   other.buddies.unlocked.push('star');
   other.wallet = 10;
@@ -78,6 +81,8 @@ describe('profile manager', () => {
     expect(shop.wallet).toBe(33);
     expect(shop.buddies.unlocked).toContain('star');
     expect(Object.values(shop.completed).map(win => win.payout).sort()).toEqual([2, 8]);
+    expect(Object.values(shop.learning!).map(entry => entry.tries).sort()).toEqual([1, 2]);
+    expect(shop.learning![shop.recentTries![0].challengeId].hintShown).toBe(true);
     expect(combined.racer).toMatchObject({
       progress: { worlds: expect.arrayContaining(['underground', 'farm']), items: ['motorTrike', 'firefly', 'pickup'], overrides: { farm: false } },
       jbq: { 1: 8, 2: 4, 3: 6 }, settings: source.racer.settings, loadout: target.racer.loadout,
