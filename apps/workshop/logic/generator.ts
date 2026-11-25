@@ -28,6 +28,8 @@ export interface GenParams {
   /** Board shop rules: reject candidates outside the requested cost band. */
   accepts?: (checks: readonly Check[]) => boolean;
   fallback?: boolean;
+  /** Optional facet-level filter (Easy: only requirements whose listed fixes use shown stations). */
+  facetOk?: (facet: FacetDef, level: number) => boolean;
 }
 
 export interface GenResult { challenge: Challenge; minCost: number }
@@ -66,10 +68,10 @@ export function tierRow(tier: number): { stages: readonly [number, number]; reqs
   return WS_RULES.tierTable[Math.min(tier, WS_RULES.tierTable.length - 1)];
 }
 
-function buildSpec(rng: Rng, cat: WorkshopCatalog, tier: number): StarterSpec | null {
+function buildSpec(rng: Rng, cat: WorkshopCatalog, tier: number, levelOk: (f: FacetDef, level: number) => boolean = () => true): StarterSpec | null {
   const row = tierRow(tier);
   const nStages = rng.int(row.stages[0], row.stages[1]);
-  const okFacet = (f: FacetDef): boolean => f.minTier <= tier && f.levels.length > 0;
+  const okFacet = (f: FacetDef): boolean => f.minTier <= tier && f.levels.some((level) => levelOk(f, level));
   const eligible = cat.scenarios.filter((s) => s.minTier <= tier && s.facets.some(okFacet));
   if (!eligible.length) return null;
   const usedFacets = new Set<string>();
@@ -84,15 +86,21 @@ function buildSpec(rng: Rng, cat: WorkshopCatalog, tier: number): StarterSpec | 
     const facets = rng.shuffle(sc.facets.filter((f) => okFacet(f) && !usedFacets.has(f.id))).slice(0, nReq);
     if (!facets.length) return null;
     for (const f of facets) usedFacets.add(f.id);
-    stages.push({ scenario: sc.id, facets: facets.map((f) => ({ facet: f.id, level: pickLevel(rng, f, tier) })) });
+    stages.push({ scenario: sc.id, facets: facets.map((f) => ({ facet: f.id, level: okLevel(f, pickLevel(rng, f, tier), levelOk) })) });
   }
   return { id: '', stages };
 }
 
+/** The picked level if allowed, else the nearest allowed one. */
+function okLevel(f: FacetDef, level: number, levelOk: (f: FacetDef, level: number) => boolean): number {
+  if (levelOk(f, level)) return level;
+  return f.levels.filter((l) => levelOk(f, l)).reduce((best, l) => (Math.abs(l - level) < Math.abs(best - level) ? l : best));
+}
+
 /** A deterministic search when tier sampling cannot fill a slot. Try simple cards before pairs. */
-function* fallbackSpecs(cat: WorkshopCatalog, rng: Rng): Iterable<StarterSpec> {
+function* fallbackSpecs(cat: WorkshopCatalog, rng: Rng, levelOk: (f: FacetDef, level: number) => boolean = () => true): Iterable<StarterSpec> {
   const stages = rng.shuffle(cat.scenarios.flatMap((scenario) => scenario.facets.flatMap((facet) =>
-    facet.levels.map((level) => ({ scenario: scenario.id, facets: [{ facet: facet.id, level }] })))));
+    facet.levels.filter((level) => levelOk(facet, level)).map((level) => ({ scenario: scenario.id, facets: [{ facet: facet.id, level }] })))));
   for (const stage of stages) yield { id: '', stages: [stage] };
   for (let i = 0; i < stages.length; i++) {
     for (const other of stages.slice(i + 1)) {
@@ -108,8 +116,8 @@ export function generateChallenge(cat: WorkshopCatalog, id: ChallengeId, source:
   const curModel = computeModel(cat, p.current);
   const lastModel = p.lastWin ? computeModel(cat, p.lastWin) : null;
   const tried = new Set(p.usedKeys);
-  const randomSpecs = Array.from({ length: p.fallback ? 0 : p.attempts }, () => buildSpec(rng, cat, p.tier));
-  const specs = p.fallback ? fallbackSpecs(cat, rng) : randomSpecs;
+  const randomSpecs = Array.from({ length: p.fallback ? 0 : p.attempts }, () => buildSpec(rng, cat, p.tier, p.facetOk));
+  const specs = p.fallback ? fallbackSpecs(cat, rng, p.facetOk) : randomSpecs;
 
   let best: { spec: StarterSpec; rank: number; cost: number } | null = null;
   for (const spec of specs) {

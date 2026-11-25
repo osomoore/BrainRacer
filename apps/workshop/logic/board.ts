@@ -2,12 +2,14 @@
 import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type { PurchaseOutcome, WinOutcome } from '../core/engineApi';
 import type {
-  Challenge, ChallengeId, FailNote, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
+  Challenge, ChallengeId, FacetDef, FailNote, Model, ReadingLevel, RunResult, VariantId, VariantOverride, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
 import { easyFlag, isHiddenAspect, visibleAspectIds } from './aspects';
 import { availableFor, sanitizeModel } from './available';
 import { affordability, BOARD_CATEGORIES, boardCategory, type BoardCategory } from './affordability';
 import { challengeKey, generateChallenge } from './generator';
+import { index } from './catalogIndex';
+import { catalogFixes } from './text';
 import { computeModel, defaultModel, allPass } from './stats';
 import { currencyStarters } from './starters';
 import { shopOffers } from './shop';
@@ -112,6 +114,13 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
   const last = p.lastWin && computeModel(cat, p.lastWin);
   const starters = currencyStarters(cat, p.easy);
   const shown = new Set(visibleAspectIds(cat, p));
+  const variantAspect = (id: VariantId) => index(cat).variantById.get(id)?.aspect ?? '';
+  const fixShown = (fixes: readonly (readonly VariantId[])[] | undefined) =>
+    !fixes?.length || fixes.some((fix) => fix.every((id) => shown.has(variantAspect(id))));
+  // Easy: deal only requirements whose listed fixes include one made from shown stations, so the story,
+  // fail lines and hints can always point at a part the kid can reach.
+  const facetOk = p.easy ? (facet: FacetDef, level: number) => fixShown(catalogFixes(cat, facet, level)) : undefined;
+  const namesShown = (c: Challenge) => !p.easy || c.stages.every((st) => st.requirements.every((r) => fixShown(r.namedFixes)));
   const occupied = new Set(p.active.map((id) => categoryOf(p.challenges[id], budget, p.wallet)));
   const exhausted = new Set<BoardCategory>();
 
@@ -120,7 +129,7 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
       for (let i = p.nextStarter; i < starters.length; i++) {
         const challenge = starters[i];
         const checks = flatChecks(challenge);
-        if (usedKeys.has(challengeKey(challenge)) || allPass(checks, current) || (last && allPass(checks, last))) continue;
+        if (!namesShown(challenge) || usedKeys.has(challengeKey(challenge)) || allPass(checks, current) || (last && allPass(checks, last))) continue;
         if (budget.solve(checks)?.cost !== WS_RULES.basePrice) continue;
         p.nextStarter = i + 1;
         return challenge;
@@ -137,7 +146,7 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
       tier, avail: category === 'ready' ? budget.owned : category === 'affordable' ? budget.pool : budget.futurePool,
       current: p.model, lastWin: p.lastWin, minChanged: WS_RULES.minChangedAspects,
       newest: newestVariant(p, budget.owned), usedKeys, avoidScenarios,
-      attempts: WS_RULES.genAttempts, strictCurrent: true,
+      attempts: WS_RULES.genAttempts, strictCurrent: true, facetOk,
       accepts: (checks: Parameters<typeof budget.solve>[0]) => {
         const solution = category === 'future' ? budget.cheapest(checks) : budget.solve(checks);
         return solution !== null && boardCategory(solution.cost, p.wallet) === category;

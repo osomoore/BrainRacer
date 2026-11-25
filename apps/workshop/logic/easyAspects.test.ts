@@ -168,3 +168,17 @@ describe('switching the reading level', () => {
     expect(w('dino').active).toHaveLength(3);
   });
 });
+
+describe.each(WORKSHOP_IDS)('Easy only deals requirements with a nameable fix: %s', (id) => {
+  it('every dealt requirement lists no fixes or at least one made only of shown parts (e.g. dino birds.roar is Head-only, so it is not dealt)', () => {
+    const cat = CATALOGS[id];
+    for (let seed = 0; seed < 30; seed++) {
+      let p = refreshBoard(cat, newProgress(cat, seed, 'easy'));
+      for (const cid of p.active) for (const stage of p.challenges[cid].stages) for (const req of stage.requirements) {
+        if (!req.namedFixes?.length) continue;
+        expect(req.namedFixes.some((fix) => fix.every((v) => !isHiddenAspect(id, p, v.split('.')[0]))), `${id} ${req.facet}`).toBe(true);
+      }
+      p = refreshBoard(cat, p);
+    }
+  }, 30_000);
+});
