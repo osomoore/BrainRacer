@@ -50,9 +50,9 @@ including the existing arguments for each listed variant. Jobs added in C15 for 
   `grandpa`, `band`.
 - **Overhead:** `T.hayTop`, `T.cone`, `T.treeTop` (fixed trees in Fog and Narrow Path),
   `T.squirrelTop` and `T.duckTop` (both face-safe), `T.puddle` (wide and split-pane sizes).
-- **Particles and UI (code):** `dust`, `leaf`, `bubble`, `zzz`, `note`, `heart`, `exclaim`, `star`,
+- **Particles and UI (code):** `dust`, `leaf`, `bubble`, `zzz`, `note`, `heart`, `exclaim`, `star`, `snowChunk`,
   `fuel`, `card`, `marshalCard`. The parade marshal card is a color cue.
-- **Procedural scenery (code):** `sky`, `hills`, `stars`, `ground`, `ramp`, `arch`, `rope`, `T.wall` and the
+- **Procedural scenery (code):** `sky`, `hills`, `stars`, `ground`, `ramp`, `arch`, `rope`, `roadWarning`, `clearanceBar`, `T.wall`, `T.mirror` and the
   seed-sized `T.treeTop` decorations. These cover repeated strips, star fields, or dimensions chosen by scene logic.
   The `hash` helper does not draw a texture. Side-view mud, water and snow pools are drawn to fit the terrain in `run/common/side.ts`.
 

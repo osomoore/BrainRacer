@@ -105,7 +105,8 @@ export const SIDE_SCENERY = {
   gull: [[P.gull(), 'white seagull with an orange bill', true]],
   puppy: [[P.puppy(), 'sleeping golden puppy with floppy brown ears', true],
     [P.puppy(false), 'awake golden puppy with floppy brown ears', true]],
-  snowman: [[P.snowman(), 'white snowman with an orange carrot nose and dark hat', true]],
+  snowman: [[P.snowman(), 'white snowman with an orange carrot nose and dark hat', true],
+    [P.snowman(false), 'white snowman with an orange carrot nose and bare head', true]],
   person: [
     [P.person('#ff7a59', C.yellow, 'wave'), 'waving delivery helper with a coral shirt and yellow cap', true],
     [P.person('#5aa0ff', '#fff', 'wave'), 'waving shopkeeper with a blue shirt and white cap', true],

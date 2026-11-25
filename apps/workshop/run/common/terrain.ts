@@ -33,3 +33,10 @@ export function sagProfile(x0: number, x1: number, sag: number): (x: number) => 
     return Math.sin(t * Math.PI) * sag;
   };
 }
+
+/** Stage the gap around the visible silhouette. The supplied run outcome selects the side of the limit. */
+export function clearanceGap(size: number, level: number, passed: boolean, clearance: readonly number[], overlap: readonly number[]): number {
+  const margins = passed ? clearance : overlap;
+  const i = Math.max(0, Math.min(margins.length - 1, level - 1));
+  return Math.max(1, Math.round(size + margins[i] * (passed ? 1 : -1)));
+}

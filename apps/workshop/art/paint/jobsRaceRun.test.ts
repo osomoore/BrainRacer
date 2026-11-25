@@ -6,10 +6,10 @@ import { allArtJobs, artSpec, FACE_NEGATIVE, PAINT_TUNE } from './jobs';
 import { SIDE_SCENERY, TOP_SCENERY } from './jobsRaceRun';
 
 const sideSkips = [
-  'arch', 'bubble', 'card', 'dust', 'exclaim', 'fuel', 'ground', 'hash', 'heart', 'hills', 'leaf', 'marshalCard',
-  'note', 'ramp', 'rope', 'sky', 'star', 'stars', 'zzz',
+  'arch', 'bubble', 'card', 'clearanceBar', 'dust', 'exclaim', 'fuel', 'ground', 'hash', 'heart', 'hills', 'leaf', 'marshalCard',
+  'note', 'ramp', 'roadWarning', 'rope', 'sky', 'snowChunk', 'star', 'stars', 'zzz',
 ] satisfies (keyof typeof P)[];
-const topSkips = ['wall'] satisfies (keyof typeof T)[];
+const topSkips = ['mirror', 'wall'] satisfies (keyof typeof T)[];
 const sideFaces = [
   'band', 'crab', 'duck', 'fish', 'frog', 'grandpa', 'gull', 'person',
   'pigeon', 'puppy', 'sheep', 'snowman', 'squirrel', 'turtle',

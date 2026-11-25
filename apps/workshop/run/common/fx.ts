@@ -7,10 +7,10 @@
  *   fx.bits.add(obj, { vx, vy, floorY })           // bouncing box / hubcap / hay, simple integrator (never decides pass/fail)
  *   fx.dizzy(parent, x, y)                          // stars circling a head; returns a stopper
  *
- * Counts are deliberately small (weak Android TV box). Particles are cosmetic, so Phaser's own jitter is fine;
- * anything that changes the layout uses ctx.rng.
+ * Counts are deliberately small (weak Android TV box). Stages can opt into seeded cosmetic jitter.
  */
 import Phaser from 'phaser';
+import type { Rng } from '../../core/rng';
 import type { StageContext } from '../types';
 import { OUTLINE, bakeKey, circ, fl, ol, poly } from './draw';
 
@@ -22,11 +22,13 @@ export function puffTexture(sc: Phaser.Scene): string {
 }
 
 interface Preset { tex: string; cfg: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig; count: number }
+type EmitterConfig = Preset['cfg'];
 
 export class Fx {
   readonly bits: Bits;
   private readonly sc: Phaser.Scene;
   private readonly keys: Record<string, string>;
+  private rng?: Rng;
   constructor(ctx: Pick<StageContext, 'scene' | 'layer'>) {
     this.sc = ctx.scene;
     this.bits = new Bits(ctx.scene, ctx.layer);
@@ -43,6 +45,24 @@ export class Fx {
       drop: bakeKey(sc, 'fx:drop', 16, 24, (g) => { fl(g, '#fff', (c) => { c.moveTo(8, 1); c.quadraticCurveTo(16, 14, 8, 22); c.quadraticCurveTo(0, 14, 8, 1); }); }),
       bub: bakeKey(sc, 'fx:bub', 32, 32, (g) => { g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.arc(16, 16, 12, 0, 7); g.stroke(); }),
     };
+  }
+
+  seed(rng: Rng): void { this.rng = rng.fork(1); }
+
+  private emitterConfig(cfg: EmitterConfig): EmitterConfig {
+    if (!this.rng) return cfg;
+    // Each emitter has its own sequence so stream length cannot change the next burst.
+    const rng = this.rng.fork(1);
+    const opts = { ...cfg };
+    for (const key of ['speed', 'angle', 'rotate', 'tint'] as const) {
+      const value = opts[key];
+      if (Array.isArray(value)) opts[key] = () => rng.pick(value);
+      else if (value && typeof value === 'object' && 'min' in value && 'max' in value) {
+        const { min, max } = value;
+        opts[key] = () => rng.range(min, max);
+      }
+    }
+    return opts;
   }
 
   private preset(kind: FxKind): Preset {
@@ -67,7 +87,7 @@ export class Fx {
   /** One-shot burst at (x, y) in `parent` coordinates. */
   burst(parent: Phaser.GameObjects.Container, kind: FxKind, x: number, y: number, count?: number, over: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig = {}): void {
     const p = this.preset(kind);
-    const em = this.sc.add.particles(x, y, p.tex, { ...p.cfg, ...over, emitting: false });
+    const em = this.sc.add.particles(x, y, p.tex, this.emitterConfig({ ...p.cfg, ...over, emitting: false }));
     parent.add(em);
     em.explode(count ?? p.count);
     this.sc.time.delayedCall(((typeof p.cfg.lifespan === 'number' ? p.cfg.lifespan : 1500) + 200), () => { if (em.scene) em.destroy(); });
@@ -76,7 +96,7 @@ export class Fx {
   /** Continuous emitter (frequency ms), optionally following an object with an offset. */
   stream(parent: Phaser.GameObjects.Container, kind: FxKind, follow: { x: number; y: number } | null, ox = 0, oy = 0, frequency = 60, over: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig = {}): { stop(): void; setPos(x: number, y: number): void } {
     const p = this.preset(kind);
-    const em = this.sc.add.particles(ox, oy, p.tex, { ...p.cfg, quantity: 1, frequency, ...over });
+    const em = this.sc.add.particles(ox, oy, p.tex, this.emitterConfig({ ...p.cfg, quantity: 1, frequency, ...over }));
     parent.add(em);
     if (follow) em.startFollow(follow, ox, oy);
     return {

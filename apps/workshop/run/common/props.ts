@@ -10,6 +10,43 @@ const hash = (s: string): number => { let h = 7; for (let i = 0; i < s.length; i
 const wob = (seed: number, i: number): number => ((Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1;
 
 export const P = {
+  roadWarning: (kind: 'hill' | 'snow' | 'height' | 'bridge') => spec(`warning:${kind}`, 142, 218, (g) => {
+    ol(g, C.woodDark, rr(63, 101, 16, 110, 5), 4);
+    ol(g, C.yellow, poly([[71, 8], [134, 71], [71, 134], [8, 71]]), 6);
+    if (kind === 'height') {
+      line(g, 47, 35, 95, 35, 6);
+      line(g, 47, 107, 95, 107, 6);
+      line(g, 71, 49, 71, 93, 7);
+      fl(g, C.ink, poly([[57, 57], [71, 42], [85, 57]]));
+      fl(g, C.ink, poly([[57, 85], [71, 100], [85, 85]]));
+    } else if (kind === 'hill') {
+      fl(g, C.ink, poly([[36, 87], [99, 50], [106, 87]]));
+      line(g, 48, 66, 77, 48, 7);
+      fl(g, C.ink, poly([[64, 41], [88, 42], [79, 62]]));
+    } else if (kind === 'snow') {
+      for (const a of [0, Math.PI / 3, Math.PI * 2 / 3]) {
+        const x = Math.cos(a) * 30, y = Math.sin(a) * 30;
+        line(g, 71 - x, 71 - y, 71 + x, 71 + y, 7);
+      }
+    } else {
+      line(g, 37, 52, 37, 90, 7);
+      line(g, 105, 52, 105, 90, 7);
+      g.beginPath();
+      g.moveTo(37, 60); g.quadraticCurveTo(71, 107, 105, 60);
+      g.lineWidth = 7; g.strokeStyle = C.ink; g.stroke();
+    }
+  }),
+  /** Bolted striped edge, with the origin on the lower face. */
+  clearanceBar: (w: number) => spec(`clearanceBar:${w}`, w + 8, 42, (g) => {
+    ol(g, C.yellow, rr(4, 4, w, 32, 6), 4);
+    for (let x = 10; x + 48 < w; x += 52) {
+      fl(g, C.ink, poly([[x, 6], [x + 24, 6], [x + 43, 34], [x + 19, 34]]));
+    }
+  }, 4, 38),
+  snowChunk: () => spec('snowChunk', 53, 44, (g) => {
+    ol(g, '#e5f7ff', poly([[3, 29], [8, 15], [21, 4], [43, 8], [48, 24], [39, 38], [14, 39]]), 3);
+    fl(g, '#a9d6ee', poly([[8, 28], [24, 32], [45, 23], [39, 37], [14, 38]]));
+  }, 26, 22),
   // ------------------------------------------------------------------ backdrop pieces
   sky: (a: string, b: string) => spec(`sky:${a}:${b}`, 8, 256, (g) => { g.fillStyle = vGradient(g, 256, a, b); g.fillRect(0, 0, 8, 256); }, 0, 0),
   /** Seamless rolling hills strip (tile horizontally). Origin bottom-left. */
@@ -168,8 +205,6 @@ export const P = {
     for (let r = 0; r < 4; r++) for (let i = 0; i < 12; i++) line(g, 6 + i * (w / 11 + 5), top + 6 + r * 26, 6 + i * (w / 11 + 5), top + 26 + r * 26, 2, '#a89678');
     for (let r = 1; r < 4; r++) line(g, 0, top + r * 26, w + 60, top + r * 26, 2, '#a89678');
     ol(g, '#a89678', rr(-6, top - 14, w + 72, 20, 6), 4);
-    // hazard stripes under the arch to show the height
-    for (let i = 0; i < 8; i++) fl(g, i % 2 ? '#222' : C.yellow, (c) => c.rect(cx - w / 2 + (i * w) / 8, sy - under - 4, w / 8, 10));
   }, (w + 60) / 2, under + 190 - 8),
   /** Plank for plank bridges (origin centre). */
   plank: (len: number, style: 'wood' | 'rope' | 'stick') => spec(`plank:${len}:${style}`, len + 10, 34, (g) => {
@@ -196,12 +231,12 @@ export const P = {
     ol(g, '#d9a066', ell(54, 46, 40, 20)); ol(g, '#d9a066', circ(92, 38, 18)); ol(g, '#a86a30', ell(80, 34, 7, 14, 0.4), 3); ol(g, '#a86a30', ell(102, 32, 6, 12, -0.2), 3); fl(g, C.ink, circ(100, 40, 4));
     if (asleep) { line(g, 90, 34, 98, 34, 3); } else eyes(g, 94, 34, 3, 0);
   }, 60, 64),
-  snowman: () => spec('snowman', 140, 230, (g) => {
+  snowman: (hat = true) => spec(hat ? 'snowman' : 'snowman:bare', 140, 230, (g) => {
     ol(g, C.snow, circ(70, 176, 48)); ol(g, C.snow, circ(70, 110, 34)); ol(g, C.snow, circ(70, 62, 26));
     fl(g, C.ink, circ(62, 58, 3)); fl(g, C.ink, circ(78, 58, 3)); ol(g, C.orange, poly([[70, 64], [96, 68], [70, 72]]), 3);
     for (const y of [100, 120]) fl(g, C.ink, circ(70, y, 4));
     line(g, 34, 106, 8, 84, 5, C.woodDark); line(g, 106, 106, 132, 84, 5, C.woodDark);
-    ol(g, '#333', rr(48, 18, 44, 10, 3), 3); ol(g, '#333', rr(54, -2, 32, 24, 4), 3);
+    if (hat) { ol(g, '#333', rr(48, 18, 44, 10, 3), 3); ol(g, '#333', rr(54, -2, 32, 24, 4), 3); }
   }, 70, 224),
   hat: () => spec('hat', 70, 50, (g) => { ol(g, '#333', rr(4, 34, 62, 10, 4), 3); ol(g, '#333', rr(14, 6, 42, 34, 4), 3); fl(g, C.red, (c) => c.rect(14, 28, 42, 8)); }, 35, 44),
   /** Person (farmer, marshal, shopkeeper, kid...). */
@@ -267,6 +302,11 @@ export const palette = PAL;
 
 /** Top-view props (origin centre), shared by the stage kit and shape export. */
 export const T = {
+  mirror: () => spec('t:mirror', 58, 50, (g) => {
+    ol(g, '#42536b', rr(24, 22, 12, 25, 5), 3);
+    ol(g, '#bceeff', rr(6, 6, 46, 25, 9), 4);
+    line(g, 13, 14, 30, 14, 4, C.white);
+  }, 30, 45),
   hayTop: () => spec('t:hay', 130, 84, (g) => { ol(g, PAL.hay, rr(6, 6, 118, 72, 16)); line(g, 44, 8, 44, 76, 4, PAL.hayDark); line(g, 86, 8, 86, 76, 4, PAL.hayDark); fl(g, 'rgba(255,255,255,0.35)', rr(14, 12, 40, 8, 4)); }, 65, 42),
   cone: () => spec('t:cone', 56, 56, (g) => { ol(g, PAL.orange, circ(28, 28, 22), 4); fl(g, '#fff', circ(28, 28, 13)); ol(g, PAL.orange, circ(28, 28, 7), 3); }, 28, 28),
   treeTop: (d: number, c: string = '#3fae4a') => spec(`t:tree:${d}:${c}`, d + 30, d + 30, (g) => {

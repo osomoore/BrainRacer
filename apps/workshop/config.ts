@@ -210,6 +210,33 @@ export const WS_RUN = {
   coastMinSpeed: 60,
   coastMaxSpeed: 900,
   coastMaxMs: 1100,
+  hill: {
+    slope: [0.32, 0.52, 0.74],
+    climbMs: 2900,
+    stallProgress: [0.62, 0.54, 0.46],
+  },
+  snow: {
+    length: [500, 690, 880],
+    depth: [45, 76, 108],
+    sink: [16, 29, 43],
+    sprayMs: [90, 68, 50],
+  },
+  lowBridge: {
+    clearance: [45, 31, 18],
+    overlap: [19, 30, 42],
+    length: [470, 510, 550],
+  },
+  wobbly: {
+    span: [750, 840, 930],
+    restSag: [18, 32, 50],
+    passSag: [32, 46, 60],
+    failSag: [96, 132, 160],
+  },
+  narrow: {
+    clearance: [38, 16],
+    overlap: [20, 38],
+    length: [94, 130],
+  },
 } as const;
 
 // ---------------------------------------------------------------- art (apps/workshop/art)
