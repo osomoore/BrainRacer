@@ -11,8 +11,11 @@ one-time parent setup and nothing for kids to do. Must also work for other famil
 - A profile is never played on two devices at the same time. Devices may be offline for a while (C44 offline play).
 
 ## Family code
-- A family is created on one device: server returns `familyId` (random, 128-bit) and a human code of 3 words + 2 digits,
-  e.g. `TIGER-MAPLE-SOCK-42` (word list of ~2048 short, kid-safe, easy-to-spell words → ~40 bits; plus rate limiting).
+- A family is created on one device: server returns `familyId` (random, 128-bit) and a human code of 4 words, no digits,
+  all themed on dinosaurs and cars, e.g. `RAPTOR-TURBO-FOSSIL-WHEEL` (user's choice, 2026-11-24). Word list: ~512 short,
+  kid-safe, easy-to-spell dino and car words (dino names, dino body parts, fossils/eggs/volcano; car parts, racing,
+  road words) → ~36 bits, with strict rate limiting on wrong codes (e.g. 10 failures per IP per hour).
+  Typing ignores case and accepts spaces or dashes between words; the words themselves must match exactly.
 - The code is the bearer secret ("house key"). Server stores only a SHA-256 of the code → familyId lookup.
 - Joining a device: type the code or scan a QR (QR encodes `<site>/?join=<code>` so a phone camera opens the game
   and joins). The TV shows the QR; tablets/phones scan it; TVs type the code with the on-screen keyboard.
