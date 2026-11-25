@@ -293,6 +293,10 @@ Hold both triggers and press **Start** on a gamepad, or press **F9** on a keyboa
 
 Adventure Workshop shows the upper-right gear on every device on the join screen and the 1P profile screen. Click or tap it and answer the multiplication question to open grown-up settings. The gear hides while those settings are open. F9 and LT+RT+Start also open grown-up settings.
 
+Adventure Workshop test launches read the active card directly from the player's save. Both shops draw static
+run art before registering textures, avoiding Phaser's initial pixel readback and blank upload. See the
+[Workshop test launch notes](WORKSHOP.md#test-launch-c52).
+
 ## Family sync
 
 On a build configured with `VITE_SYNC_URL`, open **Family sync** from either game's grown-up settings menu. On the first device, choose **Make a family**, then **Show code**. On another device, choose **Join a family** and enter that code, or scan the QR and confirm the join in the grown-up panel. Links with `?join=<code>` work from the launcher and either game. Keep the code and QR private. Anyone with either can access the family's profiles and saved progress.

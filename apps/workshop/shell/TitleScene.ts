@@ -38,7 +38,9 @@ export class TitleScene extends Phaser.Scene {
     else this.buildJoin();
     const joinCode = consumeFamilyJoinCode();
     if (joinCode && familySync.enabled) this.time.delayedCall(0, () => { shell.openAdmin(false); openFamilySyncPanel({ joinCode }); });
-    bigText(this, STAGE.w - 24, STAGE.h - 16, buildLabel(), 32, '#ffffff', { origin: [1, 1], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
+    const mobile = shell.mobile;
+    bigText(this, mobile ? 24 : STAGE.w - 24, mobile ? 16 : STAGE.h - 16, buildLabel(), 32, '#ffffff',
+      { origin: mobile ? [0, 0] : [1, 1], bold: false, shadow: false, stroke: 6 }).setAlpha(0.85);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.tweens.killAll());
   }
 

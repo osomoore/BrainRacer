@@ -25,27 +25,39 @@ export interface PartSpec {
   finishPaint?: (g: CanvasRenderingContext2D) => void;
 }
 
+/** Draw before registering the texture. CanvasTexture reads back a full pixel buffer on creation. */
+export function bakeCanvas(scene: Phaser.Scene, key: string, w: number, h: number,
+  draw: (g: CanvasRenderingContext2D) => void): Phaser.Textures.Texture | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(w);
+  canvas.height = Math.ceil(h);
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  if (!g) return null;
+  draw(g);
+  const tex = scene.textures.create(key, canvas);
+  tex?.add('__BASE', 0, 0, 0, canvas.width, canvas.height);
+  return tex;
+}
+
 export function ensureTexture(scene: Phaser.Scene, spec: PartSpec): void {
   if (scene.textures.exists(spec.key)) return;
-  const tex = scene.textures.createCanvas(spec.key, Math.ceil(spec.w * Q), Math.ceil(spec.h * Q));
-  if (!tex) return;
   const { finishPaint } = spec;
-  if (paintTexture(tex, finishPaint && ((g) => {
+  const tex = bakeCanvas(scene, spec.key, spec.w * Q, spec.h * Q, (g) => {
+    if (paintTexture(spec.key, g, () => tex?.source[0]?.update(), finishPaint && ((g) => {
+      g.save();
+      g.scale(Q, Q);
+      g.translate(spec.ox, spec.oy);
+      finishPaint(g);
+      g.restore();
+    }))) return;
     g.save();
     g.scale(Q, Q);
     g.translate(spec.ox, spec.oy);
-    finishPaint(g);
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    spec.draw(g);
     g.restore();
-  }))) return;
-  const g = tex.getContext();
-  g.save();
-  g.scale(Q, Q);
-  g.translate(spec.ox, spec.oy);
-  g.lineJoin = 'round';
-  g.lineCap = 'round';
-  spec.draw(g);
-  g.restore();
-  tex.refresh();
+  });
 }
 
 /** Bake (if needed) and add an Image whose origin is the part origin, at design scale. */

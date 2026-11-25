@@ -196,7 +196,7 @@ test('admin adds currency to one workshop and resets both for the selected playe
   // Exercise the real admin controls using their keyboard navigation.
   await page.evaluate(() => (window as any).__ws.shell.openAdmin(false));
   await expect.poll(() => page.evaluate(() => (window as any).__ws.state().adminOpen)).toBe(true);
-  await key(page, 'ArrowDown'); await key(page, 'Enter'); // select p1
+  await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'Enter'); // Profiles -> p1
   await key(page, 'Enter'); // edit reading level
   await key(page, 'ArrowLeft'); await key(page, 'Enter'); // Easy -> Starter
   await expect.poll(() => page.evaluate(() => (window as any).__ws.store.player('p1').reading)).toBe('starter');

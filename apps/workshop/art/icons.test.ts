@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CURRENCY_ICON_TEXTURES, ensureCurrencyIcon, ensurePriceTagIcon } from './icons';
 
 function fakeScene() {
@@ -11,13 +11,14 @@ function fakeScene() {
     },
     set(target, prop, value) { return Reflect.set(target, prop, value); },
   });
+  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
   const scene = {
     textures: {
       exists: (key: string) => keys.has(key),
-      createCanvas: (key: string, width: number, height: number) => {
+      create: (key: string, { width, height }: HTMLCanvasElement) => {
         keys.add(key);
         created.push({ key, width, height });
-        return { getContext: () => context, refresh: vi.fn() };
+        return { add: vi.fn() };
       },
     },
   } as unknown as Phaser.Scene;
@@ -25,6 +26,7 @@ function fakeScene() {
 }
 
 describe('workshop currency and price tag icons', () => {
+  afterEach(() => vi.unstubAllGlobals());
   it('uses distinct baked coin and juice textures for each workshop', () => {
     const { scene, created } = fakeScene();
     expect(ensureCurrencyIcon(scene, 'race')).toBe(CURRENCY_ICON_TEXTURES.race);

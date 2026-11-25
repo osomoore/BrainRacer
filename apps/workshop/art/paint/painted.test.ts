@@ -10,14 +10,18 @@ const BODY = 'ws:r:body:body.car:shape.boxy:paint.yellow:38:16';
 
 function fakeScene() {
   const textures = new Map<string, ReturnType<typeof makeTexture>>();
-  function makeTexture(key: string, width: number, height: number) {
-    const canvas = { width, height };
+  function makeCanvas() {
+    const canvas = { width: 0, height: 0, getContext: () => context };
     const context = {
+      canvas,
       save: vi.fn(), restore: vi.fn(), scale: vi.fn(), translate: vi.fn(), beginPath: vi.fn(),
       moveTo: vi.fn(), lineTo: vi.fn(), quadraticCurveTo: vi.fn(), closePath: vi.fn(),
       arc: vi.fn(), fill: vi.fn(), stroke: vi.fn(), clearRect: vi.fn(), drawImage: vi.fn(),
     };
-    return { key, getSourceImage: () => canvas, getContext: () => context, refresh: vi.fn() };
+    return canvas;
+  }
+  function makeTexture(key: string, canvas: ReturnType<typeof makeCanvas>) {
+    return { key, add: vi.fn(), getSourceImage: () => canvas, getContext: canvas.getContext, source: [{ update: vi.fn() }] };
   }
   function makeImage(x: number, y: number, key: string) {
     const texture = textures.get(key)!;
@@ -27,19 +31,21 @@ function fakeScene() {
       setScale(sx: number, sy = sx) { this.scaleX = sx; this.scaleY = sy; return this; },
     };
   }
+  vi.stubGlobal('document', { createElement: makeCanvas });
+  const create = vi.fn((key: string, canvas: ReturnType<typeof makeCanvas>) => {
+    const tex = makeTexture(key, canvas);
+    textures.set(key, tex);
+    return tex;
+  });
   const scene = {
     textures: {
       exists: (key: string) => textures.has(key),
-      createCanvas(key: string, w: number, h: number) {
-        const tex = makeTexture(key, w, h);
-        textures.set(key, tex);
-        return tex;
-      },
+      create,
     },
     add: { image: makeImage },
     make: { image: ({ x, y, key }: { x: number; y: number; key: string }) => makeImage(x, y, key) },
   };
-  return { scene: scene as unknown as Phaser.Scene, textures };
+  return { scene: scene as unknown as Phaser.Scene, textures, create };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -68,7 +74,7 @@ it.each(['paint first', 'shape first', 'forced shapes', 'wrong-sized paint'])('u
   const { prop: raceProp } = await import('../../run/common/draw');
   const { image: dinoImage } = await import('../../run/dino/kit/paint');
   await import('../../run/dino/kit/art');
-  const { scene, textures } = fakeScene();
+  const { scene, textures, create } = fakeScene();
 
   if (order === 'paint first') await startPaintedArt();
   const finishPaint = vi.fn();
@@ -103,9 +109,13 @@ it.each(['paint first', 'shape first', 'forced shapes', 'wrong-sized paint'])('u
     expect(im.scaleX * tex.getSourceImage().width).toBeCloseTo(entries[key].w * scale / Q);
     expect(im.scaleY * tex.getSourceImage().height).toBeCloseTo(entries[key].h * scale / Q);
     expect(tex.getContext().drawImage).toHaveBeenCalledTimes(order === 'paint first' || order === 'shape first' ? 1 : 0);
-    expect(tex.refresh).toHaveBeenCalledTimes(order === 'shape first' ? 2 : 1);
+    expect(tex.source[0].update).toHaveBeenCalledTimes(order === 'shape first' ? 1 : 0);
     if (order === 'paint first') expect(tex.getContext().beginPath).not.toHaveBeenCalled();
     else expect(tex.getContext().beginPath).toHaveBeenCalled();
   }
+  // Each run creates fresh sprites while reusing the existing textures.
+  expect(dinoImage(scene, 'far:hills').texture).toBe(dino.texture);
+  expect(raceProp(scene, null, T.cone(), 0, 0).texture).toBe(race.texture);
+  expect(create).toHaveBeenCalledTimes(3);
   expect(fetch).toHaveBeenCalledTimes(order === 'forced shapes' ? 0 : 1);
 });

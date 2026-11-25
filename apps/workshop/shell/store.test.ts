@@ -10,7 +10,7 @@ function memStorage(): StorageLike & { data: Map<string, string> } {
 }
 
 describe('SaveStore', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
   it('round-trips a player save under workshop.players.v1', () => {
     const st = memStorage();
     const store = new SaveStore(st);
@@ -20,6 +20,46 @@ describe('SaveStore', () => {
     expect(JSON.parse(st.data.get(PLAYERS_KEY)!)[id].reading).toBe('hard');
     expect(new SaveStore(st).player(id)?.reading).toBe('hard');
     expect(store.hasPlayer('p2')).toBe(false);
+  });
+  it('reuses normalized player saves but returns detached mutable snapshots', () => {
+    const st = memStorage();
+    const save = engine.newPlayerSave('easy');
+    save.workshops.dino = engine.progressOf(save, 'dino');
+    st.data.set(PLAYERS_KEY, JSON.stringify({ p1: save }));
+    const normalize = vi.spyOn(engine, 'normalizeSave');
+    const store = new SaveStore(st);
+
+    const first = store.player('p1')!;
+    expect(normalize).toHaveBeenCalledTimes(1);
+    const second = store.player('p1')!;
+    expect(normalize).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+    expect(second).not.toBe(first);
+    expect(second.workshops).not.toBe(first.workshops);
+
+    first.workshops.dino!.wallet = 0;
+    expect(store.player('p1')!.workshops.dino!.wallet).toBe(save.workshops.dino.wallet);
+    expect(normalize).toHaveBeenCalledTimes(1);
+  });
+  it('observes external writes and invalidates normalized saves after setPlayer', () => {
+    const st = memStorage();
+    st.data.set(PLAYERS_KEY, JSON.stringify({ external: engine.newPlayerSave('easy') }));
+    const normalize = vi.spyOn(engine, 'normalizeSave');
+    const store = new SaveStore(st);
+
+    expect(store.player('external')?.reading).toBe('easy');
+    expect(normalize).toHaveBeenCalledTimes(1);
+    st.data.set(PLAYERS_KEY, JSON.stringify({ external: engine.newPlayerSave('hard') }));
+    expect(store.player('external')?.reading).toBe('hard');
+    expect(normalize).toHaveBeenCalledTimes(2);
+
+    const id = createProfile('Cache Test')!.id;
+    store.setPlayer(id, engine.newPlayerSave('medium'));
+    expect(store.player(id)?.reading).toBe('medium');
+    expect(normalize).toHaveBeenCalledTimes(4);
+    store.setPlayer(id, engine.newPlayerSave('hard'));
+    expect(store.player(id)?.reading).toBe('hard');
+    expect(normalize).toHaveBeenCalledTimes(6);
   });
   it('device save defaults to Admin Mode off and persists', () => {
     const st = memStorage();

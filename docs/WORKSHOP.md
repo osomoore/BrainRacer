@@ -261,6 +261,22 @@ The review kept these cases on their existing rules.
   (`preloadWorkshopAudio`, `createWorkshopAudio`), `content/*/catalog.ts`. Keep the export names.
 - **Music arbitration** (shell): when both panes ask for different tracks, play `title`.
 
+### Test launch (C52)
+
+The board deals and saves its cards before **Test it!**. The run screen reads the active card and current model
+from that save and evaluates the result. Repeated save reads reuse validation for identical storage contents and
+return independent copies. Changes from another tab or Family sync are picked up from storage on the next read.
+
+Race Shop and Dino Lab draw baked canvases before handing them to Phaser, so a cold run avoids a full pixel
+readback and an upload of the blank canvas. Rigs and scenery still use the game's shared texture cache.
+A painted image arriving late can update an existing texture in place. The run builds scenery for each reached
+stage when it plays.
+
+C52 measured the first rendered stage frame in Edge at 1920×1080 with one and two players. With 6× CDP CPU
+throttling, the median cold launch across Snack, Ferns and Chase dropped from 365 ms to 265 ms. Across Mud and
+Turn it dropped from 361 ms to 298 ms. The measurements used a desktop GPU. Check cold starts and retries on the
+Android tablet and Mali-G310 TV box.
+
 ## Testing
 
 - Unit tests next to pure code (`apps/**/*.test.ts`, run by `npm test`).

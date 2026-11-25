@@ -327,15 +327,20 @@ test('win: green check, currency saved, board refills, replay does not pay again
 test('results text follows the reading level', async ({ page }) => {
   await boot(page);
   await enter(page, { players: 1, reading: 'easy' });
-  const id = (await pickChallenge(page, 0, 'race', false))!;
-  const req = await page.evaluate((id) => {
-    const w = (window as any).__ws;
-    return w.engine.progressOf(w.contexts()[0].save(), 'race').challenges[id].stages[0].requirements[0].text as Record<Reading, string>;
-  }, id);
   for (const level of ['easy', 'medium', 'hard'] as Reading[]) {
-    await page.evaluate((level) => {
+    const { id, req } = await page.evaluate((level) => {
       const w = (window as any).__ws;
-      w.store.setPlayer('p1', { ...w.store.player('p1'), reading: level });
+      const save = { ...w.store.player('p1'), reading: level };
+      const progress = w.engine.progressOf(save, 'race');
+      const refreshed = { ...save, workshops: { ...save.workshops, race: progress } };
+      w.store.setPlayer('p1', refreshed);
+      const id = progress.active.find((challengeId: string) =>
+        !w.engine.evaluate('race', progress.model, progress.challenges[challengeId]).passed);
+      if (!id) throw new Error(`No failing race challenge at ${level}`);
+      return {
+        id,
+        req: progress.challenges[id].stages[0].requirements[0].text as Record<Reading, string>,
+      };
     }, level);
     await goRun(page, 0, id);
     await expectScreens(page, 'run');

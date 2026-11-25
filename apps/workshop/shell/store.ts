@@ -22,15 +22,40 @@ function defaultStorage(): StorageLike | null {
 
 export class SaveStore {
   private readonly memory = new Map<string, string>();
+  private playersCache?: { raw: string | null; saves: Map<string, string> };
 
   constructor(private readonly storage: StorageLike | null = defaultStorage()) {}
 
-  private read(key: string): unknown {
+  private readRaw(key: string): string | null {
     let raw: string | null = null;
     try { raw = this.storage?.getItem(key) ?? null; } catch { raw = null; }
-    raw ??= this.memory.get(key) ?? null;
+    return raw ?? this.memory.get(key) ?? null;
+  }
+
+  private read(key: string): unknown {
+    const raw = this.readRaw(key);
     if (raw === null) return null;
     try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  private normalizedPlayers(): Map<string, string> {
+    const raw = this.readRaw(PLAYERS_KEY);
+    if (this.playersCache?.raw === raw) return this.playersCache.saves;
+
+    const saves = new Map<string, string>();
+    if (raw !== null) {
+      let value: unknown;
+      try { value = JSON.parse(raw); } catch { value = null; }
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        for (const [id, v] of Object.entries(value as Record<string, unknown>)) {
+          const save = engine.normalizeSave(v);
+          if (save) saves.set(id, JSON.stringify(save));
+        }
+      }
+    }
+
+    this.playersCache = { raw, saves };
+    return saves;
   }
 
   private write(key: string, value: unknown): void {
@@ -41,22 +66,17 @@ export class SaveStore {
 
   /** Every saved player, validated. */
   players(): Record<string, PlayerSave> {
-    const raw = this.read(PLAYERS_KEY);
     const out: Record<string, PlayerSave> = {};
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
-        const save = engine.normalizeSave(v);
-        if (save) out[id] = save;
-      }
-    }
+    for (const [id, save] of this.normalizedPlayers()) out[id] = JSON.parse(save) as PlayerSave;
     return out;
   }
 
   player(profileId: string): PlayerSave | null {
-    return this.players()[profileId] ?? null;
+    const save = this.normalizedPlayers().get(profileId);
+    return save === undefined ? null : JSON.parse(save) as PlayerSave;
   }
 
-  hasPlayer(profileId: string): boolean { return this.player(profileId) !== null; }
+  hasPlayer(profileId: string): boolean { return this.normalizedPlayers().has(profileId); }
 
   setPlayer(profileId: string, save: PlayerSave): void {
     const activeId = resolveActiveProfileId(profileId);

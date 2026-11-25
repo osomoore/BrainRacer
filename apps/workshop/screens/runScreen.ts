@@ -74,9 +74,11 @@ const runScreen: ScreenFactory = (): Screen => {
       age = 0;
       challengeId = data.challengeId ?? '';
       const ws = ctx.workshop;
-      const progress = ws ? currentProgress(ctx, ws) : undefined;
+      // The board persists the dealt cards before Test, and retries still use the same active card.
+      // Read that snapshot without refreshing and re-solving the board on the launch frame.
+      const progress = ws ? ctx.save().workshops[ws] : undefined;
       const challenge = progress?.challenges[challengeId];
-      if (!ws || !progress?.active.includes(challengeId) || !challenge) { ctx.go('board'); return; }
+      if (!ws || !progress?.active.includes(challengeId) || !challenge || progress.completed[challengeId]) { ctx.go('board'); return; }
       ctx.audio.music(WS_AUDIO.runMusic[ws]);
       result = engine.evaluate(ws, progress.model, challenge);
       try {

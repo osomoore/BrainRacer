@@ -4,7 +4,7 @@
  * is the spec origin (bottom-centre for most props), at design scale (1 unit = 1 world px).
  */
 import type Phaser from 'phaser';
-import { OUTLINE, type PartSpec, partImage } from '../../art/bake';
+import { OUTLINE, bakeCanvas, type PartSpec, partImage } from '../../art/bake';
 import { darken, lighten } from '../../art/geom';
 
 export { OUTLINE, darken, lighten };
@@ -69,8 +69,7 @@ export function line(g: Ctx2D, x0: number, y0: number, x1: number, y1: number, l
 export function bakeKey(scene: Phaser.Scene, key: string, w: number, h: number, draw: (g: Ctx2D) => void): string {
   const k = `wsr:${key}`;
   if (!scene.textures.exists(k)) {
-    const t = scene.textures.createCanvas(k, w, h);
-    if (t) { const g = t.getContext(); g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); t.refresh(); }
+    bakeCanvas(scene, k, w, h, (g) => { g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); });
   }
   return k;
 }
@@ -95,8 +94,7 @@ export function hashKey(s: string): string {
 let tmpId = 0;
 export function bakeTemp(scene: Phaser.Scene, owner: Phaser.GameObjects.GameObject, w: number, h: number, draw: (g: Ctx2D) => void, cacheKey?: string): string {
   const paint = (k: string): void => {
-    const t = scene.textures.createCanvas(k, Math.ceil(w), Math.ceil(h));
-    if (t) { const g = t.getContext(); g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); t.refresh(); }
+    bakeCanvas(scene, k, w, h, (g) => { g.lineJoin = 'round'; g.lineCap = 'round'; draw(g); });
   };
   if (!cacheKey) {
     const k = `wsr:tmp:${tmpId++}`;
