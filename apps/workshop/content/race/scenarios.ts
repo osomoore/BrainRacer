@@ -24,6 +24,7 @@ function facet(id: string, hintAspect: AspectId, views: readonly View[], minTier
 const SIDE: readonly View[] = ['side'];
 const BOTH: readonly View[] = ['side', 'top'];
 const TOP: readonly View[] = ['top'];
+const TOP_FIRST: readonly View[] = ['top', 'side'];
 
 export const RACE_SCENARIOS: readonly ScenarioDef[] = [
   {
@@ -46,8 +47,8 @@ export const RACE_SCENARIOS: readonly ScenarioDef[] = [
     ],
   },
   {
-    id: 'turn', label: 'Sharp turns (top view)', minTier: 0, facets: [
-      facet('turn.handling', 'springs', TOP, 0, { 1: [atLeast('handling', 5)], 2: [atLeast('handling', 7)], 3: [atLeast('handling', 9)] }),
+    id: 'turn', label: 'Sharp turns', minTier: 0, facets: [
+      facet('turn.handling', 'springs', TOP_FIRST, 0, { 1: [atLeast('handling', 5)], 2: [atLeast('handling', 7)], 3: [atLeast('handling', 9)] }),
     ],
   },
   {

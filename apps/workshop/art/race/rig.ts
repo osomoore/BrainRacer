@@ -24,6 +24,7 @@ export class RaceRig extends BaseRig {
   private flame: Img | null = null;
   private L!: RaceLooks;
   private geo!: RaceGeom;
+  private compression = 0;
 
   constructor(scene: Phaser.Scene, model: Model, view: View) {
     super(scene, 'race', model, view);
@@ -31,6 +32,11 @@ export class RaceRig extends BaseRig {
   }
 
   bodyMount(): Phaser.GameObjects.Container { return this.mountG!; }
+
+  setSuspensionCompression(amount: number): void {
+    this.compression = amount;
+    this.render();
+  }
 
   setFrontWheelVisible(visible: boolean): void { this.wheelF.setVisible(visible); }
 
@@ -238,13 +244,14 @@ export class RaceRig extends BaseRig {
     // Side view: the body rides raiseY higher on its (longer) springs. Done here rather than in raceGeom() so the
     // painted body PNGs (keyed by geometry) stay valid.
     const raiseY = side ? this.geo.rideRaise : 0;
-    this.bodyG.y = (side ? -S0.bob : S0.bob * 0.3) - raiseY;
+    const compression = side ? this.compression * raiseY * 0.8 : 0;
+    this.bodyG.y = (side ? -S0.bob : S0.bob * 0.3) - raiseY + compression;
     this.bodyG.rotation = S0.tilt;
-    this.bumperG.y = -raiseY;
+    this.bumperG.y = -raiseY + compression;
     this.springG.y = this.bodyG.y + raiseY;
     if (side) {
       this.wheelF.rotation = S0.spin; this.wheelR.rotation = S0.spin;
-      for (const sp of this.springs) sp.img.setScale(sp.img.scaleX, (1 + S0.bob / sp.h) / 1.5);
+      for (const sp of this.springs) sp.img.setScale(sp.img.scaleX, (1 + (S0.bob - compression) / sp.h) / 1.5);
     }
     if (this.flame) this.flame.setScale(S0.flame * ROCKET_SCALE / 1.5, (side ? 1 : 0.8) * ROCKET_SCALE / 1.5);
   }
