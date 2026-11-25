@@ -20,6 +20,8 @@ import { MenuButton } from '../ui/menu/MenuButton';
 import { OptionRow } from '../ui/menu/OptionRow';
 import { bigText, FONT_HEAD, hexNum, MENU, type Selectable } from '../ui/menu/style';
 import { REG, SCENE } from './keys';
+import { consumeFamilyJoinCode, openFamilySyncPanel } from '../../shared/sync/panel';
+import { familySync } from '../../shared/sync/runtime';
 
 /**
  * Hidden advanced settings. Open with LT+RT+Start on a gamepad or F9 on a keyboard.
@@ -141,6 +143,8 @@ export class ConfigScene extends Phaser.Scene {
     this.game.events.on('admin:open', onAdminOpen);
     this.events.once('shutdown', () => this.game.events.off('admin:open', onAdminOpen));
     this.scene.bringToTop();
+    const joinCode = consumeFamilyJoinCode();
+    if (joinCode && familySync.enabled) this.time.delayedCall(0, () => { this.toggle(); openFamilySyncPanel({ joinCode }); });
   }
 
   // ───────────────────────── panel ─────────────────────────
@@ -226,6 +230,10 @@ export class ConfigScene extends Phaser.Scene {
       this.adminCursor = this.cursor;
       this.showProfiles();
     });
+    if (familySync.enabled) {
+      const sync = action(1, rowY(9), 'Family sync', () => { openFamilySyncPanel(); });
+      sync.setSize(sync.w, sync.h).setInteractive().on('pointerdown', () => openFamilySyncPanel());
+    }
     const close = action(1, 987, 'Close', () => this.close());
     close.setSize(close.w, close.h).setInteractive().on('pointerdown', () => this.close());
 
@@ -624,6 +632,7 @@ export class ConfigScene extends Phaser.Scene {
 
   // ───────────────────────── frame ─────────────────────────
   update(time: number): void {
+    if ((window as Window & { __familySyncDialogOpen?: boolean }).__familySyncDialogOpen) return;
     this.frame++;
     if (this.isOpen) {
       services.input.poll();

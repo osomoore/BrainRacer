@@ -16,6 +16,8 @@ import { showBanner } from '../../ui/Banner';
 import { COLORS, css, makeText, roundedOriginY, roundedTexture } from '../../ui/style';
 import { shell } from '../shell';
 import { applyKey, firstRow, scrollTop, type AdminRow, type ListKey, type ListState } from './adminModel';
+import { openFamilySyncPanel } from '../../../../shared/sync/panel';
+import { familySync } from '../../../../shared/sync/runtime';
 
 type View = { kind: 'gate' } | { kind: 'main' } | { kind: 'player'; profile: string } | { kind: 'workshop'; profile: string; ws: WorkshopId };
 
@@ -103,6 +105,9 @@ export class AdminScene extends Phaser.Scene {
       if (profiles.length === 0) rows.push({ kind: 'note', label: 'No players yet.' });
       for (const p of profiles) {
         rows.push({ kind: 'action', label: p.name, tag: shell.store.hasPlayer(p.id) ? '>' : 'no workshop save > ', run: () => this.push({ kind: 'player', profile: p.id }) });
+      }
+      if (familySync.enabled) {
+        rows.push({ kind: 'action', label: 'Family sync', tag: '>', run: () => openFamilySyncPanel() });
       }
       rows.push({ kind: 'section', label: '' });
       rows.push({ kind: 'action', label: 'Close', run: () => this.close() });
@@ -320,6 +325,7 @@ export class AdminScene extends Phaser.Scene {
   }
 
   override update(): void {
+    if ((window as Window & { __familySyncDialogOpen?: boolean }).__familySyncDialogOpen) return;
     shell.router.step(this.game.getFrame());
     if (this.game.getFrame() === this.opened) return;
     const actions = shell.router.rawActions();

@@ -5,8 +5,10 @@
 import '../../shared/offline';
 import { installMobileShell } from '../../shared/mobile';
 import { ensureProfiles } from '../../shared/profiles';
+import { familySync } from '../../shared/sync/runtime';
 
 ensureProfiles();
+familySync.start();
 installMobileShell();
 
 const devName = new URLSearchParams(location.search).get('dev');

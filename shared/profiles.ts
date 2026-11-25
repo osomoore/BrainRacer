@@ -7,6 +7,7 @@
  */
 import { readShared, writeShared } from './storage';
 import { runLegacyMigration } from './legacyProfiles';
+import { newSyncProfileId, notifyProfileChanged, notifyProfileDeleted, useSyncProfileIds } from './sync/changes';
 
 export interface PlayerProfile { id: string; name: string; createdAt: number }
 
@@ -41,6 +42,9 @@ export function getProfile(id: string | undefined): PlayerProfile | undefined {
 
 /** Next opaque id `p<n>`; the counter never goes back, so a deleted profile's id is never reused. */
 function nextId(list: readonly PlayerProfile[]): string {
+  if (useSyncProfileIds()) {
+    return `p-${newSyncProfileId()}`;
+  }
   const used = list.map((p) => Number(/^p(\d+)$/.exec(p.id)?.[1] ?? 0));
   const n = Math.max(Number(readShared<number>(SEQ_KEY, 0)) || 0, ...used) + 1;
   writeShared(SEQ_KEY, n);
@@ -54,6 +58,7 @@ export function createProfile(name: string): PlayerProfile | null {
   const list = listProfiles();
   const profile: PlayerProfile = { id: nextId(list), name: n, createdAt: Date.now() };
   writeShared(PROFILES_KEY, [...list, profile]);
+  notifyProfileChanged(profile.id);
   return profile;
 }
 
@@ -62,6 +67,7 @@ export function renameProfile(id: string, name: string): boolean {
   const list = listProfiles();
   if (!n || !list.some((p) => p.id === id)) return false;
   writeShared(PROFILES_KEY, list.map((p) => (p.id === id ? { ...p, name: n } : p)));
+  notifyProfileChanged(id);
   return true;
 }
 
@@ -71,7 +77,10 @@ export function renameProfile(id: string, name: string): boolean {
  */
 export function deleteProfile(id: string): void {
   const list = listProfiles();
-  if (list.some((p) => p.id === id)) writeShared(PROFILES_KEY, list.filter((p) => p.id !== id));
+  if (list.some((p) => p.id === id)) {
+    writeShared(PROFILES_KEY, list.filter((p) => p.id !== id));
+    notifyProfileDeleted(id);
+  }
 }
 
 /** Old Brain Racer racer id to shared profile id (only on devices that migrated). */

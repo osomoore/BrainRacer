@@ -12,6 +12,8 @@ import { Pager } from '../ui/Pager';
 import { pageCount, pageItems } from '../ui/paging';
 import { ProfileMenuButton } from '../ui/ProfileMenuButton';
 import { menuBackground, playerMenuColor } from '../ui/profileMenu';
+import { familySync } from '../../../shared/sync/runtime';
+import { syncDotColor } from '../../../shared/sync/panel';
 
 const profileScreen: ScreenFactory = (): Screen => {
   let ctx: ShellPaneContext;
@@ -24,11 +26,24 @@ const profileScreen: ScreenFactory = (): Screen => {
   let locked: string | undefined;
   let cols: number;
   let perPage: number;
+  let unsubSync = () => {};
+  let unsubProfiles = () => {};
+
+  const refreshProfiles = () => {
+    const latest = listProfiles();
+    const changed = latest.length !== profiles.length || latest.some((p, i) => p.id !== profiles[i]?.id || p.name !== profiles[i]?.name);
+    if (!changed) return;
+    profiles = latest;
+    locked = ctx.otherProfileId();
+    pager.setPages(pageCount(profiles.length + 1, perPage));
+    buildPage(Math.min(pager.page, pageCount(profiles.length + 1, perPage) - 1));
+  };
 
   const choose = (id: string) => {
     // The other pane may have selected this card in the same frame.
     if (id === ctx.otherProfileId()) return;
     ctx.setProfile(id);
+    familySync.chooseProfile(id);
     ctx.go(shell.store.hasPlayer(id) ? 'pickWorkshop' : 'reading');
   };
 
@@ -84,6 +99,13 @@ const profileScreen: ScreenFactory = (): Screen => {
       });
       back = new ProfileMenuButton(ctx.scene, 175, h - 130, 240, 112, 'BACK', color, 50, () => ctx.exit());
       buildPage(0);
+      const dotColor = syncDotColor();
+      if (dotColor !== null) {
+        const dot = ctx.scene.add.circle(42, 40, 11, dotColor).setStrokeStyle(2, 0xffffff);
+        objs.push(dot);
+        unsubSync = familySync.subscribe(() => dot.setFillStyle(syncDotColor()!));
+      }
+      unsubProfiles = familySync.subscribeProfiles(refreshProfiles);
     },
     update() {
       const nextLock = ctx.otherProfileId();
@@ -105,6 +127,8 @@ const profileScreen: ScreenFactory = (): Screen => {
       }
     },
     destroy() {
+      unsubSync();
+      unsubProfiles();
       group.destroy();
       pager.destroy();
       cards.forEach(({ button }) => button.destroy());

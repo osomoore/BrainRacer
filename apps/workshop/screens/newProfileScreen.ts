@@ -1,5 +1,6 @@
 /** Shared name-entry UI followed by the Workshop's reading-level step. */
 import { createProfile, listProfiles, PROFILE_NAME } from '../../../shared/profiles';
+import { familySync } from '../../../shared/sync/runtime';
 import { LetterPicker } from '../../../shared/ui/menu/LetterPicker';
 import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
 import type { PaneContext, Screen, ScreenFactory } from '../core/runtime';
@@ -65,6 +66,7 @@ const newProfileScreen: ScreenFactory = (): Screen => {
       }
       shell.store.setPlayer(profile.id, engine.newPlayerSave(level, hashSeed(profile.id)));
       ctx.setProfile(profile.id);
+      familySync.chooseProfile(profile.id);
       ctx.audio.sfx('sparkle');
       ctx.go('pickWorkshop');
     });

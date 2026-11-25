@@ -6,6 +6,7 @@ import { createInput } from '../input';
 import { createAudio } from '../audio';
 import { migrateLegacyRacers } from '../core/legacyRacers';
 import { ensureProfiles } from '../../shared/profiles';
+import { familySync } from '../../shared/sync/runtime';
 import { isRaceMap, loadSettings, savedSecondPlayer } from '../core/settings';
 import type { CarKind, InputDevice, PlayerId, Settings } from '../core/types';
 import { isMobile } from '../../shared/device';
@@ -48,6 +49,7 @@ export class BootScene extends Phaser.Scene {
     generateTextures(this);
     ensureProfiles();      // shared profiles (first run on a device with old Brain Racer data migrates it)
     migrateLegacyRacers(); // remaps Brain Racer's own saved data to the shared profile ids, once
+    familySync.start();
     const startup = loadSettings();
     services.audio.setVolumes(startup.musicVolume, startup.sfxVolume);
     this.placeholderForMissingScenes();

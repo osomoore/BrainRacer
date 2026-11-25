@@ -1,3 +1,5 @@
+import { notifyProfileChanged } from '../../shared/sync/changes';
+
 /**
  * Per-racer JBQ progress: how many times each question was answered correctly.
  * Stored under `brainracer.jbq.v1` as { [profileId]: { [questionId]: correctCount } } (question ids are unique across levels).
@@ -57,5 +59,6 @@ export class JbqProgressStore {
     const next: JbqProgressAll = { ...all, [profile]: bumpCount(all[profile] ?? {}, id) };
     this.volatile = next;
     try { this.storage()?.setItem(JBQ_PROGRESS_KEY, JSON.stringify(next)); } catch { /* session-only */ }
+    notifyProfileChanged(profile);
   }
 }

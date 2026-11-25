@@ -18,6 +18,9 @@ import type { TouchLayout } from './core/types';
 import type { RaceContext } from './core/race';
 import { installMobileShell } from '../shared/mobile';
 import { isMobile } from '../shared/device';
+import { familySync } from '../shared/sync/runtime';
+import { loadoutForProfile, loadSettings } from './core/settings';
+import type { Settings } from './core/types';
 
 /**
  * Dev scenes: any file in src/scenes/dev/*.ts whose default export is a Phaser.Scene subclass
@@ -42,6 +45,15 @@ const game = new Phaser.Game({
 
 // Hidden settings menu: always running, on top of everything (see ConfigScene).
 game.events.once(Phaser.Core.Events.READY, () => game.scene.start(SCENE.config));
+
+const unwatchProfiles = familySync.subscribeProfiles(id => {
+  const settings = game.registry.get(REG.settings) as Settings | undefined;
+  if (!settings) return;
+  const loadout = loadoutForProfile(id);
+  const players = settings.players.map(p => p.profile === id && loadout ? { ...p, ...loadout } : p);
+  game.registry.set(REG.settings, { ...settings, players, racerProfiles: loadSettings().racerProfiles });
+});
+game.events.once(Phaser.Core.Events.DESTROY, unwatchProfiles);
 
 // Exposed for Playwright tests / debugging.
 (window as unknown as { __game: Phaser.Game }).__game = game;

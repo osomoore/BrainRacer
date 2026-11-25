@@ -74,3 +74,32 @@ Device-local state is never in it. Version it (`schema`) so later builds can upg
 - C46 (client): `shared/sync/**` (pure merge + protocol client, tested), storage adapters for shared profiles, Brain Racer
   and Workshop, admin "Family sync" panel in both apps, QR (small dependency-free QR encoder or an approved package),
   `?join=`, status dot, docs/STATUS.md section. Tests against a fake in-memory server implementing the API above.
+
+## Local storage inventory and sync mapping
+
+| Exact key | Store | Owner / contents | Sync classification | Snapshot mapping |
+| --- | --- | --- | --- | --- |
+| `hub.profiles` | localStorage | Shared profile identities and names | Per-profile | `profile` |
+| `hub.profileSeq` | localStorage | Monotonic legacy `p<n>` allocator | Device-local metadata | Advanced when importing or hiding `p<n>` identities |
+| `hub.legacyIds` | localStorage | Old Brain Racer racer ID → shared profile ID migration map | Device-local migration metadata | Never uploaded |
+| `hub.lastGame` | localStorage | Last launcher game | Device-only preference | Never uploaded |
+| `hub.familySync.v1` | localStorage | Family code and per-profile revision/dirty/hash/device sync state | Device-local sync metadata | Never uploaded |
+| `hub.familySyncFake.v1` | localStorage | Credentials and revisions for fake sync | Development-only sync metadata | Kept separate from real family credentials |
+| `hub.familySyncFakeServer.v1` | sessionStorage | Fake backend family data | Development-only session data | Never uploaded |
+| `brainracer.settings.v1` | localStorage | Global race options, per-profile quiz preferences, current player slots | Mixed | `racer.settings` holds quiz preferences. Map, seed, volumes, global timing, challenge mode, developer mode, slot order, and controller choices stay local. |
+| `brainracer.loadouts.v1` | localStorage | Keyed per-profile car/buddy/developer loadouts | Per-profile | `racer.loadout` |
+| `brainracer.secondPlayer.v1` | localStorage | Compatibility copy of second player settings | Device-local slot compatibility | Extracts `racer.loadout` by profile ID when an older save has no keyed loadout |
+| `brainracer.racers.v1` | localStorage | Progress map by profile (worlds, collectibles, admin overrides) | Per-profile | `racer.progress` |
+| `brainracer.jbq.v1` | localStorage | Correct-answer counts by profile and question | Per-profile | `racer.jbq` |
+| `brainracer.unlocks.v1` | localStorage | Deprecated pre-profile earned collectible list, read only during legacy migration | Device-local migration source | Never uploaded after migration |
+| `brainracer.content.v1` | localStorage | Deprecated pre-profile world/override state, read only during legacy migration | Device-local migration source | Never uploaded after migration |
+| `brainracer.legacyRemap.v1` | localStorage | One-time legacy Racer migration marker | Device-local migration metadata | Never uploaded |
+| `brainracer.backup.preProfiles` | localStorage | Recovery backup of pre-migration Brain Racer keys | Device-local recovery data | Never uploaded |
+| `brainracer.tuning.v1` | localStorage | Device performance tuning | Device-only | Never uploaded |
+| `brainracer.mobileOverride` | sessionStorage | Per-tab mobile test override | Device-only test preference | Never uploaded |
+| `workshop.players.v1` | localStorage | `Record<profileId, PlayerSave>` (reading, wallets, models, parts, challenges, buddies, progress) | Per-profile | `workshop` |
+| `workshop.device.v1` | localStorage | Workshop admin mode | Device-only | Never uploaded |
+
+An existing `p<n>` ID that collides with a different remote profile is reassigned locally with its existing saves and slot references. New profiles created on a linked device use random IDs. Aggregate maps are updated one profile at a time.
+
+JBQ counts use the maximum for each question. Workshop board generation counters use the maximum, and two different cards with the same generated ID can both be kept in history. A newer snapshot that has never saved in one game or Workshop room keeps the older saved data for that game or room. Ties use the server's scalar values, and a tombstone wins a tie. Applying a tombstone hides the shared profile on this device and retains its underlying game saves.

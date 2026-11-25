@@ -5,6 +5,7 @@
  */
 import type { DeviceSave, PlayerSave } from '../core/types';
 import { engine } from '../logic';
+import { notifyProfileChanged } from '../../../shared/sync/changes';
 
 export const PLAYERS_KEY = 'workshop.players.v1';
 export const DEVICE_KEY = 'workshop.device.v1';
@@ -57,7 +58,10 @@ export class SaveStore {
   hasPlayer(profileId: string): boolean { return this.player(profileId) !== null; }
 
   setPlayer(profileId: string, save: PlayerSave): void {
-    this.write(PLAYERS_KEY, { ...this.players(), [profileId]: save });
+    const raw = this.read(PLAYERS_KEY);
+    const others = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    this.write(PLAYERS_KEY, { ...others, [profileId]: save });
+    notifyProfileChanged(profileId);
   }
 
   device(): DeviceSave {
