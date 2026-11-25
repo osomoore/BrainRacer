@@ -1,25 +1,12 @@
-/** Pure board-screen layout (wide: composed model + challenge detail; tall: one view with model, challenge tabs and detail). */
+/** Pure board-screen layout (wide: cards on top, one big detail panel; tall: challenge tabs on top, then a tall detail panel). */
 import { WS_ROOM, WS_UI } from '../../config';
 import { paneSize, type LayoutKind } from '../room/layout';
 
 export interface BoxC { x: number; y: number; w: number; h: number }
 
-export interface PartPreviewLayout {
-  x: number; y: number; maxW: number; maxH: number; labelX: number; labelY: number; labelW: number;
-  /** Clipped zoom viewport (center-based). */
-  view: BoxC;
-  /** Cycle arrows: previous / next centre, rotation (deg, 0 = up). */
-  arrows: { prev: { x: number; y: number; angle: number }; next: { x: number; y: number; angle: number } };
-}
-
 export interface BoardLayout {
   kind: LayoutKind;
   size: { w: number; h: number };
-  /** Backing panel of the model/part preview. */
-  modelPanel?: BoxC;
-  model: { x: number; groundY: number; maxW: number; maxH: number };
-  /** Composed rig and the highlighted-part name label shown with challenge detail. */
-  partPreview: PartPreviewLayout;
   cards: BoxC[];
   /** Cards per page. */
   perPage: number;
@@ -31,8 +18,10 @@ export interface BoardLayout {
   testBtn: BoxC;
   /** Text area inside the panel: top-left origin and size. */
   textArea: { x: number; y: number; w: number; h: number };
-  /** Pager for text pages (inside the panel, bottom center). */
+  /** Pager for text pages (rare overflow only). */
   textPager: { x: number; y: number; gap: number };
+  /** Height taken from the text area when the text pager is shown (0 when the pager sits in free space). */
+  pagerReserve: number;
   title: { x: number; y: number; size: number; maxW: number };
   compactCards: boolean;
 }
@@ -41,22 +30,14 @@ const PER_PAGE = 3;
 /** Extra tab height (narrow layout) so a two-line title and the reward footer both fit. */
 const TAB_FOOTER_EXTRA = 50;
 
-/** Wallet badge (WS_WALLET, centre y 80) ends near y 121; the zoom viewport's top edge must start below it. */
+/** Wallet badge (WS_WALLET, centre y 80) ends near y 121; the narrow tabs start below it. */
 const BADGE_CLEAR = 134;
-/** Clip margin above and below the vehicle inside the zoom viewport. */
-const VIEW_PAD = 16;
-/** Part label: gap under the viewport, half its height (40 px text) and its bottom edge incl. shadow, relative to its centre. */
-const LABEL_GAP = 8;
-const LABEL_HALF = 29;
-const LABEL_BOTTOM = 33;
-/** Wide: the vehicle stands on WIDE_GROUND, so its viewport top is BADGE_CLEAR. */
-const WIDE_VEH_H = 250;
-const WIDE_GROUND = BADGE_CLEAR + VIEW_PAD + WIDE_VEH_H;
 
 export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   const size = paneSize(kind);
   if (kind === 'wide') {
-    const rx = 660;
+    // The wallet badge (WS_WALLET) owns the top-left corner, so the cards start to its right; the panel spans the full width below.
+    const rx = 300;
     const rw = size.w - rx - 30;
     const cw = (rw - 60) / 3;
     // Admin Mode: the shell's ADMIN MODE badge sits at the top center, so the cards start lower and a bit shorter.
@@ -65,44 +46,32 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
     const cards = [0, 1, 2].map((i) => ({ x: rx + cw / 2 + i * (cw + 30), y: top + ch / 2, w: cw, h: ch }));
     const panelTop = admin ? 370 : 250;
     const panelBottom = size.h - 30;
-    const panel = { x: rx + rw / 2, y: (panelTop + panelBottom) / 2, w: rw, h: panelBottom - panelTop };
+    const panelL = 30;
+    const panel = { x: (panelL + size.w - 30) / 2, y: (panelTop + panelBottom) / 2, w: size.w - 60, h: panelBottom - panelTop };
     const btnH = 130;
     const btnY = panelBottom - 20 - btnH / 2;
     return {
       kind, size,
-      model: { x: 330, groundY: WIDE_GROUND, maxW: 450, maxH: WIDE_VEH_H },
-      partPreview: {
-        x: 330, y: WIDE_GROUND, maxW: 450, maxH: WIDE_VEH_H, labelX: 330, labelY: WIDE_GROUND + VIEW_PAD + LABEL_GAP + LABEL_HALF, labelW: 560,
-        view: { x: 330, y: WIDE_GROUND - WIDE_VEH_H / 2, w: 450, h: WIDE_VEH_H + 2 * VIEW_PAD },
-        arrows: {
-          prev: { x: 600, y: WIDE_GROUND - WIDE_VEH_H / 2 - 40, angle: 0 },
-          next: { x: 600, y: WIDE_GROUND - WIDE_VEH_H / 2 + 45, angle: 180 },
-        },
-      },
       cards, perPage: PER_PAGE,
       pager: { x: rx + rw / 2 - 250, y: 305, gap: 130 },
       newBtn: { x: rx + rw - 230, y: 305, w: 440, h: WS_UI.tapMin },
-      back: { x: 150, y: 985, w: 230, h: 120 },
+      back: { x: panelL + 40 + 115, y: btnY, w: 230, h: btnH },
       panel,
       testBtn: { x: panel.x + panel.w / 2 - 40 - 210, y: btnY, w: 420, h: btnH },
-      textArea: { x: panel.x - panel.w / 2 + 40, y: panel.y - panel.h / 2 + 125, w: panel.w - 80, h: panel.h - 125 - 20 - btnH - 20 },
-      textPager: { x: panel.x + panel.w / 2 - 40 - 190, y: panel.y - panel.h / 2 + 62, gap: 70 },
-      title: { x: panel.x - panel.w / 2 + 40, y: panel.y - panel.h / 2 + 62, size: 64, maxW: panel.w - 80 - 420 },
+      // Full width and height above the button row (the wide cards already show the title).
+      textArea: { x: panelL + 40, y: panelTop + 30, w: panel.w - 80, h: btnY - btnH / 2 - 20 - (panelTop + 30) },
+      // Rare overflow: the pager sits in the free middle of the button row (no text height reserved).
+      textPager: { x: panel.x, y: btnY, gap: 100 },
+      pagerReserve: 0,
+      title: { x: panelL + 40, y: panelTop + 62, size: 64, maxW: panel.w - 80 },
       compactCards: false,
     };
   }
-  // Narrow pane: one view. Vehicle + part walk on top, three challenge tabs, the selected challenge's text below,
-  // and a bottom row with Back, "Test it!" and (Admin Mode, more than one page) the card pager.
-  const mt = 10;
-  // Vertical stack: the zoom viewport's top edge sits below the wallet badge (bottom edge near y 121, see WS_WALLET),
-  // then the label under the viewport, then (admin) the New button, the three tabs, the detail panel and the bottom row.
-  const maxH = admin ? 110 : 165;
-  const ground = BADGE_CLEAR + VIEW_PAD + maxH;
-  const labelY = ground + VIEW_PAD + LABEL_GAP + LABEL_HALF;
-  const labelBottom = labelY + LABEL_BOTTOM;
-  const modelBottom = labelBottom + 5;
-  const newBtn = { x: size.w / 2, y: labelBottom + 10 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
-  const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : labelBottom + 10;
+  // Narrow pane: one view. Challenge tabs at the top (below the wallet badge), then a tall detail panel, then a bottom
+  // row with Back, "Test it!" and (Admin Mode, more than one page) the card pager.
+  const tabTop0 = BADGE_CLEAR + 6;
+  const newBtn = { x: size.w / 2, y: tabTop0 + WS_UI.tapMin / 2, w: 700, h: WS_UI.tapMin };
+  const tabTop = admin ? newBtn.y + WS_UI.tapMin / 2 + 10 : tabTop0;
   // Room under the tab title for the reward footer pill (see boardScreen addFooter): titles keep two lines.
   const tabH = WS_UI.tapMin + TAB_FOOTER_EXTRA;
   const gapX = 10;
@@ -111,27 +80,19 @@ export function boardLayout(kind: LayoutKind, admin: boolean): BoardLayout {
   const panelTop = tabTop + tabH + 15;
   const panelBottom = size.h - 135;
   const rowY = size.h - 62;
-  const textPagerY = panelBottom - 50;
-  const textTop = panelTop + 80;
-  const mh = modelBottom - mt;
+  const textTop = panelTop + 72;
   return {
     kind, size,
-    model: { x: size.w / 2, groundY: ground, maxW: 420, maxH },
-    modelPanel: { x: size.w / 2, y: mt + mh / 2, w: size.w - 20, h: mh },
-    partPreview: {
-      x: size.w / 2, y: ground, maxW: 420, maxH, labelX: size.w / 2, labelY, labelW: 560,
-      view: { x: size.w / 2, y: ground - maxH / 2, w: 520, h: maxH + 2 * VIEW_PAD },
-      arrows: { prev: { x: size.w / 2 - 330, y: ground - maxH / 2, angle: -90 }, next: { x: size.w / 2 + 330, y: ground - maxH / 2, angle: 90 } },
-    },
     cards, perPage: PER_PAGE,
     pager: { x: 770, y: rowY, gap: 50 },
     newBtn,
     back: { x: 125, y: rowY, w: 200, h: WS_UI.tapMin },
     panel: { x: size.w / 2, y: (panelTop + panelBottom) / 2, w: size.w - 40, h: panelBottom - panelTop },
     testBtn: { x: 405, y: rowY, w: 340, h: WS_UI.tapMin },
-    textArea: { x: 50, y: textTop, w: size.w - 100, h: textPagerY - 40 - textTop },
-    textPager: { x: size.w / 2, y: textPagerY, gap: 150 },
-    title: { x: 50, y: panelTop + 50, size: 56, maxW: size.w - 100 },
+    textArea: { x: 50, y: textTop, w: size.w - 100, h: panelBottom - 20 - textTop },
+    textPager: { x: size.w / 2, y: panelBottom - 20 - WS_UI.tapMin / 2, gap: 150 },
+    pagerReserve: WS_UI.tapMin + 20,
+    title: { x: 50, y: panelTop + 38, size: 56, maxW: size.w - 100 },
     compactCards: false,
   };
 }

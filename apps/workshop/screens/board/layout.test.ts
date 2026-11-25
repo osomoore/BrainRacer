@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WS_PARTVIEW, WS_UI } from '../../config';
+import { WS_UI } from '../../config';
 import { rectsOverlap } from '../room/layout';
 import { boardLayout } from './layout';
 
@@ -15,44 +15,33 @@ describe('boardLayout', () => {
         expect(b.y - b.h / 2).toBeGreaterThanOrEqual(0);
         expect(b.y + b.h / 2).toBeLessThanOrEqual(L.size.h);
       }
-      const p = L.partPreview;
-      expect(p.labelX - p.labelW / 2).toBeGreaterThanOrEqual(0);
-      expect(p.labelX + p.labelW / 2).toBeLessThanOrEqual(L.size.w);
-      // the zoom viewport ends above the label, and both arrows sit inside the pane without covering the viewport
-      expect(p.view.y + p.view.h / 2).toBeLessThan(p.labelY - 29);
-      const half = WS_PARTVIEW.arrowSize / 2;
-      for (const a of [p.arrows.prev, p.arrows.next]) {
-        expect(a.x - half).toBeGreaterThanOrEqual(0);
-        expect(a.x + half).toBeLessThanOrEqual(L.size.w);
-        expect(a.x + half <= p.view.x - p.view.w / 2 || a.x - half >= p.view.x + p.view.w / 2).toBe(true);
-      }
     });
     it(`${kind}${admin ? ' admin' : ''}: text area is inside the panel and above the buttons`, () => {
       const t = L.textArea;
       expect(t.x).toBeGreaterThanOrEqual(L.panel.x - L.panel.w / 2);
       expect(t.x + t.w).toBeLessThanOrEqual(L.panel.x + L.panel.w / 2 + 1);
       if (kind === 'wide') expect(t.y + t.h).toBeLessThanOrEqual(L.testBtn.y - L.testBtn.h / 2);
-      else expect(t.y + t.h).toBeLessThanOrEqual(L.textPager.y);
-      // Tall Admin Mode gives back less room: the New button row and the taller reward tabs leave ~100 px of text.
-      expect(t.h).toBeGreaterThan(kind === 'wide' ? 300 : admin ? 100 : 150);
+      else expect(t.y + t.h).toBeLessThanOrEqual(L.panel.y + L.panel.h / 2);
+      // With the pager shown the text area shrinks by pagerReserve and still keeps room, and the pager sits under the text.
+      expect(t.h - L.pagerReserve).toBeGreaterThan(kind === 'wide' ? 400 : admin ? 150 : 300);
+      expect(L.textPager.y - 60).toBeGreaterThanOrEqual(t.y + t.h - L.pagerReserve);
       if (kind === 'tall') expect(L.title.y + L.title.size / 2).toBeLessThan(t.y);
       if (kind === 'tall') expect(L.panel.y + L.panel.h / 2).toBeLessThanOrEqual(L.back.y - L.back.h / 2);
     });
   }
-  it('wide: left column and the right region never overlap', () => {
+  it('wide: cards and the full-width panel never overlap; the wallet corner stays free', () => {
     for (const admin of [false, true]) {
       const L = boardLayout('wide', admin);
-      for (const c of L.cards) expect(rectsOverlap(c, L.panel)).toBe(false);
+      for (const c of L.cards) { expect(rectsOverlap(c, L.panel)).toBe(false); expect(c.x - c.w / 2).toBeGreaterThanOrEqual(250); }
       if (admin) expect(rectsOverlap(L.newBtn, L.panel)).toBe(false);
-      expect(L.model.x + L.model.maxW / 2).toBeLessThan(L.panel.x - L.panel.w / 2);
+      for (const b of [L.back, L.testBtn]) expect(b.y + b.h / 2).toBeLessThanOrEqual(L.panel.y + L.panel.h / 2);
     }
   });
-  it('tall: one view; preview, newBtn, tabs, panel and bottom row stack without overlap', () => {
+  it('tall: one view; newBtn, tabs, panel and bottom row stack without overlap', () => {
     for (const admin of [false, true]) {
       const L = boardLayout('tall', admin);
-      const p = L.partPreview;
       const tabTop = L.cards[0].y - L.cards[0].h / 2;
-      expect(p.labelY).toBeLessThan(tabTop);
+      expect(tabTop).toBeGreaterThanOrEqual(134);
       for (const c of L.cards) expect(rectsOverlap(c, L.panel)).toBe(false);
       for (const c of L.cards) expect(c.x - c.w / 2).toBeGreaterThanOrEqual(0);
       expect(L.cards[2].x + L.cards[2].w / 2).toBeLessThanOrEqual(L.size.w);
