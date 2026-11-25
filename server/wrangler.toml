@@ -5,6 +5,6 @@ compatibility_date = "2026-11-24"
 [[d1_databases]]
 binding = "SYNC_DB"
 database_name = "brainracer-sync"
-# Replace this placeholder with the ID from npx wrangler d1 create brainracer-sync.
-database_id = "00000000-0000-0000-0000-000000000000"
+# Created 2026-11-24 with npx wrangler d1 create brainracer-sync (region ENAM).
+database_id = "55433e49-1f8b-4f84-a61f-a314f415f7c9"
 migrations_dir = "migrations"
