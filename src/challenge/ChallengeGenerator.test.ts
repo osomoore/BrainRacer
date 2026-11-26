@@ -243,7 +243,7 @@ describe('ChallengeGenerator rules', () => {
         }
       }
     }
-  });
+  }, 15_000); // 300 seeds × both option counts; parallel suite load can exceed the 5s default.
 
   it('easy with a non-simple place word still yields a normal challenge', () => {
     for (const w of ['hospital', 'stadium', 'library', 'museum']) {

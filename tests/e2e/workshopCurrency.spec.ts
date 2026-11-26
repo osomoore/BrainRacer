@@ -200,7 +200,7 @@ test('admin adds currency to one workshop and resets both for the selected playe
   await key(page, 'Enter'); // edit reading level
   await key(page, 'ArrowLeft'); await key(page, 'Enter'); // Easy -> Starter
   await expect.poll(() => page.evaluate(() => (window as any).__ws.store.player('p1').reading)).toBe('starter');
-  await key(page, 'ArrowDown'); await key(page, 'Enter'); // Race Shop
+  await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'Enter'); // skip Progress report, open Race Shop
   const adminTexts = () => page.evaluate(() => {
     const scene = (window as any).__ws.game.scene.getScene('admin');
     return scene.children.list.filter((o: any) => o.type === 'Text').map((o: any) => String(o.text));
@@ -211,7 +211,8 @@ test('admin adds currency to one workshop and resets both for the selected playe
   await expect.poll(async () => (await saved(page)).wallet).toBe(before.wallet + 10);
   expect(await saved(page, 'dino')).toEqual(dino);
   await key(page, 'Escape'); // back to the player settings
-  await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'Enter');
+  await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'ArrowDown'); await key(page, 'Enter'); // skip Progress report and both workshop pages to Reset
+  await expect.poll(async () => (await adminTexts()).join('|')).toContain('Reset both workshops to a fresh start?');
   await key(page, 'ArrowLeft'); await key(page, 'Enter'); // confirm fresh-start reset
   const reset = await page.evaluate(() => {
     const w = (window as any).__ws;
