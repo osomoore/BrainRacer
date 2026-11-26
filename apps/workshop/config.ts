@@ -7,7 +7,7 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 10;
+export const CHALLENGE_RULES_VERSION = 11;
 
 /**
  * Easy shows only these aspects per workshop (the others stay pinned to their first starter; parts bought there

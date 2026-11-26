@@ -10,6 +10,10 @@ import { namedVariants } from './namedFixes';
 import { solve } from './solver';
 import { flatChecks } from './util';
 import { evaluate } from './evaluate';
+import { newProgress } from './board';
+import { resolveSpec } from './text';
+import { partTag } from './stats';
+import { simulate } from './simulate';
 
 const race = CATALOGS.race;
 const eng = createEngine(CATALOGS);
@@ -66,6 +70,54 @@ describe('failure lines', () => {
 });
 
 describe('hint memory', () => {
+  it('Foggy Road names only parts that fit a complete passing build after a miss', () => {
+    const challenge = resolveSpec(race, { stages: [
+      { scenario: 'fog', facets: [{ facet: 'fog.bright', level: 1 }] },
+      { scenario: 'mud', facets: [{ facet: 'mud.grip', level: 3 }, { facet: 'mud.pull', level: 2 }] },
+      { scenario: 'turn', facets: [{ facet: 'turn.handling', level: 3 }] },
+    ] }, { id: 'foggy-road-regression', source: 'generated', tier: 3, seed: 7919 });
+    const p0 = newProgress(race);
+    const model = { ...p0.model, wheels: 'wheels.mud', engine: 'engine.big', gears: 'gears.fourByFour', extra: 'extra.winch', paint: 'paint.yellow' };
+    const p = { ...p0, model, wallet: 999, overrides: Object.fromEntries(race.variants.map((v) => [v.id, 'open' as const])) };
+    const result = evaluate(race, model, challenge);
+    expect(result.passed).toBe(false);
+    expect(result.stages.slice(0, 2).every((stage) => stage.passed)).toBe(true);
+    expect(result.stages[2]).toMatchObject({ reached: true, passed: false });
+    const notes = failNotes(race, p, challenge, result);
+    const parts = [...new Set(notes.flatMap((note) => note.parts))];
+    expect(parts).not.toContain('wheels.racing');
+    expect(parts.length).toBeGreaterThan(0);
+    const pinned = [...flatChecks(challenge), ...parts.map((id) => ({ kind: 'tag' as const, tag: partTag(id) }))];
+    const solution = solve(race, pinned, new Set(race.variants.map((v) => v.id)));
+    expect(solution).not.toBeNull();
+    expect(evaluate(race, solution!.build, challenge).passed).toBe(true);
+    expect(failLines(race, challenge, notes, 'easy').join(' ')).not.toContain('Racing Tires');
+    for (const id of parts) expect(Object.values(solution!.build)).toContain(id);
+  });
+
+  it('generated failure hints always fit inside some complete passing build across seeds', () => {
+    for (const cat of [race, CATALOGS.dino]) {
+      const all = new Set(cat.variants.map((v) => v.id));
+      let checked = 0;
+      for (let seed = 1; seed <= 8; seed++) {
+        const progress = simulate(cat, { seed, maxSteps: 12 }).progress;
+        for (const challenge of Object.values(progress.challenges).filter((c) => c.source === 'generated')) {
+          const failedRun = evaluate(cat, progress.model, challenge);
+          if (failedRun.passed) continue;
+          const notes = failNotes(cat, progress, challenge, failedRun);
+          if (!notes.length) continue;
+          const parts = [...new Set(notes.flatMap((note) => note.parts))];
+          const pinned = [...flatChecks(challenge), ...parts.map((id) => ({ kind: 'tag' as const, tag: partTag(id) }))];
+          const solution = solve(cat, pinned, all);
+          expect(solution, `${cat.id}:${challenge.id} (seed ${seed})`).not.toBeNull();
+          expect(evaluate(cat, solution!.build, challenge).passed, `${cat.id}:${challenge.id} (seed ${seed})`).toBe(true);
+          checked++;
+        }
+      }
+      expect(checked, `${cat.id} should exercise generated hints`).toBeGreaterThan(0);
+    }
+  }, 30_000);
+
   it('a failed run remembers a line naming a part until the challenge is won', () => {
     let p = openAll(fresh());
     const c = failing(p);
