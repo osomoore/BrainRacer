@@ -306,6 +306,8 @@ export interface CompletedInfo {
 
 export interface ChallengeLearning {
   tries: number;
+  /** Accumulated time with this challenge selected (milliseconds). Optional in older saves. */
+  activeMs?: number;
   hintShown: boolean;
   firstTryAt: number;
   wonAt?: number;

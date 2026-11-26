@@ -133,6 +133,8 @@ export interface PaneContext {
   reading(): ReadingLevel;
   setProfile(id: string | undefined): void;
   setWorkshop(id: WorkshopId | undefined): void;
+  /** Notify the pane of the challenge currently selected on its board. */
+  selectBoardChallenge(id: ChallengeId | undefined): void;
   /** Swap to another screen in this pane (destroys the current one). */
   go(screen: ScreenId, data?: ScreenData): void;
   /** Leave to the title / join screen (B on the profile screen). */

@@ -68,7 +68,6 @@ const boardScreen: ScreenFactory = (): Screen => {
   let testBtn: Button | undefined;
   let ring: Phaser.GameObjects.Image | undefined;
   let sessionReturnKey = '';
-
   const ws = () => ctx.workshop ?? 'race';
   const wide = () => ctx.layout === 'wide';
   const ids = () => progress.active;
@@ -260,6 +259,7 @@ const boardScreen: ScreenFactory = (): Screen => {
 
   function startRun(id: string, focus: BoardFocusKey): void {
     if (busy) return;
+    ctx.selectBoardChallenge(id);
     saveReturn(id, focus);
     busy = true;
     ctx.audio.sfx('select');
@@ -297,12 +297,14 @@ const boardScreen: ScreenFactory = (): Screen => {
     placeRing();
     buildDetail();
     setFocusables();
+    ctx.selectBoardChallenge(challenge()?.id);
   }
 
   function refreshAll(restore?: BoardReturn): void {
     buildCards();
     buildDetail();
     setFocusables(restore);
+    ctx.selectBoardChallenge(challenge()?.id);
   }
 
   const handleBack = () => {
