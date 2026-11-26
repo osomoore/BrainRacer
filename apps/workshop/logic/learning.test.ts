@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WS_RULES } from '../config';
 import { WORKSHOP_IDS, type Challenge, type Model, type PlayerSave, type RunResult } from '../core/types';
 import { engine } from './index';
-import { failedRequirementIds, isLearningChallenge, recordLearningTry } from './learning';
+import { failedRequirementIds, isLearningChallenge, mergeLearning, recordLearningTry, validLearningEntry } from './learning';
 import { challengeKey, generateChallenge } from './generator';
 import { MAX_PROFILE_DATA_BYTES } from '../../../shared/sync/protocol';
 import { readRevision, type ProfileRecord } from '../../../shared/sync/record';
@@ -50,6 +50,40 @@ describe('Workshop learning record', () => {
       { at: 30, pass: true, challengeId: card.id, failedChecks: '', build: room.model },
     ]);
     expect(recordLearningTry(won, card, result(card), tested, 40, true)).toBe(won);
+  });
+
+  it('records optional active time, accepts old/new entries, and merges defined times by maximum', () => {
+    const save = player();
+    const room = save.workshops.race!;
+    const card = testCard(room);
+    const tested = { ...room.model };
+    const legacy = recordLearningTry(save, card, result(card, [card.stages[0].requirements[0].id]), tested, 10, false);
+    expect(legacy.workshops.race!.learning![card.id].activeMs).toBeUndefined();
+    const timedOnce = recordLearningTry(legacy, card, result(card, [card.stages[0].requirements[0].id]), tested, 20, false, 1250);
+    const timed = recordLearningTry(timedOnce, card, result(card), tested, 30, false, 50);
+    expect(timed.workshops.race!.learning![card.id].activeMs).toBe(1300);
+    expect(recordLearningTry(timed, card, result(card), tested, 40, false, 50)).toBe(timed);
+    const learning = timed.workshops.race!.learning![card.id];
+    expect(validLearningEntry({ ...learning, activeMs: undefined })).toBe(true);
+    expect(validLearningEntry({ ...learning, activeMs: 0 })).toBe(true);
+    const older = { ...room, learning: { [card.id]: { ...learning, activeMs: 900 } } };
+    const newer = { ...room, learning: { [card.id]: { ...learning, activeMs: 300 } } };
+    expect(mergeLearning(older, newer, new Map()).learning![card.id].activeMs).toBe(900);
+    expect(mergeLearning({ ...room, learning: { [card.id]: { ...learning, activeMs: undefined } } },
+      { ...room, learning: { [card.id]: { ...learning, activeMs: 0 } } }, new Map()).learning![card.id].activeMs).toBe(0);
+    expect(recordLearningTry(legacy, card, result(card), tested, 20, false, Number.NaN)
+      .workshops.race!.learning![card.id].activeMs).toBeUndefined();
+    const localLoaded = engine.normalizeSave(JSON.parse(JSON.stringify(timed)))!;
+    expect(localLoaded.workshops.race!.learning![card.id].activeMs).toBe(1300);
+    const revision: ProfileRecord = { schema: 1, profile: { id: 'p-learning-time', name: 'June', createdAt: 30 }, updatedAt: 30,
+      racer: { jbq: {} }, workshop: timed };
+    const remoteLoaded = readRevision({ id: revision.profile.id, rev: 1, updatedAt: 30, data: revision });
+    expect(remoteLoaded && !remoteLoaded.value.deleted && remoteLoaded.value.data.workshop?.workshops.race?.learning?.[card.id].activeMs)
+      .toBe(1300);
+    const legacyRevision = { ...revision, workshop: legacy };
+    const legacyLoaded = readRevision({ id: revision.profile.id, rev: 2, updatedAt: 30, data: legacyRevision });
+    expect(legacyLoaded && !legacyLoaded.value.deleted && legacyLoaded.value.data.workshop?.workshops.race?.learning?.[card.id].activeMs)
+      .toBeUndefined();
   });
 
   it('skips practice and admin cards and omits requirements in unreached stages', () => {

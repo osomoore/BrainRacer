@@ -25,7 +25,8 @@ async function openReport(page: Page, viewport: { width: number; height: number 
         // Newest ten average two tries. The oldest known win averages four; one of the
         // current-window samples has legacy data and should read "tries unknown".
         const tries = i <= 1 ? 4 : 2;
-        if (i !== 0) learning[id] = { tries, hintShown: i === 1, firstTryAt: wonAt - 1_000, wonAt, failedChecks: [] };
+        if (i !== 0) learning[id] = { tries, hintShown: i === 1, firstTryAt: wonAt - 1_000, wonAt,
+          activeMs: i === 11 ? 150_000 : 65_000, failedChecks: [] };
       }
       save = { ...save, workshops: { ...save.workshops, [ws]: { ...p, completed, learning } } };
     }
@@ -51,12 +52,20 @@ test('Workshop admin progress report shows newest wins, learning trends, legacy 
   await expect(report.getByText(/Average tries: 2\.0 \(last 10\) vs 4\.0 \(previous 10\)/)).toBeVisible();
   await expect(report.getByText(/First-try wins: 0%/)).toBeVisible();
   const raceTable = report.getByRole('table', { name: 'Solved tests' });
+  await expect(raceTable.getByRole('columnheader', { name: 'Solved', exact: true })).toBeVisible();
+  await expect(raceTable.getByRole('columnheader', { name: 'Minutes', exact: true })).toBeVisible();
   await expect(raceTable.getByRole('row').nth(1)).toContainText('Race Sample 11');
-  await expect(raceTable.getByRole('row').nth(1).getByRole('cell').nth(1)).toHaveText('2');
+  const newestRow = raceTable.getByRole('row').nth(1);
+  const expectedLocalSolved = await page.evaluate(() => new Intl.DateTimeFormat(undefined,
+    { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(1_700_000_011_000)));
+  await expect(newestRow.getByRole('cell').nth(0)).toHaveText(expectedLocalSolved);
+  await expect(newestRow.getByRole('cell').nth(1)).toHaveText('3');
+  await expect(newestRow.getByRole('cell').nth(2)).toHaveText('2');
   await report.getByRole('button', { name: 'Next' }).click();
   const legacyRow = raceTable.getByRole('row').filter({ hasText: 'Race Sample 00' });
   await expect(legacyRow).toBeVisible();
   await expect(legacyRow.getByRole('cell').nth(1)).toHaveText('—');
+  await expect(legacyRow.getByRole('cell').nth(2)).toHaveText('—');
   await report.getByRole('button', { name: 'Previous' }).click();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/progress-report-desktop.png` });
 

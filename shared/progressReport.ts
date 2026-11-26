@@ -4,11 +4,18 @@ import { challengeTitle } from '../apps/workshop/logic/wording';
 import { createMenuInput, keyActions, type MenuAction } from './input/menuInput';
 import { createAdminPanelRoot, styleAdminPanelButton } from './sync/panel';
 
-type Entry = { title: string; at: number; tries?: number; hintShown?: boolean };
+type Entry = { title: string; at: number; activeMs?: number; tries?: number; hintShown?: boolean };
 type ReportWindow = Window & { __progressReportOpen?: boolean };
 const ROWS_PER_PAGE = 8;
 const DASH = '—';
-const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+/** Format measured challenge time in whole minutes; short runs remain visible as <1. */
+export function formatActiveMinutes(activeMs?: number): string {
+  if (activeMs === undefined || !Number.isFinite(activeMs) || activeMs < 0) return DASH;
+  if (activeMs < 30_000) return '<1';
+  return String(Math.round(activeMs / 60_000));
+}
 
 function entries(save: PlayerSave, workshop: WorkshopId): Entry[] {
   const progress = save.workshops[workshop];
@@ -19,6 +26,7 @@ function entries(save: PlayerSave, workshop: WorkshopId): Entry[] {
     const learning = progress.learning?.[id];
     const measured = learning?.wonAt !== undefined ? learning : undefined;
     return [{ title: challengeTitle(challenge, save.reading), at: measured?.wonAt ?? done.wonAt,
+      activeMs: measured?.activeMs,
       tries: measured?.tries, hintShown: measured?.hintShown }];
   }).sort((a, b) => b.at - a.at);
 }
@@ -124,7 +132,7 @@ export function openProgressReport(save: PlayerSave, options: { playerName: stri
       table.setAttribute('aria-label', 'Solved tests');
       const headings = table.createTHead().insertRow();
       // No hint column: every failed try already names a fix, so "hint seen" would just mean tries > 1.
-      for (const label of ['Solved test', 'Date', 'Tries']) {
+      for (const label of ['Solved test', 'Solved', 'Minutes', 'Tries']) {
         const cell = document.createElement('th');
         cell.scope = 'col';
         cell.textContent = label;
@@ -139,6 +147,7 @@ export function openProgressReport(save: PlayerSave, options: { playerName: stri
         row.append(title);
         const when = new Date(win.at);
         row.insertCell().textContent = win.at > 0 && Number.isFinite(when.getTime()) ? date.format(when) : DASH;
+        row.insertCell().textContent = formatActiveMinutes(win.activeMs);
         row.insertCell().textContent = win.tries?.toString() ?? DASH;
       }
       inner.append(table);

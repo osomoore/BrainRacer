@@ -13,6 +13,7 @@ import { playRun, type RunHandle } from '../run/runner';
 import { recordFail } from '../logic/board';
 import { failLines, failNotes } from '../logic/failHints';
 import { recordLearningTry } from '../logic/learning';
+import { activeTimeKey, activeTimeTracker } from '../logic/activeTime';
 import { setOutcome, type RunOutcome } from './run/outcome';
 import { fastForwardTexture } from './run/ffIcon';
 import { challengeTitle } from '../logic/wording';
@@ -63,7 +64,8 @@ const runScreen: ScreenFactory = (): Screen => {
     const outcome: RunOutcome = { payout: 0, hint: null, failLines: [], testTitle };
     const commit = (next: typeof progress, at: number) => {
       const updated = { ...save, workshops: { ...save.workshops, [ws]: next } };
-      ctx.commit(recordLearningTry(updated, challenge, result, testedBuild, at, !!outcome.hint || outcome.failLines.length > 0));
+      const activeMs = activeTimeTracker.flush(activeTimeKey(ws, ctx.profileId, challengeId));
+      ctx.commit(recordLearningTry(updated, challenge, result, testedBuild, at, !!outcome.hint || outcome.failLines.length > 0, activeMs));
     };
     if (result.passed) {
       if (!sandbox) {

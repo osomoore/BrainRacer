@@ -38,15 +38,18 @@ export function failedRequirementIds(packed: string): string[] {
 
 /** Add a live result after the board has accepted it, preserving the pre-run build. */
 export function recordLearningTry(save: PlayerSave, challenge: Challenge, run: RunResult,
-  build: Model, at: number, hintShown: boolean): PlayerSave {
+  build: Model, at: number, hintShown: boolean, elapsedMs?: number): PlayerSave {
   const workshop = challenge.workshop;
   const progress = save.workshops[workshop];
   if (!progress || !isLearningChallenge(challenge)) return save;
   const previous = progress.learning?.[challenge.id];
   if (previous?.wonAt !== undefined) return save;
+  const measuredMs = elapsedMs !== undefined && Number.isSafeInteger(elapsedMs) && elapsedMs >= 0 ? elapsedMs : undefined;
   const failedChecks = encodeFailures(run);
   const entry: ChallengeLearning = {
     tries: (previous?.tries ?? 0) + 1,
+    ...((previous?.activeMs !== undefined || measuredMs !== undefined)
+      ? { activeMs: (previous?.activeMs ?? 0) + (measuredMs ?? 0) } : {}),
     firstTryAt: Math.min(previous?.firstTryAt ?? at, at),
     hintShown: (previous?.hintShown ?? false) || (!run.passed && hintShown),
     failedChecks: [...(previous?.failedChecks ?? []), failedChecks],
@@ -85,7 +88,9 @@ function mergeEntry(a: ChallengeLearning, b: ChallengeLearning): ChallengeLearni
   const wonAt = a.wonAt === undefined ? b.wonAt : b.wonAt === undefined ? a.wonAt : Math.min(a.wonAt, b.wonAt);
   const detail = a.failedChecks.length > b.failedChecks.length
     || (a.failedChecks.length === b.failedChecks.length && b.wonAt === undefined && a.wonAt !== undefined) ? a : b;
-  return { tries, firstTryAt, hintShown: a.hintShown || b.hintShown, failedChecks: detail.failedChecks, wonAt };
+  const activeMs = a.activeMs === undefined ? b.activeMs : b.activeMs === undefined ? a.activeMs : Math.max(a.activeMs, b.activeMs);
+  return { tries, firstTryAt, hintShown: a.hintShown || b.hintShown, failedChecks: detail.failedChecks, wonAt,
+    ...(activeMs === undefined ? {} : { activeMs }) };
 }
 
 export function mergeLearning(older: WorkshopProgress, newer: WorkshopProgress,
@@ -122,6 +127,7 @@ const failureList = (value: unknown): value is string => typeof value === 'strin
 
 export function validLearningEntry(value: unknown): value is ChallengeLearning {
   return object(value) && stamp(value.tries) && value.tries > 0 && stamp(value.firstTryAt)
+    && (value.activeMs === undefined || stamp(value.activeMs))
     && (value.wonAt === undefined || (stamp(value.wonAt) && value.wonAt >= value.firstTryAt))
     && typeof value.hintShown === 'boolean' && Array.isArray(value.failedChecks)
     && value.failedChecks.length <= value.tries && value.failedChecks.every(failureList);

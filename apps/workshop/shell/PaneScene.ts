@@ -18,8 +18,12 @@ import { sandboxSave } from './sandboxes';
 import { createScreen } from './screenRegistry';
 import { shell } from './shell';
 import { resolveActiveProfileId } from '../../../shared/profiles';
+import { ActiveChallengeAttribution, activeTimeTracker } from '../logic/activeTime';
 
 interface HistoryEntry { id: string; data: ScreenData }
+const selectedChallenges = new Map<string, string>();
+const attribution = [new ActiveChallengeAttribution(activeTimeTracker, selectedChallenges),
+  new ActiveChallengeAttribution(activeTimeTracker, selectedChallenges)] as const;
 
 export class PaneScene extends Phaser.Scene {
   private count: 1 | 2 = 1;
@@ -55,6 +59,9 @@ export class PaneScene extends Phaser.Scene {
     this.ctx = this.makeContext(w);
     this.add.image(0, 0, backdropTexture(this, w, STAGE.h)).setOrigin(0).setDepth(-1000);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
+    this.events.on(Phaser.Scenes.Events.PAUSE, this.onScenePause, this);
+    this.events.on(Phaser.Scenes.Events.RESUME, this.onSceneResume, this);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.mount('profile', {});
   }
 
@@ -119,6 +126,10 @@ export class PaneScene extends Phaser.Scene {
         pane.profileId = activeId;
       },
       setWorkshop(id) { pane.workshopId = id; },
+      selectBoardChallenge(id) {
+        if (!shell.adminMode()) attribution[pane.index].select(pane.profileId, pane.workshopId, id);
+        pane.syncActiveTime();
+      },
       go(screen: ScreenId, data?: ScreenData) { pane.pending = { id: screen, data: data ?? {}, push: true }; },
       exit() { pane.leave(); },
       otherProfileId() { return shell.count === 2 ? shell.panes[1 - pane.index]?.profileId : undefined; },
@@ -173,6 +184,7 @@ export class PaneScene extends Phaser.Scene {
     this.ctx.input.text(); // drop typed text left over from the previous screen (e.g. the Enter that opened this one)
     screen.create(this.ctx, data);
     this.mountWallet(id);
+    this.syncActiveTime();
   }
 
   private mountWallet(id: string): void {
@@ -196,6 +208,7 @@ export class PaneScene extends Phaser.Scene {
   }
 
   private unmount(): void {
+    this.pauseActiveTime();
     this.wallet?.root.destroy();
     this.wallet = undefined;
     const s = this.screen;
@@ -214,7 +227,26 @@ export class PaneScene extends Phaser.Scene {
     this.screen?.update(delta);
   }
 
+  private readonly onVisibilityChange = (): void => this.syncActiveTime();
+  private readonly onScenePause = (): void => this.pauseActiveTime();
+  private readonly onSceneResume = (): void => this.syncActiveTime();
+
+  private syncActiveTime(): void {
+    const ws = this.workshopId;
+    const id = this.profileId;
+    const progress = id && ws ? this.ctx.save().workshops[ws] : undefined;
+    attribution[this.index].sync({ profileId: id, workshop: ws, screen: this.current.id,
+      admin: shell.adminMode(), visible: document.visibilityState !== 'hidden', active: this.scene.isActive() && !shell.adminOpen, progress });
+  }
+
+  private pauseActiveTime(): void {
+    attribution[this.index].pause();
+  }
+
   private teardown(): void {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.events.off(Phaser.Scenes.Events.PAUSE, this.onScenePause, this);
+    this.events.off(Phaser.Scenes.Events.RESUME, this.onSceneResume, this);
     this.unmount();
   }
 }
