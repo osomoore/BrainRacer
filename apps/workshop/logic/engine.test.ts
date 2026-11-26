@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CHALLENGE_RULES_VERSION, WS_RULES } from '../config';
 import type { WorkshopEngine } from '../core/engineApi';
 import type { Challenge, Model, WorkshopCatalog, WorkshopId, WorkshopProgress } from '../core/types';
@@ -12,6 +12,7 @@ import { challengeKey } from './generator';
 import { resolveSpec } from './text';
 import { starterChallenge } from './starters';
 import { practiceTitle } from './practice';
+import * as solverModule from './solver';
 
 const pair = (cat: WorkshopCatalog): Readonly<Record<WorkshopId, WorkshopCatalog>> => ({ race: cat, dino: { ...cat, id: 'dino' } });
 const eng: WorkshopEngine = createEngine(pair(C));
@@ -461,19 +462,27 @@ describe('generator rules', () => {
     expect(total).toBeGreaterThan(0);
     expect(ge2 / total).toBeGreaterThan(0.4);
   });
-  it('refills the board quickly', () => {
+  it('refills the board with bounded solver work', () => {
     let p = playStarters();
-    const times: number[] = [];
-    for (let i = 0; i < 10; i++) {
-      const ch = unfinished(p)[0];
-      const m = affordableBuild(p, ch);
-      const t0 = performance.now();
-      p = buyBuild(p, m);
-      p = win(p, ch.id, m, 500 + i);
-      times.push(performance.now() - t0);
+    const solveSpy = vi.spyOn(solverModule, 'solve');
+    try {
+      for (let i = 0; i < 10; i++) {
+        const ch = unfinished(p)[0];
+        const m = affordableBuild(p, ch);
+        solveSpy.mockClear();
+        p = buyBuild(p, m);
+        p = win(p, ch.id, m, 500 + i);
+        const calls = solveSpy.mock.calls.length;
+        expect(calls, `round ${i + 1} should exercise refill solving`).toBeGreaterThan(0);
+        expect(calls, `round ${i + 1} should keep refill solving bounded`).toBeLessThanOrEqual(300);
+      }
+    } finally {
+      solveSpy.mockRestore();
     }
-    expect(Math.max(...times)).toBeLessThan(100);
-  });
+    // Baseline is 242 solve invocations per refill. Cap at 300 to catch candidate-search
+    // growth with room for small generator changes. solver.perf.test.ts checks solver runtime
+    // on its own workload; this count specifically bounds the number of solves per refill.
+  }, 15_000);
 });
 
 describe('text', () => {
