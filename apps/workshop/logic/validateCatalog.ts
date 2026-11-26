@@ -210,6 +210,14 @@ export function validateCatalog(cat: WorkshopCatalog, opts: ValidateOptions = {}
     const checks = flatChecks(starterChallenge(cat, spec));
     checkRefs(`starter ${spec.id}`, checks);
     if (allPass(checks, defCm)) err(`starter ${spec.id}: already solved by the default model`);
+    if (spec.shopPart) {
+      const part = ix.variantById.get(spec.shopPart);
+      if (!part || def[part.aspect] === part.id) err(`starter ${spec.id}: invalid shop part "${spec.shopPart}"`);
+      else if (!allPass(checks, computeModel(cat, { ...def, [part.aspect]: part.id }))) {
+        err(`starter ${spec.id}: shop part "${part.id}" must solve the card on its own`);
+      }
+      continue;
+    }
     const sol = solve(cat, checks, starterVariants, { ref: def });
     if (!sol) err(`starter ${spec.id}: not solvable with starter variants`);
     else if (sol.cost > 1) err(`starter ${spec.id}: needs ${sol.cost} aspects changed (should need 1)`);

@@ -33,11 +33,11 @@ the decisions made on top of it and how the code is split.
 - **Profiles** are the shared ones (`shared/profiles.ts`). A new profile = name (on-screen letter grid) + reading
   level. An existing profile entering the workshop for the first time picks a reading level once.
 - **Reading levels: Starter / Easy / Medium / Hard.** Starter uses numbered cards and short, direct instructions.
-  It shares Easy's four stations, challenge rules, and economy. Medium and Hard use all ten stations.
+  It shares Easy's six stations, challenge rules, and economy. Medium and Hard use all ten stations.
 - **Two workshops**, 10 aspects each, 2 starter variants per aspect (frozen lists in `content/*/variants.ts`).
 - **Challenges are generated** from hand-built scenarios (scene types such as mud field, low bridge, tall tree),
   each with facets (requirement templates with difficulty levels) and phrase banks (several sentences per facet,
-  level and reading level). Five hand-picked starters per workshop come first.
+  level and reading level). Each workshop has seven hand-picked starter cards in its catalog.
 - **A new challenge must not be solvable by the build that just won** (nor by the current model). Every solution
   should differ from the last winning build in at least `WS_RULES.minChangedAspects` (2) aspects; relaxed to 1
   if the unlocked set makes 2 impossible, never 0.
@@ -77,7 +77,8 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   variants of that aspect (from the aspect's unlock order) for sale with a price tag; buying one reveals the next.
   Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
   (optionally the missing amount as a number).
-- Each variant has a fixed price from its place in its aspect's shop order: 2, 3, 6, 9, 12 … (basePrice for the first, then priceStep × index). Prices never change.
+- The shop order sets the base prices at 2, 3, 6, 9, 12 and up (`basePrice` for the first, then `priceStep` × index).
+  On Starter and Easy, Springs, Race Shop Body, Claws and Tail cost `starterPriceStart` + `starterPriceStep` × shop index (6, 8, 10, 12 ...).
 - **Fresh start.** Each aspect starts with one owned variant and the wallet starts at 4. Version 2 saves keep their
   existing cards, which are re-categorized on load.
 - **Board of three.** The first deal includes one **Ready** card (solvable with owned parts), one **Affordable** card
@@ -89,8 +90,8 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   missing categories in Ready, Affordable, Future order. Skip categories with no eligible card, and draw from an
   already represented category if needed to keep three cards. New challenges prefer a different build, and a Ready
   card may accept the current build when no other Ready challenge is available.
-- **Hand-picked starters:** kept only if they fit (each needs exactly one 2-cost purchase); otherwise dropped in favor
-  of generated ones (the C22 job decides and reports which).
+- **Hand-picked starters:** most of the original cards need a single 2-cost purchase. The Sport Springs card and the
+  appended cards can be dealt once the player owns the featured part or can afford its purchase route. The generator fills vacancies while those cards wait.
 - **UI:** each player pane always shows its wallet (coin or juice-drop icon + number). Results shows "+N" with the icon
   (fits the numbers-only popup rule). Buying has a short confirm and a sound.
 - **Admin:** Admin Mode keeps everything open and saves nothing. Per-player admin adds "Reset this player (fresh
@@ -146,7 +147,7 @@ shared code lives in `shared/`.
     "&", and three or more start with the first title. Easy through Hard append "Adventure". Each requirement shows one authored row (A or B),
     the same row at every reading level.
   - Saved challenges keep their checks, named builds, and text for all four levels. Older open cards are re-dealt when the challenge rules version changes.
-- **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
+- **Starters** (see Currency and shop): every curated card fails with the default model and can be solved by changing one part.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
   and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
   reorders the current cards. The save retains active cards and caps unfinished history at `maxSavedChallenges`.
@@ -322,6 +323,13 @@ The [Family sync inventory](FAMILY_SYNC.md#local-storage-inventory-and-sync-mapp
 - e2e: `tests/e2e/workshop*.spec.ts`. Hooks: `window.__ws` (pane contexts, engine) for tests.
 - Dev-server ports per package: shell 5191, audio 5192 (render 5193), art 5194, screens 5195, runs 5196/5197.
 
-## Starter and Easy use four aspects (WS_EASY_ASPECTS)
+## Starter and Easy use six aspects (WS_EASY_ASPECTS)
 
-On Starter and Easy each workshop shows only the aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`): race = wheels, engine, paint, size; dino = color, teeth, body, size. The other aspects stay pinned to their first starter for judging, rendering and runs; their bought parts stay owned and return on Medium/Hard. `WorkshopProgress.easy` marks a board dealt for Starter or Easy. Switching between the four-station and ten-station levels re-deals the open cards (`progressOf` / `normalizeSave`). Pure helpers live in `logic/aspects.ts`. Facets that cannot be solved inside the four aspects are never dealt on Starter or Easy (the board only offers cards the solver can meet with the shown aspects).
+Starter and Easy show the six aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`).
+
+- Race Shop uses wheels, engine, paint, size, springs and body.
+- Dino Lab uses color, teeth, body, size, claws and tail.
+
+Medium and Hard show all ten aspects. On Starter and Easy, the hidden aspects use their first starter part for judging, rendering and runs. Players keep any parts they bought for those aspects and can use them again on Medium and Hard.
+
+`WorkshopProgress.easy` marks a board dealt for Starter or Easy. Changing between the six-station and ten-station levels re-deals open cards (`progressOf` / `normalizeSave`). The `CHALLENGE_RULES_VERSION` bump also re-deals saved open cards. The board only offers cards the solver can meet with the visible aspects. The aspect helpers live in `logic/aspects.ts`.

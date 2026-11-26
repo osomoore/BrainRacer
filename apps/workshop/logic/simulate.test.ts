@@ -3,6 +3,11 @@ import { simulate } from './simulate';
 import { validateCatalog } from './validateCatalog';
 import { FIXTURE_CATALOG as C } from './testing/fixtureCatalog';
 import type { WorkshopCatalog } from '../core/types';
+import { CATALOGS } from '../content';
+import { WS_RULES } from '../config';
+import { newProgress, refreshBoard } from './board';
+import { affordability } from './affordability';
+import { currencyStarters } from './starters';
 
 describe('simulate (fixture)', () => {
   it('unlocks everything without stalling and every solution passes evaluate', () => {
@@ -36,6 +41,51 @@ describe('simulate (fixture)', () => {
     expect(a).toEqual(b);
     expect(c.progress).not.toEqual(a.progress);
   });
+});
+
+describe('fresh Starter and Easy progression', () => {
+  const authored = {
+    race: [
+      ['race-start-landing', 'springs.bouncy'],
+      ['race-start-boxes', 'body.truck'],
+    ],
+    dino: [
+      ['dino-start-rocks', 'claws.hooks'],
+      ['dino-start-river', 'tail.paddle'],
+    ],
+  } as const;
+
+  it.each(['race', 'dino'] as const)('%s starts with four currency and defers expensive authored cards until affordable on Starter and Easy', (id) => {
+    const cat = CATALOGS[id];
+    for (const level of ['starter', 'easy'] as const) {
+      const fresh = refreshBoard(cat, newProgress(cat, undefined, level));
+      expect(fresh.wallet).toBe(WS_RULES.startWallet);
+      const featured = authored[id];
+      const expensive = featured.filter(([, part]) => (affordability(cat, fresh).routes.get(part)?.cost ?? 0) > fresh.wallet);
+      // A card cannot be dealt while its featured part is still beyond the player's wallet.
+      for (const [challenge] of expensive) expect(fresh.active).not.toContain(challenge);
+
+      const report = simulate(cat, { level, seed: 1 });
+      expect(report.stalls, `${id} ${level}`).toEqual([]);
+      expect(report.allUnlocked, `${id} ${level}`).toBe(true);
+      expect(report.progress.wallet).toBeGreaterThanOrEqual(0);
+      for (const [challenge] of featured) {
+        expect(report.progress.challenges[challenge], `${id} ${level} ${challenge} dealt in full progression`).toBeDefined();
+      }
+
+      // Once the original starter cards are done, each authored card deals at its full route cost.
+      for (const [challenge, part] of featured) {
+        const routeCost = affordability(cat, fresh).routes.get(part)?.cost;
+        expect(routeCost, `${id} ${level} ${part}`).toBeDefined();
+        const starterIndex = currencyStarters(cat, true).findIndex(({ challenge: card }) => card.id === challenge);
+        expect(starterIndex, `${id} ${level} ${challenge} eligibility`).toBeGreaterThanOrEqual(0);
+        const belowCost = refreshBoard(cat, { ...fresh, active: [], challenges: {}, nextStarter: starterIndex, wallet: routeCost! - 1 });
+        expect(belowCost.active, `${id} ${level} ${challenge} below route cost ${routeCost}`).not.toContain(challenge);
+        const ready = refreshBoard(cat, { ...fresh, active: [], challenges: {}, nextStarter: starterIndex, wallet: routeCost! });
+        expect(ready.active, `${id} ${level} ${challenge} at route cost ${routeCost}`).toContain(challenge);
+      }
+    }
+  }, 60_000);
 });
 
 describe('validateCatalog', () => {

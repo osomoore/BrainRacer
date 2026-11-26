@@ -192,13 +192,15 @@ export interface WorkshopCatalog {
   partAliases?: Readonly<Record<string, readonly VariantId[]>>;
   /** Shop order after the second starter (every non-starter variant exactly once). */
   unlockOrder: readonly VariantId[];
-  /** The fixed first challenges (shown first, in order; 3 offered at a time). */
+  /** Curated challenges in deal order, including cards that wait for an affordable part. */
   starters: readonly StarterSpec[];
 }
 
 export interface StarterSpec {
   id: ChallengeId;
   stages: ReadonlyArray<{ scenario: ScenarioId; facets: ReadonlyArray<{ facet: FacetId; level: number }> }>;
+  /** Deal this card once the featured part is owned or can be bought. */
+  shopPart?: VariantId;
 }
 
 // ---------------------------------------------------------------------------------------------

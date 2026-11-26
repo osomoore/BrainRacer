@@ -122,21 +122,36 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
   // fail lines and hints can always point at a part the kid can reach.
   const facetOk = p.easy ? (facet: FacetDef, level: number) => fixShown(catalogFixes(cat, facet, level)) : undefined;
   const namesShown = (c: Challenge) => !p.easy || c.stages.every((st) => st.requirements.every((r) => fixShown(r.namedFixes)));
+  // Give deferred starters the first chance to introduce their challenge before the generator can deal it.
+  const generatedKeys = new Set(usedKeys);
+  for (const { challenge, shopPart } of starters.slice(p.nextStarter)) {
+    if (shopPart) generatedKeys.add(challengeKey(challenge));
+  }
   const occupied = new Set(p.active.map((id) => categoryOf(p.challenges[id], budget, p.wallet)));
   const exhausted = new Set<BoardCategory>();
 
-  const draw = (category: BoardCategory): Challenge | null => {
-    if (category === 'affordable') {
-      for (let i = p.nextStarter; i < starters.length; i++) {
-        const challenge = starters[i];
-        const checks = flatChecks(challenge);
-        if (!namesShown(challenge) || usedKeys.has(challengeKey(challenge)) || allPass(checks, current) || (last && allPass(checks, last))) continue;
-        if (budget.solve(checks)?.cost !== WS_RULES.basePrice) continue;
-        p.nextStarter = i + 1;
-        return challenge;
+  const nextStarter = () => {
+    for (let i = p.nextStarter; i < starters.length; i++) {
+      const { challenge, shopPart } = starters[i];
+      const checks = flatChecks(challenge);
+      if (!namesShown(challenge) || usedKeys.has(challengeKey(challenge))) continue;
+      const alreadyPasses = allPass(checks, current) || (last && allPass(checks, last));
+      if (shopPart) {
+        const partCost = budget.owned.has(shopPart) ? 0 : budget.routes.get(shopPart)?.cost;
+        if (partCost === undefined) continue;
+        if (partCost > p.wallet || alreadyPasses) return;
+        const solution = budget.solve(checks);
+        if (!solution) return;
+        return { challenge, index: i, category: boardCategory(solution.cost, p.wallet), featured: true };
       }
-      if (budget.pool.size === budget.owned.size) return null;
+      if (alreadyPasses) continue;
+      if (budget.solve(checks)?.cost !== WS_RULES.basePrice) continue;
+      return { challenge, index: i, category: 'affordable' as const, featured: false };
     }
+  };
+
+  const draw = (category: BoardCategory): Challenge | null => {
+    if (category === 'affordable' && budget.pool.size === budget.owned.size) return null;
     if (category === 'future' && budget.futurePool.size === budget.owned.size) return null;
 
     const id = `${cat.id}-g${p.genSeq}`;
@@ -146,7 +161,7 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
     const opts = {
       tier, avail: category === 'ready' ? budget.owned : category === 'affordable' ? budget.pool : budget.futurePool,
       current: p.model, lastWin: p.lastWin, minChanged: WS_RULES.minChangedAspects,
-      newest: newestVariant(p, budget.owned), usedKeys, avoidScenarios,
+      newest: newestVariant(p, budget.owned), usedKeys: generatedKeys, avoidScenarios,
       attempts: WS_RULES.genAttempts, strictCurrent: true, facetOk,
       accepts: (checks: Parameters<typeof budget.solve>[0]) => {
         const solution = category === 'future' ? budget.cheapest(checks) : budget.solve(checks);
@@ -158,9 +173,9 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
     let challenge = onlyCurrent ? undefined : (generateChallenge(cat, id, 'generated', seed, opts)
       ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true }))?.challenge;
     if (!challenge && category === 'ready') {
-      challenge = practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, false, shown)
+      challenge = practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, generatedKeys, false, shown)
         ?? generateChallenge(cat, id, 'generated', seed, { ...opts, fallback: true, strictCurrent: false })?.challenge
-        ?? practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, usedKeys, true, shown)
+        ?? practiceChallenge(cat, id, seed, tier, budget.owned, p.model, p.lastWin, generatedKeys, true, shown)
         ?? undefined;
     }
     if (challenge) p.genSeq++;
@@ -168,18 +183,24 @@ function fillBoard(cat: WorkshopCatalog, p: WorkshopProgress, budget: BoardBudge
   };
 
   while (p.active.length < WS_RULES.boardSize) {
-    const candidates = BOARD_CATEGORIES.filter((category) => !occupied.has(category));
-    candidates.push(...BOARD_CATEGORIES.filter((category) => occupied.has(category)));
-    const category = candidates.find((kind) => {
-      if (exhausted.has(kind)) return false;
-      const challenge = draw(kind);
+    const starter = nextStarter();
+    // Use the next vacancy for a featured card once its part is affordable, before other cards can spend that balance.
+    const candidates = BOARD_CATEGORIES.filter((category) => category !== starter?.category || !starter.featured);
+    const ordered = candidates.filter((category) => !occupied.has(category));
+    ordered.push(...candidates.filter((category) => occupied.has(category)));
+    if (starter?.featured) ordered.unshift(starter.category);
+    const category = ordered.find((kind) => {
+      if (exhausted.has(kind) && starter?.category !== kind) return false;
+      const challenge = starter?.category === kind ? starter.challenge : draw(kind);
       if (!challenge) {
         exhausted.add(kind);
         return false;
       }
+      if (challenge === starter?.challenge) p.nextStarter = starter.index + 1;
       p.challenges[challenge.id] = challenge;
       p.active.push(challenge.id);
       usedKeys.add(challengeKey(challenge));
+      generatedKeys.add(challengeKey(challenge));
       occupied.add(kind);
       return true;
     });

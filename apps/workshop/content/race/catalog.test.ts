@@ -65,7 +65,7 @@ describe('race catalog structure', () => {
     }
     expect(C.scenarios.length).toBeGreaterThanOrEqual(12);
     expect(C.scenarios.length).toBeLessThanOrEqual(15);
-    expect(C.starters.map((s) => s.id)).toEqual(['race-start-mud', 'race-start-jump', 'race-start-turn', 'race-start-hill', 'race-start-bright']);
+    expect(C.starters.map((s) => s.id)).toEqual(['race-start-mud', 'race-start-jump', 'race-start-turn', 'race-start-hill', 'race-start-bright', 'race-start-landing', 'race-start-boxes']);
   });
 
   it('only checks stats and tags that exist', () => {
@@ -102,12 +102,26 @@ describe('race balance', () => {
     C.starters.forEach((_, i) => expect(passes(defaultModel, starterChecks(i)), C.starters[i].id).toBe(false));
   });
 
-  it('each starter is solvable with starters by changing one aspect', () => {
-    C.starters.forEach((s, i) => {
+  it('the original starters are solvable with starters by changing one aspect', () => {
+    C.starters.slice(0, 5).forEach((s, i) => {
       const fix = minFix(starterChecks(i), starterPool);
       expect(fix, s.id).not.toBeNull();
       expect(fix!.length, s.id).toBe(1);
     });
+  });
+
+  it('Hard Bump fails by default and Bouncy Springs alone fixes it', () => {
+    const checks = starterChecks(5);
+    expect(C.starters[5].shopPart).toBe('springs.bouncy');
+    expect(passes(defaultModel, checks)).toBe(false);
+    expect(passes({ ...defaultModel, springs: 'springs.bouncy' }, checks)).toBe(true);
+  });
+
+  it('Box Stack fails by default and Pickup Truck alone fixes it', () => {
+    const checks = starterChecks(6);
+    expect(C.starters[6].shopPart).toBe('body.truck');
+    expect(passes(defaultModel, checks)).toBe(false);
+    expect(passes({ ...defaultModel, body: 'body.truck' }, checks)).toBe(true);
   });
 
   it('Long Jump and Steep Hill are not fixed by the same single part', () => {

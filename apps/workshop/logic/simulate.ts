@@ -42,7 +42,7 @@ export function simulate(cat: WorkshopCatalog, opts: SimOptions = {}): SimReport
   const target = cat.variants.filter((v) => shown.has(v.aspect)).length - shown.size;
   const remainingCost = (): number => cat.variants
     .filter((v) => shown.has(v.aspect) && !p.bought.includes(v.id) && !cat.aspects.some((a) => a.starters[0] === v.id))
-    .reduce((sum, v) => sum + priceOf(cat, v.id), 0);
+    .reduce((sum, v) => sum + priceOf(cat, v.id, p), 0);
 
   while (steps < maxSteps && p.bought.length < target) {
     if (p.wallet >= remainingCost()) {

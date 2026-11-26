@@ -59,10 +59,10 @@ describe('dino catalog structure', () => {
 });
 
 describe('dino balance', () => {
-  it('starters: default fails, each solvable by changing exactly one starter part', () => {
-    expect(cat.starters.map((s) => s.id)).toEqual(['dino-start-teeth', 'dino-start-green', 'dino-start-jump', 'dino-start-hole', 'dino-start-stand']);
+  it('original starters: default fails, each solvable by changing exactly one starter part', () => {
+    expect(cat.starters.map((s) => s.id)).toEqual(['dino-start-teeth', 'dino-start-green', 'dino-start-jump', 'dino-start-hole', 'dino-start-stand', 'dino-start-rocks', 'dino-start-river']);
     const fixAspects = new Set<string>();
-    for (const st of cat.starters) {
+    for (const st of cat.starters.slice(0, 5)) {
       const checks = st.stages.flatMap((stage) => stage.facets.flatMap((x) => facetById.get(x.facet)!.f.check(x.level)));
       expect(passes(cat, def, checks), st.id).toBe(false);
       const fixes = oneChangeFixes(cat, def, checks, starters);
@@ -70,6 +70,22 @@ describe('dino balance', () => {
       for (const f of fixes) fixAspects.add(f.split('.')[0]);
     }
     expect(fixAspects.size).toBeGreaterThanOrEqual(5);
+  });
+
+  it('Rock Pile fails by default and Hook Claws alone fixes it', () => {
+    const spec = cat.starters.find((s) => s.id === 'dino-start-rocks')!;
+    expect(spec.shopPart).toBe('claws.hooks');
+    const checks = spec.stages.flatMap((stage) => stage.facets.flatMap((x) => facetById.get(x.facet)!.f.check(x.level)));
+    expect(passes(cat, def, checks)).toBe(false);
+    expect(passes(cat, { ...def, claws: 'claws.hooks' }, checks)).toBe(true);
+  });
+
+  it('Swim Test fails by default and Paddle Tail alone fixes it', () => {
+    const spec = cat.starters.find((s) => s.id === 'dino-start-river')!;
+    expect(spec.shopPart).toBe('tail.paddle');
+    const checks = spec.stages.flatMap((stage) => stage.facets.flatMap((x) => facetById.get(x.facet)!.f.check(x.level)));
+    expect(passes(cat, def, checks)).toBe(false);
+    expect(passes(cat, { ...def, tail: 'tail.paddle' }, checks)).toBe(true);
   });
 
   it('every facet level is solvable with all variants', () => {

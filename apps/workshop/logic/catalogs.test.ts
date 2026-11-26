@@ -23,7 +23,7 @@ describe.each(WORKSHOP_IDS.flatMap((id) => [[id, undefined], [id, 'easy']] as co
     expect(r.mismatches).toBe(0);
     expect(new Set(r.progress.bought).size).toBe(r.progress.bought.length);
     expect(r.progress.bought.length).toBe(cat.variants.filter((v) => shown.has(v.aspect)).length - shown.size);
-    if (level === 'easy') expect(shown.size).toBe(4);
+    if (level === 'easy') expect(shown.size).toBe(6);
   }, 30_000); // a full playthrough takes 2-4 s alone, far longer while the whole suite runs in parallel
   run('deals Ready, Affordable, and Future, then keeps the same cards and colors through every legal two-purchase opening', () => {
     const start = engine.refreshBoard(id, engine.newProgress(id, undefined, level));
