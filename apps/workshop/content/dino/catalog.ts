@@ -1,5 +1,5 @@
 /**
- * Dino Lab catalog: stats, variants, scenarios, phrases, unlock order and the five starters.
+ * Dino Lab catalog: stats, variants, scenarios, phrases, unlock order and the starters.
  * Balance is checked in catalog.test.ts (default fails every starter, every facet level solvable, T-Rex payoff).
  */
 import type { StarterSpec, VariantId, WorkshopCatalog } from '../../core/types';
@@ -24,8 +24,8 @@ export const DINO_UNLOCK_ORDER: readonly VariantId[] = [
   'legs.powerful', 'tail.heavy', 'head.rex', 'claws.tinyArms', 'size.huge', 'teeth.mega',
 ];
 
-const one = (id: string, scenario: string, facet: string, level = 1): StarterSpec =>
-  ({ id, stages: [{ scenario, facets: [{ facet, level }] }] });
+const one = (id: string, scenario: string, facet: string, level = 1, shopPart?: StarterSpec['shopPart']): StarterSpec =>
+  ({ id, stages: [{ scenario, facets: [{ facet, level }] }], ...(shopPart ? { shopPart } : {}) });
 
 export const DINO_STARTERS: readonly StarterSpec[] = [
   one('dino-start-teeth', 'snack', 'snack.bite'), // fix: teeth.big
@@ -33,6 +33,8 @@ export const DINO_STARTERS: readonly StarterSpec[] = [
   one('dino-start-jump', 'ledge', 'ledge.jump'), // fix: legs.long
   one('dino-start-hole', 'burrow', 'burrow.fit'), // fix: size.small
   one('dino-start-stand', 'tallGrass', 'tallGrass.peek'), // fix: move.stand
+  one('dino-start-rocks', 'rocks', 'rocks.climb', 1, 'claws.hooks'), // fix: claws.hooks
+  one('dino-start-river', 'river', 'river.swim', 1, 'tail.paddle'), // fix: tail.paddle
 ];
 
 export const DINO_CATALOG: WorkshopCatalog = {

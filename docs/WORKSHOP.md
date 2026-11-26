@@ -37,7 +37,7 @@ the decisions made on top of it and how the code is split.
 - **Two workshops**, 10 aspects each, 2 starter variants per aspect (frozen lists in `content/*/variants.ts`).
 - **Challenges are generated** from hand-built scenarios (scene types such as mud field, low bridge, tall tree),
   each with facets (requirement templates with difficulty levels) and phrase banks (several sentences per facet,
-  level and reading level). Five hand-picked starters per workshop come first.
+  level and reading level). Each workshop has seven hand-picked starter cards in its catalog.
 - **A new challenge must not be solvable by the build that just won** (nor by the current model). Every solution
   should differ from the last winning build in at least `WS_RULES.minChangedAspects` (2) aspects; relaxed to 1
   if the unlocked set makes 2 impossible, never 0.
@@ -77,7 +77,8 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   variants of that aspect (from the aspect's unlock order) for sale with a price tag; buying one reveals the next.
   Unaffordable ones are visible but not installable and show "You need more coins" / "You need more Bio Juice"
   (optionally the missing amount as a number).
-- Each variant has a fixed price from its place in its aspect's shop order: 2, 3, 6, 9, 12 … (basePrice for the first, then priceStep × index). Prices never change.
+- The shop order sets the base prices at 2, 3, 6, 9, 12 and up (`basePrice` for the first, then `priceStep` × index).
+  On Starter and Easy, Springs, Race Shop Body, Claws and Tail cost `starterPriceStart` + `starterPriceStep` × shop index (6, 8, 10, 12 ...).
 - **Fresh start.** Each aspect starts with one owned variant and the wallet starts at 4. Version 2 saves keep their
   existing cards, which are re-categorized on load.
 - **Board of three.** The first deal includes one **Ready** card (solvable with owned parts), one **Affordable** card
@@ -89,8 +90,8 @@ Supersedes the earlier "a win unlocks the next variant" rule everywhere in this 
   missing categories in Ready, Affordable, Future order. Skip categories with no eligible card, and draw from an
   already represented category if needed to keep three cards. New challenges prefer a different build, and a Ready
   card may accept the current build when no other Ready challenge is available.
-- **Hand-picked starters:** kept only if they fit (each needs exactly one 2-cost purchase); otherwise dropped in favor
-  of generated ones (the C22 job decides and reports which).
+- **Hand-picked starters:** most of the original cards need a single 2-cost purchase. The Sport Springs card and the
+  appended cards can be dealt once the player owns the featured part or can afford its purchase route. The generator fills vacancies while those cards wait.
 - **UI:** each player pane always shows its wallet (coin or juice-drop icon + number). Results shows "+N" with the icon
   (fits the numbers-only popup rule). Buying has a short confirm and a sound.
 - **Admin:** Admin Mode keeps everything open and saves nothing. Per-player admin adds "Reset this player (fresh
@@ -146,7 +147,7 @@ shared code lives in `shared/`.
     "&", and three or more start with the first title. Easy through Hard append "Adventure". Each requirement shows one authored row (A or B),
     the same row at every reading level.
   - Saved challenges keep their checks, named builds, and text for all four levels. Older open cards are re-dealt when the challenge rules version changes.
-- **Starters** (see Currency and shop): hand-picked ones are offered first only if each needs exactly one 2-cost purchase; they must fail with the default model.
+- **Starters** (see Currency and shop): every curated card fails with the default model and can be solved by changing one part.
 - **Board**: 3 active challenges (mix and affordability rules in Currency and shop). A won challenge is removed for good
   and never regenerated (deduped by resolved requirement set). Its success stays in the save history. Spending
   reorders the current cards. The save retains active cards and caps unfinished history at `maxSavedChallenges`.

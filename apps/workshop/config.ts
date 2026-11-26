@@ -7,7 +7,13 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 12;
+export const CHALLENGE_RULES_VERSION = 13;
+
+/** Parts whose prices are higher while a workshop is in Starter/Easy progress. */
+export const WS_STARTER_PRICE_ASPECTS: Readonly<Record<string, readonly string[]>> = {
+  race: ['springs', 'body'],
+  dino: ['claws', 'tail'],
+};
 
 /**
  * Starter and Easy share these six aspects per workshop. The others stay pinned to their first starter;
@@ -23,6 +29,9 @@ export const WS_RULES = {
   boardSize: 3,
   startWallet: 4,
   basePrice: 2,
+  /** Starter/Easy prices for WS_STARTER_PRICE_ASPECTS parts: start + step x shop index (6, 8, 10, 12 ...). */
+  starterPriceStart: 6,
+  starterPriceStep: 2,
   /** Price of the shop-order index i >= 1 is priceStep x i (index 0 costs basePrice): 2, 3, 6, 9, 12 ... */
   priceStep: 3,
   offersPerAspect: 2,

@@ -10,7 +10,6 @@ import { WS_ROOM } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { visibleAspectIds } from '../logic/aspects';
-import { priceOf } from '../logic/shop';
 import { showBanner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { Confirm } from '../ui/Confirm';
@@ -209,7 +208,7 @@ const stationScreen: ScreenFactory = (): Screen => {
           const y = L.strip.swatch / 2 - 30;
           const tag = scene.add.image(0, y, ensurePriceTagIcon(scene)).setDisplaySize(150, 74);
           const coin = scene.add.image(-11, y, ensureCurrencyIcon(scene, ws)).setDisplaySize(48, 48);
-          const price = makeText(scene, 29, y, String(priceOf(cat, v)), { size: 40, color: COLORS.ink });
+          const price = makeText(scene, 29, y, String(offer.price), { size: 40, color: COLORS.ink });
           b.add([tag, coin, price]);
         }
         if (v === installed) {
@@ -269,8 +268,8 @@ const stationScreen: ScreenFactory = (): Screen => {
         right.setEnabled(index < options.length - 1).setVisible(options.length > 1);
         const v = options[index];
         const offer = offers[index - owned.length];
-        use.setLabel(ctx.input.touch ? (offer ? `Buy ${priceOf(cat, v)}` : 'OK') : (offer ? `Buy for ${priceOf(cat, v)}` : 'Use it!'));
-        status.setText(ctx.input.touch ? (offer ? `Price: ${priceOf(cat, v)} ${currency}` : 'Owned') : '');
+        use.setLabel(ctx.input.touch ? (offer ? `Buy ${offer.price}` : 'OK') : (offer ? `Buy for ${offer.price}` : 'Use it!'));
+        status.setText(ctx.input.touch ? (offer ? `Price: ${offer.price} ${currency}` : 'Owned') : '');
         nameText.setText(nameOf(v) + (v === installed ? '  ✓' : ''));
         nameText.setFontSize(L.name.size);
         fitText(nameText, L.name.maxW);
@@ -321,12 +320,12 @@ const stationScreen: ScreenFactory = (): Screen => {
           };
           if (!offer.affordable) {
             playWorkshopSfx(ctx.audio, 'notEnough');
-            open(`You have ${currentProgress(ctx, ws).wallet} ${currency}. You need ${priceOf(cat, variant)}.`, true, () => {});
+            open(`You have ${currentProgress(ctx, ws).wallet} ${currency}. You need ${offer.price}.`, true, () => {});
           } else if (touchConfirm) {
             buy(variant);
           } else {
             ctx.audio.sfx('select');
-            open(`Pay ${priceOf(cat, variant)} ${currency}?`, false, () => buy(variant));
+            open(`Pay ${offer.price} ${currency}?`, false, () => buy(variant));
           }
           return;
         }
