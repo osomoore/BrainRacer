@@ -5,12 +5,16 @@
  */
 import { WS_RULES } from '../config';
 import type {
-  Challenge, FailNote, Model, ReadingLevel, Requirement, RunResult, VariantId, WorkshopCatalog, WorkshopProgress,
+  BasicCheck, Challenge, FailNote, Model, ReadingLevel, Requirement, RunResult, VariantId, WorkshopCatalog, WorkshopProgress,
 } from '../core/types';
-import { partsVisible } from './aspects';
+import { partsVisible, visibleAspectIds } from './aspects';
 import { available } from './available';
 import { index } from './catalogIndex';
 import { purchaseRoutes } from './shop';
+import { checkOptions, hybridChecks } from './namedFixes';
+import { solve } from './solver';
+import { allPass, checkPasses, computeModel, partTag } from './stats';
+import { flatChecks } from './util';
 import { FAIL_WORD_LIMIT, readingLines, STARTER_FAIL, STARTER_PART, STARTER_SHORT_FIX, wordCount } from './wording';
 
 const PARTS = '{parts}';
@@ -96,13 +100,63 @@ function orderParts(fix: readonly VariantId[], model: Model): VariantId[] {
 export function failNotes(cat: WorkshopCatalog, p: WorkshopProgress, challenge: Challenge, result: RunResult): FailNote[] {
   if (result.passed) return [];
   const byId = new Map(result.requirements.map((r) => [r.id, r]));
-  const notes: FailNote[] = [];
-  for (const req of challenge.stages.flatMap((s) => s.requirements)) {
+  const failed = challenge.stages.flatMap((s) => s.requirements).filter((req) => {
     const r = byId.get(req.id);
-    if (!r || r.passed || !r.reached) continue;
-    const fix = chooseFix(cat, p, fixesOf(req));
-    if (!fix) continue;
-    notes.push({ req: req.id, parts: orderParts(fix, p.model) });
+    return !!r && !r.passed && r.reached;
+  });
+  if (!failed.length) return [];
+
+  const routes = purchaseRoutes(cat, p);
+  const candidates = available(cat, p);
+  for (const id of routes.keys()) candidates.add(id);
+  const variants = index(cat).variantById;
+  const visibleAspects = new Set(visibleAspectIds(cat, p));
+  const scale = cat.aspects.length + 1;
+  const variantCosts = new Map<VariantId, number>();
+  for (const id of candidates) {
+    const aspect = variants.get(id)?.aspect;
+    // One coin outweighs every possible per-aspect change-count tie-break.
+    variantCosts.set(id, (routes.get(id)?.cost ?? 0) * scale + Number(p.model[aspect ?? ''] !== id));
+  }
+  const solution = solve(cat, flatChecks(challenge), candidates, { variantCosts });
+  const currentModel = computeModel(cat, p.model);
+  const solvedModel = solution ? computeModel(cat, solution.build) : null;
+  const changedVisible = solution ? cat.aspects.flatMap((aspect) => {
+    const after = solution.build[aspect.id];
+    return after && after !== p.model[aspect.id] && variants.has(after) && visibleAspects.has(aspect.id) ? [after] : [];
+  }) : [];
+
+  const positiveContributors = (req: Requirement): VariantId[] => {
+    if (!solution || !solvedModel) return [];
+    const branches = checkOptions(hybridChecks(req.checks, req.namedFixes));
+    const helps = (id: VariantId, branch: readonly BasicCheck[]): boolean => {
+      const part = variants.get(id);
+      if (!part) return false;
+      const before = variants.get(p.model[part.aspect]);
+      const tagsBefore = new Set(before ? [...before.tags, partTag(before.id)] : []);
+      const tagsAfter = new Set([...part.tags, partTag(part.id)]);
+      return branch.some((check) => {
+        if (checkPasses(check, currentModel)) return false;
+        if (check.kind === 'statMin') return (part.stats[check.stat] ?? 0) - (before?.stats[check.stat] ?? 0) > 0;
+        if (check.kind === 'statMax') return (part.stats[check.stat] ?? 0) - (before?.stats[check.stat] ?? 0) < 0;
+        if (check.kind === 'tag') return !tagsBefore.has(check.tag) && tagsAfter.has(check.tag);
+        if (check.kind === 'noTag') return tagsBefore.has(check.tag) && !tagsAfter.has(check.tag);
+        return false;
+      });
+    };
+    const branch = branches.find((option) => allPass(option, solvedModel));
+    if (!branch) return [];
+    return changedVisible.filter((id) => helps(id, branch))
+      .sort((a, b) => Number(variants.get(b)?.aspect === req.hint.aspect) - Number(variants.get(a)?.aspect === req.hint.aspect));
+  };
+
+  const notes: FailNote[] = [];
+  for (const req of failed) {
+    const fix = solution
+      ? positiveContributors(req)
+      : orderParts(chooseFix(cat, p, fixesOf(req)) ?? [], p.model);
+    if (!fix.length) continue;
+    notes.push({ req: req.id, parts: fix });
     if (notes.length >= WS_RULES.failLinesMax) break;
   }
   return notes;
