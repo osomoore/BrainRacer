@@ -25,8 +25,7 @@ import { challengeReward, rewardLabel, rewardTextWidth, stageTextWidth } from '.
 import { CARD_STATUS_BADGE, cardStatuses } from './board/cardStatus';
 import { isBackGuarded } from './backGuard';
 import { currentProgress } from './room/progress';
-import { challengeTitle, starterBoardLabel, starterTestTitle } from '../logic/wording';
-import { starterFixLine } from '../logic/failHints';
+import { challengeTitle } from '../logic/wording';
 import { roomLayout } from './room/layout';
 
 const STAGE_COLORS = [0xffd23f, 0x7fd6ff, 0xffa3b8, 0xb8e986, 0xd5b8ff];
@@ -74,7 +73,7 @@ const boardScreen: ScreenFactory = (): Screen => {
   const wide = () => ctx.layout === 'wide';
   const ids = () => progress.active;
   const challenge = (): Challenge | undefined => progress.challenges[ids()[sel]];
-  const displayTitle = (c: Challenge, position: number) => ctx.reading() === 'starter' ? starterTestTitle(position) : challengeTitle(c, ctx.reading());
+  const displayTitle = (c: Challenge, _position?: number) => challengeTitle(c, ctx.reading());
   /** Direct hints remembered from the last failed run of a challenge (until it is won). */
   const hintsOf = (c: Challenge): string[] => failLines(engine.catalog(ws()), c, progress.failHints?.[c.id], ctx.reading());
   const hook = (fn: () => void): Phaser.GameObjects.GameObject => ({ destroy: fn, scene: ctx.scene } as unknown as Phaser.GameObjects.GameObject);
@@ -109,7 +108,7 @@ const boardScreen: ScreenFactory = (): Screen => {
       const stages = c.stages.length;
       const reward = challengeReward(c);
       if (L.compactCards) {
-        const t = makeText(scene, -slot.w / 2 + 30, 0, ctx.reading() === 'starter' ? starterBoardLabel(gi) : displayTitle(c, gi), { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
+        const t = makeText(scene, -slot.w / 2 + 30, 0, displayTitle(c, gi), { size: slot.h > 120 ? 56 : 48, align: 'left', origin: [0, 0.5] });
         fitText(t, slot.w - 330);
         b.add(t);
         addFooter(b, slot.h / 2 - 40, stages, reward);
@@ -117,7 +116,7 @@ const boardScreen: ScreenFactory = (): Screen => {
         const footerY = slot.h / 2 - CARD_PAD - FOOTER_H / 2;
         const titleBox = slot.h - 2 * CARD_PAD - FOOTER_H - CARD_PAD;
         // keep the corner badges (status top-right, hint top-left) clear of the centred title
-        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, ctx.reading() === 'starter' ? starterBoardLabel(gi) : displayTitle(c, gi), { size: wide() ? 48 : 44, wrap: slot.w - 24 - 2 * (BADGE_D - BADGE_OUT) });
+        const t = makeText(scene, 0, -slot.h / 2 + CARD_PAD + titleBox / 2, displayTitle(c, gi), { size: wide() ? 48 : 44, wrap: slot.w - 24 - 2 * (BADGE_D - BADGE_OUT) });
         for (let size = wide() ? 44 : 40; t.height > titleBox && size >= 32; size -= 4) t.setFontSize(size);
         b.add(t);
         addFooter(b, footerY, wide() ? stages : 1, reward);
@@ -193,11 +192,7 @@ const boardScreen: ScreenFactory = (): Screen => {
     const T = L.textArea;
     const multi = c.stages.length > 1;
     const indent = 96;
-    const catalog = engine.catalog(ws());
-    const starterRequirements: string[] | undefined = ctx.reading() === 'starter'
-      ? c.stages.flatMap((st) => st.requirements).map((req) => starterFixLine(catalog, progress, req))
-      : undefined;
-    const blocks = buildBlocks(c, ctx.reading(), hintsOf(c), starterRequirements);
+    const blocks = buildBlocks(c, ctx.reading(), hintsOf(c));
     const planAt = (boxH: number) => planDetail(blocks, {
       maxW: T.w, indent, boxH, sizes: detailFonts(ctx.layout), lineGap: WS_ROOM.detailLineGap, blockGap: 14, measure,
     });

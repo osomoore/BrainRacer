@@ -53,7 +53,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Check Body for a faster build.', 'Check Legs to help your dino run.'],
        ['Check Legs and Body for parts that help you run faster.', 'Look at Legs for a way to catch the fast lizard.']),
   ['fast', 'run', 'legs']),
-  fp('chase.quiet', ['Sneak Up', 'Sneak Up Close'], ['Slip Past', 'Slip Up to It'], [
+  fp('chase.quiet', ['Sneak Up', 'Sneak Up Close'], ['Sneak Up', 'Sneak Up Close'], [
     rows(['Get Small and hide.', 'Be the Small size to sneak.', 'Pick the Small size to sneak up softly.', 'Pick the Small size so the lizard does not see you.'],
       ['Pick Small to slip in.', 'A Small dino can sneak.', 'Get the Small size and keep Crawling.', 'Pick the Small size and keep Crawling to sneak up close.']),
     rows(['Get Slim Body, Spotty, Small.', 'Small size, Slim Body, Spotty skin.', 'Pick Small size, a Slim Body, and Spotty.', 'Pick the Small size, a Slim Body, and Spotty skin to sneak.'],
@@ -74,7 +74,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Check Color for a match with the leaves.', 'Look at Color for a good match.'],
        ['Check Color for a part that blends in with the leaves.', 'Look at Color for a part that blends into the ferns.']),
   ['hide', 'small', 'match']),
-  fp('ferns.flowers', ['Flower Patch'], ['Plant Patch'], [
+  fp('ferns.flowers', ['Flower Patch'], ['Purple Buds'], [
     rows(['Get Purple.', 'Get Purple skin.', 'Pick Purple skin to match the flowers.', 'Give your dino Purple skin so it hides in the purple flowers.'],
       ['Pick Purple.', 'Use Purple to hide.', 'Purple skin hides you in the flowers.', 'The flowers are purple, so pick Purple skin to hide in them.']),
   ], L(['Check Color.', 'Go to Color.'], ['Check Color.', 'Check Color to match.'],
@@ -255,7 +255,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Check Claws for parts that give your dino a good grip.', 'Look at Claws for a way to keep from sliding down.']),
   ['steep', 'icy', 'climb']),
   // ------------------------------------------------------------------ birds
-  fp('birds.roar', ['Birds on the Nest', 'Lots of Birds', 'So Many Birds'], ['Nest Pest', 'Honk at the Nest', 'Big Honk'], [
+  fp('birds.roar', ['Birds on the Nest', 'Lots of Birds', 'So Many Birds'], ['Birds on the Nest', 'Honk at the Nest', 'Big Honk'], [
     rows(['Get Neck Frill.', 'Shake a Neck Frill at them.', 'A loud Neck Frill chases the birds.', 'Give your dino a loud Neck Frill to chase the birds.'],
       ['Pick Crest Head.', 'Honk with a Crest Head.', 'A Crest Head makes a loud honk.', 'Pick a Crest Head or a Neck Frill to make loud noise.']),
     rows(['Get Crest Head.', 'Get a Crest Head to honk.', 'Get a Crest Head for a loud honk.', 'There are lots of birds, so give your dino a Crest Head.'],

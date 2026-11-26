@@ -1,6 +1,6 @@
 /** Content validator: returns a list of problems (empty = fine). Used by tests and by content authors. */
 import { STARTER_PRACTICE_TITLES } from '../content/practiceTitles';
-import { starterWordProblems } from '../content/starterWords';
+import { STARTER_INTERJECTIONS, starterWordProblems } from '../content/starterWords';
 import { READING_LEVELS } from '../core/types';
 import type { BasicCheck, Check, FacetDef, LeveledPhrases, ReadingLevel, Variant, WorkshopCatalog } from '../core/types';
 import { index } from './catalogIndex';
@@ -29,7 +29,7 @@ function starterWords(cat: WorkshopCatalog, where: string, line: string, err: (m
 function starterSentence(cat: WorkshopCatalog, where: string, line: string, err: (m: string) => void): void {
   starterWords(cat, where, line, err);
   for (const sentence of line.match(/[^.!?]+/g) ?? []) {
-    if (wordCount(sentence) < 2) err(`${where}: Starter sentences need at least 2 words: "${line}"`);
+    if (wordCount(sentence) < 2 && !STARTER_INTERJECTIONS.has(sentence.trim().toLowerCase())) err(`${where}: Starter sentences need at least 2 words: "${line}"`);
   }
 }
 

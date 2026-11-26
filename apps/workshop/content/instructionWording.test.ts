@@ -157,8 +157,9 @@ it('describes working Dino Lab builds at both hot-sun levels', () => {
   for (const reading of ['starter', 'easy'] as const) {
     expect(first.hint.text[reading]).toContain('Body');
   }
-  expect(first.text.starter).toContain('Slim Body');
-  expect(second.text.starter).toContain('Slim Body');
+  // Starter stories describe the situation too; the part is named only after a miss.
+  expect(first.text.starter).not.toContain('Slim Body');
+  expect(second.text.starter).not.toContain('Slim Body');
   for (const reading of STORY_LEVELS) {
     expect(first.text[reading]).toMatch(/sun/i);
     expect(second.text[reading]).toMatch(/sun/i);

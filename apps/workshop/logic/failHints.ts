@@ -18,8 +18,8 @@ const PART = '{part}';
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** How a part reads inside a sentence ("a Winch", "the Small size"). */
-export function partPhrase(cat: WorkshopCatalog, id: VariantId, reading?: ReadingLevel): string {
-  return (reading !== 'starter' ? cat.partPhrases?.[id] : undefined) ?? index(cat).variantById.get(id)?.name ?? id;
+export function partPhrase(cat: WorkshopCatalog, id: VariantId, _reading?: ReadingLevel): string {
+  return cat.partPhrases?.[id] ?? index(cat).variantById.get(id)?.name ?? id;
 }
 
 export function joinParts(names: readonly string[]): string {

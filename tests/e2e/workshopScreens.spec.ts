@@ -169,7 +169,8 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   const easy = await paneTexts(page);
   for (const c of ch) expect(easy).toContain(c.title);
   expect(easy).toContain(ch[0].stages[0].requirements[0].text.easy);
-  expect(easy).not.toContain(ch[0].stages[0].requirements[0].text.hard);
+  const first = ch[0].stages[0].requirements[0].text;
+  if (first.hard !== first.easy) expect(easy).not.toContain(first.hard);
   expect(easy).toContain('Test it!');
   expect(easy).not.toContain('Wheels: Road Tires'); // no part is highlighted until the vehicle is entered
 
@@ -179,8 +180,8 @@ test('board: three challenge cards at the player reading level, Test it! opens t
     w.store.setPlayer('p1', { ...w.store.player('p1'), reading: 'starter' });
     w.contexts()[0].go('board');
   });
-  await expect.poll(() => paneTexts(page)).toContain('Get Small Engine.');
-  await expect.poll(() => paneTexts(page)).not.toContain(ch[0].starterTitle);
+  await expect.poll(() => paneTexts(page)).toContain(ch[0].starterTitle);
+  await expect.poll(() => paneTexts(page)).toContain(ch[0].stages[0].requirements[0].text.starter);
   expect(await activeChallenges(page)).toEqual(ch);
   const starter = await paneTexts(page);
   if (ch[0].intro.starter) expect(starter).not.toContain(ch[0].intro.starter);
@@ -202,7 +203,8 @@ test('board: three challenge cards at the player reading level, Test it! opens t
   expect(dealt).toHaveLength(3);
   const hard = await paneTexts(page);
   expect(hard).toContain(dealt[0].stages[0].requirements[0].text.hard);
-  expect(hard).not.toContain(dealt[0].stages[0].requirements[0].text.easy);
+  const dealtFirst = dealt[0].stages[0].requirements[0].text;
+  if (dealtFirst.easy !== dealtFirst.hard) expect(hard).not.toContain(dealtFirst.easy);
 
   // move to the second card: the detail follows; A on a card starts its test run
   await key(page, 'KeyD');
@@ -249,7 +251,8 @@ test('Starter board: numbered cards and readable directions fit desktop and tabl
       for (const pane of paneInfo) {
         expect(pane.layout).toBe(players === 2 ? 'tall' : 'wide');
         const orderedCards = pane.cards.sort((a: any, b: any) => a.x - b.x);
-        expect(orderedCards.map((card: any) => card.label)).toEqual(['1', '2', '3']);
+        const starterTitles = (await activeChallenges(page, paneInfo.indexOf(pane) === 0 ? 'p1' : 'p2')).map((c) => c.starterTitle);
+        expect(orderedCards.map((card: any) => card.label)).toEqual(starterTitles);
         expect(orderedCards.map((card: any) => card.badge)).toHaveLength(3);
         for (const card of orderedCards) expect(['\u2713', '$', 'X']).toContain(card.badge);
         const paneIndex = paneInfo.indexOf(pane);
@@ -257,13 +260,13 @@ test('Starter board: numbered cards and readable directions fit desktop and tabl
         const rendered = pane.texts.map((t: any) => t.text).join(' ');
         const selected = challenges[0];
         expect(rendered).not.toContain(selected.title);
-        expect(rendered).not.toContain(selected.starterTitle);
         const intro = selected.intro.starter?.replace(/\s+/g, ' ').trim();
         if (intro) expect(rendered).not.toContain(intro);
-        // The fresh Starter fixture's selected card must show direct fix instructions, without its saved story.
-        const directions = pane.texts.filter((t: any) => t.text.startsWith('Get ') && t.text.endsWith('.'));
-        expect(directions.length).toBe(selected.stages.reduce((n: number, stage: any) => n + stage.requirements.length, 0));
-        for (const text of directions) expect(text.text.split(/\s+/).length).toBeLessThanOrEqual(6);
+        // The selected card shows each Starter story sentence once (the situation; parts are named only after a miss).
+        const stories = [...new Set(selected.stages.flatMap((stage) => stage.requirements.map((r) => r.text.starter)))];
+        const flat = (s: string) => s.replace(/\s+/g, ' ').trim();
+        const directions = pane.texts.filter((t: any) => stories.some((line) => flat(t.text) === flat(line)));
+        expect(directions.length).toBe(stories.length);
         // Keep the displayed short directions at the project's 40 px logical minimum and inside the pane.
         expect(directions.length).toBeGreaterThan(0);
         for (const text of directions) {
@@ -284,7 +287,7 @@ test('Starter board: numbered cards and readable directions fit desktop and tabl
         await key(page, 'Escape');
         await expectScreens(page, 'results');
         const results = await paneTexts(page);
-        expect(results).toContain('Test 1');
+        expect(results).toContain(first.starterTitle);
         expect(results).not.toContain(first.title);
       }
       await page.evaluate(() => (window as any).__ws.shell?.dispose?.());

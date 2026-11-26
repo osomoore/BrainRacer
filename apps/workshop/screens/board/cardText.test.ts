@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { Challenge } from '../../core/types';
 import { engine } from '../../logic';
 import { buildBlocks, planDetail, wrapLines, type Measure, type TextBlock } from './cardText';
-import { starterBoardLabel, starterTestTitle } from '../../logic/wording';
 
 /** 0.55 em per character: close enough to a bold sans font. */
 const measure: Measure = (t, size) => t.length * size * 0.55;
@@ -37,14 +36,15 @@ describe('buildBlocks', () => {
       expect(blocks.some(({ kind }) => kind === 'hint')).toBe(false);
     }
   });
-  it('Starter uses position titles and direct requirements without saved story text or intro', () => {
-    const c = challenge([['mud']]);
+  it('Starter shows each requirement story once, without the intro', () => {
+    const c = challenge([['mud', 'mud2'], ['mud3']]);
     c.intro.starter = 'A saved story.';
     c.starterTitle = 'Muddy Road';
-    c.stages[0].requirements[0].text.starter = 'Squish! The road is sticky mud!';
-    expect([0, 1, 2].map(starterTestTitle)).toEqual(['Test 1', 'Test 2', 'Test 3']);
-    expect([0, 1, 2].map(starterBoardLabel)).toEqual(['1', '2', '3']);
-    expect(buildBlocks(c, 'starter', [], ['Get Mud Tires.']).map((b) => [b.kind, b.text])).toEqual([['req', 'Get Mud Tires.']]);
+    c.stages[0].requirements[0].text.starter = 'Grip in the mud!';
+    c.stages[0].requirements[1].text.starter = 'Grip in the mud!';
+    c.stages[1].requirements[0].text.starter = 'Get up the hill!';
+    expect(buildBlocks(c, 'starter', ['Put on Mud Tires.']).map((b) => [b.kind, b.text, b.stage])).toEqual([
+      ['req', 'Grip in the mud!', 0], ['req', 'Get up the hill!', 1], ['hint', 'Put on Mud Tires.', 0]]);
   });
 });
 

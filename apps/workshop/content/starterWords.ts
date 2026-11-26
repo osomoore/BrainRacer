@@ -15,14 +15,25 @@ const SOUND_OUT = `
   swam swim swish tall tap test thick thin this thump tight tint top track trip trunk try tug twist up
   weak well went will with zip
 `;
-const SIGHT_WORDS = 'a the is to you it of and I go no do put on';
+// Added 2026-11-25 with the parent's Starter rewrite: more regular words (digraphs, silent e, -igh, -ar, -ow).
+const SOUND_OUT_MORE = `
+  an asleep baby balls bang be biggest birds bonk boxes brr buckets car cars climb close colors dents down drive ends
+  fall fastest flags for gets has hear here high hole how ice if keep kids lizard light looks look lots mats naps
+  need night pal pull push quiet road roll runs seek shade shakes shh sneak sniffs snow so stay stops stream
+  lowest old shaky tallest ten too toys tree trees under wake warm wide wiggle wind wobbles
+`;
+const SIGHT_WORDS = 'a the is to you it of and I go no do put on are they there your have from many water';
+/** Words a Starter line may need even though a beginner can't sound them out (they name the thing in the scene). */
+const NEEDED_WORDS = 'dino tractor parade river purple size paint';
+/** One-word exclamations that may stand alone as a Starter sentence. */
+export const STARTER_INTERJECTIONS = new Set(['fog', 'splash', 'brr', 'shh', 'bonk']);
 
 export const STARTER_DENYLIST = new Set([
   'frost', 'needed', 'bright', 'delivery', 'clearance', 'toughness', 'handling', 'camouflage',
   'efficiency', 'acceleration', 'traction', 'slippery', 'vehicle', 'insulation', 'maneuver',
 ]);
 
-const allowed = new Set(`${SOUND_OUT} ${SIGHT_WORDS.toLowerCase()}`.trim().split(/\s+/));
+const allowed = new Set(`${SOUND_OUT} ${SOUND_OUT_MORE} ${SIGHT_WORDS.toLowerCase()} ${NEEDED_WORDS}`.trim().split(/\s+/));
 const escape = (s: string) => s.replace(/[.*+?${}()|[\]\\]/g, '\\$&');
 const masks = new WeakMap<WorkshopCatalog, RegExp>();
 

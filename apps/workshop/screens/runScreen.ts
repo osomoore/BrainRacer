@@ -15,7 +15,7 @@ import { failLines, failNotes } from '../logic/failHints';
 import { recordLearningTry } from '../logic/learning';
 import { setOutcome, type RunOutcome } from './run/outcome';
 import { fastForwardTexture } from './run/ffIcon';
-import { starterTestTitle } from '../logic/wording';
+import { challengeTitle } from '../logic/wording';
 
 const FAST = 4;
 /** Ignore input this long after the run opens (ms). */
@@ -102,7 +102,7 @@ const runScreen: ScreenFactory = (): Screen => {
       const progress = ws ? ctx.save().workshops[ws] : undefined;
       const challenge = progress?.challenges[challengeId];
       if (!ws || !progress?.active.includes(challengeId) || !challenge || progress.completed[challengeId]) { ctx.go('board'); return; }
-      testTitle = ctx.reading() === 'starter' ? starterTestTitle(progress.active.indexOf(challengeId)) : undefined;
+      testTitle = ctx.reading() === 'starter' ? challengeTitle(challenge, 'starter') : undefined;
       testedCard = challenge;
       testedBuild = { ...progress.model };
       sandbox = ctx.adminMode;

@@ -24,7 +24,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get 4x4 Drive and Mud Tires.', 'Get Mud Tires and 4x4 Drive.', 'Deep mud needs Mud Tires and 4x4 Drive.', 'Mud this deep needs Mud Tires with 4x4 Drive to grip.'],
       ['Pick 4x4 Drive and Monster Wheels.', 'Use Monster Wheels and 4x4 Drive.', 'Monster Wheels and 4x4 Drive grip best.', 'Put on Monster Wheels and 4x4 Drive for this very deep mud.']),
   ], L(['Check Wheels.', 'Go to Wheels.'], ['Check Wheels.', 'Look at Wheels.'], ['Check Wheels for more grip.', 'Look at Wheels for a part that grips.'], ['Check Wheels for a part that will grip in the mud.', 'Look at Wheels for a way to keep from spinning.']), ['deep', 'sticky', 'grip']),
-  fp('mud.pull', ['Stuck Tractor', 'Heavy Tractor'], ['Stuck in Mud', 'Big Tug'], [
+  fp('mud.pull', ['Stuck Tractor', 'Heavy Tractor'], ['Stuck Tractor', 'Big Tractor'], [
     rows(['Get Winch.', 'Get a Winch to pull.', 'Get a Winch to pull the tractor out.', 'Put a Winch on your car to pull the stuck tractor out.'],
       ['Pick Winch.', 'Use a Winch on the tractor.', 'Hook a Winch to the stuck tractor.', 'Hook your Winch to the tractor and pull it from the mud.']),
     rows(['Get Winch and Climbing Gears.', 'Get a Winch and Climbing Gears.', 'Pull with a Winch and Climbing Gears.', 'The tractor is heavy, so use a Winch and Climbing Gears.'],
@@ -44,7 +44,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Fit Bouncy Springs and Monster Wheels.', 'Get Bouncy Springs and Monster Wheels.', 'Land soft on Bouncy Springs and Monster Wheels.', 'The drop is big, so get Bouncy Springs and Monster Wheels.'],
       ['Pick Rubber Bumpers and Bouncy Springs.', 'Use Bouncy Springs and Rubber Bumpers.', 'Land on Bouncy Springs and Rubber Bumpers.', 'Pick Bouncy Springs and Rubber Bumpers to land soft from up high.']),
   ], L(['Check Springs.', 'Go to Springs.'], ['Check Springs.', 'Look at Springs.'], ['Check Springs for a softer ride.', 'Look at Springs for a soft landing.'], ['Check Springs for a part that makes landings soft.', 'Look at Springs for a part that softens the bump.']), ['soft', 'high', 'drop']),
-  fp('turn.handling', ['Sharp Turn', 'Many Turns', 'Super Tight Turns'], ['Sharp Bend', 'Twist and Bend', 'Tight Bends'], [
+  fp('turn.handling', ['Sharp Turn', 'Many Turns', 'Super Tight Turns'], ['Sharp Bend', 'Twist and Bend', 'Hard Bends'], [
     rows(['Get Sport Springs.', 'Get Sport Springs to turn.', 'Get Sport Springs to turn without a slide.', 'Put in Sport Springs so the car turns without a slide.'],
       ['Pick Racing Tires.', 'Use Racing Tires to turn.', 'Racing Tires help you take the sharp turn.', 'Pick Racing Tires or a Big Spoiler to take the sharp turn.']),
     rows(['Fit Sport Springs and Racing Tires.', 'Get Sport Springs and Racing Tires.', 'Get Sport Springs and Racing Tires for turns.', 'Many turns are coming, so get Sport Springs and Racing Tires.'],
@@ -64,7 +64,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Bright Yellow.', 'Paint it Bright Yellow.', 'Use Bright Yellow so the ducks see you.', 'Pick Bright Yellow paint so the ducks can see you in fog.'],
       ['Pick Rainbow or Fire Red.', 'Use Fire Red or Rainbow paint.', 'Bright paint like Fire Red or Rainbow works.', 'Pick a bright paint, like Fire Red or Rainbow, for the fog.']),
   ], L(['Check Paint.', 'Go to Paint.'], ['Check Paint.', 'Look at Paint.'], ['Check Paint for a bright color.', 'Look at Paint for a bright color.'], ['Look at Paint for a color that stands out in fog.', 'Check Paint to find a color that stands out.']), ['bright', 'fog', 'see']),
-  fp('lowBridge.height', ['Low Bridge', 'Very Low Bridge', 'Super Low Bridge'], ['Low Bridge', 'Short Gap', 'Flat to Fit'], [
+  fp('lowBridge.height', ['Low Bridge', 'Very Low Bridge', 'Super Low Bridge'], ['Low Bridge', 'So Low', 'Lowest Bridge'], [
     rows(['Get Small.', 'Get the Small size.', 'Pick the Small size to fit under.', 'Make your car the Small size so it fits under the bridge.'],
       ['Pick Sports Car.', 'Get a Sports Car to fit.', 'A low Sports Car fits under the bridge.', 'Pick a Sports Car or Sleek shape to fit under the bridge.']),
     rows(['Get Tiny.', 'Get the Tiny size.', 'Pick the Tiny size to fit under.', 'The bridge is very low, so make your car the Tiny size.'],
@@ -86,7 +86,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Van and Big.', 'Get a Big Van.', 'Get a Van in the Big size.', 'Only a Van in the Big size can carry this giant load.'],
       ['Pick Van and Big.', 'A Big Van holds the most.', 'Pick a Big Van for the giant load.', 'Get a Van in the Big size so every box fits.']),
   ], L(['Check Body.', 'Go to Body.'], ['Check Size.', 'Look at Size.'], ['Check Body for room for the boxes.', 'Look at Body for more room.'], ['Check Body for a way to fit all the boxes.', 'Look at Body for a part with more room inside.']), ['big', 'room', 'load']),
-  fp('delivery.power', ['Heavy Boxes'], ['Rock Pack'], [
+  fp('delivery.power', ['Heavy Boxes'], ['Big Boxes'], [
     rows(['Get Big Engine.', 'Get a Big Engine for boxes.', 'Get a Big Engine to pull heavy boxes.', 'Heavy boxes need power, so put in a Big Engine.'],
       ['Pick Climbing Gears.', 'Use Climbing Gears for power.', 'Climbing Gears give power for the heavy load.', 'Pick Climbing Gears or a Turbo Engine to carry the heavy load.']),
   ], L(['Check Engine.', 'Go to Engine.'], ['Check Engine.', 'Look at Engine.'], ['Check Engine for more power.', 'Look at Engine for a stronger part.'], ['Check Engine for a part that gives power to carry the boxes.', 'Check Engine for enough power to carry a heavy load.']), ['heavy', 'power']),
@@ -98,7 +98,7 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get 4x4 Drive and Snow Tires.', 'Snow Tires and 4x4 Drive.', 'Get Snow Tires and 4x4 Drive for ice.', 'Snow and ice need both Snow Tires and 4x4 Drive.'],
       ['Pick Jeep and Snow Tires.', 'Get Snow Tires and a Jeep.', 'Put Snow Tires on a Jeep for ice.', 'Pick a Jeep with Snow Tires to grip the snow and ice.']),
   ], L(['Check Wheels.', 'Go to Wheels.'], ['Check Wheels.', 'Look at Wheels.'], ['Check Wheels for more grip in snow.', 'Look at Wheels for a part that grips.'], ['Check Wheels for parts that grip the snowy road.', 'Look at Wheels for a way to keep from sliding.']), ['snow', 'ice', 'deep']),
-  fp('rocks.tough', ['Bumpy Rocks', 'Heavy Rocks', 'Giant Rocks'], ['Rock Bumps', 'Big Rocks', 'Rock Wall'], [
+  fp('rocks.tough', ['Bumpy Rocks', 'Heavy Rocks', 'Giant Rocks'], ['Rock Bumps', 'Big Rocks', 'Rock Fall'], [
     rows(['Get Rubber Bumpers.', 'Get Rubber Bumpers for rocks.', 'Get Rubber Bumpers to bump off the rocks.', 'Put on Rubber Bumpers so the rocks just bounce off.'],
       ['Pick Big Bumpers.', 'Use Big Bumpers on rocks.', 'Big Bumpers make the car tough.', 'Pick Big Bumpers or a Jeep so the car is tough enough.']),
     rows(['Get Jeep and Rubber Bumpers.', 'Rubber Bumpers and a Jeep.', 'Get Rubber Bumpers and a Jeep for rocks.', 'Big rocks need a tough Jeep with Rubber Bumpers.'],
@@ -118,13 +118,13 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Push Bumper and Wedge.', 'Push Bumper and a Wedge shape.', 'Get a Push Bumper and a Wedge shape.', 'A huge log needs a Push Bumper and a Wedge shape.'],
       ['Pick Push Bumper and Winch.', 'Push Bumper and a Winch.', 'Use a Push Bumper and a Winch.', 'Pick a Push Bumper and a Winch to move the huge log.']),
   ], L(['Check Bumper.', 'Go to Bumper.'], ['Check Bumper.', 'Look at Bumper.'], ['Check Bumper for a part that pushes.', 'Look at Bumper for a stronger push.'], ['Check Bumper for a part that can shove the log away.', 'Look at Bumper for a part that helps the car push harder.']), ['push', 'log', 'huge']),
-  fp('river.cross', ['Deep Stream', 'Across the River'], ['Deep Dip', 'Big Splash'], [
+  fp('river.cross', ['Deep Stream', 'Across the River'], ['Deep Stream', 'Big Splash'], [
     rows(['Get Floaties or Snorkel.', 'Use Floaties or a Snorkel.', 'Use a Snorkel or Floaties to cross.', 'Use a Snorkel to drive under, or Floaties to float on top.'],
       ['Pick Floaties or Snorkel.', 'Pick a Snorkel or Floaties.', 'Get Floaties or a Snorkel for the stream.', 'Floaties keep the car up, or a Snorkel lets it drive under.']),
     rows(['Get Floaties.', 'Get Floaties to float.', 'Get Floaties so the car floats across.', 'The river is wide and deep, so use Floaties to float across.'],
       ['Pick Floaties.', 'Use Floaties on the river.', 'Floaties keep the car on top of water.', 'Pick Floaties so your car floats like a boat across the river.']),
   ], L(['Check Extra.', 'Go to Extra.'], ['Check Extra.', 'Look at Extra.'], ['Check Extra for a part made for water.', 'Look at Extra for a way to cross.'], ['Check Extra for a part that helps in deep water.', 'Look at Extra for a way to get across the river.']), ['deep', 'float', 'river']),
-  fp('wobbly.weight', ['Wobbly Bridge', 'Very Wobbly Bridge', 'Super Wobbly Bridge'], ['Bad Bridge', 'Weak Bridge', 'Crack in the Bridge'], [
+  fp('wobbly.weight', ['Wobbly Bridge', 'Very Wobbly Bridge', 'Super Wobbly Bridge'], ['Old Bridge', 'Shaky Bridge', 'Snap Bridge'], [
     rows(['Get Electric Motor.', 'Get a light Electric Motor.', 'An Electric Motor makes the car light.', 'Put in a light Electric Motor to cross the old bridge.'],
       ['Pick Small.', 'The Small size is light.', 'Make the car light with the Small size.', 'Pick the Small size or a Sports Car to be light.']),
     rows(['Get Tiny.', 'Tiny size makes it very light.', 'Pick the Tiny size to be very light.', 'The bridge is very wobbly, so make your car the Tiny size.'],
@@ -140,11 +140,11 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Efficient Engine and Tiny.', 'Efficient Engine and Tiny size.', 'Get an Efficient Engine and the Tiny size.', 'The longest drive needs an Efficient Engine and the Tiny size.'],
       ['Pick Efficient Engine and Tiny.', 'Tiny size plus an Efficient Engine.', 'Pick the Tiny size and an Efficient Engine.', 'Pick a Tiny car with an Efficient Engine to go the farthest.']),
   ], L(['Check Engine.', 'Go to Engine.'], ['Check Engine.', 'Look at Engine.'], ['Check Engine for a part that saves gas.', 'Look at Engine to go farther.'], ['Check Engine for a part that uses less gas on the trip.', 'Look at Engine for a part that goes far on little gas.']), ['far', 'long']),
-  fp('beach.load', ['Beach Toys'], ['Pack a Bag'], [
+  fp('beach.load', ['Beach Toys'], ['Toys for the Trip'], [
     rows(['Get Pickup Truck.', 'Get a Pickup Truck for toys.', 'Get a Pickup Truck for the beach toys.', 'Pick a Pickup Truck so there is room for toys and towels.'],
       ['Pick Big.', 'Use the Big size for toys.', 'The Big size has room for beach toys.', 'Pick the Big size or a Van to fit the beach toys.']),
   ], L(['Check Body.', 'Go to Body.'], ['Check Size.', 'Look at Size.'], ['Check Body for room for the toys.', 'Look at Body for more room.'], ['Check Body for a way to fit the toys inside.', 'Look at Body or Extra for room to carry the toys.']), ['big', 'room']),
-  fp('parade.color', ['Red Parade', 'Green Parade', 'Parade of Colors'], ['Red Flag', 'Green Flag', 'Mix It Up'], [
+  fp('parade.color', ['Red Parade', 'Green Parade', 'Parade of Colors'], ['Red Parade', 'Green Parade', 'Lots of Colors'], [
     rows(['Get Fire Red.', 'Paint the car Fire Red.', 'Paint the car Fire Red for the parade.', 'The parade needs a red car, so pick Fire Red paint.'],
       ['Pick Fire Red.', 'Use Fire Red paint.', 'Pick Fire Red paint for your car.', 'Make your car red with Fire Red paint for the parade.']),
     rows(['Get Leaf Green.', 'Paint the car Leaf Green.', 'Paint the car Leaf Green for the parade.', 'The parade needs a green car, so pick Leaf Green paint.'],
@@ -152,13 +152,13 @@ export const RACE_FACET_PHRASES: readonly FacetPhrases[] = [
     rows(['Get Rainbow.', 'Paint the car Rainbow.', 'Paint the car Rainbow for the parade.', 'The parade needs every color, so pick Rainbow paint.'],
       ['Pick Rainbow.', 'Use Rainbow paint.', 'Pick Rainbow paint for your car.', 'Make your car every color with Rainbow paint for the parade.']),
   ], L(['Check Paint.', 'Go to Paint.'], ['Check Paint.', 'Look at Paint.'], ['Check Paint for a parade color.', 'Look at Paint to match the flags.'], ['Check Paint for the colors you see on the parade flags.', 'Read the color clue, then look at Paint.']), ['red', 'green', 'color']),
-  fp('night.quiet', ['Quiet Night', 'Sleeping Baby'], ['Hush Run', 'Nap Time'], [
+  fp('night.quiet', ['Quiet Night', 'Sleeping Baby'], ['Kids Asleep', 'Baby Naps'], [
     rows(['Get Electric Motor.', 'Get an Electric Motor.', 'Get a quiet Electric Motor for the town.', 'Put in an Electric Motor so the car is quiet at night.'],
       ['Pick Efficient Engine.', 'Use a quiet Efficient Engine.', 'An Efficient Engine is quiet enough here.', 'Pick an Efficient Engine or Electric Motor so nobody wakes up.']),
     rows(['Get Electric Motor.', 'Use an Electric Motor. Shh!', 'Only an Electric Motor is this quiet.', 'The baby is asleep, so put in a quiet Electric Motor.'],
       ['Pick Electric Motor.', 'Pick the Electric Motor.', 'Pick the Electric Motor to make no noise.', 'Pick the Electric Motor so the car makes almost no sound.']),
   ], L(['Check Engine.', 'Go to Engine.'], ['Check Engine.', 'Look at Engine.'], ['Check Engine for a quiet part.', 'Look at Engine to make less noise.'], ['Check Engine for a part that will let the town sleep.', 'Loud parts wake sleepers, so check Engine for a quieter part.']), ['quiet', 'loud']),
-  fp('night.hide', ['Hide at Night'], ['Hide in Black'], [
+  fp('night.hide', ['Hide at Night'], ['Hide at Night'], [
     rows(['Get Night Black.', 'Paint the car Night Black.', 'Paint the car Night Black to hide.', 'Pick Night Black paint so your car is hard to see.'],
       ['Pick Night Black.', 'Use Night Black paint.', 'Night Black paint hides you in the dark.', 'Make your car dark with Night Black paint to hide at night.']),
   ], L(['Check Paint.', 'Go to Paint.'], ['Check Paint.', 'Look at Paint.'], ['Check Paint for a dark color.', 'Look at Paint for a color that hides.'], ['Check Paint for a color that is hard to see at night.', 'Look at Paint for a dark color that blends into the night.']), ['dark', 'hide']),

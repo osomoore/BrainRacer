@@ -13,18 +13,24 @@ export interface TextBlock {
   stage: number;
 }
 
-/** Intro sentence, every requirement story (all stages, in order) at the reading level, then any failure hints. */
-export function buildBlocks(c: Challenge, level: ReadingLevel, hints: readonly string[] = [], starterRequirements?: readonly string[]): TextBlock[] {
+/**
+ * Intro sentence, every requirement story (all stages, in order) at the reading level, then any failure hints.
+ * Starter skips the intro and shows each requirement's short story sentence (the situation, not the fix; hints name
+ * parts after a miss). The same sentence never shows twice on one card.
+ */
+export function buildBlocks(c: Challenge, level: ReadingLevel, hints: readonly string[] = []): TextBlock[] {
   const out: TextBlock[] = [];
   const intro = level === 'starter' ? '' : readingText(c.intro, level);
   if (intro) out.push({ kind: 'intro', text: intro, stage: 0 });
-  let reqIndex = 0;
+  const seen = new Set<string>();
   c.stages.forEach((st, si) => st.requirements.forEach((r) => {
-    const direct = level === 'starter' ? starterRequirements?.[reqIndex] : undefined;
-    out.push({ kind: 'req', text: level === 'starter' ? direct ?? '' : readingText(r.text, level), stage: si });
-    reqIndex++;
+    const text = readingText(r.text, level);
+    const key = text.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ kind: 'req', text, stage: si });
   }));
-  for (const text of hints) out.push({ kind: 'hint', text, stage: 0 });
+  for (const text of hints) if (!seen.has(text.trim().toLowerCase())) out.push({ kind: 'hint', text, stage: 0 });
   return out;
 }
 

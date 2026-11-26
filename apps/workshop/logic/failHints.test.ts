@@ -37,7 +37,7 @@ describe('failure part choice', () => {
 
 describe('failure lines', () => {
   it('fill in part names the way a sentence reads them', () => {
-    expect(fillParts(race, 'Get {parts} to pass.', ['size.small', 'engine.electric'], 'starter')).toBe('Get Small and Electric Motor.');
+    expect(fillParts(race, 'Get {parts} to pass.', ['size.small', 'engine.electric'], 'starter')).toBe('Get the Small car size and an Electric Motor to pass.');
     expect(fillParts(race, 'You needed {parts} to grip the mud.', ['wheels.mud'], 'easy')).toBe('You needed Mud Tires to grip the mud.');
     expect(fillParts(race, '{parts} would grip the mud.', ['wheels.mud', 'body.jeep'], 'medium')).toBe('Mud Tires and a Jeep would grip the mud.');
     expect(fillParts(race, 'You needed {parts}.', ['size.small'], 'easy')).toBe('You needed the Small car size.');
@@ -58,7 +58,7 @@ describe('failure lines', () => {
   });
 
   it('practice cards show a direct Starter instruction and a situation at later levels', () => {
-    expect(practiceStory(race, 'extra.winch', 'starter')).toBe('Try Winch on it.');
+    expect(practiceStory(race, 'extra.winch', 'starter')).toBe('Try a Winch on it.');
     for (const r of READING_LEVELS) {
       if (r !== 'starter') expect(practiceStory(race, 'extra.winch', r)).toBe('A friend is stuck in the mud. They need help.');
     }

@@ -26,7 +26,6 @@ import { cleverWinMessage } from '../logic/text';
 import { visibleAspectIds } from '../logic/aspects';
 import { successReasons } from '../logic/successReasons';
 import { challengeTitle, readingText, STARTER_RESULTS } from '../logic/wording';
-import { starterFixLine } from '../logic/failHints';
 
 /** Ignore pad / key input this long after opening (a held A from the run screen). */
 const INPUT_GUARD_MS = 400;
@@ -101,13 +100,20 @@ const resultsScreen: ScreenFactory = (): Screen => {
 
       // ---- rows (requirements grouped by stage)
       const byId = new Map(result.requirements.map((r) => [r.id, r]));
+      const rowText = (row: Pick<Row, 'req'>) => readingText(row.req.text, reading);
+      // One row per distinct sentence (Starter lines can repeat): it passes only when every requirement it stands for did.
       const rows: Row[] = [];
-      challenge.stages.forEach((st, si) => st.requirements.forEach((req, ri) => {
+      const byText = new Map<string, Row>();
+      challenge.stages.forEach((st, si) => st.requirements.forEach((req) => {
         const r = byId.get(req.id);
-        rows.push({ req, stage: si, first: ri === 0, ok: !!r?.passed, reached: r ? r.reached : true });
+        const ok = !!r?.passed, reached = r ? r.reached : true;
+        const key = rowText({ req }).trim().toLowerCase();
+        const same = byText.get(key);
+        if (same) { same.ok &&= ok; same.reached ||= reached; return; }
+        const row: Row = { req, stage: si, first: !rows.some((x) => x.stage === si), ok, reached };
+        byText.set(key, row);
+        rows.push(row);
       }));
-      const starterLines = starter ? new Map(rows.map((row) => [row.req.id, starterFixLine(CATALOGS[ws], progress, row.req)])) : undefined;
-      const rowText = (row: Row) => starter ? starterLines?.get(row.req.id) ?? '' : readingText(row.req.text, reading);
       const rowGap = 22;
       const stageGap = 20;
       const rowExtra = (row: Row, i: number) => rowGap + (multi && row.first && i > 0 ? stageGap : 0);
