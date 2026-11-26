@@ -5,7 +5,7 @@ import { index } from './catalogIndex';
 
 type Leveled = Pick<WorkshopProgress, 'easy'>;
 
-/** Aspect ids in catalog order, trimmed to four on Starter and Easy. */
+/** Aspect ids in catalog order, trimmed to six on Starter and Easy. */
 export function aspectIdsAt(cat: Pick<WorkshopCatalog, 'id' | 'aspects'>, easy: boolean | undefined): AspectId[] {
   const all = cat.aspects.map((a) => a.id);
   if (!easy) return all;

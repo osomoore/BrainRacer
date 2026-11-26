@@ -33,7 +33,7 @@ the decisions made on top of it and how the code is split.
 - **Profiles** are the shared ones (`shared/profiles.ts`). A new profile = name (on-screen letter grid) + reading
   level. An existing profile entering the workshop for the first time picks a reading level once.
 - **Reading levels: Starter / Easy / Medium / Hard.** Starter uses numbered cards and short, direct instructions.
-  It shares Easy's four stations, challenge rules, and economy. Medium and Hard use all ten stations.
+  It shares Easy's six stations, challenge rules, and economy. Medium and Hard use all ten stations.
 - **Two workshops**, 10 aspects each, 2 starter variants per aspect (frozen lists in `content/*/variants.ts`).
 - **Challenges are generated** from hand-built scenarios (scene types such as mud field, low bridge, tall tree),
   each with facets (requirement templates with difficulty levels) and phrase banks (several sentences per facet,
@@ -322,6 +322,13 @@ The [Family sync inventory](FAMILY_SYNC.md#local-storage-inventory-and-sync-mapp
 - e2e: `tests/e2e/workshop*.spec.ts`. Hooks: `window.__ws` (pane contexts, engine) for tests.
 - Dev-server ports per package: shell 5191, audio 5192 (render 5193), art 5194, screens 5195, runs 5196/5197.
 
-## Starter and Easy use four aspects (WS_EASY_ASPECTS)
+## Starter and Easy use six aspects (WS_EASY_ASPECTS)
 
-On Starter and Easy each workshop shows only the aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`): race = wheels, engine, paint, size; dino = color, teeth, body, size. The other aspects stay pinned to their first starter for judging, rendering and runs; their bought parts stay owned and return on Medium/Hard. `WorkshopProgress.easy` marks a board dealt for Starter or Easy. Switching between the four-station and ten-station levels re-deals the open cards (`progressOf` / `normalizeSave`). Pure helpers live in `logic/aspects.ts`. Facets that cannot be solved inside the four aspects are never dealt on Starter or Easy (the board only offers cards the solver can meet with the shown aspects).
+Starter and Easy show the six aspects in `WS_EASY_ASPECTS` (`apps/workshop/config.ts`).
+
+- Race Shop uses wheels, engine, paint, size, springs and body.
+- Dino Lab uses color, teeth, body, size, claws and tail.
+
+Medium and Hard show all ten aspects. On Starter and Easy, the hidden aspects use their first starter part for judging, rendering and runs. Players keep any parts they bought for those aspects and can use them again on Medium and Hard.
+
+`WorkshopProgress.easy` marks a board dealt for Starter or Easy. Changing between the six-station and ten-station levels re-deals open cards (`progressOf` / `normalizeSave`). The `CHALLENGE_RULES_VERSION` bump also re-deals saved open cards. The board only offers cards the solver can meet with the visible aspects. The aspect helpers live in `logic/aspects.ts`.

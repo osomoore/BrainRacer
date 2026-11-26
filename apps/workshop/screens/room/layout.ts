@@ -39,8 +39,8 @@ export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLa
     const top = 110, ys = [225, 430, 635, 840];
     const lx = 190, rx = size.w - 190;
     if (aspects.length <= WS_ROOM.fewStations) {
-      // few stations (Easy): two on the top wall, one on each side, so the room stays balanced
-      slots.push({ x: 760, y: top }, { x: 1160, y: top }, { x: rx, y: 430 }, { x: lx, y: 430 });
+      // Starter/Easy: three rows on each side leave a wide, clear channel for the model.
+      for (const y of [225, 420, 615]) slots.push({ x: rx, y }, { x: lx, y });
     } else {
     // clockwise from the top: two on the top wall, four down the right side, four up the left side
     slots.push({ x: 760, y: top }, { x: 1160, y: top });
@@ -49,13 +49,13 @@ export function roomLayout(kind: LayoutKind, aspects: readonly string[]): RoomLa
     }
   } else {
     const lx = 125, rx = size.w - 125;
-    // few stations (Easy): two rows, spread down the sides
-    const rows = aspects.length <= WS_ROOM.fewStations ? [100, 350] : [0, 1, 2, 3, 4].map((i) => 100 + i * 175);
+    // Starter/Easy: three rows on each side leave the central model, buddy, and Test clear.
+    const rows = aspects.length <= WS_ROOM.fewStations ? [120, 320, 520] : [0, 1, 2, 3, 4].map((i) => 100 + i * 175);
     for (const y of rows) slots.push({ x: lx, y }, { x: rx, y });
   }
   const stations: StationSlot[] = aspects.map((aspect, i) => {
     const p = slots[i] ?? { x: size.w / 2, y: size.h / 2 };
-    const fromTop = kind === 'wide' && i < 2;
+    const fromTop = kind === 'wide' && aspects.length > WS_ROOM.fewStations && i < 2;
     const toCenter = p.x < size.w / 2 ? 1 : -1;
     const stand = fromTop
       ? { x: p.x, y: p.y + sign.h / 2 + 90 }

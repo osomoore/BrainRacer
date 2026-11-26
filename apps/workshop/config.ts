@@ -7,16 +7,15 @@ export const STAGE = { w: 1920, h: 1080 } as const;
 
 // ---------------------------------------------------------------- engine (apps/workshop/logic)
 /** Bump when challenges are built, worded or checked differently; saved open cards are then re-dealt on load. */
-export const CHALLENGE_RULES_VERSION = 11;
+export const CHALLENGE_RULES_VERSION = 12;
 
 /**
- * Easy shows only these aspects per workshop (the others stay pinned to their first starter; parts bought there
- * are kept and return on Medium/Hard). Chosen by a coverage search over the real solver: 19 of 22 race facets and
- * 20 of 26 dino facets stay solvable, and the picks include parts kids love to watch change.
+ * Starter and Easy share these six aspects per workshop. The others stay pinned to their first starter;
+ * parts bought there are kept and return on Medium and Hard.
  */
 export const WS_EASY_ASPECTS: Readonly<Record<string, readonly string[]>> = {
-  race: ['wheels', 'engine', 'paint', 'size'],
-  dino: ['color', 'teeth', 'body', 'size'],
+  race: ['wheels', 'engine', 'paint', 'size', 'springs', 'body'],
+  dino: ['color', 'teeth', 'body', 'size', 'claws', 'tail'],
 };
 
 export const WS_RULES = {
@@ -155,8 +154,8 @@ export const WS_BUDDIES = {
 
 // ---------------------------------------------------------------- room / station / board (apps/workshop/screens)
 export const WS_ROOM = {
-  /** At most this many stations (Easy) uses the roomier 4-station layout. */
-  fewStations: 4,
+  /** Use the three-row room layout up to this many stations (Starter and Easy). */
+  fewStations: 6,
   /** Character walk speed, px/s. */
   walkSpeed: 520,
   /** Seconds between footstep sounds while walking, and the walk bob height (px). */
