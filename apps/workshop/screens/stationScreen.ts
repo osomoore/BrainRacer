@@ -24,6 +24,7 @@ import { currentProgress } from './room/progress';
 import { guardBackAfterPreview, isBackGuarded } from './backGuard';
 import { cameraTarget, clampIndex, stationLayout, stripOffset, swatchLeft, withVariant } from './station/layout';
 import { swatchTexture } from './station/swatch';
+import { roomReferenceFit } from './modelFit';
 
 const BAND = 0x232a66;
 
@@ -100,7 +101,17 @@ const stationScreen: ScreenFactory = (): Screen => {
       } else {
         const modelRig = rig = ctx.buildRig(scene, ws, progress.model, 'side');
         const baseW = modelRig.width; // measured before the root is scaled (setModel re-measures including the scale)
-        let s0 = Math.min(WS_ROOM.modelScale[ctx.layout], RL.model.maxW / Math.max(1, modelRig.width), RL.model.maxH / Math.max(1, modelRig.height));
+        const largestModel = { ...progress.model, size: ws === 'dino' ? 'size.huge' : 'size.big' };
+        const largestRig = ctx.buildRig(scene, ws, largestModel, 'side');
+        const largestBounds = largestRig.root.getBounds();
+        largestRig.destroy();
+        const roomBounds = { x: largestBounds.x, y: largestBounds.y, width: largestBounds.width, height: largestBounds.height };
+        let s0 = roomReferenceFit(roomBounds, RL, ctx.layout, ws, ctx.input.touch).scale;
+        if (aspect === 'size') {
+          const availableW = L.size.w - 2 * WS_ROOM.modelTopClearancePx;
+          const availableH = L.strip.bandY - L.topBandH - 2 * WS_ROOM.modelTopClearancePx;
+          s0 = Math.min(s0, availableW / largestBounds.width, availableH / largestBounds.height);
+        }
         let springsFrame: { x: number; y: number; scale: number } | undefined;
         if (springsCloseup) {
           // Measure unscaled previews once so swapping springs keeps the wheel and raised body in the same frame.
@@ -133,9 +144,16 @@ const stationScreen: ScreenFactory = (): Screen => {
             // Both bumpers must be visible: centre on the car and zoom just enough to fit its whole length.
             f.x = 0;
             f.zoom = (L.size.w - 2 * WS_ROOM.stationBumperMarginPx) / ((baseW + 2 * WS_ROOM.stationBumperPadPx) * s0);
+          } else if (aspect === 'size') {
+            // Keep the largest option visible between the chrome bands; the same frame serves every size.
+            f.x = roomBounds.x + roomBounds.width / 2;
+            f.y = roomBounds.y + roomBounds.height / 2;
+            f.zoom = 1;
           }
           const focus = { x: RL.model.x + f.x * s0, y: RL.model.groundY + f.y * s0 };
-          const stage = springsFrame ? { cx: L.stage.cx, cy: (L.topBandH + L.strip.bandY) / 2 } : L.stage;
+          const stage = springsFrame || aspect === 'size'
+            ? { cx: L.stage.cx, cy: (L.topBandH + L.strip.bandY) / 2 }
+            : L.stage;
           const t = cameraTarget(focus, f.zoom, stage, WS_ROOM.stationMaxScale / s0);
           scene.tweens.killTweensOf(world);
           tweens.push(scene.tweens.add({ targets: world, x: t.x, y: t.y, scaleX: t.scale, scaleY: t.scale, duration: ms, ease: 'Cubic.easeInOut' }));

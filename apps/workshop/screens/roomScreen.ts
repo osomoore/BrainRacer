@@ -6,7 +6,7 @@
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
 import { playWorkshopSfx } from '../audio';
-import { WS_BUDDIES, WS_ROOM, WS_UI } from '../config';
+import { WS_BUDDIES, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { visibleAspectIds } from '../logic/aspects';
@@ -23,6 +23,7 @@ import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
 import { dist, roomLayout, standOf, type Point } from './room/layout';
 import { isBackGuarded } from './backGuard';
+import { roomReferenceFit } from './modelFit';
 
 const roomScreen: ScreenFactory = (): Screen => {
   let ctx: PaneContext;
@@ -85,8 +86,15 @@ const roomScreen: ScreenFactory = (): Screen => {
 
       // model
       rig = ctx.buildRig(scene, ws, progress.model, 'side');
-      const s = Math.min(WS_ROOM.modelScale[ctx.layout], L.model.maxW / Math.max(1, rig.width), L.model.maxH / Math.max(1, rig.height));
-      objs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(L.model.maxW, rig.width * s * 1.05), 40, 0x000000, 0.22).setDepth(90));
+      const largestModel = { ...progress.model, size: ws === 'dino' ? 'size.huge' : 'size.big' };
+      const largestRig = ctx.buildRig(scene, ws, largestModel, 'side');
+      const largestBounds = largestRig.root.getBounds();
+      largestRig.destroy();
+      // The root is grounded at y=0, so clamp by the silhouette's height above that anchor.
+      const referenceBounds = { x: largestBounds.x, y: largestBounds.y, width: largestBounds.width, height: largestBounds.height };
+      const roomFit = roomReferenceFit(referenceBounds, L, ctx.layout, ws, ctx.input.touch);
+      const s = roomFit.scale;
+      objs.push(scene.add.ellipse(L.model.x, L.model.groundY + 6, Math.min(roomFit.width, rig.width * s * 1.05), 40, 0x000000, 0.22).setDepth(90));
       rig.root.setPosition(L.model.x, L.model.groundY).setScale(s).setDepth(100);
       rig.play('idle');
       const home = { x: L.buddy.x, y: L.buddy.y - L.buddy.size / 2 };
@@ -116,7 +124,7 @@ const roomScreen: ScreenFactory = (): Screen => {
           if (busy) return;
           peekAt(st);
           walkThen(st.stand, () => ctx.go('station', { aspect: st.aspect }));
-        } });
+        } }).setDepth(130);
         const icon = scene.add.image(0, -36, aspectIconTexture(scene, ws, st.aspect)).setScale(0.85);
         const label = makeText(scene, 0, 52, def.label, { size: 44, color: COLORS.ink });
         b.add([icon, label]);
@@ -126,7 +134,7 @@ const roomScreen: ScreenFactory = (): Screen => {
         if (busy) return;
         peekAt(L.buddyStation);
         walkThen(L.buddyStation.stand, () => ctx.go('buddyStation'));
-      } });
+      } }).setDepth(130);
       buddies.add([
         buddyImage(scene, 'dino', 0, -24, 58),
         makeText(scene, 0, 34, 'Buddies', { size: 44, color: COLORS.ink }),
@@ -150,7 +158,7 @@ const roomScreen: ScreenFactory = (): Screen => {
             },
           });
         },
-      });
+      }).setDepth(130);
       const starL = scene.add.image(-L.board.w / 2 + 52, 0, starTexture(scene, 64)).setAngle(-12);
       const starR = scene.add.image(L.board.w / 2 - 52, 0, starTexture(scene, 64)).setAngle(12);
       board.add([starL, starR]);
@@ -211,7 +219,7 @@ const roomScreen: ScreenFactory = (): Screen => {
       };
       requestLeave = leave;
       if (ctx.input.touch) {
-        objs.push(addTouchBackButton(scene, goToPicker, WS_UI.roomBack));
+        objs.push(addTouchBackButton(scene, goToPicker, WS_UI.roomBack).setDepth(140));
       }
     },
     update(dt) {

@@ -166,6 +166,10 @@ export const WS_ROOM = {
   charH: 150,
   /** Side-view model scale in the room (before fitting into the model area) per layout. */
   modelScale: { wide: 1.5, tall: 0.95 },
+  /** Largest dino room model may extend this fraction above its nominal height box. */
+  dinoTopOverhang: 0.145,
+  /** Keep the tallest room silhouette this far below the pane edge and buttons. */
+  modelTopClearancePx: 16,
   /** Station sign size per layout (px). */
   signSize: { wide: { w: 300, h: 170 }, tall: { w: 230, h: 160 } },
   /** Station screen: camera zoom tween, sparkle burst before returning to the room (ms), max total scale. */
