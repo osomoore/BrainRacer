@@ -160,3 +160,60 @@ The first pass is too sparse: blobs are 2–4 ellipses of ~300 px in a 2400 px h
   (read `player.save.quests`). Baked hex tiles, updated only when the reveal set changes.
 - Dev scene `TerrainView` renders terrain around a seed at a few zoom levels without the full host (for screenshots).
 - Perf: report chunk bake time per chunk and steady-state FPS in Edge at 1920×1080 with 6× CPU throttle (TV box proxy).
+
+## Wave 2b (after W1b, W5a, W5b are merged; all build on the running host)
+
+### W6 play — `apps/world/play/**`, `apps/world/logic/move.ts` + `logic/rules.ts` (now W6-owned), play section of config
+- `PlayModule` (order 100) takes over driving from the host's minimal loop (host keeps a fallback only when no play
+  module is loaded; remove the duplicate cleanly and say how).
+- **Terrain feel** (beyond speed multipliers; tune in config, test in logic): per-surface drag and acceleration;
+  sideways grip so ice and mud drift and slide (suited traits restore grip); deep mud bogs down to a crawl without
+  mud grip (never fully stuck: a slow wiggle always works); water drag and a wake; rough ground jitter (cosmetic
+  sprite/camera wobble, no damage); geyser `vent` obstacles pop you up with a short airborne hop; snow slows without
+  snow/cold; desert sun slowly tires low-heat builds (mild speed cap, recovers in shade/water). Dust, mud, splash
+  and snow particles (baked particle textures, pooled).
+- Obstacle effects from `step`: push (move the obstacle in `HexLive`, slide it, stop at solids), pass (bush bends),
+  break (comic poof, gone for the session). Emit `obstacle:effect`.
+- Jumps: ramp launches with a shadow and scale-up while airborne; gap features without enough jump bounce back to
+  the lip with a funny boing. Bridges and tunnels: features with width/height max block unsuited builds with a soft
+  bump and point to the `bypass` (no text popups; a small arrow sign).
+- **Swap** (X / pad Y): quick swap primary <-> alternate anywhere with a poof (ctx.setCreation).
+- **Homes**: entering a home base pad shows a small per-player swap-pad panel (pad + touch): choose primary and
+  alternate from: My Race Car (live), My Dino (live), or "Keep a copy" of the current creation into a slot; and a
+  Workshop door (emit `nav:workshop`; host saves and opens `workshop.html?from=world`). Respawn: hold B 2 s to poof
+  back to the nearest home base.
+- Text: panel labels at ≥ 40 px, short words; no word popups.
+
+### W7a activities host + 5 kinds — `apps/world/activities/ActivitiesModule.ts`, `activities/kit/**`, `activities/kinds/{duckParade,hideSeek,ringJump,boulderPush,fruitShake}.ts`
+- `ActivitiesModule` (order 200): loads `activities/kinds/*.ts` (`ActivityKindDef`, see core/runtime.ts), decorates
+  sites in nearby hexes, shows a site marker (ring + kind icon, no words) and an "A" prompt badge when a player is
+  inside a site, runs one `ActivityRun` per player, ends on success/fail, awards stars via `ctx.award` (claim id =
+  site id; claimed sites show a gold check and can be replayed for fun with no stars). Banners via `ui:banner` with
+  short reading-level-free words ("Yay!" is fine as a banner, not as a popup).
+- Pure state machines for each kind under `activities/kit/` or next to the kind with tests (progress, success,
+  fail, timeouts), deterministic.
+- Kinds: duckParade (1–3 ducklings follow you if you go slow; pond target; too fast = they scatter back), hideSeek
+  (a big friendly sniffing dino walks by; stay still inside matching foliage; stealth/color decides; caught = it
+  sneezes and laughs), ringJump (ramp + 1–3 floating star rings; jump trait reaches higher rings), boulderPush (push
+  1–3 boulders onto marked spots; push trait), fruitShake (bump 1–3 trees; reach decides if fruit drops; fruit rolls
+  to a basket when you push it).
+- Unsuited builds can always try; failure is gentle and funny.
+
+### W7b 5 kinds — `apps/world/activities/kinds/{digSpot,islandSwim,gateDash,lanternCave,herdSheep}.ts` (+ tests, own helpers in `activities/kinds/<kind>/`)
+- Conform to `ActivityKindDef`; do not edit ActivitiesModule or kit (written in parallel); if you need a shared
+  helper, put it in your own folder and propose moving it.
+- digSpot (park on X marks and hold A; dig trait speeds it, 0 = can't), islandSwim (reach the island star across
+  deep water; water trait), gateDash (3 gates in order before a timer; speed/turn), lanternCave (drive into a dark
+  cave and touch 1–3 lanterns; they light up the cave; light and height), herdSheep (nudge or honk/roar with A
+  near 1–3 sheep to steer them into a pen; loud trait makes A scare them further).
+
+### W8 quests runtime + HUD — `apps/world/hud/**`, `apps/world/play/questModule*` (only this file in play/)
+- `HudScene` overlay per player view (1P full, 2P halves): star counter with star icon, tracked quest cards (text at
+  the player's reading level, ≥ 40 px, high contrast, short), a heading-aware arrow to the tracked target (nearest
+  item spot of the fetch biome / goal biome hex / home / giver), banners, "+N" popups, the "A" prompt badge
+  position helper for other modules.
+- `QuestModule`: givers in nearby hexes (friendly animals, baked placeholder sprites); near a giver press A to open
+  a quest card dialog (read the text, A accept / B no thanks); respects `QUEST_SLOTS`; pickup on touching an item
+  spot of the right biome (item shows above the creation; `carry` limit); deliver goals complete on entering the
+  goal; `ctx.award` stars (claim id = quest id); `quest:*` events; save via `ctx.save`. Uses apps/world/quests/**.
+- Quest text stays as written in quests/phrases.ts (user review pending); don't rewrite wording.
