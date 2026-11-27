@@ -20,7 +20,8 @@ export interface PlayerControls {
   y: number;
   throttle: number;
   brake: number;
-  /** Edge-triggered buttons this frame. A = act (talk, pick up, start activity), B = back/cancel, X = swap creation, Y = quest card. */
+  /** Edge-triggered buttons this frame (docs/WORLD_JOBS.md "Button map"): A = interact / accept, B = honk or roar / back,
+   *  X = swap creation, Y = go to the Lab (Workshop), menu = pause card (Go Home, Quests, Resume). */
   pressed: { a: boolean; b: boolean; x: boolean; y: boolean; menu: boolean };
 }
 

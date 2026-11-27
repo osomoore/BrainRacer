@@ -244,6 +244,12 @@ From the W1b GenMap review (seed 29, 4 rings):
   0.92 → about 1.8, `splitZoom` about 1.6). Keep the creation low on screen (`carScreenY`) so kids see ahead. Check
   chunk bake cost and texture memory still fit the TV box budget (fewer chunks are visible, but each is magnified:
   raise bake resolution only if it looks blurry).
+- **Smaller hexes to match (user):** a hex stays about 2 screens across at the new zoom, so `WORLD.hexSize`
+  2400 → 1200 (orchestrator-approved for this job). Halve the px-length GEN constants that assume the old size
+  (patch orbits/radii, lake radius/lobe, canyon sizes, activity/feature radii, hub/bend offsets; keep road/path
+  widths and creation sizes) so hexes keep the same look, just smaller. Gen, reachability and richness tests stay
+  green (adjust size-based thresholds only). W1c retunes gen properly later. Runs in parallel with W6/W7a: touch
+  only config values in the gen section, not gen code.
 - **Minimap heading-up:** rotates with the player's view (`ctx.viewRotation(player)`), player arrow fixed pointing
   up, smooth (no snapping), and the map scrolls smoothly as the player moves between hexes instead of jumping per hex.
   A small "N" marker on the rim shows north.
@@ -252,6 +258,25 @@ From the W1b GenMap review (seed 29, 4 rings):
   with a light trait get a light pool, bigger with more light. Glowing mushrooms and lanterns stay visible as small
   lights.
 - Road types from W1c: paved (grey, lane line), dirt (brown, tire tracks), rocky (grey-brown, pebbles).
+
+### Button map (user, 2026-11-27; all jobs follow it)
+| Pad | Touch button icon | Action |
+|---|---|---|
+| A | hand | Interact: talk, pick up, start an activity, accept in dialogs |
+| B | horn / roar | Honk (car) or roar (dino), scares sheep etc.; Back / no in dialogs |
+| X | car⇄dino | Swap primary ⇄ alternate (poof) |
+| Y | lab door | Go to the Lab (Workshop): small yes/no card first, then save and open `workshop.html?from=world` |
+| Menu / Start | pause bars (top corner) | Pause card: Go Home (poof to nearest home), Quests, Resume |
+
+Replaces W6's "hold B 2 s to go home" (now in the pause card) and "Workshop door only at home" (the home pad keeps
+its door too). **Button hints:** a small always-on legend in each view's bottom corner with the four button glyphs
+in pad colors (A green, B red, X blue, Y yellow) and a picture icon for each action, no words; shown only while a pad
+is in use (touch players see the icons on their buttons). When an interaction is possible, a pulsing A badge with
+the action's icon floats above the creation. W6 owns the controls behaviour, W8 the legend and badges (HUD),
+a small follow-up to S1 puts the icons on the touch buttons.
+
+### Later (user, 2026-11-27): more terrain restrictions
+Narrow valleys, mountains that are rocky or snowy, other trait-gated terrain. After W6 and W1c.
 
 ## All remaining jobs: input rule
 Every interaction must work with a pad button and with a tap (mobile is 1 player, touch only; see docs/WORLD.md
