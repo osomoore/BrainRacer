@@ -217,3 +217,15 @@ The first pass is too sparse: blobs are 2–4 ellipses of ~300 px in a 2400 px h
   spot of the right biome (item shows above the creation; `carry` limit); deliver goals complete on entering the
   goal; `ctx.award` stars (claim id = quest id); `quest:*` events; save via `ctx.save`. Uses apps/world/quests/**.
 - Quest text stays as written in quests/phrases.ts (user review pending); don't rewrite wording.
+
+### W1c gen tuning (queued) — `apps/world/gen/**`, GenMap, gen config
+From the W1b GenMap review (seed 29, 4 rings):
+- Roads meander too tightly (a bend every ~200 px): use 1–3 wide, smooth bends per edge-to-hub road (min bend radius
+  ~600 px for roads, ~350 px for paths) so a young child can follow a road without constant steering. Keep paths to
+  sites gently curved.
+- Biome balance: in a 4-ring area geyser was 0 and darkwood 1 while jungle was 11. Rebalance so each biome is about
+  6–14% over a 20-ring area and every 3-ring neighborhood of a home has at least 6 different biomes; tighten the
+  frequency test to that.
+- Canyon: cliffs are ~5%. Make one or two real valleys per canyon hex: long cliff walls 150–300 px thick bounding a
+  valley 400–900 px wide that the road runs through, a narrow side valley (width max) and a jump gap with a detour.
+  Target 15–30% cliff coverage. Keep reachability tests green.
