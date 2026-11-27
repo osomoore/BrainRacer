@@ -75,6 +75,16 @@ export const WORLD_TERRAIN = {
   dinoGripBonus: 0.08,
 } as const;
 
+// --- terrain renderer (W5b) -------------------------------------------------------------------
+export const WORLD_TERRAIN_RENDER = {
+  /** World-space edge length; terrain samples are taken at cellSize intervals. */
+  chunkSize: 512,
+  cellSize: 12,
+  cacheChunks: 64,
+  bakePerFrame: 2,
+  prefetchRings: 2,
+} as const;
+
 // --- save + shell (W3) -------------------------------------------------------------------------
 export const WORLD_SAVE = { claimedLimit: 500, defaultReading: 'easy' } as const;
 
