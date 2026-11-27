@@ -14,6 +14,22 @@ export const WORLD = {
 } as const;
 
 // --- gen (W1) ----------------------------------------------------------------------------------
+export const GEN = {
+  roadWidth: 220,
+  pathWidth: 140,
+  edgeJitter: 0.19,
+  extraLinkChance: 0.26,
+  curveSamples: 8,
+  planCacheSize: 96,
+  biomeScale: 3,
+  meadowFieldShare: 0.06,
+  campChance: 1 / 12,
+  treasureChance: 1 / 25,
+  giverChance: 1 / 3,
+  activityRadius: 220,
+  featureRadius: 660,
+  placementClearance: 20,
+} as const;
 
 // --- traits + movement (W2) --------------------------------------------------------------------
 
