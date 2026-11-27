@@ -1,20 +1,24 @@
 /** Phaser-free card state machine for the Lab yes/no card and the pause card (tested in cards.test.ts). */
 
-export const PAUSE_OPTIONS = ['resume', 'home', 'exit'] as const;
+export const PAUSE_OPTIONS = ['resume', 'home', 'quests', 'exit'] as const;
 export type PauseOption = typeof PAUSE_OPTIONS[number];
 
-export type CardState = { kind: 'closed' } | { kind: 'lab' } | { kind: 'pause'; sel: number };
+export type CardState = { kind: 'closed' } | { kind: 'lab' } | { kind: 'pause'; sel: number } | { kind: 'quests'; sel: number };
 
 export type CardEvent =
   | { type: 'press'; button: 'a' | 'b' | 'y' | 'menu' }
   /** Stick moved up (-1) or down (+1) past the threshold (edge). */
   | { type: 'nav'; dir: -1 | 1 }
-  | { type: 'tap'; target: 'yes' | 'no' | PauseOption };
+  | { type: 'tap'; target: 'yes' | 'no' | 'back' | PauseOption };
 
 /** What the module must do after the step. */
 export type CardAction = 'lab' | 'home' | 'exit' | 'resume' | 'cancel' | null;
 
 export const CLOSED: CardState = { kind: 'closed' };
+
+function choosePause(option: PauseOption, sel: number): { state: CardState; action: CardAction } {
+  return option === 'quests' ? { state: { kind: 'quests', sel }, action: null } : { state: CLOSED, action: option };
+}
 
 export function stepCard(state: CardState, ev: CardEvent): { state: CardState; action: CardAction } {
   const stay = { state, action: null as CardAction };
@@ -39,13 +43,17 @@ export function stepCard(state: CardState, ev: CardEvent): { state: CardState; a
         return { state: { kind: 'pause', sel }, action: null };
       }
       if (ev.type === 'press') {
-        if (ev.button === 'a') return { state: CLOSED, action: PAUSE_OPTIONS[state.sel] };
+        if (ev.button === 'a') return choosePause(PAUSE_OPTIONS[state.sel], state.sel);
         if (ev.button === 'b' || ev.button === 'menu') return { state: CLOSED, action: 'resume' };
-      } else if (ev.type === 'tap' && ev.target !== 'yes' && ev.target !== 'no') {
-        return { state: CLOSED, action: ev.target };
+      } else if (ev.type === 'tap' && ev.target !== 'yes' && ev.target !== 'no' && ev.target !== 'back') {
+        return choosePause(ev.target, PAUSE_OPTIONS.indexOf(ev.target));
       }
       return stay;
     }
+    case 'quests':
+      if ((ev.type === 'press' && (ev.button === 'a' || ev.button === 'b' || ev.button === 'menu'))
+        || (ev.type === 'tap' && ev.target === 'back')) return { state: { kind: 'pause', sel: state.sel }, action: null };
+      return stay;
   }
 }
 

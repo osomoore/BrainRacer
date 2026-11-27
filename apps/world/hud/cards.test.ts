@@ -40,6 +40,17 @@ describe('pause card', () => {
     expect(run(CLOSED, press('menu'), press('menu')).action).toBe('resume');
     expect(run(CLOSED, press('menu'), { type: 'tap', target: 'exit' })).toEqual({ state: CLOSED, action: 'exit' });
   });
+  it('opens Quests by navigation or tap and returns to the same pause row', () => {
+    const down = { type: 'nav', dir: 1 } as const;
+    const quests = { kind: 'quests', sel: 2 };
+    expect(run(CLOSED, press('menu'), down, down, press('a')).state).toEqual(quests);
+    const paused = { kind: 'pause', sel: 0 } as const;
+    const open = stepCard(paused, { type: 'tap', target: 'quests' });
+    expect(open).toEqual({ state: quests, action: null });
+    const selected = { state: { kind: 'pause', sel: 2 }, action: null };
+    expect(stepCard(open.state, { type: 'tap', target: 'back' })).toEqual(selected);
+    expect(stepCard(open.state, press('b'))).toEqual(selected);
+  });
 });
 
 describe('closed', () => {
