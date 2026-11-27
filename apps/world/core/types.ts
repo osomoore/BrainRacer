@@ -95,7 +95,9 @@ export interface TraitNeed { trait: TraitKey; min?: number; max?: number }
 export interface Vec { x: number; y: number }
 
 /** A road or path polyline in world px (smooth enough to draw as-is). */
-export interface RoadPath { kind: 'road' | 'path'; points: Vec[]; width: number }
+/** `surface` = road type (W1c): paved fastest, dirt a bit slower and slippier, rocky bumpy and slow. Default paved. */
+export type RoadSurface = 'paved' | 'dirt' | 'rocky';
+export interface RoadPath { kind: 'road' | 'path'; points: Vec[]; width: number; surface?: RoadSurface }
 
 /** An area of one surface kind: a closed polygon in world px. Later blobs paint over earlier ones. */
 export interface TerrainBlob { kind: SurfaceKind; poly: Vec[]; dark?: number; covered?: boolean }
@@ -116,6 +118,8 @@ export interface Feature {
   needs?: TraitNeed[];
   /** Bridges: the alternative way around exists (ford, detour path) so no build is fully stuck. */
   bypass?: boolean;
+  /** Optional waypoint of the detour around a gated feature (for the play module's arrow sign). */
+  bypassAt?: Vec;
 }
 
 /** A solid or slowing object: rocks, logs, bushes, ice blocks. Circle collider. */
