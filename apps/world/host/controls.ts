@@ -4,7 +4,7 @@ import { WORLD_HOST } from '../config';
 import type { PlayerControls } from '../core/runtime';
 
 const extraKeys = {
-  1: { KeyE: 'x', KeyR: 'y' },
+  1: { KeyE: 'x', KeyX: 'x', KeyR: 'y' },
   2: { Numpad1: 'x', Numpad2: 'y' },
 } as const;
 
@@ -58,7 +58,7 @@ export class WorldControls {
           if (action === 'down') controls.y++;
         }
         for (const [code, button] of Object.entries(extraKeys[device.layout])) {
-          controls.pressed[button] = this.edges.has(code);
+          controls.pressed[button] ||= this.edges.has(code);
         }
         controls.throttle = -controls.y;
       } else if (device.kind === 'pad') {

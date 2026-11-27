@@ -1,44 +1,54 @@
-import { WORLD_HOST } from '../config';
 import type { WorldContext, WorldPlayer } from '../core/runtime';
-import { step } from '../logic/move';
+import type { Feature } from '../core/types';
+import { step, type MoveWorld } from '../logic/move';
 import { activeCreation, swapSlots } from '../logic/slots';
-import { viewRotation } from './cameras';
-import type { LiveWorld } from './liveWorld';
 
-/** Basic driving until the play module takes over. */
-export function drivePlayer(ctx: WorldContext, world: LiveWorld, player: WorldPlayer, dt: number): void {
+export function quickSwap(ctx: WorldContext, player: WorldPlayer): void {
+  if (!player.save.alternate) return;
+  player.save.using = swapSlots(player.save).using;
+  ctx.setCreation(player, activeCreation(player.profileId, player.save));
+  ctx.save(player);
+}
+
+/** Fallback entry point used by the host when the play module is absent. */
+export function drivePlayer(ctx: WorldContext, player: WorldPlayer, dt: number): void {
+  if (player.busy) return;
+  if (player.controls.pressed.x) quickSwap(ctx, player);
+  driveMovement(ctx, player, dt);
+}
+
+/** Adapt shared player input and live hexes to pure movement. */
+export function driveMovement(ctx: WorldContext, player: WorldPlayer, dt: number): Feature | undefined {
   if (player.busy) return;
   const { controls, move } = player;
-  if (controls.pressed.x && player.save.alternate) {
-    player.save.using = swapSlots(player.save).using;
-    ctx.setCreation(player, activeCreation(player.profileId, player.save));
-    ctx.save(player);
-  }
+  const { world } = ctx;
   // Rotate screen-relative dino input back into world axes. Cars steer relative to their nose.
-  const rotation = -viewRotation(player);
+  const rotation = -ctx.viewRotation(player);
   const cos = Math.cos(rotation), sin = Math.sin(rotation);
   const input = player.traits.kind === 'car' ? controls : {
     ...controls,
     x: controls.x * cos - controls.y * sin,
     y: controls.x * sin + controls.y * cos,
   };
-  const { obstacleEffects, ...next } = step(move, input, player.traits, world, dt);
+  const collisionWorld: MoveWorld = {
+    surfaceAt: (x, y) => world.surfaceAt(x, y),
+    nearbySolids: (x, y, radius) => world.nearbySolids(x, y, radius),
+    obstacleCanMoveTo(obstacle, at) {
+      // Retain generated hex ownership for render streaming and session persistence.
+      const from = world.hexAt(obstacle.at.x, obstacle.at.y);
+      const to = world.hexAt(at.x, at.y);
+      return from.q === to.q && from.r === to.r;
+    },
+  };
+  const { obstacleEffects, blockedFeature, ...next } = step(move, input, player.traits, collisionWorld, dt);
   Object.assign(move, next);
-  for (const { obstacle, effect } of obstacleEffects) {
-    const hex = world.ownerOf(obstacle);
-    const live = hex && world.live(hex).obstacles.get(obstacle.id);
-    if (!live || !hex || live.gone) continue;
+  for (const { obstacle, effect, at } of obstacleEffects) {
+    const hex = world.hexAt(obstacle.at.x, obstacle.at.y);
+    const live = world.live(hex).obstacles.get(obstacle.id);
+    if (!live || live.gone) continue;
     if (effect === 'break') live.gone = true;
-    if (effect === 'push') {
-      const dx = live.at.x - move.x, dy = live.at.y - move.y;
-      const length = Math.hypot(dx, dy);
-      if (length === 0) continue;
-      const distance = Math.min(WORLD_HOST.pushSpeed, Math.hypot(move.vx, move.vy)) * dt;
-      const at = { x: live.at.x + dx * distance / length, y: live.at.y + dy * distance / length };
-      const dest = world.hexAt(at.x, at.y);
-      // Ownership stays with the plan that spawned this obstacle.
-      if (dest.q === hex.q && dest.r === hex.r) live.at = at;
-    }
+    if (at) live.at = at;
     ctx.bus.emit('obstacle:effect', { player, hex, obstacle: live, effect });
   }
+  return blockedFeature;
 }

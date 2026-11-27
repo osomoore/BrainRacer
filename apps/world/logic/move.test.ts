@@ -59,6 +59,29 @@ describe('kinematic driving', () => {
     const partial = simulate({ ...neutral, x: 0.5 }, dino);
     expect(partial.vx).toBeCloseTo(dino.speed / 2);
   });
+
+  it.each([['ice', 'snow'], ['mud', 'mud']] as const)('preserves sideways drift on %s until grip catches it', (kind, trait) => {
+    const terrain = world({}, () => ({ ...road, kind }));
+    for (const build of [car, dino]) {
+      const sliding = { ...start, vx: 100, vy: 130 };
+      const loose = step(sliding, forward, { ...build, [trait]: 0 }, terrain, 0.15);
+      const suited = step(sliding, forward, { ...build, [trait]: 3 }, terrain, 0.15);
+      expect(loose.y).toBeGreaterThan(suited.y);
+      expect(loose.vy).toBeGreaterThan(60);
+      expect(suited.vy).toBeLessThan(20);
+    }
+  });
+
+  it('bogs an unsuited car in deep mud while leaving enough traction to wiggle out', () => {
+    const terrain = world({}, () => ({ ...road, kind: 'deepMud', biome: 'mud' }));
+    const build = { ...car, mud: 0 };
+    const bogged = simulate(forward, build, terrain);
+    expect(bogged.vx).toBeGreaterThan(0);
+    expect(bogged.vx).toBeLessThan(build.speed / 4);
+    const wiggled = simulate({ ...forward, x: 1 }, build, terrain, bogged);
+    expect(wiggled.x).toBeGreaterThan(bogged.x + 20);
+    expect(wiggled.y).toBeGreaterThan(bogged.y + 5);
+  });
 });
 
 describe('collisions', () => {
@@ -87,8 +110,27 @@ describe('collisions', () => {
     const terrain = world({ obstacles: [log] });
     expect(step({ ...start, vx: 250 }, forward, car, terrain, 0.3).obstacleEffects).toEqual([]);
     const strong = step({ ...start, vx: 250 }, forward, { ...car, push: 3 }, terrain, 0.3);
-    expect(strong.x).toBeGreaterThan(log.at.x);
-    expect(strong.obstacleEffects).toEqual([{ obstacle: log, effect: 'push' }]);
+    expect(strong.obstacleEffects).toHaveLength(1);
+    expect(strong.obstacleEffects[0]).toMatchObject({ obstacle: log, effect: 'push' });
+    expect(strong.obstacleEffects[0].at!.x).toBeGreaterThan(log.at.x);
+    expect(strong.x).toBeLessThan(strong.obstacleEffects[0].at!.x);
+  });
+
+  it('slides a pushed obstacle up to a solid without passing through it', () => {
+    const log: Obstacle = { ...rock, id: 'log', kind: 'log', needs: [], effect: 'push' };
+    const wall: Obstacle = { ...rock, at: { x: 130, y: 0 }, radius: 20 };
+    const terrain = world({ obstacles: [log, wall] });
+    let player = start;
+    for (let frame = 0; frame < 180; frame++) {
+      const result = step(player, forward, car, terrain, 1 / 60);
+      const destination = result.obstacleEffects[0]?.at;
+      if (destination) log.at = destination;
+      player = result;
+    }
+    const contact = wall.at.x - wall.radius - log.radius;
+    expect(log.at.x).toBeGreaterThan(contact - 5);
+    expect(log.at.x).toBeLessThanOrEqual(contact);
+    expect(player.x).toBeLessThan(log.at.x - log.radius);
   });
 
   it('blocks the bank on foot and lets a swimming build into deep water', () => {
@@ -136,5 +178,16 @@ describe('jumping', () => {
     expect(result.x).toBeLessThan(58);
     expect(result.vx).toBeLessThan(0);
     expect(result.airborne).toBe(0);
+  });
+
+  it('pops a passing build over a vent and avoids relaunching a stationary build on the same vent', () => {
+    const vent: Obstacle = { id: 'vent', kind: 'vent', at: { x: 54, y: 0 }, radius: 18 };
+    const terrain = world({ obstacles: [vent] });
+    const passing = step(rolling, forward, car, terrain, 0.1);
+    expect(passing.airborne).toBeGreaterThan(0);
+    expect(passing.jump?.id).toBe(vent.id);
+    const onVent = { ...start, x: vent.at.x };
+    expect(step(onVent, neutral, car, terrain, 0.01).airborne).toBeGreaterThan(0);
+    expect(simulate(neutral, car, terrain, onVent).airborne).toBe(0);
   });
 });

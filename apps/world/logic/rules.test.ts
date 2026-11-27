@@ -3,7 +3,7 @@ import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
 import { BIOME_IDS } from '../core/types';
 import type { BiomeId, Feature, Model, Obstacle, SurfaceKind, SurfaceSample, WorkshopId } from '../core/types';
-import { featurePassable, meets, obstaclePassable, surfaceEffect, visibilityRadius } from './rules';
+import { desertFatigue, featurePassable, meets, obstaclePassable, surfaceEffect, visibilityRadius } from './rules';
 import { traitsOf } from './traits';
 
 function build(workshop: WorkshopId, parts: Model = {}) {
@@ -78,6 +78,17 @@ describe('terrain', () => {
     expect(visibilityRadius(0, glow)).toBe(visibilityRadius(0, dino));
     expect(visibilityRadius(0.5, dino)).toBeGreaterThan(visibilityRadius(1, dino));
     expect(visibilityRadius(0.5, dino)).toBeLessThan(visibilityRadius(0, dino));
+  });
+
+  it('builds desert fatigue slowly, with recovery in shade and water', () => {
+    const sun: SurfaceSample = { kind: 'sand', biome: 'desert', dark: 0, covered: false };
+    const lowHeat = { ...defaults[0], heat: 0 };
+    const hot = desertFatigue(0, sun, lowHeat, 7);
+    expect(hot).toBeGreaterThan(0);
+    expect(hot).toBeLessThan(1);
+    expect(desertFatigue(0, sun, { ...lowHeat, heat: 3 }, 30)).toBe(0);
+    expect(desertFatigue(hot, { ...sun, covered: true }, lowHeat, 1)).toBeLessThan(hot);
+    expect(desertFatigue(hot, { ...sun, kind: 'shallow' }, lowHeat, 5)).toBe(0);
   });
 });
 

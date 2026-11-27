@@ -24,7 +24,8 @@ const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{render,
 const modules = Object.entries(moduleFiles)
   .filter(([, file]) => typeof file.default === 'function')
   .sort(([a, left], [b, right]) => (left.default.order ?? 0) - (right.default.order ?? 0) || a.localeCompare(b));
-const hasPlayModule = modules.some(([path]) => path.startsWith('../play/'));
+const hasPlayModule = modules.some(([path]) => path === '../play/PlayModule.ts');
+const hasButtonsModule = modules.some(([path]) => path === '../hud/ButtonsModule.ts');
 const hasTerrainModule = modules.some(([path]) => path.toLowerCase().endsWith('/terrainmodule.ts'));
 const worldWindow = window as Window & { __world?: WorldContext | Phaser.Game };
 
@@ -144,9 +145,9 @@ export class WorldScene extends Phaser.Scene {
       ctx.time += dt;
       const controls = input.sample(deviceIds);
       for (const player of players) player.controls = controls[player.index];
-      if (!hasPlayModule && players[0].controls.pressed.menu) { this.scene.start('Title'); return; }
+      if (!hasButtonsModule && players[0].controls.pressed.menu) { this.scene.start('Title'); return; }
       for (const module of early) module.update(dt);
-      if (!hasPlayModule) for (const player of players) drivePlayer(ctx, world, player, dt);
+      if (!hasPlayModule) for (const player of players) drivePlayer(ctx, player, dt);
       for (const module of play) module.update(dt);
       for (const player of players) {
         this.updateLocation(ctx, player);

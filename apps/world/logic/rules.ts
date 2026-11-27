@@ -1,10 +1,13 @@
-import { WORLD_DRIVE, WORLD_SURFACES, WORLD_TERRAIN } from '../config';
+import { WORLD_DRIVE, WORLD_PLAY, WORLD_SURFACES, WORLD_TERRAIN } from '../config';
 import type { Feature, Obstacle, SurfaceKind, SurfaceSample, TraitNeed, Traits } from '../core/types';
 
 export interface SurfaceEffect {
   speedMult: number;
-  /** Steering and acceleration control, from 0 to 1. */
+  /** Steering control, from 0 to 1. */
   grip: number;
+  acceleration: number;
+  drag: number;
+  lateralGrip: number;
   passable: boolean;
   /** Normal velocity retained in the opposite direction after a blocked entry. */
   bounce?: number;
@@ -45,11 +48,31 @@ export function surfaceEffect(kind: Traits['kind'], sample: SurfaceSample, trait
   const { profile, ability } = rules[sample.kind];
   const level = ability?.(sample, traits) ?? 0;
   const speedMult = profile.speed[level];
-  if (speedMult === 0) return { speedMult, grip: 0, passable: false, bounce: WORLD_DRIVE.groundBounce };
+  if (speedMult === 0) return {
+    speedMult, grip: 0, acceleration: 0, drag: 0, lateralGrip: 0, passable: false, bounce: WORLD_DRIVE.groundBounce,
+  };
 
   const darkPenalty = profile === WORLD_SURFACES.open ? 0 : unit(sample.dark) * (1 - WORLD_TERRAIN.darkSpeed[traits.light]);
   const grip = Math.min(1, profile.grip[level] + (kind === 'dino' ? WORLD_TERRAIN.dinoGripBonus : 0));
-  return { speedMult: speedMult * (1 - darkPenalty), grip, passable: true };
+  const handling: Partial<Record<SurfaceKind, readonly [number, number, number]>> = WORLD_PLAY.handling;
+  const [acceleration, drag, lateralGrip] = handling[sample.kind] ?? [1, 1, 1];
+  const suited = level / 3;
+  return {
+    speedMult: speedMult * (1 - darkPenalty),
+    grip,
+    acceleration: acceleration + (1 - acceleration) * suited,
+    drag: drag + (1 - drag) * suited,
+    lateralGrip: lateralGrip + (1 - lateralGrip) * suited,
+    passable: true,
+  };
+}
+
+export function desertFatigue(current: number, sample: SurfaceSample, traits: Traits, dt: number): number {
+  const { buildSeconds, recoverSeconds, shade, heatForImmunity } = WORLD_PLAY.desert;
+  const exposed = sample.biome === 'desert' && !sample.covered && sample.dark < shade
+    && sample.kind !== 'shallow' && sample.kind !== 'deep' && sample.kind !== 'hotSpring';
+  const susceptibility = 1 - unit(traits.heat / heatForImmunity);
+  return unit(current + (exposed && susceptibility > 0 ? susceptibility / buildSeconds : -1 / recoverSeconds) * dt);
 }
 
 export function meets(needs: readonly TraitNeed[] | undefined, traits: Traits): boolean {
@@ -57,7 +80,7 @@ export function meets(needs: readonly TraitNeed[] | undefined, traits: Traits): 
 }
 
 export function obstaclePassable(obstacle: Obstacle, traits: Traits): boolean {
-  return obstacle.needs !== undefined && meets(obstacle.needs, traits);
+  return obstacle.kind === 'vent' || (obstacle.needs !== undefined && meets(obstacle.needs, traits));
 }
 
 export function featurePassable(feature: Feature, traits: Traits): boolean {

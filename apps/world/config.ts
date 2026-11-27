@@ -114,3 +114,26 @@ export const WORLD_HOST = {
   playerColors: [0xffd266, 0x80e5ff],
   quickSeed: 29,
 } as const;
+
+// --- play (W6) --------------------------------------------------------------------------------
+export const WORLD_PLAY = {
+  // Acceleration, coasting drag and sideways grip at ability level zero.
+  handling: {
+    grass: [0.9, 1.1, 0.95],
+    tallGrass: [0.65, 1.5, 1],
+    sand: [0.68, 1.45, 0.78],
+    snow: [0.62, 1.35, 0.75],
+    ice: [0.6, 0.18, 0.06],
+    mud: [0.58, 1.25, 0.23],
+    deepMud: [0.36, 1.7, 0.20],
+    rough: [0.72, 1.25, 0.86],
+    shallow: [0.58, 1.85, 0.72],
+    deep: [0.5, 2.2, 0.62],
+    hotSpring: [0.54, 1.9, 0.7],
+  },
+  desert: { buildSeconds: 14, recoverSeconds: 5, maxPenalty: 0.22, shade: 0.35, heatForImmunity: 2 },
+  ventSeconds: 0.36,
+  homeRadius: 105,
+  bumpCooldown: 0.65,
+  pushSpeed: 150,
+} as const;
