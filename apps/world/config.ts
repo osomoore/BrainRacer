@@ -190,6 +190,24 @@ export const WORLD_ACTIVITIES = {
   hideSeek: { hideRadius: 145, dinoPassDistance: 260, requiredSeconds: 3, maxSeconds: 14, caughtDistance: 105, passSeconds: 2.8 },
   boulderPush: { timeoutSeconds: 55, contactRadius: 100, minPush: 2, minSpeed: 12, rollSpeed: 30, rollSpeedPerLevel: 16, maxRollSpeed: 100, spotRadius: 30, rockOffsetX: 82, rockOffsetY: -30, blockedSeconds: 4 },
   fruitShake: { timeoutSeconds: 55, treeBaseRadius: 94, treeRadiusPerReach: 22, fruitContactRadius: 88, rollSpeed: 55, rollSpeedPerReach: 10, basketOffsetX: 150, basketOffsetY: 95, dropOffsetX: 44, dropOffsetY: 28, shakeSpeed: 12, bumpAlignment: -0.05, basketRadius: 30, missedReachSeconds: 8 },
+  digSpot: {
+    radius: 44, parkSpeed: 22, digSeconds: [0, 2.4, 1.6, 1.05],
+    stuckSeconds: 0.85, timeoutSeconds: 42,
+  },
+  islandSwim: {
+    minWater: 2, catchRadius: 52, swimDistance: 36, timeoutSeconds: 32,
+    stayNear: 440, splashSeconds: 0.9, buoyStep: 88,
+  },
+  gateDash: { halfWidth: 47, timeoutSeconds: 16 },
+  lanternCave: {
+    maxHeight: 2, touchRadiusByLight: [21, 28, 33, 40], glowRadius: 91, timeoutSeconds: 28,
+    celebrationSeconds: 0.85,
+  },
+  herdSheep: {
+    penRadius: 59, nudgeRadius: 75, nudgeMinSpeed: 14, nudgeSpeed: 77,
+    honkRadius: 110, honkRadiusPerLoud: 19, honkStride: 40, honkStridePerLoud: 25,
+    fleeSpeed: 185, playRadius: 355, timeoutSeconds: 55,
+  },
 } as const;
 
 // --- input (S1) --------------------------------------------------------------------------------
