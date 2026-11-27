@@ -1,7 +1,8 @@
 import type Phaser from 'phaser';
 
 /** Picture icons, baked once into 128 px textures `world-icon:<name>` (never drawn in a live Graphics). */
-export type IconName = 'hand' | 'horn' | 'swap' | 'lab' | 'tick' | 'cross' | 'play' | 'home' | 'exit' | 'pause';
+export type IconName = 'hand' | 'horn' | 'swap' | 'lab' | 'tick' | 'cross' | 'play' | 'home' | 'exit' | 'pause'
+  | 'star' | 'quest' | 'direction';
 export const ICON_SIZE = 128;
 export const iconKey = (name: IconName) => `world-icon:${name}`;
 
@@ -83,6 +84,21 @@ const DRAW: Record<IconName, (g: Phaser.GameObjects.Graphics) => void> = {
     arrow(g, 40, 116, 64, WHITE);
   },
   pause: g => { shapes(g, [rr(30, 20, 26, 88, 8), rr(72, 20, 26, 88, 8)], WHITE, 6); },
+  star: g => {
+    const points = Array.from({ length: 10 }, (_, i) => {
+      const angle = i * Math.PI / 5 - Math.PI / 2, radius = i % 2 === 0 ? 54 : 26;
+      return { x: 64 + radius * Math.cos(angle), y: 67 + radius * Math.sin(angle) };
+    });
+    shapes(g, [{ t: 'poly', pts: points }], 0xffdf66, 5);
+  },
+  quest: g => {
+    shapes(g, [rr(26, 14, 76, 100, 12)], 0xffe9ad, 6);
+    g.fillStyle(INK, 1).fillRoundedRect(43, 41, 42, 8, 4).fillRoundedRect(43, 59, 42, 8, 4)
+      .fillRoundedRect(43, 77, 28, 8, 4);
+  },
+  direction: g => {
+    shapes(g, [poly(15, 44, 67, 44, 67, 17, 115, 64, 67, 111, 67, 84, 15, 84)], 0xffdf66, 5);
+  },
 };
 
 /** Bake all icons into `scene.textures` (idempotent; textures are shared across scenes). */

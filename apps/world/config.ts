@@ -234,3 +234,24 @@ export const BUTTONS = {
   badge: { lift: 150, size: 96, pulse: 0.12, pulseSeconds: 0.45 },
   depth: 2000,
 } as const;
+
+// --- quests runtime + HUD (W8) ---
+export const WORLD_QUEST_HUD = {
+  talkRadius: 145,
+  pickupRadius: 72,
+  pickupHintRadius: 155,
+  targetRings: 5,
+  targetRefreshSeconds: 0.35,
+  targetRefreshDistance: 120,
+  carryLift: 114,
+  carrySize: 55,
+  bannerSeconds: 2.4,
+  popupSeconds: 1.25,
+  popupLift: 112,
+  popupRise: 85,
+  questCardWidth: 680,
+  questCardHeights: [94, 126, 168],
+  questCardGap: 12,
+  questFont: 40,
+  starFont: 48,
+} as const;

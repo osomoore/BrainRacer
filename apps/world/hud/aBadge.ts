@@ -11,6 +11,7 @@ import { bakeDisc, bakeIcons, iconKey, type IconName } from './icons';
 export class ABadge {
   private readonly box: Phaser.GameObjects.Container;
   private readonly icon: Phaser.GameObjects.Image;
+  private readonly letter: Phaser.GameObjects.Text;
   private shown = false;
 
   constructor(private readonly ctx: WorldContext, private readonly player: WorldPlayer) {
@@ -20,15 +21,16 @@ export class ABadge {
     const s = BUTTONS.badge.size;
     const disc = scene.add.image(0, 0, 'world-disc:a-badge').setDisplaySize(s, s);
     this.icon = scene.add.image(0, 0, iconKey('hand')).setDisplaySize(s * 0.62, s * 0.62);
-    const letter = scene.add.text(s * 0.36, s * 0.36, 'A', {
+    this.letter = scene.add.text(s * 0.36, s * 0.36, 'A', {
       fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '36px', color: '#ffffff', stroke: '#1c2540', strokeThickness: 7,
     }).setOrigin(0.5);
-    this.box = scene.add.container(0, 0, [disc, this.icon, letter]).setDepth(DEPTH.popups).setVisible(false);
+    this.box = scene.add.container(0, 0, [disc, this.icon, this.letter]).setDepth(DEPTH.popups).setVisible(false);
     ctx.showOnlyTo(this.box, player);
   }
 
-  show(icon: IconName = 'hand'): void {
+  show(icon: IconName = 'hand', padHint = true): void {
     this.icon.setTexture(iconKey(icon));
+    this.letter.setVisible(padHint);
     this.shown = true;
   }
 
