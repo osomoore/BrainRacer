@@ -27,7 +27,7 @@ export const GEN = {
   pathBendOffset: 68,
   canyon: { featureRadius: 975, wallOffset: 333, wallWidth: 207, wallLength: 745, mouth: 825, detour: 620 },
   terrainVertices: 32,
-  spatialCell: 320,
+  spatialCell: 120,
   coverageStep: 60,
   lakeRadius: [645, 670],
   lakeLobeOffset: 365,

@@ -144,7 +144,6 @@ export class WorldScene extends Phaser.Scene {
       ctx.time += dt;
       const controls = input.sample(deviceIds);
       for (const player of players) player.controls = controls[player.index];
-      if (!hasPlayModule && players[0].controls.pressed.menu) { this.scene.start('Title'); return; }
       for (const module of early) module.update(dt);
       if (!hasPlayModule) for (const player of players) drivePlayer(ctx, world, player, dt);
       for (const module of play) module.update(dt);
