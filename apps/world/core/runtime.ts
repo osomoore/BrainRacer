@@ -91,6 +91,8 @@ export interface WorldQuery {
   surfaceAt(x: number, y: number): SurfaceSample;
   hexAt(x: number, y: number): HexCoord;
   hexesNear(x: number, y: number, rings: number): HexCoord[];
+  /** Home hex of a profile (gen `WorldGen.homeFor`). */
+  homeFor(profileId: string): HexCoord | undefined;
   /** Live obstacles + features near a point (what logic/move.ts `MoveWorld.nearbySolids` needs). */
   nearbySolids(x: number, y: number, radius: number): { obstacles: Obstacle[]; features: HexPlan['features'] };
 }
@@ -110,6 +112,8 @@ export interface WorldContext {
   award(player: WorldPlayer, stars: number, claimId: string, at: Vec, reason: WorldEvents['stars:award']['reason']): boolean;
   /** Swap the player to the given creation (recomputes traits, emits 'player:swap'). */
   setCreation(player: WorldPlayer, creation: Creation): void;
+  /** Smoothed camera rotation of a player view (radians); used to turn screen-relative input into world directions. */
+  viewRotation(player: WorldPlayer): number;
 }
 
 export interface WorldModule {

@@ -61,6 +61,7 @@ export default class TerrainView extends Phaser.Scene {
         surfaceAt: (x, y) => gen.surfaceAt(x, y),
         hexAt: worldToHex,
         hexesNear: (x, y, rings) => gen.hexesNear(x, y, rings),
+        homeFor: profileId => gen.homeFor(profileId),
         live: coord => {
           const key = hexKey(coord);
           const previous = live.get(key);
@@ -79,6 +80,7 @@ export default class TerrainView extends Phaser.Scene {
       },
       save: () => {},
       award: () => false,
+      viewRotation: player => player.camera.rotation,
       setCreation: (player, creation) => {
         player.creation = creation;
         player.traits = traitsOf(creation);

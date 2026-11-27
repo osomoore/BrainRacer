@@ -27,6 +27,7 @@ export class LiveWorld implements WorldQuery {
 
   get seed(): number { return this.gen.seed; }
   hexAt = worldToHex;
+  homeFor(profileId: string) { return this.gen.homeFor(profileId); }
   plan(coord: HexCoord) { return this.gen.plan(coord); }
   surfaceAt(x: number, y: number) { return this.gen.surfaceAt(x, y); }
   hexesNear(x: number, y: number, rings: number) { return this.gen.hexesNear(x, y, rings); }

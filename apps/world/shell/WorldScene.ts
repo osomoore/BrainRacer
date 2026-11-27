@@ -7,7 +7,7 @@ import type { WorldContext, WorldModule, WorldModuleClass, WorldPlayer as LivePl
 import { hexKey, hexToWorld } from '../gen/hex';
 import { WorldGen } from '../gen/world';
 import { createWorldBus } from '../host/bus';
-import { followPlayer, worldCamera } from '../host/cameras';
+import { followPlayer, viewRotation, worldCamera } from '../host/cameras';
 import { idleControls, WorldControls } from '../host/controls';
 import { drivePlayer } from '../host/drive';
 import { FallbackGround } from '../host/fallbackGround';
@@ -107,6 +107,7 @@ export class WorldScene extends Phaser.Scene {
         player.traits = traitsOf(creation);
         bus.emit('player:swap', { player, creation });
       },
+      viewRotation,
     };
     this.ctx = ctx;
     for (const player of players) followPlayer(player, 0);
