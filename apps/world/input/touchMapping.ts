@@ -13,6 +13,8 @@ export interface TouchLayout {
   buttonOffset: number;
   buttonRadius: number;
   hitScale: number;
+  /** Small pause button (top corner); a tap reports `menu`. */
+  pause?: { x: number; y: number; radius: number; hitScale: number };
 }
 
 export interface ButtonSpec { id: ButtonId; x: number; y: number; r: number }
@@ -60,12 +62,16 @@ export class TouchState {
   readonly held: Record<ButtonId, boolean> = { a: false, b: false, x: false, y: false };
   private readonly buttonPointers = new Map<number, ButtonId>();
   private readonly edges: Record<ButtonId, boolean> = { a: false, b: false, x: false, y: false };
+  private menuEdge = false;
+  private readonly pausePointers = new Set<number>();
+  get pauseHeld(): boolean { return this.pausePointers.size > 0; }
 
   constructor(private readonly layout: TouchLayout) { this.buttons = buttonSpecs(layout); }
 
   /** Returns what the pointer was assigned to. */
   down(id: number, x: number, y: number): 'stick' | 'button' | null {
-    if (this.stickPointer === id || this.buttonPointers.has(id)) return null;
+    if (this.stickPointer === id || this.buttonPointers.has(id) || this.pausePointers.has(id)) return null;
+    if (this.hitPause(x, y)) { this.pausePointers.add(id); this.menuEdge = true; return 'button'; }
     const hit = this.hitButton(x, y);
     if (hit) {
       this.buttonPointers.set(id, hit);
@@ -102,6 +108,7 @@ export class TouchState {
       this.stickPointer = null;
       this.knob = { x: 0, y: 0 };
     }
+    this.pausePointers.delete(id);
     if (this.buttonPointers.delete(id)) this.refreshHeld();
   }
 
@@ -109,6 +116,7 @@ export class TouchState {
     this.stickPointer = null;
     this.knob = { x: 0, y: 0 };
     this.buttonPointers.clear();
+    this.pausePointers.clear();
     this.refreshHeld();
   }
 
@@ -117,9 +125,17 @@ export class TouchState {
     const v = this.stickPointer === null
       ? { x: 0, y: 0 }
       : stickVector(this.knob.x, this.knob.y, this.layout.stickRadius, this.layout.deadZone);
-    const pressed = { a: this.edges.a, b: this.edges.b, x: this.edges.x, y: this.edges.y, menu: false };
+    const pressed = { a: this.edges.a, b: this.edges.b, x: this.edges.x, y: this.edges.y, menu: this.menuEdge };
+    this.menuEdge = false;
     for (const b of BUTTONS) this.edges[b] = false;
     return { x: v.x, y: v.y, throttle: Math.max(0, -v.y), brake: Math.max(0, v.y), pressed };
+  }
+
+  private hitPause(x: number, y: number): boolean {
+    const p = this.layout.pause;
+    if (!p) return false;
+    const r = p.radius * p.hitScale;
+    return (x - p.x) ** 2 + (y - p.y) ** 2 <= r * r;
   }
 
   private hitButton(x: number, y: number): ButtonId | null {

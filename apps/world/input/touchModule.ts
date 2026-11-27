@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { isMobile } from '../../../shared/device';
-import { TOUCH, WORLD } from '../config';
+import { BUTTONS, TOUCH, WORLD } from '../config';
 import type { WorldContext, WorldModule } from '../core/runtime';
 import { createTouchOverlay, type TouchOverlay } from './touchOverlay';
 import { TouchState, touchModeWanted } from './touchMapping';
@@ -29,7 +29,7 @@ export default class TouchModule implements WorldModule {
   init(ctx: WorldContext): void {
     if (!touchModeWanted(location.search, isMobile(), ctx.players.length)) return;
     this.ctx = ctx;
-    this.state = new TouchState({ width: WORLD.width, ...TOUCH });
+    this.state = new TouchState({ width: WORLD.width, ...TOUCH, pause: BUTTONS.pause });
     this.padHidden = padConnected();
     const manager = ctx.scene.scene;
     if (manager.get(KEY)) manager.remove(KEY);

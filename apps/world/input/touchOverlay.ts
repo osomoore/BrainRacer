@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { TOUCH } from '../config';
+import { BUTTONS, TOUCH } from '../config';
+import { bakeIcons, iconKey, type IconName } from '../hud/icons';
 import { TouchState, type ButtonId } from './touchMapping';
 
-const COLORS: Record<ButtonId, number> = { a: 0x2fbf5a, b: 0xe5484d, x: 0x2f7de1, y: 0xf5b81c };
-const LETTERS: Record<ButtonId, string> = { a: 'A', b: 'B', x: 'X', y: 'Y' };
+const COLORS: Record<ButtonId, number> = BUTTONS.colors;
+const ICONS: Record<ButtonId, IconName> = { a: 'hand', b: 'horn', x: 'swap', y: 'lab' };
 const PAD = 10;
 
 /** Bake the overlay textures once per game (shapes are drawn into textures, never into a live Graphics). */
@@ -27,6 +28,12 @@ function bake(scene: Phaser.Scene): void {
     g.lineStyle(8, 0x1c2540, 1).strokeCircle(c, c, K - 4);
     g.fillStyle(0xcfd8ff, 1).fillCircle(c, c, K * 0.55);
   });
+  const PR = BUTTONS.pause.radius;
+  make('touch:pause', (PR + PAD) * 2, (g, c) => {
+    g.fillStyle(0x000000, 0.45).fillCircle(c, c + 4, PR);
+    g.fillStyle(0x16264a, 1).fillCircle(c, c, PR);
+    g.lineStyle(7, 0xffffff, 1).strokeCircle(c, c, PR - 4);
+  });
   const B = TOUCH.buttonRadius;
   for (const id of Object.keys(COLORS) as ButtonId[]) {
     make(`touch:btn:${id}`, (B + PAD) * 2, (g, c) => {
@@ -48,6 +55,7 @@ export interface TouchOverlay {
 /** Fixed-to-screen stick + A/B/X/Y buttons drawn in `scene`, fed by the scene's pointers (multi-touch). */
 export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): TouchOverlay {
   bake(scene);
+  bakeIcons(scene);
   scene.input.addPointer(TOUCH.extraPointers);
   const D = TOUCH.depth;
   const home = { x: TOUCH.stickRadius + TOUCH.stickMargin + 70, y: 800 };
@@ -55,11 +63,13 @@ export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): Touc
   const knob = scene.add.image(home.x, home.y, 'touch:knob').setDepth(D + 1).setAlpha(0.28);
   const buttons = state.buttons.map(spec => {
     const img = scene.add.image(spec.x, spec.y, `touch:btn:${spec.id}`).setDepth(D).setAlpha(TOUCH.idleAlpha);
-    const text = scene.add.text(spec.x, spec.y - 2, LETTERS[spec.id], {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '76px', color: '#ffffff', stroke: '#1c2540', strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(D + 1).setAlpha(TOUCH.idleAlpha);
+    const size = spec.r * 1.4;
+    const text = scene.add.image(spec.x, spec.y - 2, iconKey(ICONS[spec.id])).setDisplaySize(size, size).setDepth(D + 1).setAlpha(TOUCH.idleAlpha);
     return { spec, img, text };
   });
+  const pz = BUTTONS.pause;
+  const pauseBtn = scene.add.image(pz.x, pz.y, 'touch:pause').setDepth(D).setAlpha(TOUCH.idleAlpha);
+  const pauseIcon = scene.add.image(pz.x, pz.y, iconKey('pause')).setDisplaySize(pz.radius * 1.1, pz.radius * 1.1).setDepth(D + 1).setAlpha(TOUCH.idleAlpha);
   let touched = false;
 
   const onDown = (p: Phaser.Input.Pointer) => { touched = true; state.down(p.id, p.x, p.y); };
@@ -73,11 +83,14 @@ export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): Touc
   window.addEventListener('blur', onBlur);
 
   let visible = true;
-  const all = () => [base, knob, ...buttons.flatMap(b => [b.img, b.text])];
+  const all = () => [base, knob, pauseBtn, pauseIcon, ...buttons.flatMap(b => [b.img, b.text])];
 
   return {
     update() {
       if (!visible) return;
+      const pa = state.pauseHeld ? TOUCH.activeAlpha : TOUCH.idleAlpha;
+      pauseBtn.setAlpha(pa);
+      pauseIcon.setAlpha(pa);
       const active = state.stickPointer !== null;
       const ox = active ? state.base.x : home.x;
       const oy = active ? state.base.y : home.y;

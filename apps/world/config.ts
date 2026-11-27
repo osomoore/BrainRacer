@@ -163,3 +163,24 @@ export const TOUCH = {
   depth: 1000,
   extraPointers: 3,
 } as const;
+
+// --- buttons (S3) ------------------------------------------------------------------------------
+export const BUTTONS = {
+  /** Pad colors, shared by the legend and the touch buttons. */
+  colors: { a: 0x2fbf5a, b: 0xe5484d, x: 0x2f7de1, y: 0xf5b81c },
+  /** Touch pause button (top-left corner; the minimap is top-right). */
+  pause: { x: 70, y: 70, radius: 48, hitScale: 1.4 },
+  /** Always-on legend in the bottom-left of each player view. */
+  legend: { margin: 22, glyph: 56, icon: 64, gap: 26, alpha: 0.92 },
+  /** Cards (Lab / pause). Tap targets are at least `minTap` px. */
+  card: { width: 760, minTap: 120, fontSize: 48, titleSize: 56, dim: 0.5, rowHeight: 130, rowGap: 22, btnWidth: 260, btnHeight: 140 },
+  /** Stick must pass this to move the pad selection; it re-arms below `navRelease`. */
+  navThreshold: 0.6,
+  navRelease: 0.3,
+  /** Honk / roar sound rings around the creation. */
+  honk: { rings: 3, stagger: 0.12, seconds: 0.7, startScale: 0.4, endScale: 2.2, cooldown: 0.35, size: 256 },
+  poof: { seconds: 0.5, scale: 2.2 },
+  /** Pulsing A badge above a creation. */
+  badge: { lift: 150, size: 96, pulse: 0.12, pulseSeconds: 0.45 },
+  depth: 2000,
+} as const;

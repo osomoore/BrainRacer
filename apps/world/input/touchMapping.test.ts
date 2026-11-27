@@ -112,3 +112,21 @@ describe('touchModeWanted', () => {
     expect(touchModeWanted('?touch=0', true, 1)).toBe(false);
   });
 });
+
+describe('TouchState pause button', () => {
+  const pause = { x: 70, y: 70, radius: 48, hitScale: 1.4 };
+  const mkp = () => new TouchState({ ...layout, pause });
+  it('a tap reports menu once and does not start the stick', () => {
+    const t = mkp();
+    expect(t.down(1, 70, 70)).toBe('button');
+    expect(t.stickPointer).toBeNull();
+    expect(t.frame().pressed.menu).toBe(true);
+    expect(t.frame().pressed.menu).toBe(false);
+    t.up(1);
+  });
+  it('is off without a pause spec', () => {
+    const t = mk();
+    t.down(1, 70, 70);
+    expect(t.frame().pressed.menu).toBe(false);
+  });
+});
