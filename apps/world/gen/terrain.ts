@@ -4,6 +4,9 @@ import type { BiomeId, HexPlan, Obstacle, SurfaceKind, Vec } from '../core/types
 import { hexKey } from './hex';
 import { hexInset, offset, organic, type HexLayout } from './layout';
 
+/** Hard-coded gen distances were tuned for a 2400 px hex. */
+const K = WORLD.hexSize / 2400;
+
 const PATCH_KIND = {
   meadow: 'shallow', mud: 'deepMud', rocky: 'cliff', darkwood: 'tallGrass',
   snow: 'ice', desert: 'rough', jungle: 'tallGrass', geyser: 'hotSpring',
@@ -51,9 +54,9 @@ export function buildTerrain(layout: HexLayout, rng: Rng): void {
   const start = rng.range(0, 2 * Math.PI);
   if (plan.biome === 'desert') {
     for (let i = 0; i < 7; i++) {
-      const at = offset(plan.center, rng.range(-1450, 1450), rng.range(-1460, 1460));
+      const at = offset(plan.center, rng.range(-1450, 1450) * K, rng.range(-1460, 1460) * K);
       plan.terrain.push({ kind: 'sand', poly: insideHex(plan.center,
-        organic(at, rng.range(360, 590), rng.range(130, 240), rng, start)) });
+        organic(at, rng.range(360, 590) * K, rng.range(130, 240) * K, rng, start)) });
     }
   }
   for (let i = 0; i < count; i++) {
@@ -105,7 +108,7 @@ export function scatterObstacles(layout: HexLayout, rng: Rng): void {
     for (let i = 0; i < GEN.scatterAttempts; i++) {
       const center = atSpring ? rng.pick(springs)
         : clusters.length && i < GEN.scatterAttempts / 2 ? rng.pick(clusters) : undefined;
-      const spread = atSpring ? 150 : 460;
+      const spread = atSpring ? 150 : 460 * K;
       const at = center ? offset(center, rng.range(-spread, spread), rng.range(-spread, spread)) : centerCandidate();
       if (!layout.free(at, radius)) continue;
       const ground = layout.groundAt?.(at.x, at.y).kind;

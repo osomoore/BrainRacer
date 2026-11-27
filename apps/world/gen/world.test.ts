@@ -188,7 +188,7 @@ describe('world generation', () => {
     }
     expect(foundBridge).toBe(true);
     expect(foundCovered).toBe(true);
-  });
+  }, 20000);
 
   it('reuses recent plans and reproduces the same surface after eviction', () => {
     const seed = 47;

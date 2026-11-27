@@ -1,9 +1,12 @@
 import type { Rng } from '../../workshop/core/rng';
-import { GEN } from '../config';
+import { GEN, WORLD } from '../config';
 import type { ActivityKind, ActivityTarget, Feature, FeatureKind, SurfaceKind, TraitNeed, Vec } from '../core/types';
 import { hexKey } from './hex';
 import { box, organic, offset, type HexLayout } from './layout';
 import { curvedPath, pathThrough } from './roads';
+
+/** Feature shapes were drawn for a 2400 px hex. */
+const K = WORLD.hexSize / 2400;
 
 export interface FeatureSite {
   kind: ActivityKind;
@@ -57,10 +60,10 @@ export function buildFeatures(layout: HexLayout, rng: Rng): FeatureSite | undefi
   if (biome !== 'canyon' && biome !== 'darkwood' && biome !== 'rocky' && biome !== 'jungle') return;
   const radius = biome === 'canyon' ? GEN.canyon.featureRadius : GEN.featureRadius;
   let frame: FeatureFrame | undefined;
-  for (const scale of [1, 0.78, 0.53, 0.46]) {
-    const at = layout.place(rng, radius * scale);
+  for (const scale of [1, 0.78, 0.53, 0.46, 0.38]) {
+    const at = layout.place(rng, radius * K * scale);
     if (!at) continue;
-    frame = new FeatureFrame(layout, at, scale);
+    frame = new FeatureFrame(layout, at, scale * K);
     break;
   }
   if (!frame) return;

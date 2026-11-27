@@ -5,7 +5,7 @@
 // --- orchestrator ------------------------------------------------------------------------------
 export const WORLD = {
   /** Hex circumradius (center to corner), px. About two screen heights. */
-  hexSize: 2400,
+  hexSize: 1200,
   /** Logical screen. */
   width: 1920,
   height: 1080,
@@ -18,30 +18,30 @@ export const GEN = {
   roadWidth: 220,
   pathWidth: 140,
   edgeJitter: 0.19,
-  extraLinkChance: 0.26,
+  extraLinkChance: 0.1,
   curveSamples: 8,
-  hubOffset: [220, 470],
+  hubOffset: [110, 235],
   roadBends: [2, 4],
-  roadBendOffset: [190, 390],
+  roadBendOffset: [95, 195],
   sharedApproachAngle: Math.PI / 3,
-  pathBendOffset: 135,
+  pathBendOffset: 68,
   canyon: { featureRadius: 975, wallOffset: 333, wallWidth: 207, wallLength: 745, mouth: 825, detour: 620 },
   terrainVertices: 32,
   spatialCell: 320,
   coverageStep: 60,
-  lakeRadius: [1260, 1305],
-  lakeLobeOffset: 730,
+  lakeRadius: [645, 670],
+  lakeLobeOffset: 365,
   lakeShore: 125,
   scatterAttempts: 20,
   terrainPatches: {
-    meadow: { count: 4, orbit: 1180, radius: [210, 375], aspect: [0.6, 1] },
-    mud: { count: 3, orbit: 950, radius: [875, 933], aspect: [0.81, 0.91] },
-    rocky: { count: 4, orbit: 1160, radius: [255, 390], aspect: [0.45, 0.72] },
-    darkwood: { count: 5, orbit: 1000, radius: [470, 640], aspect: [0.66, 0.96] },
-    snow: { count: 3, orbit: 980, radius: [765, 855], aspect: [0.80, 0.94] },
-    desert: { count: 5, orbit: 1160, radius: [360, 520], aspect: [0.56, 0.75] },
-    jungle: { count: 3, orbit: 900, radius: [1020, 1160], aspect: [0.88, 1] },
-    geyser: { count: 10, orbit: 1120, radius: [210, 390], aspect: [0.65, 0.96] },
+    meadow: { count: 4, orbit: 590, radius: [125, 205], aspect: [0.6, 1] },
+    mud: { count: 3, orbit: 475, radius: [438, 467], aspect: [0.81, 0.91] },
+    rocky: { count: 4, orbit: 580, radius: [128, 195], aspect: [0.45, 0.72] },
+    darkwood: { count: 5, orbit: 500, radius: [290, 380], aspect: [0.66, 0.96] },
+    snow: { count: 3, orbit: 490, radius: [420, 470], aspect: [0.80, 0.94] },
+    desert: { count: 5, orbit: 580, radius: [195, 285], aspect: [0.56, 0.75] },
+    jungle: { count: 3, orbit: 450, radius: [540, 610], aspect: [0.88, 1] },
+    geyser: { count: 10, orbit: 560, radius: [125, 225], aspect: [0.65, 0.96] },
   },
   scatterDensity: {
     meadow: 40, mud: 52, rocky: 82, lake: 40, darkwood: 125,
@@ -53,7 +53,8 @@ export const GEN = {
   campChance: 1 / 12,
   treasureChance: 1 / 25,
   giverChance: 1 / 3,
-  activityRadius: 220,
+  activityRadius: 110,
+  targetDistance: 90,
   featureRadius: 660,
   placementClearance: 20,
 } as const;
@@ -106,7 +107,7 @@ export const WORLD_TERRAIN = {
 export const WORLD_TERRAIN_RENDER = {
   /** World-space edge length; terrain samples are taken at cellSize intervals. */
   chunkSize: 512,
-  cellSize: 12,
+  cellSize: 8,
   cacheChunks: 64,
   bakePerFrame: 2,
   prefetchRings: 2,
@@ -127,7 +128,7 @@ export const QUESTS = {
 
 // --- scene host (W5a) -------------------------------------------------------------------------
 export const WORLD_HOST = {
-  camera: { soloZoom: 0.92, splitZoom: 0.84, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
+  camera: { soloZoom: 1.8, splitZoom: 1.6, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
   maxFrameSeconds: 0.1,
   spawnSpacing: 110,
   saveEverySeconds: 5,
