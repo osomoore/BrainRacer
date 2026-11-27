@@ -111,6 +111,10 @@ export const WORLD_TERRAIN_RENDER = {
   cacheChunks: 64,
   bakePerFrame: 2,
   prefetchRings: 2,
+  /** Overlay opacity at maximum surface darkness. */
+  darknessAlpha: 0.72,
+  /** Light pool radius in world pixels, indexed by the creation's light trait. */
+  lightRadius: [0, 145, 245, 365],
 } as const;
 
 // --- save + shell (W3) -------------------------------------------------------------------------
