@@ -5,7 +5,7 @@ import { distance, ring } from './hex';
 import { hash } from './random';
 
 describe('biome field', () => {
-  it('is stable, spatially coherent, and covers every biome in a 20-ring area', () => {
+  it('is stable and covers every biome in a 20-ring area', () => {
     const counts = new Map<BiomeId, number>(BIOME_IDS.map(id => [id, 0]));
     for (let q = -20; q <= 20; q++) for (let r = -20; r <= 20; r++) {
       if (distance({ q, r }, { q: 0, r: 0 }) > 20) continue;
@@ -14,11 +14,11 @@ describe('biome field', () => {
       expect(biomeAt(417, at)).toBe(biome);
       counts.set(biome, counts.get(biome)! + 1);
     }
-    for (const count of counts.values()) expect(count / 1261).toBeGreaterThanOrEqual(0.04);
-    for (const count of counts.values()) expect(count / 1261).toBeLessThanOrEqual(0.2);
+    for (const count of counts.values()) expect(count / 1261).toBeGreaterThanOrEqual(0.06);
+    for (const count of counts.values()) expect(count / 1261).toBeLessThanOrEqual(0.14);
   });
 
-  it('keeps every biome between 4% and 20% across 256 world seeds', () => {
+  it('keeps every biome between 6% and 14% across 256 world seeds', () => {
     const area: { q: number; r: number }[] = [];
     for (let q = -20; q <= 20; q++) for (let r = -20; r <= 20; r++) {
       if (distance({ q, r }, { q: 0, r: 0 }) <= 20) area.push({ q, r });
@@ -30,8 +30,19 @@ describe('biome field', () => {
         counts.set(biome, counts.get(biome)! + 1);
       }
       for (const count of counts.values()) {
-        expect(count / area.length, `seed ${seed}`).toBeGreaterThanOrEqual(0.04);
-        expect(count / area.length, `seed ${seed}`).toBeLessThanOrEqual(0.2);
+        expect(count / area.length, `seed ${seed}`).toBeGreaterThanOrEqual(0.06);
+        expect(count / area.length, `seed ${seed}`).toBeLessThanOrEqual(0.14);
+      }
+    }
+  });
+
+  it('provides at least six nearby biomes for every possible home location', () => {
+    const locations = [2, 3, 4].flatMap(radius => ring({ q: 0, r: 0 }, radius));
+    for (let seed = 0; seed < 256; seed++) {
+      for (const at of locations) {
+        const nearby = [1, 2, 3].flatMap(radius => ring(at, radius));
+        const biomes = new Set(['meadow', ...nearby.map(coord => biomeAt(seed, coord))]);
+        expect(biomes.size, `seed ${seed}, ${at.q},${at.r}`).toBeGreaterThanOrEqual(6);
       }
     }
   });

@@ -24,22 +24,31 @@ export function insideHex(center: Vec, points: Vec[]): Vec[] {
 }
 
 function buildLake(plan: HexPlan, rng: Rng): void {
-  const angle = rng.range(0, Math.PI);
+  const scale = WORLD.hexSize / 1200;
   const pools = [-1, 1].map(sign => {
-    const at = offset(plan.center, Math.cos(angle) * sign * GEN.lakeLobeOffset,
-      Math.sin(angle) * sign * GEN.lakeLobeOffset);
-    const radius = rng.range(...GEN.lakeRadius);
-    return { at, poly: organic(at, radius, radius * rng.range(0.92, 1.02), rng, angle) };
+    const at = offset(plan.center, sign * GEN.lakeLobeOffset * scale, 0);
+    const radius = rng.range(...GEN.lakeRadius) * scale;
+    return { at, sign, poly: organic(at, radius * 0.63, radius, rng, sign * rng.range(-0.12, 0.12)) };
   });
-  for (const { at, poly } of pools) {
+  // Keep dry approaches to the junction and the neighboring hex, with each lobe
+  // crossing only the east-west road. These limits include the second road's sweep.
+  const shoreLimit = (p: Vec, sign: number, inset: number) => {
+    const y = p.y - plan.center.y;
+    const edge = (985 - inset) * scale;
+    const inner = Math.max(290, sign * y / (Math.sqrt(3) * scale) + 310) * scale + inset * scale;
+    return offset(plan.center, sign * Math.min(edge, Math.max(inner, sign * (p.x - plan.center.x))), y);
+  };
+  for (const { at, sign, poly } of pools) {
     const shore = poly.map(p => {
       const dx = p.x - at.x, dy = p.y - at.y;
-      const scale = 1 + GEN.lakeShore / Math.hypot(dx, dy);
-      return offset(at, dx * scale, dy * scale);
+      const expansion = 1 + GEN.lakeShore * scale / Math.hypot(dx, dy);
+      return shoreLimit(offset(at, dx * expansion, dy * expansion), sign, 0);
     });
     plan.terrain.push({ kind: 'shallow', poly: insideHex(plan.center, shore) });
   }
-  for (const { poly } of pools) plan.terrain.push({ kind: 'deep', poly: insideHex(plan.center, poly) });
+  for (const { sign, poly } of pools) {
+    plan.terrain.push({ kind: 'deep', poly: insideHex(plan.center, poly.map(p => shoreLimit(p, sign, 22))) });
+  }
 }
 
 export function buildTerrain(layout: HexLayout, rng: Rng): void {
@@ -108,7 +117,7 @@ export function scatterObstacles(layout: HexLayout, rng: Rng): void {
     for (let i = 0; i < GEN.scatterAttempts; i++) {
       const center = atSpring ? rng.pick(springs)
         : clusters.length && i < GEN.scatterAttempts / 2 ? rng.pick(clusters) : undefined;
-      const spread = atSpring ? 150 : 460 * K;
+      const spread = atSpring ? 85 : 460 * K;
       const at = center ? offset(center, rng.range(-spread, spread), rng.range(-spread, spread)) : centerCandidate();
       if (!layout.free(at, radius)) continue;
       const ground = layout.groundAt?.(at.x, at.y).kind;

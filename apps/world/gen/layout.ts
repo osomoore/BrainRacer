@@ -1,6 +1,7 @@
 import type { Rng } from '../../workshop/core/rng';
 import { GEN, WORLD } from '../config';
 import type { HexPlan, RoadPath, SurfaceSample, Vec } from '../core/types';
+import { polygonDistanceSquared } from './geometry';
 import { curvedPath, roadOverlap } from './roads';
 
 export const offset = (at: Vec, x: number, y: number): Vec => ({ x: at.x + x, y: at.y + y });
@@ -54,7 +55,8 @@ export class HexLayout {
 
   private passableGround(at: Vec): boolean {
     const kind = this.groundAt?.(at.x, at.y).kind;
-    return kind !== 'deep' && kind !== 'cliff';
+    return kind !== 'deep' && kind !== 'cliff' && !this.plan.features.some(feature =>
+      feature.needs && polygonDistanceSquared(feature.area, at.x, at.y) < GEN.placementClearance ** 2);
   }
 
   private roadConnects(path: RoadPath): boolean {
@@ -63,12 +65,13 @@ export class HexLayout {
     const passable = (p: Vec) => {
       if (hexInset(this.plan.center, p) <= 0) return false;
       const kind = this.networkAt?.(p.x, p.y).kind;
-      return kind !== 'deep' && kind !== 'cliff';
+      return kind !== 'deep' && kind !== 'cliff' && !this.plan.features.some(feature =>
+        feature.needs && polygonDistanceSquared(feature.area, p.x, p.y) < GEN.placementClearance ** 2);
     };
     for (let i = 1; i < path.points.length; i++) {
       const a = path.points[i - 1], b = path.points[i];
       const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy) || 1;
-      const steps = Math.ceil(length / 28);
+      const steps = Math.max(1, Math.ceil(length / 28));
       for (let step = 0; step <= steps; step++) {
         const p = offset(a, dx * step / steps, dy * step / steps);
         if (!passable(p)
@@ -80,15 +83,16 @@ export class HexLayout {
   }
 
   /** Join the closest safe stretch of the public road network. */
-  private approach(at: Vec): boolean {
+  private approach(at: Vec, markPath: boolean): boolean {
     const anchors = this.anchors
       .map(point => ({ point, distance: (point.x - at.x) ** 2 + (point.y - at.y) ** 2 }))
       .sort((a, b) => a.distance - b.distance);
-    for (const { point } of anchors.slice(0, 24)) {
+    for (const { point, distance } of anchors.slice(0, 16)) {
+      if (distance > (GEN.maxSiteSpur * WORLD.hexSize / 1200) ** 2) break;
       for (const sign of [1, -1]) {
         const path = curvedPath(point, at, sign);
         if (!this.roadConnects(path)) continue;
-        this.plan.roads.push(path);
+        if (markPath) this.plan.roads.push(path);
         return true;
       }
     }
@@ -131,14 +135,14 @@ export class HexLayout {
     return true;
   }
 
-  place(rng: Rng, radius: number, connect = false): Vec | undefined {
+  place(rng: Rng, radius: number, access?: 'path' | 'ground'): Vec | undefined {
     const start = rng.range(0, 2 * Math.PI);
     for (const range of [0.64, 0.78, 0.50, 0.89, 0.39, 0.28, 0.94]) {
       for (let step = 0; step < 36; step++) {
         const angle = start + step * Math.PI / 18;
         const at = offset(this.plan.center,
           Math.cos(angle) * WORLD.hexSize * range, Math.sin(angle) * WORLD.hexSize * range);
-        if (this.free(at, radius) && this.clearGround(at, radius) && (!connect || this.approach(at))) {
+        if (this.free(at, radius) && this.clearGround(at, radius) && (!access || this.approach(at, access === 'path'))) {
           this.reserve(at, radius);
           return at;
         }

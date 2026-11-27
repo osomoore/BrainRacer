@@ -337,7 +337,7 @@ function touches(shape: Shape, x: number, y: number, size: number): boolean {
   return shape.right > x && shape.bottom > y && shape.left < x + size && shape.top < y + size;
 }
 
-function centerline(road: RoadPath): Path2D {
+function roadMarkings(road: RoadPath): Path2D {
   const path = new Path2D();
   const distances = [0];
   for (let i = 1; i < road.points.length; i++) {
@@ -345,32 +345,55 @@ function centerline(road: RoadPath): Path2D {
     const b = road.points[i];
     distances.push(distances[i - 1] + Math.hypot(b.x - a.x, b.y - a.y));
   }
-  const trim = road.width * 0.72;
-  const end = (distances.at(-1) ?? 0) - trim;
-  if (end <= trim) return path;
-  for (let i = 1; i < road.points.length; i++) {
-    const from = distances[i - 1];
-    const to = distances[i];
-    if (to <= trim || from >= end || from === to) continue;
-    const a = road.points[i - 1];
-    const b = road.points[i];
-    const t0 = (Math.max(from, trim) - from) / (to - from);
-    const t1 = (Math.min(to, end) - from) / (to - from);
-    if (from <= trim) path.moveTo(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0);
-    path.lineTo(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
+  const end = distances.at(-1) ?? 0;
+  const junction = distances[Math.floor(road.points.length / 2)];
+  const margin = road.width * 0.74;
+  const gaps = [[16, junction - margin], [junction + margin, end - 16]];
+  const surface = road.surface ?? 'paved';
+  for (const [start, stop] of gaps) {
+    if (stop <= start) continue;
+    let segment = 1;
+    const spacing = surface === 'rocky' ? 13 : 9;
+    for (let along = start, i = 0; along <= stop; along = Math.min(stop, along + spacing), i++) {
+      while (distances[segment] < along) segment++;
+      const a = road.points[segment - 1], b = road.points[segment];
+      const length = distances[segment] - distances[segment - 1];
+      const dx = (b.x - a.x) / length, dy = (b.y - a.y) / length;
+      const x = a.x + dx * (along - distances[segment - 1]);
+      const y = a.y + dy * (along - distances[segment - 1]);
+      if (surface === 'paved') {
+        if (i === 0) path.moveTo(x, y);
+        else path.lineTo(x, y);
+      } else if (surface === 'dirt') {
+        const track = road.width * 0.20;
+        for (const sign of [-1, 1]) {
+          const tx = x - dy * sign * track, ty = y + dx * sign * track;
+          path.moveTo(tx, ty);
+          path.lineTo(tx + dx * 8, ty + dy * 8);
+        }
+      } else {
+        const spread = ((((i * 73 + 19) % 97) / 96) - 0.5) * road.width * 0.86;
+        const px = x - dy * spread, py = y + dx * spread;
+        const r = 2 + i % 4;
+        const angle = i * 2.4;
+        path.moveTo(px + Math.cos(angle) * r * 1.4, py + Math.sin(angle) * r * 1.4);
+        path.ellipse(px, py, r * 1.4, r, angle, 0, Math.PI * 2);
+      }
+      if (along === stop) break;
+    }
   }
   return path;
 }
 
-interface Route { shape: Shape; width: number; center?: Path2D }
+interface Route { shape: Shape; width: number; surface: RoadPath['surface']; markings?: Path2D }
 const routeShapes = new WeakMap<RoadPath, Route>();
 const bridgeShapes = new WeakMap<Feature, Shape>();
 
 function routeShape(road: RoadPath): Route {
   let route = routeShapes.get(road);
   if (!route) {
-    route = { shape: makeShape(road.points, road.width / 2 + 18), width: road.width,
-      center: road.kind === 'road' ? centerline(road) : undefined };
+    route = { shape: makeShape(road.points, road.width / 2 + 18), width: road.width, surface: road.surface,
+      markings: road.kind === 'road' ? roadMarkings(road) : undefined };
     routeShapes.set(road, route);
   }
   return route;
@@ -386,27 +409,45 @@ function bridgeShape(bridge: Feature): Shape {
 }
 
 function paintRoutes(ctx: CanvasRenderingContext2D, routes: readonly Route[], path: boolean): void {
+  ctx.save();
+  // Through-roads meet at the hex edge. A round cap would paint the next biome's road.
+  ctx.lineCap = path ? 'round' : 'butt';
   ctx.strokeStyle = path ? '#896d4b' : '#625b54';
   for (const r of routes) {
     ctx.lineWidth = r.width + 20;
     ctx.stroke(r.shape.path);
   }
-  ctx.strokeStyle = path ? '#e5b879' : '#c2bbae';
   for (const r of routes) {
+    ctx.strokeStyle = path ? '#e5b879' : r.surface === 'dirt' ? '#b89260'
+      : r.surface === 'rocky' ? '#ada596' : '#c2bbae';
     ctx.lineWidth = r.width + 8;
     ctx.stroke(r.shape.path);
   }
-  ctx.strokeStyle = path ? '#c99c64' : '#6b6a70';
   for (const r of routes) {
+    ctx.strokeStyle = path ? '#c99c64' : r.surface === 'dirt' ? '#956f49'
+      : r.surface === 'rocky' ? '#80766a' : '#6b6a70';
     ctx.lineWidth = r.width - 4;
     ctx.stroke(r.shape.path);
   }
-  if (path) return;
-  ctx.setLineDash([27, 24]);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = '#f2d786';
-  for (const r of routes) if (r.center) ctx.stroke(r.center);
-  ctx.setLineDash([]);
+  for (const r of routes) {
+    if (!r.markings) continue;
+    if (r.surface === 'rocky') {
+      ctx.fillStyle = '#b6a991';
+      ctx.fill(r.markings);
+    } else if (r.surface === 'dirt') {
+      ctx.strokeStyle = '#7f5d3d';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 8;
+      ctx.stroke(r.markings);
+    } else {
+      ctx.setLineDash([27, 24]);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#f2d786';
+      ctx.stroke(r.markings);
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
 }
 
 function paintBridge(ctx: CanvasRenderingContext2D, bridge: Feature, shape: Shape): void {

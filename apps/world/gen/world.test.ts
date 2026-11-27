@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { GEN } from '../config';
-import { BIOME_IDS, type HexCoord, type Vec } from '../core/types';
+import { CATALOGS } from '../../workshop/content';
+import { defaultModel } from '../../workshop/logic/stats';
+import { GEN, WORLD } from '../config';
+import { BIOME_IDS, type HexCoord, type RoadSurface, type Vec } from '../core/types';
+import { surfaceEffect } from '../logic/rules';
+import { traitsOf } from '../logic/traits';
 import { biomeAt, homeHexFor } from './biome';
+import { polygonDistanceSquared } from './geometry';
 import { distance, neighbor, ring } from './hex';
-import { edgeCrossing } from './roads';
+import { edgeCrossing, roadHub } from './roads';
 import { generateHex, WorldGen } from './world';
 import { surfaceAt } from './surface';
 
-function withinConvexPolygon(point: Vec, polygon: Vec[]): boolean {
-  const sides = polygon.map((a, i) => {
-    const b = polygon[(i + 1) % polygon.length];
-    return (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
-  });
-  return sides.every(side => side >= 0) || sides.every(side => side <= 0);
+function bendRadius(a: Vec, b: Vec, c: Vec): number {
+  const area = Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+  const length = (p: Vec, q: Vec) => Math.hypot(p.x - q.x, p.y - q.y);
+  return area < 1e-6 ? Infinity : length(a, b) * length(b, c) * length(c, a) / (2 * area);
 }
 
 function disk(radius: number): HexCoord[] {
@@ -34,18 +37,23 @@ describe('world generation', () => {
     expect(new WorldGen(481516).plan({ q: 3, r: -2 })).toEqual(new WorldGen(481516).plan({ q: 3, r: -2 }));
   });
 
-  it('keeps shared edge links symmetric', () => {
+  it('keeps the crossroad connected and shares its edge crossings exactly', () => {
     const world = new WorldGen(91234);
     for (const coord of disk(8)) {
       const plan = world.plan(coord);
-      expect(plan.links.length, `${coord.q},${coord.r} link count`).toBeGreaterThanOrEqual(2);
+      const roads = plan.roads.filter(road => road.kind === 'road');
+      expect(roads).toHaveLength(2);
+      const endpoints = roads.flatMap(road => [road.points[0], road.points.at(-1)]);
+      const hub = roadHub(world.seed, coord);
+      expect(roads.every(road => road.points.some(at => at.x === hub.x && at.y === hub.y))).toBe(true);
       for (const edge of plan.links) {
         const other = neighbor(coord, edge);
         const backEdge = (edge + 3) % 6;
         expect(world.plan(other).links).toContain(backEdge);
+        expect(endpoints).toContainEqual(edgeCrossing(world.seed, coord, edge));
       }
     }
-  }, 60_000);
+  });
 
   it('shares exactly the same crossing point from either side of each edge', () => {
     const seed = 53021;
@@ -65,8 +73,8 @@ describe('world generation', () => {
       for (const coord of coords) counts.set(biomeAt(seed, coord), counts.get(biomeAt(seed, coord))! + 1);
       for (const biome of BIOME_IDS) {
         const frequency = counts.get(biome)! / coords.length;
-        expect(frequency, `${biome} frequency for seed ${seed}`).toBeGreaterThanOrEqual(0.04);
-        expect(frequency, `${biome} frequency for seed ${seed}`).toBeLessThanOrEqual(0.2);
+        expect(frequency, `${biome} frequency for seed ${seed}`).toBeGreaterThanOrEqual(0.06);
+        expect(frequency, `${biome} frequency for seed ${seed}`).toBeLessThanOrEqual(0.14);
       }
     }
   });
@@ -107,6 +115,8 @@ describe('world generation', () => {
       expect(distance(home, { q: 0, r: 0 })).toBeGreaterThanOrEqual(2);
       expect(distance(home, { q: 0, r: 0 })).toBeLessThanOrEqual(4);
       expect(world.plan(home).biome).toBe('meadow');
+      const nearby = [home, ...[1, 2, 3].flatMap(radius => ring(home, radius))];
+      expect(new Set(nearby.map(coord => world.plan(coord).biome)).size).toBeGreaterThanOrEqual(6);
     }
     const owners = homes.map((home) => world.plan(home).home?.owner);
     expect(new Set(owners).size).toBe(profiles.length);
@@ -114,17 +124,51 @@ describe('world generation', () => {
     expect(homeHexFor(seed, 'ben', [world.homeFor('ada')!])).not.toEqual(world.homeFor('ada'));
   });
 
-  it('keeps every generated road sample on drivable road, path or bridge surface', () => {
+  it('keeps route samples drivable with broad bends', () => {
     const world = new WorldGen(6688);
     for (const coord of disk(4)) {
       const plan = world.plan(coord);
       for (const road of plan.roads) {
         expect(road.points.length).toBeGreaterThan(1);
+        const minRadius = (road.kind === 'road' ? 600 : 350) * WORLD.hexSize / 1200;
+        for (let i = 2; i < road.points.length; i++) {
+          expect(bendRadius(road.points[i - 2], road.points[i - 1], road.points[i])).toBeGreaterThanOrEqual(minRadius);
+        }
         for (const point of road.points) {
           const surface = world.surfaceAt(point.x, point.y);
           expect(['road', 'path', 'bridge'], `${coord.q},${coord.r} road point (${point.x},${point.y})`).toContain(surface.kind);
         }
       }
+    }
+  });
+
+  it('reports paved, dirt and rocky roads with progressively slower handling for both default builds', () => {
+    const world = new WorldGen(29, ['player']);
+    const seen = new Set<RoadSurface>();
+    for (const coord of disk(4)) {
+      const plan = world.plan(coord);
+      const { x, y } = roadHub(world.seed, coord);
+      const surface = world.surfaceAt(x, y);
+      expect(surface.kind).toBe('road');
+      expect(surface.roadSurface).toBe(plan.roads[0].surface);
+      seen.add(surface.roadSurface!);
+      if (plan.home) expect(surface.roadSurface).toBe('paved');
+    }
+    expect(seen).toEqual(new Set(['paved', 'dirt', 'rocky']));
+    for (const workshop of ['race', 'dino'] as const) {
+      const traits = traitsOf({ workshop, model: defaultModel(CATALOGS[workshop]) });
+      const speeds = (['paved', 'dirt', 'rocky'] as const).map(roadSurface => {
+        const effect = surfaceEffect(traits.kind, { kind: 'road', biome: 'meadow', dark: 0, covered: false, roadSurface }, traits);
+        expect(effect.passable).toBe(true);
+        return effect.speedMult;
+      });
+      expect(speeds[0]).toBeGreaterThan(speeds[1]);
+      expect(speeds[1]).toBeGreaterThan(speeds[2]);
+      const rocky = { kind: 'road', biome: 'canyon', dark: 0, covered: false, roadSurface: 'rocky' } as const;
+      const smooth = surfaceEffect(traits.kind, rocky, traits);
+      const bump = surfaceEffect(traits.kind, { ...rocky, roadRoughness: 1 }, traits);
+      expect(bump.drag).toBeGreaterThan(smooth.drag);
+      expect(bump.grip).toBeLessThan(smooth.grip);
     }
   });
 
@@ -174,14 +218,10 @@ describe('world generation', () => {
           }
           if (feature.needs?.length) {
             expect(feature.bypass).toBe(true);
-            const bypass = plan.roads.find(road => road.kind === 'path' && road.points.length > 2);
-            expect(bypass, feature.id).toBeDefined();
-            const route = bypass!.points;
-            expect(plan.roads.some(road => road !== bypass
-              && road.points[0].x === route[0].x && road.points[0].y === route[0].y
-              && road.points.at(-1)?.x === route.at(-1)?.x
-              && road.points.at(-1)?.y === route.at(-1)?.y)).toBe(true);
-            expect(route.every(point => !withinConvexPolygon(point, feature.area))).toBe(true);
+            expect(feature.bypassAt, feature.id).toBeDefined();
+            const { x, y } = feature.bypassAt!;
+            expect(polygonDistanceSquared(feature.area, x, y)).toBeGreaterThan(42 ** 2);
+            expect(['cliff', 'deep']).not.toContain(world.surfaceAt(x, y).kind);
           }
         }
       }

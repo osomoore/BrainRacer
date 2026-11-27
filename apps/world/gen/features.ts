@@ -1,12 +1,9 @@
 import type { Rng } from '../../workshop/core/rng';
 import { GEN, WORLD } from '../config';
-import type { ActivityKind, ActivityTarget, Feature, FeatureKind, SurfaceKind, TraitNeed, Vec } from '../core/types';
+import type { ActivityKind, ActivityTarget, FeatureKind, TraitNeed, Vec } from '../core/types';
 import { hexKey } from './hex';
 import { box, organic, offset, type HexLayout } from './layout';
-import { curvedPath, pathThrough } from './roads';
-
-/** Feature shapes were drawn for a 2400 px hex. */
-const K = WORLD.hexSize / 2400;
+import { curvedPath } from './roads';
 
 export interface FeatureSite {
   kind: ActivityKind;
@@ -14,112 +11,137 @@ export interface FeatureSite {
   targets: ActivityTarget[];
 }
 
-function buildPassage(frame: FeatureFrame, kind: 'tunnel' | 'cave' | 'narrow', rng: Rng): FeatureSite | undefined {
-  const canyon = frame.layout.plan.biome === 'canyon';
-  const { wallOffset, wallWidth, wallLength, mouth, detour } = GEN.canyon;
-  const end = canyon ? mouth : 505;
-  const turn = canyon ? detour : 470;
-  if (canyon) {
-    frame.blob('cliff', organic({ x: -wallOffset, y: 0 }, wallWidth, wallLength, rng, 0.06));
-    frame.blob('cliff', organic({ x: wallOffset, y: 0 }, wallWidth, wallLength, rng, 0.06));
-    frame.blob('cliff', box(-112, -22, 112, 108));
-  } else if (kind === 'narrow') {
-    frame.blob('rough', organic({ x: -217, y: 0 }, 125, 305, rng));
-    frame.blob('rough', organic({ x: 217, y: 0 }, 125, 305, rng));
-  }
-  const covered = kind === 'cave' || kind === 'tunnel';
-  if (covered) {
-    frame.layout.plan.terrain.push({
-      kind: 'rough', poly: organic({ x: 0, y: 0 }, 145, 255, rng).map(p => frame.point(p.x, p.y)),
-      covered: true, dark: kind === 'cave' ? 0.92 : 0.78,
-    });
-  }
-  const needs: TraitNeed[] = [{ trait: 'width', max: 2 }];
-  if (covered) needs.push({ trait: 'height', max: 2 });
+function addFeature(layout: HexLayout, kind: FeatureKind, at: Vec, dir: number, area: Vec[],
+    needs?: TraitNeed[], bypassAt?: Vec): void {
+  const { plan } = layout;
+  plan.features.push({
+    id: `${hexKey(plan.coord)}:f${plan.features.length}`, kind, at, dir, area,
+    ...(needs && { needs }), ...(bypassAt && { bypass: true, bypassAt }),
+  });
+}
 
-  frame.path([
-    { x: 0, y: -end }, { x: turn, y: -end + 85 }, { x: turn + 25, y: 0 },
-    { x: turn, y: end - 85 }, { x: 0, y: end },
-  ]);
-  frame.path([{ x: 0, y: -end }, { x: -25, y: -end / 2 }, { x: 0, y: end }]);
-  frame.connect(0, -end);
-  frame.feature(kind, { x: 0, y: 0 }, box(-103, -255, 103, 255), needs, true);
-  if (canyon) {
-    if (covered) frame.feature('narrow', { x: 0, y: -365 }, box(-103, -450, 103, -275),
-      [{ trait: 'width', max: 2 }], true);
-    frame.feature('jump', { x: 0, y: -75 }, box(-104, -100, 104, 108), [{ trait: 'jump', min: 2 }], true);
-  }
-  if (kind === 'cave') return {
-    kind: 'lanternCave', at: frame.point(0, -305),
-    targets: [-145, 0, 145].map(y => ({ at: frame.point(0, y), role: 'lantern' })),
+function buildCanyon(layout: HexLayout, rng: Rng): void {
+  const { plan, hub } = layout;
+  const scale = WORLD.hexSize / 1200;
+  const { valleyWidth, wallThickness, wallExtent, crosscutHalfWidth } = GEN.canyon;
+  const crossroad = plan.roads[1].points;
+  const crossX = (y: number) => {
+    const worldY = hub.y + y * scale;
+    const index = crossroad.findIndex(at => at.y >= worldY);
+    const a = crossroad[index - 1], b = crossroad[index];
+    return (a.x + (b.x - a.x) * (worldY - a.y) / (b.y - a.y) - hub.x) / scale;
   };
+  const at = (x: number, y: number) => offset(hub, x * scale, y * scale);
+  const side = rng.chance(0.5) ? 1 : -1;
+  const phase = rng.range(0, Math.PI * 2);
+  for (const sign of [-1, 1]) {
+    const inner = valleyWidth / 2;
+    const outer = inner + wallThickness;
+    const shortcutX = -sign * 560;
+    const narrow = sign === side;
+    const shortcutHalfWidth = 77;
+    const wave = (t: number) => 15 * Math.sin(t * 8 + phase + sign) + 9 * Math.cos(t * 15 - phase);
+    type WallEdge = (y: number) => number;
+    const start = () => -wallExtent;
+    const end = () => wallExtent;
+    const crossLeft = (y: number) => crossX(y) - crosscutHalfWidth;
+    const crossRight = (y: number) => crossX(y) + crosscutHalfWidth;
+    const cutLeft = () => shortcutX - shortcutHalfWidth;
+    const cutRight = () => shortcutX + shortcutHalfWidth;
+
+    function wall(left: WallEdge, right: WallEdge): void {
+      const edge = (depth: number) => Array.from({ length: 15 }, (_, i) => {
+        const t = i / 14;
+        const y = sign * (depth + wave(t));
+        const a = left(y), b = right(y);
+        return at(a + (b - a) * t, y);
+      });
+      plan.terrain.push({ kind: 'cliff', poly: [...edge(inner), ...edge(outer).reverse()] });
+    }
+
+    if (narrow && shortcutX < 0) {
+      wall(start, cutLeft);
+      wall(cutRight, crossLeft);
+      wall(crossRight, end);
+    } else if (narrow) {
+      wall(start, crossLeft);
+      wall(crossRight, cutLeft);
+      wall(cutRight, end);
+    } else {
+      wall(start, crossLeft);
+      wall(crossRight, end);
+    }
+
+    const inside = at(shortcutX, sign * (inner - 53));
+    const outside = at(shortcutX, sign * (outer + 105));
+    const road = plan.roads[0].points.reduce((closest, p) =>
+      Math.abs(p.x - inside.x) < Math.abs(closest.x - inside.x) ? p : closest, hub);
+    const bypassAt = at(crossX(sign * (inner + outer) / 2), sign * (inner + outer) / 2);
+    const dir = sign * Math.PI / 2;
+    const footprint = box(shortcutX - shortcutHalfWidth, Math.min(sign * (inner - 26), sign * (outer + 26)),
+      shortcutX + shortcutHalfWidth, Math.max(sign * (inner - 26), sign * (outer + 26))).map(p => at(p.x, p.y));
+
+    plan.roads.push(curvedPath(road, inside, sign));
+    if (narrow) {
+      plan.roads.push(curvedPath(inside, outside, 0));
+      addFeature(layout, 'narrow', at(shortcutX, sign * (inner + outer) / 2), dir, footprint,
+        [{ trait: 'width', max: 2 }], bypassAt);
+      if (rng.chance(0.38)) {
+        const tunnel = at(shortcutX, sign * (inner + outer) / 2);
+        const roof = organic(tunnel, 62 * scale, 103 * scale, rng);
+        plan.terrain.push({ kind: 'rough', poly: roof, covered: true, dark: 0.78 });
+        addFeature(layout, 'tunnel', tunnel, dir, roof, [{ trait: 'height', max: 2 }], bypassAt);
+      }
+      layout.reserve(outside, 65 * scale);
+    } else {
+      const landing = at(shortcutX, sign * (outer + 150));
+      plan.roads.push(curvedPath(at(shortcutX, sign * (outer + 27)), landing, 0));
+      addFeature(layout, 'jump', inside, dir, footprint, [{ trait: 'jump', min: 2 }], bypassAt);
+      layout.reserve(landing, 76 * scale);
+    }
+  }
 }
 
 export function buildFeatures(layout: HexLayout, rng: Rng): FeatureSite | undefined {
-  const { biome } = layout.plan;
-  if (biome !== 'canyon' && biome !== 'darkwood' && biome !== 'rocky' && biome !== 'jungle') return;
-  const radius = biome === 'canyon' ? GEN.canyon.featureRadius : GEN.featureRadius;
-  let frame: FeatureFrame | undefined;
-  for (const scale of [1, 0.78, 0.53, 0.46, 0.38]) {
-    const at = layout.place(rng, radius * K * scale);
-    if (!at) continue;
-    frame = new FeatureFrame(layout, at, scale * K);
-    break;
+  const { plan, hub } = layout;
+  const { biome } = plan;
+  if (biome === 'canyon') {
+    buildCanyon(layout, rng);
+    return;
   }
-  if (!frame) return;
-  switch (biome) {
-    case 'canyon': return buildPassage(frame, rng.chance(0.32) ? 'tunnel' : 'narrow', rng);
-    case 'darkwood': return buildPassage(frame, 'cave', rng);
-    case 'jungle': return buildPassage(frame, 'narrow', rng);
-    case 'rocky':
-      frame.connect(0, -340);
-      frame.path([{ x: 0, y: -340 }, { x: 0, y: 300 }]);
-      frame.feature('jump', { x: 0, y: -100 }, box(-100, -145, 100, -50));
-      return {
-        kind: 'ringJump', at: frame.point(0, -245),
-        targets: [0, 100, 200].map(y => ({ at: frame.point(0, y), role: 'ring' })),
-      };
-  }
-}
-
-/** Feature shapes are drawn in a local frame with +y pointing away from the hub. */
-class FeatureFrame {
-  private readonly dir: number;
-  private readonly sin: number;
-  private readonly cos: number;
-
-  constructor(readonly layout: HexLayout, private readonly origin: Vec, private readonly scale: number) {
-    const center = layout.hub;
-    this.dir = Math.atan2(origin.y - center.y, origin.x - center.x);
-    this.sin = Math.sin(this.dir);
-    this.cos = Math.cos(this.dir);
-  }
-
-  point(x: number, y: number): Vec {
-    return offset(this.origin, this.scale * (x * this.sin + y * this.cos),
-      this.scale * (y * this.sin - x * this.cos));
-  }
-
-  blob(kind: SurfaceKind, local: Vec[]): void {
-    this.layout.plan.terrain.push({ kind, poly: local.map(p => this.point(p.x, p.y)) });
-  }
-
-  feature(kind: FeatureKind, at: Vec, local: Vec[], needs?: TraitNeed[], bypass?: boolean): void {
-    const plan = this.layout.plan;
-    const feature: Feature = {
-      id: `${hexKey(plan.coord)}:f${plan.features.length}`,
-      kind, at: this.point(at.x, at.y), area: local.map(p => this.point(p.x, p.y)), dir: this.dir,
+  if (biome !== 'darkwood' && biome !== 'rocky' && biome !== 'jungle') return;
+  const scale = WORLD.hexSize / 1200;
+  const origin = layout.place(rng, GEN.featureRadius * scale);
+  if (!origin) return;
+  const dir = Math.atan2(origin.y - hub.y, origin.x - hub.x);
+  const cos = Math.cos(dir), sin = Math.sin(dir);
+  const at = (x: number, y: number) => offset(origin, scale * (x * sin + y * cos), scale * (y * sin - x * cos));
+  const mouth = at(0, -239);
+  const road = plan.roads.flatMap(route => route.points).reduce((closest, p) =>
+    Math.hypot(p.x - mouth.x, p.y - mouth.y) < Math.hypot(closest.x - mouth.x, closest.y - mouth.y) ? p : closest, hub);
+  plan.roads.push(curvedPath(road, mouth, -1), curvedPath(mouth, at(0, 239), 0));
+  if (biome === 'rocky') {
+    addFeature(layout, 'jump', at(0, -92), dir, box(-68, -128, 68, -57).map(p => at(p.x, p.y)));
+    return {
+      kind: 'ringJump', at: at(0, -181),
+      targets: [0, 92, 184].map(y => ({ at: at(0, y), role: 'ring' })),
     };
-    if (needs) feature.needs = needs;
-    if (bypass) feature.bypass = true;
-    plan.features.push(feature);
   }
 
-  path(points: Vec[]): void {
-    this.layout.plan.roads.push(pathThrough(points.map(p => this.point(p.x, p.y))));
-  }
-
-  connect(x: number, y: number): void {
-    this.layout.plan.roads.push(curvedPath(this.layout.hub, this.point(x, y), -1));
-  }
+  const cave = biome === 'darkwood';
+  const gate = box(-106, -151, 106, 151).map(p => at(p.x, p.y));
+  const bypassAt = at(193, 0);
+  plan.terrain.push(cave ? {
+    kind: 'rough', poly: organic(origin, 177 * scale, 177 * scale, rng), covered: true, dark: 0.92,
+  } : {
+    kind: 'rough', poly: organic(at(-174, 0), 72 * scale, 193 * scale, rng, dir + Math.PI / 2),
+  });
+  const needs: TraitNeed[] = [{ trait: 'width', max: 2 }];
+  if (cave) needs.push({ trait: 'height', max: 2 });
+  addFeature(layout, cave ? 'cave' : 'narrow', origin, dir, gate, needs, bypassAt);
+  layout.reserve(bypassAt, 52 * scale);
+  if (cave) return {
+    kind: 'lanternCave', at: mouth,
+    targets: [-110, 0, 110].map(y => ({ at: at(0, y), role: 'lantern' })),
+  };
 }

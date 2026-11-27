@@ -1,6 +1,7 @@
 import { Rng } from '../../workshop/core/rng';
 import { GEN } from '../config';
-import type { HexCoord, HexPlan, Obstacle, SurfaceSample } from '../core/types';
+import type { HexCoord, HexPlan, Obstacle } from '../core/types';
+import type { RoadSurfaceSample } from '../logic/rules';
 import { biomeAt, homeHexFor, isCamp } from './biome';
 import { buildFeatures } from './features';
 import { circleBounds } from './geometry';
@@ -8,7 +9,7 @@ import { hexKey, hexToWorld, ring, worldToHex } from './hex';
 import { buildLakeIsland, buildWaterCrossings } from './lakes';
 import { HexLayout } from './layout';
 import { hash } from './random';
-import { buildRoads, curvedPath, linkedEdges, roadHub } from './roads';
+import { buildRoads, linkedEdges, roadHub } from './roads';
 import { buildActivities, buildPickups } from './sites';
 import { prepareGround, prepareObstacles, prepareSurface } from './surface';
 import { buildTerrain, scatterObstacles } from './terrain';
@@ -21,26 +22,27 @@ function buildPlan(seed: number, coord: HexCoord, owner?: string): HexPlan {
   const center = hexToWorld(coord);
   const hexSeed = hash(seed, 'hex', coord.q, coord.r);
   const rng = new Rng(hexSeed);
-  const links = linkedEdges(seed, coord);
+  const links = linkedEdges();
   const home = owner !== undefined || isCamp(seed, coord);
+  const biome = home ? 'meadow' : biomeAt(seed, coord);
   const plan: HexPlan = {
-    coord: { ...coord }, seed: hexSeed, center, biome: home ? 'meadow' : biomeAt(seed, coord),
-    links, roads: buildRoads(seed, coord, links), terrain: [], features: [], obstacles: [], activities: [], items: [],
+    coord: { ...coord }, seed: hexSeed, center, biome,
+    links, roads: buildRoads(seed, coord, biome), terrain: [], features: [], obstacles: [], activities: [], items: [],
   };
   const hub = roadHub(seed, coord);
   const layout = new HexLayout(plan, hub);
   if (home) {
     plan.home = { id: `${hexKey(coord)}:home`, at: { ...center }, ...(owner !== undefined ? { owner } : {}) };
     layout.reserve(center, 180);
-    plan.roads.push(curvedPath(hub, center, 1));
   }
   const featureRng = rng.fork(1);
   const activityRng = rng.fork(2);
   const pickupRng = rng.fork(3);
   buildTerrain(layout, rng.fork(4));
+  if (biome === 'rocky') layout.setTerrain(prepareGround(plan));
   const featureSite = plan.biome === 'lake' ? buildLakeIsland(layout, featureRng) : buildFeatures(layout, featureRng);
   const obstacleRng = rng.fork(5);
-  buildWaterCrossings(plan, rng.fork(6));
+  buildWaterCrossings(plan);
   // Site connections may join a bridge, but may not cross terrain outside the public road network.
   const groundAt = prepareGround(plan);
   const publicNetwork = { ...plan, roads: plan.roads.filter(road => road.kind === 'road') };
@@ -53,7 +55,8 @@ function buildPlan(seed: number, coord: HexCoord, owner?: string): HexPlan {
 
 interface CachedHex {
   plan: HexPlan;
-  sample?: (x: number, y: number) => SurfaceSample;
+  usedAt: number;
+  sample?: (x: number, y: number) => RoadSurfaceSample;
   obstacles?: ReturnType<typeof prepareObstacles>;
 }
 
@@ -61,6 +64,7 @@ export class WorldGen {
   private readonly homes = new Map<string, HexCoord>();
   private readonly owners = new Map<string, string>();
   private readonly cache = new Map<string, CachedHex>();
+  private access = 0;
 
   /** Pass the same roster on every device so profile-home collisions resolve in the same order. */
   constructor(readonly seed: number, profileIds: readonly string[] = []) {
@@ -83,7 +87,7 @@ export class WorldGen {
     return this.cachedHex(coord).plan;
   }
 
-  surfaceAt(x: number, y: number): SurfaceSample {
+  surfaceAt(x: number, y: number): RoadSurfaceSample {
     const entry = this.cachedHex(worldToHex(x, y));
     entry.sample ??= prepareSurface(entry.plan);
     return entry.sample(x, y);
@@ -112,16 +116,20 @@ export class WorldGen {
     const key = hexKey(coord);
     const cached = this.cache.get(key);
     if (cached) {
-      this.cache.delete(key);
-      this.cache.set(key, cached);
+      cached.usedAt = ++this.access;
       return cached;
     }
-    const entry = { plan: buildPlan(this.seed, coord, this.owners.get(key)) };
-    this.cache.set(key, entry);
-    if (this.cache.size > GEN.planCacheSize) {
-      const oldest = this.cache.keys().next().value!;
+    const entry: CachedHex = { plan: buildPlan(this.seed, coord, this.owners.get(key)), usedAt: ++this.access };
+    if (this.cache.size >= GEN.planCacheSize) {
+      let oldest = key, oldestAccess = Infinity;
+      for (const [candidate, { usedAt }] of this.cache) {
+        if (usedAt >= oldestAccess) continue;
+        oldest = candidate;
+        oldestAccess = usedAt;
+      }
       this.cache.delete(oldest);
     }
+    this.cache.set(key, entry);
     return entry;
   }
 }
