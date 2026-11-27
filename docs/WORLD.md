@@ -6,11 +6,14 @@ activities, do simple reading quests, and earn stars. Branch `feature/world` (in
 
 ## Decisions (orchestrator, 2026-11-27; flag any the user changes)
 
-- **Phaser 3.90, 1920×1080, overhead, north-up camera** (no camera rotation: easier for young kids and cheaper on the
-  TV box). Two players = side-by-side split screen, each view 960×1080, one shared world scene with two cameras.
+- **Phaser 3.90, 1920×1080, overhead, heading-up camera** (user, 2026-11-27): each player's camera rotates smoothly
+  with their creation's heading, like Brain Racer (`CAMERA.rotTau`-style smoothing). The minimap stays north-up with
+  a rotating player arrow. Two players = side-by-side split screen, each view 960×1080, one shared world scene with two cameras.
   Both players see each other. Mobile = 1 player.
 - **No Matter physics.** Movement and collision are pure kinematics in `apps/world/logic/move.ts` (circle collider
-  vs circle obstacles and polygon solids). Cheaper on the Mali TV box and unit-testable.
+  vs circle obstacles and polygon solids). Cheaper on the Mali TV box and unit-testable. Terrain must *feel*
+  different, not just change top speed: per-surface acceleration, drag, sideways grip (ice and mud slide and drift,
+  deep mud bogs down without grip), water drag, rough-ground shake/bumps, geyser bounces. Suited traits restore grip.
 - **Reuse, don't copy:** World imports from `apps/workshop/` read-only: catalogs (`content/index.ts` `CATALOGS`),
   `logic/stats.ts` (`computeModel`, `defaultModel`), `art/index.ts` (`buildRig(scene, ws, model, 'top')` for the
   player sprites), `core/rng.ts` (`Rng`), `logic/wording.ts` + `content/starterWords.ts` (word checks). It never
