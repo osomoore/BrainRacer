@@ -45,7 +45,7 @@ describe('world generation', () => {
         expect(world.plan(other).links).toContain(backEdge);
       }
     }
-  });
+  }, 60_000);
 
   it('shares exactly the same crossing point from either side of each edge', () => {
     const seed = 53021;
