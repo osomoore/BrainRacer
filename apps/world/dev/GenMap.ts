@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import type { BiomeId, HexPlan, SurfaceKind, Vec } from '../core/types';
+import { WORLD } from '../config';
+import type { BiomeId, HexPlan, RoadSurface, SurfaceKind, Vec } from '../core/types';
 import { COVERAGE_KIND, offRoadCoverage } from '../gen/coverage';
 import { WorldGen } from '../gen/world';
 import { corners } from '../gen/hex';
@@ -19,6 +20,7 @@ const LABELS: Partial<Record<SurfaceKind, string>> = {
   shallow: 'ponds', deepMud: 'deep mud', cliff: 'cliffs', deep: 'deep water',
   tallGrass: 'tall grass', ice: 'ice', rough: 'mesas', hotSpring: 'springs',
 };
+const ROAD_COLORS: Record<RoadSurface, number> = { paved: 0x727279, dirt: 0xae875a, rocky: 0x8f8171 };
 
 const OBSTACLE_COLORS: Record<string, number> = {
   tree: 0x183b28, vine: 0x647234, cactus: 0x4d6b40, bush: 0x527a40,
@@ -34,7 +36,10 @@ export default class GenMap extends Phaser.Scene {
     const requestedSeed = Number(params.get('seed') ?? 1);
     const seed = Number.isFinite(requestedSeed) ? requestedSeed : 1;
     const world = new WorldGen(seed);
-    const plans = world.hexesNear(0, 0, 4).map((coord) => world.plan(coord));
+    const focus = /^(-?\d+),(-?\d+)$/.exec(params.get('hex') ?? '');
+    const plans = focus ? [world.plan({ q: Number(focus[1]), r: Number(focus[2]) })]
+      : world.hexesNear(0, 0, 4).map(coord => world.plan(coord));
+    const center = focus ? plans[0].center : { x: 0, y: 0 };
     const g = this.add.graphics();
     const outlines = plans.map(plan => corners(plan.coord));
 
@@ -56,26 +61,26 @@ export default class GenMap extends Phaser.Scene {
 
     const camera = this.cameras.main;
     camera.setBackgroundColor('#24303a');
-    camera.centerOn(0, 0);
+    camera.centerOn(center.x, center.y);
     const points = outlines.flat();
-    const maxX = Math.max(...points.map(p => Math.abs(p.x)));
-    const maxY = Math.max(...points.map(p => Math.abs(p.y)));
+    const maxX = Math.max(...points.map(p => Math.abs(p.x - center.x)));
+    const maxY = Math.max(...points.map(p => Math.abs(p.y - center.y)));
     const zoom = Math.min((camera.width - 120) / (2 * maxX), (camera.height - 120) / (2 * maxY));
     camera.setZoom(zoom);
 
     const labels = plans.map(plan => {
       const kind = COVERAGE_KIND[plan.biome];
       const share = Math.round(offRoadCoverage(plan)[kind] * 100);
-      return this.add.text(camera.width / 2 + plan.center.x * zoom,
-        camera.height / 2 + (plan.center.y - 1510) * zoom,
+      return this.add.text(camera.width / 2 + (plan.center.x - center.x) * zoom,
+        camera.height / 2 + (plan.center.y - center.y - WORLD.hexSize * 0.72) * zoom,
         `${plan.biome.toUpperCase()}\n${share}% ${LABELS[kind] ?? kind}`, {
           fontFamily: 'Arial, sans-serif', fontSize: '11px', fontStyle: 'bold', align: 'center',
           color: '#ffffff', stroke: '#293133', strokeThickness: 3,
         }).setOrigin(0.5);
     });
     const legend = this.add.text(24, 20, [
-      'Adventure World', `Seed ${seed} · 4 rings`, 'Coverage is off-road area', '',
-      'Gold · Activity', 'White · Home', 'Orange · Quest giver',
+      'Adventure World', focus ? `Seed ${seed} · Hex ${focus[0]}` : `Seed ${seed} · 4 rings`, 'Coverage is off-road area', '',
+      'Gold · Activity', 'White · Home', 'Orange · Quest giver', 'Blue · Detour waypoint',
     ], {
       fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#ffffff',
       backgroundColor: '#18212a', padding: { x: 12, y: 10 }, lineSpacing: 5,
@@ -85,9 +90,9 @@ export default class GenMap extends Phaser.Scene {
   }
 
   private drawPlan(g: Phaser.GameObjects.Graphics, plan: HexPlan): void {
-    for (const road of plan.roads) {
+    for (const road of [...plan.roads].reverse()) {
       if (road.points.length < 2) continue;
-      g.lineStyle(road.width, SURFACES[road.kind], 1);
+      g.lineStyle(road.width, road.kind === 'road' ? ROAD_COLORS[road.surface ?? 'paved'] : SURFACES.path, 1);
       g.beginPath();
       g.moveTo(road.points[0].x, road.points[0].y);
       for (const point of road.points.slice(1)) g.lineTo(point.x, point.y);
@@ -101,6 +106,7 @@ export default class GenMap extends Phaser.Scene {
       }
       if (feature.kind === 'jump' && feature.needs?.length) g.fillStyle(0x573f34, 1).fillPoints(feature.area, true);
       g.lineStyle(26, 0xe4e0c6, 0.85).strokePoints(feature.area, true);
+      if (feature.bypassAt) this.marker(g, feature.bypassAt, 0x80cdec, 42);
     }
     for (const obstacle of plan.obstacles) {
       g.fillStyle(OBSTACLE_COLORS[obstacle.kind] ?? 0x534d48, 0.95);

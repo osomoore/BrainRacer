@@ -7,7 +7,7 @@ import { BIOME_IDS, type BiomeId, type HexPlan, type Obstacle, type Vec } from '
 import { featurePassable, obstaclePassable, surfaceEffect } from '../logic/rules';
 import { traitsOf } from '../logic/traits';
 import { COVERAGE_KIND, offRoadCoverage } from './coverage';
-import { circleBounds, polygonDistanceSquared, SpatialGrid } from './geometry';
+import { circleBounds, inPolygon, polygonDistanceSquared, SpatialGrid } from './geometry';
 import { hexKey } from './hex';
 import { hexInset } from './layout';
 import { roadHub, roadOverlap } from './roads';
@@ -15,8 +15,8 @@ import { prepareGround, prepareSurface } from './surface';
 import { WorldGen } from './world';
 
 const COVERAGE: Record<BiomeId, readonly [number, number]> = {
-  meadow: [0.005, 0.14], mud: [0.22, 0.50], rocky: [0.012, 0.12], lake: [0.36, 0.66], darkwood: [0.11, 0.38],
-  snow: [0.22, 0.46], desert: [0.03, 0.22], jungle: [0.40, 0.66], canyon: [0.003, 0.11], geyser: [0.055, 0.22],
+  meadow: [0.015, 0.14], mud: [0.28, 0.47], rocky: [0.04, 0.115], lake: [0.34, 0.49], darkwood: [0.20, 0.43],
+  snow: [0.29, 0.48], desert: [0.075, 0.22], jungle: [0.45, 0.66], canyon: [0.15, 0.30], geyser: [0.12, 0.27],
 };
 
 const SEEDS = [1, 3, 7, 29, 71, 99, 701, 5288, 5981, 8128];
@@ -28,16 +28,20 @@ function* samplePlans() {
   }
 }
 
-function destinations(plan: HexPlan): Vec[] {
+function destinations(plan: HexPlan, canSwim = true): Vec[] {
   return [
-    ...plan.activities.flatMap(site => [site.at, ...site.targets.map(target => target.at)]),
+    ...plan.activities.flatMap(site => [site.at,
+      ...(!canSwim && site.kind === 'islandSwim' ? [] : site.targets.map(target => target.at))]),
     ...plan.items.map(item => item.at),
     ...[plan.giver, plan.home, plan.treasure].flatMap(spot => spot ? [spot.at] : []),
   ];
 }
 
-function unreachable(world: WorldGen, plan: HexPlan): Vec[] {
+function unreachable(world: WorldGen, plan: HexPlan, canSwim = false): Vec[] {
   const traits = traitsOf({ workshop: 'race', model: defaultModel(CATALOGS.race) });
+  if (canSwim) traits.water = 2;
+  const goals = [...destinations(plan, canSwim),
+    ...plan.features.flatMap(feature => feature.bypassAt ? [feature.bypassAt] : [])];
   const radius = WORLD_DRIVE.colliderRadius[traits.width - 1];
   const solids = new SpatialGrid<Obstacle>();
   for (const obstacle of plan.obstacles) {
@@ -63,7 +67,7 @@ function unreachable(world: WorldGen, plan: HexPlan): Vec[] {
     reachable(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t));
   const indexAt = (gx: number, gy: number) => (gy + extent) * width + gx + extent;
   const queue = [{ gx: 0, gy: 0 }];
-  if (!reachable(hub.x, hub.y)) return destinations(plan);
+  if (!reachable(hub.x, hub.y)) return goals;
   seen[indexAt(0, 0)] = 1;
   for (let i = 0; i < queue.length; i++) {
     const { gx, gy } = queue[i];
@@ -77,7 +81,7 @@ function unreachable(world: WorldGen, plan: HexPlan): Vec[] {
     }
   }
 
-  return destinations(plan).filter(at => {
+  return goals.filter(at => {
     const gx = Math.round((at.x - hub.x) / step), gy = Math.round((at.y - hub.y) / step);
     for (let y = gy - 1; y <= gy + 1; y++) {
       for (let x = gx - 1; x <= gx + 1; x++) {
@@ -88,10 +92,18 @@ function unreachable(world: WorldGen, plan: HexPlan): Vec[] {
   });
 }
 
+function decksOverlap(a: Vec[], b: Vec[]): boolean {
+  const turn = (p: Vec, q: Vec, r: Vec) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  return a.some(p => inPolygon(b, p.x, p.y)) || b.some(p => inPolygon(a, p.x, p.y))
+    || a.some((p, i) => b.some((r, j) => {
+      const q = a[(i + 1) % a.length], s = b[(j + 1) % b.length];
+      return turn(p, q, r) * turn(p, q, s) < 0 && turn(r, s, p) * turn(r, s, q) < 0;
+    }));
+}
+
 describe('world terrain richness', () => {
   it('keeps all ten biomes in their off-road coverage ranges with dense, clear scatter', () => {
     const seen = new Set<BiomeId>();
-    let lowBridges = 0;
     for (const { seed, plan } of samplePlans()) {
       const { biome } = plan;
       const context = `${seed}:${hexKey(plan.coord)} (${biome})`;
@@ -100,10 +112,14 @@ describe('world terrain richness', () => {
       const coverage = offRoadCoverage(plan)[COVERAGE_KIND[biome]];
       expect(coverage, context).toBeGreaterThanOrEqual(min);
       expect(coverage, context).toBeLessThanOrEqual(max);
-      expect(plan.obstacles.length, context).toBeGreaterThanOrEqual(4);
+      expect(plan.obstacles.length, context).toBeGreaterThanOrEqual(10);
+      if (!plan.home) expect(plan.activities.length, context).toBeGreaterThanOrEqual(2);
       const points = destinations(plan);
       const bridges = plan.features.filter(feature => feature.kind === 'bridge');
-      lowBridges += bridges.filter(feature => feature.bypass).length;
+      for (let i = 0; i < bridges.length; i++) {
+        expect(bridges[i].area.every(at => hexInset(plan.center, at) > 0), context).toBe(true);
+        for (const other of bridges.slice(i + 1)) expect(decksOverlap(bridges[i].area, other.area), context).toBe(false);
+      }
       if (biome === 'lake' || biome === 'meadow') {
         const ground = prepareGround(plan);
         const sampled = prepareSurface(plan);
@@ -125,37 +141,50 @@ describe('world terrain richness', () => {
         expect(plan.features.some(feature => feature.kind === 'cave'), context).toBe(true);
       }
       if (biome === 'lake') {
+        expect(bridges, context).toHaveLength(2);
         expect(plan.terrain.filter(blob => blob.kind === 'deep'), context).toHaveLength(2);
-        expect(plan.terrain.some(blob => blob.kind === 'grass'), context).toBe(true);
+        expect(plan.activities.some(site => site.kind === 'islandSwim'), context).toBe(true);
         expect(plan.activities.length, context).toBeGreaterThanOrEqual(2);
         expect(plan.items.length, context).toBeGreaterThanOrEqual(2);
       }
       if (biome === 'canyon') {
         const walls = plan.terrain.filter(blob => blob.kind === 'cliff' && blob.poly.length >= 24);
-        expect(walls, context).toHaveLength(2);
+        expect(walls, context).toHaveLength(5);
+        const ground = prepareGround(plan);
+        let cliff = 0, total = 0;
+        for (let y = -WORLD.hexSize + 30; y < WORLD.hexSize; y += 60) {
+          for (let x = -WORLD.hexSize + 30; x < WORLD.hexSize; x += 60) {
+            const at = { x: plan.center.x + x, y: plan.center.y + y };
+            if (hexInset(plan.center, at) <= 0) continue;
+            total++;
+            if (ground(at.x, at.y).kind === 'cliff') cliff++;
+          }
+        }
+        expect(cliff / total, context).toBeGreaterThanOrEqual(0.15);
+        expect(cliff / total, context).toBeLessThanOrEqual(0.30);
         expect(plan.features.some(feature => feature.kind === 'narrow' && feature.bypass), context).toBe(true);
         expect(plan.features.some(feature => feature.kind === 'jump' && feature.bypass), context).toBe(true);
       }
       if (biome === 'geyser') {
         const vents = plan.obstacles.filter(obstacle => obstacle.kind === 'vent');
         const ground = prepareGround(plan);
-        expect(vents.length, context).toBeGreaterThanOrEqual(1);
+        expect(vents.length, context).toBeGreaterThanOrEqual(3);
         expect(vents.every(vent => vent.effect === 'pass' && ground(vent.at.x, vent.at.y).kind === 'hotSpring')).toBe(true);
       }
     }
     expect(seen).toEqual(new Set(BIOME_IDS));
-    expect(lowBridges).toBeGreaterThan(0);
-  }, 60_000);
+  }, 15_000);
 
-  it('connects each site, target, pickup and home to its hub for the default car', () => {
+  it('connects sites, pickups, homes and bypasses to the hub, with swimming only for island targets', () => {
     for (const seed of [29, 71, 8128]) {
       const world = new WorldGen(seed, ['player']);
       for (const coord of world.hexesNear(0, 0, 4)) {
         const plan = world.plan(coord);
         expect(unreachable(world, plan), `${seed}:${hexKey(coord)} (${plan.biome})`).toEqual([]);
+        if (plan.biome === 'lake') expect(unreachable(world, plan, true), `${seed}:${hexKey(coord)} swim`).toEqual([]);
       }
     }
-  }, 60_000);
+  }, 15_000);
 
   it('matches indexed obstacle queries against the full plan', () => {
     const world = new WorldGen(29);
@@ -173,7 +202,7 @@ describe('world terrain richness', () => {
     }
   });
 
-  it('samples 10,000 random points from warm plans in well under 120 ms', () => {
+  it('samples 10,000 random points from warm plans in under 70 ms', () => {
     const world = new WorldGen(29);
     const rng = new Rng(9084);
     const centers = world.hexesNear(0, 0, 4).map(coord => world.plan(coord).center);
@@ -194,6 +223,6 @@ describe('world terrain richness', () => {
     });
     // A median avoids treating a single GC pause as sampler work.
     const elapsed = timings.sort((a, b) => a - b)[1];
-    expect(elapsed, `10,000 surface samples took ${elapsed.toFixed(1)} ms`).toBeLessThan(120); // alone ~40-60 ms; generous because the full parallel suite slows it. W1c: bring back near 50 alone.
+    expect(elapsed, `10,000 surface samples took ${elapsed.toFixed(1)} ms`).toBeLessThan(70);
   });
 });

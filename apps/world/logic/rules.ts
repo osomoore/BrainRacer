@@ -1,5 +1,12 @@
 import { WORLD_DRIVE, WORLD_PLAY, WORLD_SURFACES, WORLD_TERRAIN } from '../config';
-import type { Feature, Obstacle, SurfaceKind, SurfaceSample, TraitNeed, Traits } from '../core/types';
+import type { Feature, Obstacle, RoadSurface, SurfaceKind, SurfaceSample, TraitNeed, Traits } from '../core/types';
+
+/** Retain road/path kinds for callers that only need to know whether the surface is a route. */
+export interface RoadSurfaceSample extends SurfaceSample {
+  roadSurface?: RoadSurface;
+  /** Local bump strength for rocky road, in [0, 1]. */
+  roadRoughness?: number;
+}
 
 export interface SurfaceEffect {
   speedMult: number;
@@ -44,24 +51,30 @@ const rules: Record<SurfaceKind, SurfaceRule> = {
 
 const unit = (value: number): number => Math.max(0, Math.min(1, value));
 
-export function surfaceEffect(kind: Traits['kind'], sample: SurfaceSample, traits: Traits): SurfaceEffect {
-  const { profile, ability } = rules[sample.kind];
+export function surfaceEffect(kind: Traits['kind'], sample: RoadSurfaceSample, traits: Traits): SurfaceEffect {
+  const { profile: baseProfile, ability } = rules[sample.kind];
+  const route = sample.kind === 'road' || sample.kind === 'path' ? sample.roadSurface : undefined;
+  const rocky = route === 'rocky' ? WORLD_SURFACES.rockyRoad : undefined;
+  const roadProfile = route === 'dirt' ? WORLD_SURFACES.dirtRoad : rocky;
+  const profile = roadProfile ?? baseProfile;
   const level = ability?.(sample, traits) ?? 0;
   const speedMult = profile.speed[level];
   if (speedMult === 0) return {
     speedMult, grip: 0, acceleration: 0, drag: 0, lateralGrip: 0, passable: false, bounce: WORLD_DRIVE.groundBounce,
   };
 
-  const darkPenalty = profile === WORLD_SURFACES.open ? 0 : unit(sample.dark) * (1 - WORLD_TERRAIN.darkSpeed[traits.light]);
-  const grip = Math.min(1, profile.grip[level] + (kind === 'dino' ? WORLD_TERRAIN.dinoGripBonus : 0));
+  const darkPenalty = baseProfile === WORLD_SURFACES.open ? 0 : unit(sample.dark) * (1 - WORLD_TERRAIN.darkSpeed[traits.light]);
+  const bump = rocky ? unit(sample.roadRoughness ?? 0) : 0;
+  const grip = Math.min(1, profile.grip[level] + (kind === 'dino' ? WORLD_TERRAIN.dinoGripBonus : 0))
+    - (rocky?.bumpGripLoss ?? 0) * bump;
   const handling: Partial<Record<SurfaceKind, readonly [number, number, number]>> = WORLD_PLAY.handling;
-  const [acceleration, drag, lateralGrip] = handling[sample.kind] ?? [1, 1, 1];
+  const [acceleration, drag, lateralGrip] = roadProfile?.handling ?? handling[sample.kind] ?? [1, 1, 1];
   const suited = level / 3;
   return {
     speedMult: speedMult * (1 - darkPenalty),
     grip,
     acceleration: acceleration + (1 - acceleration) * suited,
-    drag: drag + (1 - drag) * suited,
+    drag: drag + (1 - drag) * suited + (rocky?.bumpDrag ?? 0) * bump,
     lateralGrip: lateralGrip + (1 - lateralGrip) * suited,
     passable: true,
   };

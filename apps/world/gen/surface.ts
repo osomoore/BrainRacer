@@ -1,4 +1,5 @@
 import type { BiomeId, HexPlan, Obstacle, RoadPath, SurfaceKind, SurfaceSample } from '../core/types';
+import type { RoadSurfaceSample } from '../logic/rules';
 import { boundsOf, circleBounds, inBounds, inPolygon, segmentDistanceSquared, SpatialGrid } from './geometry';
 import { WorldGen } from './world';
 
@@ -42,11 +43,11 @@ export function prepareObstacles(obstacles: readonly Obstacle[]): SpatialGrid<Ob
 }
 
 /** Build a reusable, pre-indexed surface sampler for one immutable hex plan. */
-export function prepareSurface(plan: HexPlan): (x: number, y: number) => SurfaceSample {
+export function prepareSurface(plan: HexPlan): (x: number, y: number) => RoadSurfaceSample {
   const groundAt = prepareGround(plan);
   const segments = new SpatialGrid<{
     a: RoadPath['points'][number]; b: RoadPath['points'][number];
-    kind: RoadPath['kind']; limit: number; bounds: ReturnType<typeof boundsOf>;
+    kind: RoadPath['kind']; surface: RoadPath['surface']; limit: number; bounds: ReturnType<typeof boundsOf>;
   }>();
   for (const road of plan.roads) {
     const radius = road.width / 2;
@@ -56,7 +57,7 @@ export function prepareSurface(plan: HexPlan): (x: number, y: number) => Surface
         minX: Math.min(a.x, b.x) - radius, minY: Math.min(a.y, b.y) - radius,
         maxX: Math.max(a.x, b.x) + radius, maxY: Math.max(a.y, b.y) + radius,
       };
-      segments.insert(bounds, { a, b, bounds, kind: road.kind, limit: radius * radius });
+      segments.insert(bounds, { a, b, bounds, kind: road.kind, surface: road.surface, limit: radius * radius });
     }
   }
   const bridges = new SpatialGrid<{ area: HexPlan['features'][number]['area']; bounds: ReturnType<typeof boundsOf> }>();
@@ -67,16 +68,20 @@ export function prepareSurface(plan: HexPlan): (x: number, y: number) => Surface
   }
 
   return (x, y) => {
-    const sample = groundAt(x, y);
+    const sample: RoadSurfaceSample = groundAt(x, y);
     for (const { area, bounds } of bridges.at(x, y)) {
       if (inBounds(bounds, x, y) && inPolygon(area, x, y)) {
         sample.kind = 'bridge';
         return sample;
       }
     }
-    for (const { a, b, kind, bounds, limit } of segments.at(x, y)) {
+    // Route paint cannot turn a cliff or unbridged deep water into drivable ground.
+    if (sample.kind === 'cliff' || sample.kind === 'deep') return sample;
+    for (const { a, b, kind, surface, bounds, limit } of segments.at(x, y)) {
       if (inBounds(bounds, x, y) && segmentDistanceSquared(x, y, a, b) <= limit) {
         sample.kind = kind;
+        sample.roadSurface = surface ?? (kind === 'road' ? 'paved' : undefined);
+        if (surface === 'rocky') sample.roadRoughness = (1 + Math.sin(x / 15 + y / 19)) / 2;
         break;
       }
     }
@@ -98,6 +103,6 @@ function worldFor(seed: number): WorldGen {
 }
 
 /** Sample the deterministic world surface through a bounded, reused world generator. */
-export function surfaceAt(seed: number, x: number, y: number): SurfaceSample {
+export function surfaceAt(seed: number, x: number, y: number): RoadSurfaceSample {
   return worldFor(seed).surfaceAt(x, y);
 }
