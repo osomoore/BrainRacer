@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { DEPTH, type WorldContext, type WorldPlayer } from '../../core/runtime';
 import type { ActivityKind, ActivitySite } from '../../core/types';
+import { ABadge } from '../../hud/aBadge';
 
 // Each path fits in a 64 px badge. The stroke keeps the icons readable on busy terrain.
 const icons: Record<ActivityKind, string> = {
@@ -55,25 +56,13 @@ export interface SiteMarker {
   destroy(): void;
 }
 
-/** Adapter for the per-player interaction badge. Replace this implementation with ABadge at integration. */
+/** Per-player "press A" prompt: the shared HUD badge (apps/world/hud/aBadge.ts). */
 export function createActivityPrompt(ctx: WorldContext, player: WorldPlayer) {
-  const badge = ctx.scene.add.image(0, 0, badgeTexture(ctx.scene, 'prompt'))
-    .setDepth(DEPTH.popups).setVisible(false);
-  ctx.showOnlyTo(badge, player);
-  let shown = false;
+  const badge = new ABadge(ctx, player);
   return {
-    show() { shown = true; },
-    hide() { shown = false; },
-    update() {
-      badge.setVisible(shown);
-      if (!shown) return;
-      const angle = -ctx.viewRotation(player);
-      const zoom = player.camera.zoom || 1;
-      const lift = 108 / zoom;
-      const pulse = 1 + 0.08 * Math.sin(ctx.time * 2 * Math.PI / 1.1);
-      badge.setPosition(player.move.x + lift * Math.sin(angle), player.move.y - lift * Math.cos(angle))
-        .setRotation(angle).setScale(pulse / zoom);
-    },
+    show() { badge.show('hand'); },
+    hide() { badge.hide(); },
+    update() { badge.update(); },
     destroy() { badge.destroy(); },
   };
 }

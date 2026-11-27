@@ -20,7 +20,7 @@ import { traitsOf } from '../logic/traits';
 /** ProfileScene's selection payload. The scene resolves these selections into runtime players. */
 export interface WorldPlayer { profile: PlayerProfile; device: DeviceId }
 
-const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{render,play,activities,hud}/**/*Module.ts', { eager: true });
+const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{input,render,play,activities,hud}/**/*Module.ts', { eager: true });
 const modules = Object.entries(moduleFiles)
   .filter(([, file]) => typeof file.default === 'function')
   .sort(([a, left], [b, right]) => (left.default.order ?? 0) - (right.default.order ?? 0) || a.localeCompare(b));
@@ -144,7 +144,6 @@ export class WorldScene extends Phaser.Scene {
       ctx.time += dt;
       const controls = input.sample(deviceIds);
       for (const player of players) player.controls = controls[player.index];
-      if (!hasPlayModule && players[0].controls.pressed.menu) { this.scene.start('Title'); return; }
       for (const module of early) module.update(dt);
       if (!hasPlayModule) for (const player of players) drivePlayer(ctx, world, player, dt);
       for (const module of play) module.update(dt);
