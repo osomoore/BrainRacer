@@ -20,7 +20,7 @@ import { traitsOf } from '../logic/traits';
 /** ProfileScene's selection payload. The scene resolves these selections into runtime players. */
 export interface WorldPlayer { profile: PlayerProfile; device: DeviceId }
 
-const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{render,play,activities,hud}/**/*Module.ts', { eager: true });
+const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{input,render,play,activities,hud}/**/*Module.ts', { eager: true });
 const modules = Object.entries(moduleFiles)
   .filter(([, file]) => typeof file.default === 'function')
   .sort(([a, left], [b, right]) => (left.default.order ?? 0) - (right.default.order ?? 0) || a.localeCompare(b));

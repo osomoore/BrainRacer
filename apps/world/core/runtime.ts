@@ -124,7 +124,7 @@ export interface WorldModule {
 
 export interface WorldModuleClass {
   new (): WorldModule;
-  /** Lower runs first. Host 0, play 100, activities 200, render 300, hud 400. */
+  /** Lower runs first. Host 0, input 50, play 100, activities 200, render 300, hud 400. */
   order?: number;
 }
 
