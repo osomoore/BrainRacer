@@ -229,6 +229,29 @@ From the W1b GenMap review (seed 29, 4 rings):
 - Canyon: cliffs are ~5%. Make one or two real valleys per canyon hex: long cliff walls 150–300 px thick bounding a
   valley 400–900 px wide that the road runs through, a narrow side valley (width max) and a jump gap with a detour.
   Target 15–30% cliff coverage. Keep reachability tests green.
+- **Road network (user, 2026-11-27: "roads are too busy").** Replace "every linked edge runs to a hub" with 2–4
+  through-roads per hex, edge to edge, that cross the hex in simple wide arcs and meet at a clear crossroads or
+  T-junction. Fewer, longer roads; paths to sites stay short side spurs. Roads still continue across hex edges
+  (neighbors agree on edge points).
+- **Road types:** dirt, rocky, paved. Contract change (orchestrator applies at launch): `RoadPath.surface?: 'paved' |
+  'dirt' | 'rocky'`. Paved is fastest; dirt slightly slower with a little less grip; rocky is bumpy and slower but
+  every build can drive it. Pick the type by biome and road importance (paved through meadow and home hexes, dirt in
+  mud, jungle and darkwood, rocky in rocky, canyon and geyser). `surfaceAt` reports the road type; the terrain
+  bake draws each one differently (W5c renders, W1c generates).
+
+### W5c view, minimap, darkness (user feedback 2026-11-27) — `apps/world/render/**`, `apps/world/host/cameras.ts`, host + terrain sections of config
+- **Closer view:** about 2× closer, so the creation looks twice as big on screen (`WORLD_HOST.camera.soloZoom`
+  0.92 → about 1.8, `splitZoom` about 1.6). Keep the creation low on screen (`carScreenY`) so kids see ahead. Check
+  chunk bake cost and texture memory still fit the TV box budget (fewer chunks are visible, but each is magnified:
+  raise bake resolution only if it looks blurry).
+- **Minimap heading-up:** rotates with the player's view (`ctx.viewRotation(player)`), player arrow fixed pointing
+  up, smooth (no snapping), and the map scrolls smoothly as the player moves between hexes instead of jumping per hex.
+  A small "N" marker on the rim shows north.
+- **Darkness is just dark:** a creation without a light trait gets no glow circle; the darkwood/cave view is evenly
+  dark (dim enough to feel like night, light enough that a 5-year-old can still steer along the road). Only builds
+  with a light trait get a light pool, bigger with more light. Glowing mushrooms and lanterns stay visible as small
+  lights.
+- Road types from W1c: paved (grey, lane line), dirt (brown, tire tracks), rocky (grey-brown, pebbles).
 
 ## All remaining jobs: input rule
 Every interaction must work with a pad button and with a tap (mobile is 1 player, touch only; see docs/WORLD.md
