@@ -141,3 +141,25 @@ export const WORLD_HOST = {
   playerColors: [0xffd266, 0x80e5ff],
   quickSeed: 29,
 } as const;
+
+// --- input (S1) --------------------------------------------------------------------------------
+export const TOUCH = {
+  /** Stick spawns where a thumb lands in the left share of the screen. */
+  stickZone: 0.45,
+  stickRadius: 150,
+  /** Fraction of the stick radius that is ignored. */
+  deadZone: 0.15,
+  /** Keep the stick base fully on screen. */
+  stickMargin: 40,
+  knobRadius: 62,
+  /** Diamond of buttons, bottom-right: centre, offset of each button from it, button radius (px logical). */
+  buttonCenter: { x: 1650, y: 830 },
+  buttonOffset: 115,
+  buttonRadius: 70,
+  /** Hit area grows a little so kids do not miss. */
+  hitScale: 1.15,
+  idleAlpha: 0.8,
+  activeAlpha: 0.95,
+  depth: 1000,
+  extraPointers: 3,
+} as const;
