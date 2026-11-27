@@ -3,7 +3,7 @@ import type { BiomeId, HexCoord, Quest } from '../core/types';
 import type { WorldContext, WorldModule, WorldPlayer } from '../core/runtime';
 import { WORLD } from '../config';
 import { BIOME_IDS } from '../core/types';
-import { hexKey, hexToWorld } from '../gen/hex';
+import { hexKey } from '../gen/hex';
 
 const RADIUS = 14;
 const DIRECTIONS = [{ q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 1 }, { q: -1, r: 0 }, { q: 0, r: -1 }, { q: 1, r: -1 }];
@@ -23,7 +23,7 @@ export function revealHexes(visited: ReadonlySet<string>, coord: HexCoord): Set<
   return revealed;
 }
 
-/** Axial hex position in a north-up minimap, relative to the current hex. */
+/** Position on the minimap's north-up tile grid, relative to an axial origin. */
 export function minimapPosition(coord: HexCoord, center: HexCoord, radius = RADIUS): { x: number; y: number } {
   const q = coord.q - center.q, r = coord.r - center.r;
   return { x: Math.sqrt(3) * radius * (q + r / 2), y: 1.5 * radius * r };
@@ -42,26 +42,28 @@ export function fixedScreenPoint(
 
 type PlayerMap = {
   player: WorldPlayer;
-  objects: Phaser.GameObjects.Image[];
-  revealed: Set<string>;
-  tileObjects: Map<string, Phaser.GameObjects.Image>;
-  markers: Phaser.GameObjects.Image[];
-  arrow: Phaser.GameObjects.Image;
+  root: Phaser.GameObjects.Container;
+  terrain: Phaser.GameObjects.Container;
+  markers: Phaser.GameObjects.Container;
+  visited: Set<string>;
+  tiles: Map<string, Phaser.GameObjects.Image>;
   otherArrow: Phaser.GameObjects.Image;
-  backdrop: Phaser.GameObjects.Image;
+  north: Phaser.GameObjects.Image;
   origin: { x: number; y: number };
+  scale: number;
   markerSignature: string;
   center: HexCoord;
 };
 
 const keyForBiome = (biome: BiomeId) => `world-minimap-tile-${biome}`;
+const MAP_SIZE = 180;
+const WORLD_SCALE = RADIUS / WORLD.hexSize;
+const MAP_ORIGIN = { q: 0, r: 0 };
 
 export default class MinimapModule implements WorldModule {
   static order = 400;
   private ctx!: WorldContext;
   private maps: PlayerMap[] = [];
-  private visited = new Map<WorldPlayer, Set<string>>();
-  private textureIndex = 0;
 
   init(ctx: WorldContext): void {
     this.ctx = ctx;
@@ -72,13 +74,9 @@ export default class MinimapModule implements WorldModule {
   update(): void {
     for (const map of this.maps) {
       const { player, origin } = map;
-      const hexChanged = map.center.q !== player.hex.q || map.center.r !== player.hex.r;
-      if (hexChanged) {
-        const visited = revealHexes(this.visited.get(player) ?? new Set<string>(), player.hex);
-        this.visited.set(player, visited);
-        const visibleReveal = new Set(this.ctx.world.hexesNear(player.move.x, player.move.y, 3)
-          .map(hexKey).filter((key) => visited.has(key)));
-        this.rebuildTiles(map, visibleReveal);
+      if (map.center.q !== player.hex.q || map.center.r !== player.hex.r) {
+        map.visited = revealHexes(map.visited, player.hex);
+        this.updateTiles(map);
         map.center = { ...player.hex };
       }
 
@@ -87,83 +85,90 @@ export default class MinimapModule implements WorldModule {
         this.updateMarkers(map);
         map.markerSignature = markerSignature;
       }
-      for (const other of this.ctx.players) {
-        const p = other.index === player.index ? { x: 0, y: 0 } : this.relativePlayerPosition(player, other);
-        const arrow = other.index === player.index ? map.arrow : map.otherArrow;
-        const length = Math.hypot(p.x, p.y);
-        const clampTo = 75;
-        const scale = length > clampTo ? clampTo / length : 1;
-        arrow.setPosition(origin.x + p.x * scale, origin.y + p.y * scale).setRotation(other.move.angle)
-          .setVisible(other.index === player.index || this.ctx.players.length > 1);
-        arrow.setData('screenX', origin.x + p.x * scale);
-        arrow.setData('screenY', origin.y + p.y * scale);
-        arrow.setData('screenRotation', other.move.angle);
+
+      const camera = player.camera;
+      const rotation = this.ctx.viewRotation(player);
+      const cameraRotation = (camera as Phaser.Cameras.Scene2D.Camera & { rotation: number }).rotation;
+      const point = fixedScreenPoint(origin, camera, camera.zoom, cameraRotation);
+      map.root.setPosition(point.x, point.y).setRotation(-cameraRotation).setScale(map.scale / camera.zoom);
+
+      const cos = Math.cos(rotation), sin = Math.sin(rotation);
+      const x = player.move.x * WORLD_SCALE, y = player.move.y * WORLD_SCALE;
+      map.terrain.setRotation(rotation).setPosition(-x * cos + y * sin, -x * sin - y * cos);
+      // Fade whole tiles before their corners can reach the rim. Rings outside the backdrop
+      // stay cached until the next hex crossing, so scrolling never clips a tile abruptly.
+      for (const tile of map.tiles.values()) {
+        const distance = Math.hypot(tile.x - x, tile.y - y);
+        tile.setAlpha(Math.max(0, Math.min(1, (74 - distance) / 12)));
       }
-      if (this.ctx.players.length > 1 && this.ctx.players[0].move.x === this.ctx.players[1].move.x
-          && this.ctx.players[0].move.y === this.ctx.players[1].move.y) {
-        map.otherArrow.setData('screenX', origin.x + 5);
+      for (const marker of map.markers.list as Phaser.GameObjects.Image[]) {
+        const distance = Math.hypot(marker.x - x, marker.y - y);
+        marker.setAlpha(Math.max(0, Math.min(1, (74 - distance) / 12)));
       }
-      this.layoutObjects(map);
+
+      map.north.setPosition(82 * sin, -82 * cos);
+      const other = this.ctx.players.find(({ index }) => index !== player.index);
+      if (other) {
+        const dx = (other.move.x - player.move.x) * WORLD_SCALE;
+        const dy = (other.move.y - player.move.y) * WORLD_SCALE;
+        const scale = 1 / Math.max(1, Math.hypot(dx, dy) / 72);
+        map.otherArrow.setPosition((dx * cos - dy * sin) * scale, (dx * sin + dy * cos) * scale)
+          .setRotation(other.move.angle + rotation);
+        // Both cars spawn at the same point in split screen.
+        if (dx === 0 && dy === 0) map.otherArrow.x = 5;
+      }
     }
   }
 
   destroy(): void {
-    for (const map of this.maps) {
-      map.objects.forEach((object) => object.destroy());
-    }
+    for (const map of this.maps) map.root.destroy();
     this.maps = [];
   }
 
   private createPlayerMap(player: WorldPlayer): void {
-    const scene = this.ctx.scene;
-    const viewport = cameraRect(player.camera);
-    const size = Math.min(180, viewport.width * 0.26);
-    const x = viewport.width - size / 2 - 22;
-    const y = size / 2 + 22;
-    const backdrop = scene.add.image(x, y, 'world-minimap-backdrop').setDepth(10000);
-    backdrop.setDisplaySize(size, size);
-    const arrow = scene.add.image(x, y, 'world-minimap-arrow').setDepth(10002).setDisplaySize(15, 19);
-    const otherArrow = scene.add.image(x, y, 'world-minimap-other').setDepth(10002).setDisplaySize(13, 17).setVisible(false);
-    const objects: Phaser.GameObjects.Image[] = [backdrop, arrow, otherArrow];
-    this.ctx.showOnlyTo(backdrop, player);
-    this.ctx.showOnlyTo(arrow, player);
-    this.ctx.showOnlyTo(otherArrow, player);
-    for (const object of objects) {
-      object.setScrollFactor(0);
-      object.setData({ screenX: object.x, screenY: object.y, screenRotation: 0, baseScaleX: object.scaleX, baseScaleY: object.scaleY });
-    }
-    this.maps.push({ player, objects, revealed: new Set(), tileObjects: new Map(), markers: [], arrow, otherArrow, backdrop,
-      markerSignature: '', center: { q: Number.NaN, r: Number.NaN }, origin: { x, y } });
+    const { scene } = this.ctx;
+    const { width } = player.camera;
+    const size = Math.min(MAP_SIZE, width * 0.26);
+    const origin = { x: width - size / 2 - 22, y: size / 2 + 22 };
+    const backdrop = scene.add.image(0, 0, 'world-minimap-backdrop').setDisplaySize(MAP_SIZE, MAP_SIZE);
+    const otherArrow = scene.add.image(0, 0, 'world-minimap-other').setDisplaySize(17, 13)
+      .setVisible(this.ctx.players.length > 1);
+    const arrow = scene.add.image(0, 0, 'world-minimap-arrow').setDisplaySize(19, 15).setRotation(-Math.PI / 2);
+    const north = scene.add.image(0, 0, 'world-minimap-north').setDisplaySize(17, 17);
+    const markers = scene.add.container(0, 0);
+    const terrain = scene.add.container(0, 0, [markers]);
+    const root = scene.add.container(origin.x, origin.y, [backdrop, terrain, otherArrow, arrow, north])
+      .setDepth(10000).setScrollFactor(0);
+    this.ctx.showOnlyTo(root, player);
+    this.maps.push({ player, root, terrain, markers, visited: new Set(), tiles: new Map(), otherArrow, north,
+      markerSignature: '', center: { q: Number.NaN, r: Number.NaN }, origin, scale: size / MAP_SIZE });
   }
 
-  private rebuildTiles(map: PlayerMap, revealed: Set<string>): void {
-    for (const image of map.tileObjects.values()) image.destroy();
-    map.tileObjects.clear();
-    const center = map.player.hex;
-    for (const key of revealed) {
-      const [q, r] = key.split(',').map(Number);
-      const coord = { q, r };
-      const plan = this.ctx.world.plan(coord);
-      const point = minimapPosition(coord, center);
-      const image = this.ctx.scene.add.image(map.origin.x + point.x, map.origin.y + point.y, keyForBiome(plan.biome))
-        .setDepth(10001).setDisplaySize(2 * RADIUS, 2 * RADIUS);
-      this.ctx.showOnlyTo(image, map.player);
-      image.setScrollFactor(0);
-      image.setData({ screenX: map.origin.x + point.x, screenY: map.origin.y + point.y, screenRotation: 0,
-        baseScaleX: image.scaleX, baseScaleY: image.scaleY });
-      map.tileObjects.set(key, image);
-      map.objects.push(image);
+  private updateTiles(map: PlayerMap): void {
+    const { player } = map;
+    const nearby = new Map(this.ctx.world.hexesNear(player.move.x, player.move.y, 3)
+      .map(coord => [hexKey(coord), coord]));
+    for (const [key, image] of map.tiles) {
+      if (nearby.has(key)) continue;
+      image.destroy();
+      map.tiles.delete(key);
     }
-    map.revealed = revealed;
+    for (const [key, coord] of nearby) {
+      if (map.tiles.has(key) || !map.visited.has(key)) continue;
+      const plan = this.ctx.world.plan(coord);
+      const { x, y } = minimapPosition(coord, MAP_ORIGIN);
+      const image = this.ctx.scene.add.image(x, y, keyForBiome(plan.biome)).setDisplaySize(2 * RADIUS, 2 * RADIUS);
+      map.terrain.addAt(image, map.terrain.length - 1);
+      map.tiles.set(key, image);
+    }
   }
 
   private updateMarkers(map: PlayerMap): void {
-    for (const marker of map.markers) marker.destroy();
-    map.markers = [];
+    map.markers.removeAll(true);
     const { player } = map;
     for (const coord of this.ctx.world.hexesNear(player.move.x, player.move.y, 3)) {
+      if (!map.tiles.has(hexKey(coord))) continue;
       const plan = this.ctx.world.plan(coord);
-      if (!map.revealed.has(hexKey(coord))) continue;
       if (plan.home) this.addMarker(map, coord, 'world-minimap-home');
       for (const active of player.save.quests) {
         const quest = active.quest;
@@ -173,46 +178,11 @@ export default class MinimapModule implements WorldModule {
         if (target) this.addMarker(map, coord, 'world-minimap-quest');
       }
     }
-    // Keep managed camera contents aligned after markers have been replaced.
-    map.objects = [
-      map.backdrop, map.arrow, map.otherArrow,
-      ...map.tileObjects.values(), ...map.markers,
-    ];
   }
 
   private addMarker(map: PlayerMap, coord: HexCoord, texture: string): void {
-    const offset = minimapPosition(coord, map.player.hex);
-    const image = this.ctx.scene.add.image(map.origin.x + offset.x, map.origin.y + offset.y, texture)
-      .setDepth(10002).setDisplaySize(9, 9);
-    this.ctx.showOnlyTo(image, map.player);
-    image.setScrollFactor(0);
-    image.setData({ screenX: map.origin.x + offset.x, screenY: map.origin.y + offset.y, screenRotation: 0,
-      baseScaleX: image.scaleX, baseScaleY: image.scaleY });
-    map.markers.push(image);
-  }
-
-  private layoutObjects(map: PlayerMap): void {
-    const camera = map.player.camera;
-    const viewport = cameraRect(camera);
-    const zoom = camera.zoom || 1;
-    const rotation = (camera as unknown as { rotation: number }).rotation;
-    for (const object of map.objects) {
-      const data = object.data.values;
-      const point = fixedScreenPoint({ x: data.screenX, y: data.screenY }, viewport, zoom, rotation);
-      object.setPosition(point.x, point.y);
-      object.setRotation(data.screenRotation - rotation);
-      object.setScale(data.baseScaleX / zoom, data.baseScaleY / zoom);
-    }
-  }
-
-  private relativePlayerPosition(player: WorldPlayer, other: WorldPlayer): { x: number; y: number } {
-    const playerCenter = hexToWorld(player.hex), otherCenter = hexToWorld(other.hex);
-    const hexOffset = minimapPosition(other.hex, player.hex);
-    const scale = RADIUS / WORLD.hexSize;
-    return {
-      x: hexOffset.x + ((other.move.x - otherCenter.x) - (player.move.x - playerCenter.x)) * scale,
-      y: hexOffset.y + ((other.move.y - otherCenter.y) - (player.move.y - playerCenter.y)) * scale,
-    };
+    const { x, y } = minimapPosition(coord, MAP_ORIGIN);
+    map.markers.add(this.ctx.scene.add.image(x, y, texture).setDisplaySize(9, 9));
   }
 
   private createTextures(scene: Phaser.Scene): void {
@@ -231,6 +201,11 @@ export default class MinimapModule implements WorldModule {
     this.bakeTexture(scene, 'world-minimap-backdrop', 192, (g) => {
       g.fillStyle(0x102b35, 0.88); g.fillCircle(96, 96, 94); g.lineStyle(4, 0xf4f2d8, 0.9); g.strokeCircle(96, 96, 93);
     });
+    this.bakeTexture(scene, 'world-minimap-north', 32, (g) => {
+      g.fillStyle(0x102b35, 1); g.fillCircle(16, 16, 15);
+      g.lineStyle(3, 0xf4f2d8, 1);
+      g.beginPath(); g.moveTo(10, 23); g.lineTo(10, 9); g.lineTo(22, 23); g.lineTo(22, 9); g.stroke();
+    });
     this.bakeTexture(scene, 'world-minimap-arrow', 32, (g) => {
       g.fillStyle(0xffe35b, 1); g.lineStyle(2, 0x382e17, 1); g.beginPath(); g.moveTo(28, 16); g.lineTo(5, 4); g.lineTo(9, 16); g.lineTo(5, 28); g.closePath(); g.fill(); g.stroke();
     });
@@ -243,18 +218,11 @@ export default class MinimapModule implements WorldModule {
 
   private bakeTexture(scene: Phaser.Scene, key: string, size: number, draw: (g: Phaser.GameObjects.Graphics) => void): void {
     if (scene.textures.exists(key)) return;
-    const textureKey = `${key}-${this.textureIndex++}`;
     const graphics = scene.make.graphics({ x: 0, y: 0 });
     draw(graphics);
-    graphics.generateTexture(textureKey, size, size);
+    graphics.generateTexture(key, size, size);
     graphics.destroy();
-    scene.textures.renameTexture(textureKey, key);
   }
-}
-
-function cameraRect(camera: Phaser.Cameras.Scene2D.Camera) {
-  return { x: camera.x, y: camera.y, width: camera.width, height: camera.height,
-    right: camera.x + camera.width, top: camera.y };
 }
 
 function questTarget(quest: Quest, coord: HexCoord, biome: BiomeId, home: boolean): boolean {

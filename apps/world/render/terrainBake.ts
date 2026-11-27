@@ -1,5 +1,6 @@
 import type { WorldQuery } from '../core/runtime';
-import type { Feature, RoadPath, SurfaceKind, Vec } from '../core/types';
+import type { Feature, HexCoord, HexPlan, RoadPath, SurfaceKind, Vec } from '../core/types';
+import { prepareSurface } from '../gen/surface';
 
 const COLORS: Record<SurfaceKind, readonly [number, number, number]> = {
   grass: [134, 173, 91],
@@ -62,6 +63,21 @@ interface Ground {
   cells: number;
 }
 
+const surfaceSamplers = new WeakMap<HexPlan, ReturnType<typeof prepareSurface>>();
+
+function samplerFor(plan: HexPlan): ReturnType<typeof prepareSurface> {
+  let sample = surfaceSamplers.get(plan);
+  if (!sample) {
+    sample = prepareSurface(plan);
+    surfaceSamplers.set(plan, sample);
+  }
+  return sample;
+}
+
+function shoreLand(kind: SurfaceKind): boolean {
+  return !water(kind) && !travelSurface(kind);
+}
+
 let gridCanvas: CanvasRenderingContext2D | undefined;
 
 function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number, y: number,
@@ -75,20 +91,41 @@ function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number,
   const pixels = grid.data;
   const kind: SurfaceKind[] = [];
 
+  const sameHex = (a: HexCoord, b: HexCoord) => a.q === b.q && a.r === b.r;
+  const lastX = (firstX + cells - 1) * cell;
   for (let row = 0; row < cells; row++) {
-    for (let col = 0; col < cells; col++) {
-      const gx = firstX + col;
-      const gy = firstY + row;
-      const sample = world.surfaceAt(gx * cell, gy * cell);
-      const i = row * cells + col;
-      kind.push(sample.kind);
-      const [r, g, b] = COLORS[sample.kind];
-      const tint = mottling(world.seed, gx, gy);
-      const darkwood = sample.biome === 'darkwood' && !travelSurface(sample.kind);
-      pixels[i * 4] = r + tint - (darkwood ? 22 : 0);
-      pixels[i * 4 + 1] = g + tint - (darkwood ? 12 : 0);
-      pixels[i * 4 + 2] = b + tint;
-      pixels[i * 4 + 3] = 255;
+    const gy = firstY + row;
+    const wy = gy * cell;
+    const rightHex = world.hexAt(lastX, wy);
+    let col = 0;
+    while (col < cells) {
+      const hex = world.hexAt((firstX + col) * cell, wy);
+      let end = cells;
+      if (!sameHex(hex, rightHex)) {
+        // A hex is convex. Find the first sample outside this hex once for the whole run.
+        let inside = col, outside = cells - 1;
+        while (outside - inside > 1) {
+          const mid = (inside + outside) >>> 1;
+          if (sameHex(hex, world.hexAt((firstX + mid) * cell, wy))) inside = mid;
+          else outside = mid;
+        }
+        end = outside;
+      }
+      const plan = world.plan(hex);
+      const surfaceAt = samplerFor(plan);
+      for (; col < end; col++) {
+        const gx = firstX + col;
+        const surface = surfaceAt(gx * cell, wy).kind;
+        const i = row * cells + col;
+        kind.push(surface);
+        const [r, g, b] = COLORS[surface];
+        const tint = mottling(world.seed, gx, gy);
+        const darkwood = plan.biome === 'darkwood' && !travelSurface(surface);
+        pixels[i * 4] = r + tint - (darkwood ? 22 : 0);
+        pixels[i * 4 + 1] = g + tint - (darkwood ? 12 : 0);
+        pixels[i * 4 + 2] = b + tint;
+        pixels[i * 4 + 3] = 255;
+      }
     }
   }
 
@@ -100,10 +137,10 @@ function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number,
       const south = kind[i + cells];
       const west = kind[i - 1];
       const east = kind[i + 1];
-      if (surface === 'shallow' && [north, south, west, east].some(k => !water(k) && !travelSurface(k))) {
+      if (surface === 'shallow' && (shoreLand(north) || shoreLand(south) || shoreLand(west) || shoreLand(east))) {
         // A pale band of wet sand and foam along the shallow side of the shore.
         pixels.set([161, 204, 179], i * 4);
-      } else if (surface === 'deep' && [north, south, west, east].includes('shallow')) {
+      } else if (surface === 'deep' && (north === 'shallow' || south === 'shallow' || west === 'shallow' || east === 'shallow')) {
         pixels.set([61, 151, 178], i * 4);
       } else if (surface === 'cliff' && (north !== 'cliff' || west !== 'cliff')) {
         pixels.set([169, 124, 101], i * 4);

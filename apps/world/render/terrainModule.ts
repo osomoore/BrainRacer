@@ -1,13 +1,15 @@
 import type Phaser from 'phaser';
 import { WORLD_TERRAIN_RENDER } from '../config';
-import { visibilityRadius } from '../logic/rules';
 import { DEPTH, type WorldContext, type WorldModule } from '../core/runtime';
 import { chunkKey, LruCache, prioritizeChunks, type ChunkRequest } from './terrainCore';
 import { bakeTerrain } from './terrainBake';
 
+// The mask only contains a flat fill and soft light, so it can be uploaded at quarter resolution.
+const MASK_SCALE = 0.25;
+
 interface BakedChunk { image: Phaser.GameObjects.Image; textureKey: string }
 interface DarknessLayer { image: Phaser.GameObjects.Image; canvas: HTMLCanvasElement; texture: Phaser.Textures.CanvasTexture;
-  dark: number; radius: number; x: number; y: number }
+  radius: number; x: number; y: number }
 
 /** Progressive, bounded terrain texture renderer. */
 export default class TerrainModule implements WorldModule {
@@ -29,15 +31,15 @@ export default class TerrainModule implements WorldModule {
     this.ctx = ctx;
     ctx.players.forEach((player) => {
       const key = `world-dark-${player.index}-${this.sequence++}`;
-      const width = Math.max(1, Math.ceil(player.camera.width));
-      const height = Math.max(1, Math.ceil(player.camera.height));
+      const width = Math.max(1, Math.ceil(player.camera.width * MASK_SCALE));
+      const height = Math.max(1, Math.ceil(player.camera.height * MASK_SCALE));
       const canvas = ctx.scene.textures.createCanvas(key, width, height);
       if (canvas) {
         const c = canvas.getSourceImage() as HTMLCanvasElement;
         const overlay = ctx.scene.add.image(player.camera.x, player.camera.y, key)
           .setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.darkness).setVisible(false);
         ctx.showOnlyTo(overlay, player);
-        this.overlays.push({ image: overlay, canvas: c, texture: canvas, dark: -1, radius: -1, x: -Infinity, y: -Infinity });
+        this.overlays.push({ image: overlay, canvas: c, texture: canvas, radius: -1, x: -Infinity, y: -Infinity });
       }
     });
   }
@@ -123,43 +125,41 @@ export default class TerrainModule implements WorldModule {
       const visible = dark > 0.03;
       layer.image.setVisible(visible);
       if (!visible) return;
-      const radius = visibilityRadius(dark, player.traits);
       const cam = player.camera;
-      // Phaser exposes camera rotation at runtime; the installed Camera declaration omits it.
-      const rotation = (cam as Phaser.Cameras.Scene2D.Camera & { rotation: number }).rotation;
+      const rotation = this.ctx.viewRotation(player);
       const pivotX = cam.width * cam.originX;
       const pivotY = cam.height * cam.originY;
-      const dx = player.move.x - cam.midPoint.x;
-      const dy = player.move.y - cam.midPoint.y;
-      const cos = Math.cos(rotation), sin = Math.sin(rotation);
-      const projectedX = pivotX + cam.zoom * (dx * cos - dy * sin);
-      const projectedY = pivotY + cam.zoom * (dx * sin + dy * cos);
-      // Keep the dim layer viewport-sized; project the player into its clear circle independently.
       layer.image.setPosition(pivotX, pivotY)
-        .setRotation(-rotation).setDisplaySize(cam.width / cam.zoom, cam.height / cam.zoom);
-      const lightRadius = radius * cam.zoom;
-      if (Math.abs(dark - layer.dark) < 0.015 && Math.abs(lightRadius - layer.radius) < 2
-        && Math.abs(projectedX - layer.x) < 2 && Math.abs(projectedY - layer.y) < 2) return;
-      const g = layer.canvas.getContext('2d');
-      if (!g) return;
-      g.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
-      g.fillStyle = `rgba(0,0,0,${Math.min(0.94, dark * 0.92)})`;
+        .setRotation(-rotation).setDisplaySize(cam.width / cam.zoom, cam.height / cam.zoom)
+        .setAlpha(dark * WORLD_TERRAIN_RENDER.darknessAlpha);
+
+      const radius = WORLD_TERRAIN_RENDER.lightRadius[player.traits.light] * cam.zoom * MASK_SCALE;
+      let x = 0, y = 0;
+      if (radius > 0) {
+        const dx = player.move.x - cam.midPoint.x;
+        const dy = player.move.y - cam.midPoint.y;
+        const cos = Math.cos(rotation), sin = Math.sin(rotation);
+        x = (pivotX + cam.zoom * (dx * cos - dy * sin)) * MASK_SCALE;
+        y = (pivotY + cam.zoom * (dx * sin + dy * cos)) * MASK_SCALE;
+      }
+      if (radius === layer.radius && Math.abs(x - layer.x) < 0.5 && Math.abs(y - layer.y) < 0.5) return;
+
+      const g = layer.texture.context;
+      g.fillStyle = '#000';
       g.fillRect(0, 0, layer.canvas.width, layer.canvas.height);
-      g.globalCompositeOperation = 'destination-out';
-      g.beginPath();
-      const edge = g.createRadialGradient(projectedX, projectedY,
-        lightRadius * 0.76, projectedX, projectedY, lightRadius);
-      edge.addColorStop(0, 'rgba(0,0,0,1)');
-      edge.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = edge;
-      g.arc(projectedX, projectedY, lightRadius, 0, Math.PI * 2);
-      g.fill();
-      g.globalCompositeOperation = 'source-over';
+      if (radius > 0) {
+        g.globalCompositeOperation = 'destination-out';
+        const edge = g.createRadialGradient(x, y, radius * 0.48, x, y, radius);
+        edge.addColorStop(0, 'rgba(0,0,0,1)');
+        edge.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = edge;
+        g.fillRect(x - radius, y - radius, 2 * radius, 2 * radius);
+        g.globalCompositeOperation = 'source-over';
+      }
       layer.texture.refresh();
-      layer.dark = dark;
-      layer.radius = lightRadius;
-      layer.x = projectedX;
-      layer.y = projectedY;
+      layer.radius = radius;
+      layer.x = x;
+      layer.y = y;
     });
   }
 
