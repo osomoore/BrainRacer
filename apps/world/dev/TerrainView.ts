@@ -80,7 +80,7 @@ export default class TerrainView extends Phaser.Scene {
       },
       save: () => {},
       award: () => false,
-      viewRotation: player => player.camera.rotation,
+      viewRotation: player => -player.move.angle - Math.PI / 2,
       setCreation: (player, creation) => {
         player.creation = creation;
         player.traits = traitsOf(creation);
