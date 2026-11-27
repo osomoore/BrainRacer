@@ -20,3 +20,11 @@ export const WORLD = {
 // --- save + shell (W3) -------------------------------------------------------------------------
 
 // --- quests (W4) -------------------------------------------------------------------------------
+export const QUESTS = {
+  /** How far the caller looks for biomes when building the nearby lookup. */
+  nearbyRings: 3,
+  fetchChance: 0.5,
+  duckChance: 0.5,
+  stars: { fetch: 3, deliver: 2 },
+  wordLimit: { starter: 5, easy: 8, medium: 12, hard: 16 },
+} as const;
