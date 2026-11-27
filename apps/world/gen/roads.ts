@@ -3,6 +3,7 @@ import type { HexCoord, RoadPath, Vec } from '../core/types';
 import { segmentDistanceSquared } from './geometry';
 import { hash } from './random';
 import { distance, edgeMidpoint, hexToWorld, neighbor } from './hex';
+/** Hard-coded gen distances were tuned for a 2400 px hex. */const K = WORLD.hexSize / 2400;
 
 function canonicalPair(a: HexCoord, b: HexCoord): string[] {
   const ka = `${a.q},${a.r}`;
@@ -122,7 +123,7 @@ export function buildRoads(seed: number, coord: HexCoord, links: number[]): Road
       const [a, b] = group.map(arrival => arrival.crossing);
       const midpoint = between(a, b, 0.5, 0);
       fork = between(hub, midpoint, 0.32, 0);
-      roads.push(sampleCurve([hub, between(hub, fork, 0.50, 95), fork], 'road', GEN.roadWidth));
+      roads.push(sampleCurve([hub, between(hub, fork, 0.50, 95 * K), fork], 'road', GEN.roadWidth));
     }
     for (const { edge, crossing } of group) {
       const rank = (tag: string) => unit(seed, tag, coord.q, coord.r, edge);
@@ -131,7 +132,7 @@ export function buildRoads(seed: number, coord: HexCoord, links: number[]): Road
       const [min, max] = GEN.roadBendOffset;
       const sign = rank('bend') < 0.5 ? -1 : 1;
       const angle = edge * Math.PI / 3;
-      const approach = { x: crossing.x - 260 * Math.cos(angle), y: crossing.y - 260 * Math.sin(angle) };
+      const approach = { x: crossing.x - 260 * K * Math.cos(angle), y: crossing.y - 260 * K * Math.sin(angle) };
       const controls = Array.from({ length: bends }, (_, i) =>
         between(fork, approach, (i + 1) / (bends + 1), sign * (-1) ** i * (min + (max - min) * rank('bend' + i))));
       roads.push(sampleCurve([fork, ...controls, approach, crossing], 'road', GEN.roadWidth));

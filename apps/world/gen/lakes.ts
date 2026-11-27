@@ -1,5 +1,5 @@
 import type { Rng } from '../../workshop/core/rng';
-import { GEN } from '../config';
+import { GEN, WORLD } from '../config';
 import type { Feature, HexPlan, RoadPath, Vec } from '../core/types';
 import type { FeatureSite } from './features';
 import { inPolygon, polygonDistanceSquared } from './geometry';
@@ -9,6 +9,9 @@ import { pathThrough } from './roads';
 import { prepareGround } from './surface';
 import { insideHex } from './terrain';
 
+/** Hard-coded gen distances were tuned for a 2400 px hex. */
+const K = WORLD.hexSize / 2400;
+
 export function buildLakeIsland(layout: HexLayout, rng: Rng): FeatureSite | undefined {
   const { plan } = layout;
   const groundAt = prepareGround(plan);
@@ -16,20 +19,20 @@ export function buildLakeIsland(layout: HexLayout, rng: Rng): FeatureSite | unde
   for (const road of plan.roads) {
     const edge = road.points.at(-1)!;
     if (hexInset(plan.center, edge) > 1) continue;
-    const landing = road.points.find(at => hexInset(plan.center, at) < 320);
+    const landing = road.points.find(at => hexInset(plan.center, at) < 320 * K);
     if (!landing || groundAt(landing.x, landing.y).kind === 'grass') continue;
-    plan.terrain.push({ kind: 'shallow', poly: insideHex(plan.center, organic(landing, 430, 405, rng)) });
+    plan.terrain.push({ kind: 'shallow', poly: insideHex(plan.center, organic(landing, 430 * K, 405 * K, rng)) });
   }
 
   const lakeGround = prepareGround(plan);
   const islands = plan.roads.flatMap(road => road.points
-    .filter(at => Math.hypot(at.x - layout.hub.x, at.y - layout.hub.y) > 700
-      && hexInset(plan.center, at) > 540 && lakeGround(at.x, at.y).kind === 'deep')
+    .filter(at => Math.hypot(at.x - layout.hub.x, at.y - layout.hub.y) > 700 * K
+      && hexInset(plan.center, at) > 540 * K && lakeGround(at.x, at.y).kind === 'deep')
     .map(at => ({ at, road })));
   if (!islands.length) return;
   const { at: island, road } = rng.pick(islands);
-  plan.terrain.push({ kind: 'grass', poly: organic(island, 260, 220, rng) });
-  const approaches = road.points.filter(at => Math.hypot(at.x - island.x, at.y - island.y) > 420
+  plan.terrain.push({ kind: 'grass', poly: organic(island, 260 * K, 220 * K, rng) });
+  const approaches = road.points.filter(at => Math.hypot(at.x - island.x, at.y - island.y) > 420 * K
     && hexInset(plan.center, at) > GEN.activityRadius);
   const at = approaches.findLast(p => lakeGround(p.x, p.y).kind !== 'deep') ?? approaches.at(-1) ?? layout.hub;
   layout.reserve(at, GEN.activityRadius);
@@ -118,14 +121,14 @@ function shallowFord(plan: HexPlan, road: RoadPath, first: number, last: number,
   if (!a || !b) return;
   if (hexInset(plan.center, a) <= margin || hexInset(plan.center, b) <= margin) return;
   const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
-  if (length < 275 || length > 1080) return;
+  if (length < 275 * K || length > 1080 * K) return;
   const traversable = (p: Vec) => {
     const kind = groundAt(p.x, p.y).kind;
     return kind !== 'deep' && kind !== 'cliff';
   };
   if (!points.slice(first, last + 1).every(traversable)) return;
   for (const sign of [1, -1]) {
-    const bend = sign * (road.width / 2 + margin + 135);
+    const bend = sign * (road.width / 2 + margin + 135 * K);
     const bypass = pathThrough([a, offset(a, dx * 0.22 - dy / length * bend, dy * 0.22 + dx / length * bend),
       offset(a, dx * 0.78 - dy / length * bend, dy * 0.78 + dx / length * bend), b]);
     if (bypass.points.every(p => outside(p) && hexInset(plan.center, p) > margin && traversable(p)

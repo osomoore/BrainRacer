@@ -55,7 +55,7 @@ function buildTargets(at: ActivityTarget['at'], role: string, count: number, rng
   const angle = rng.range(0, 2 * Math.PI);
   return Array.from({ length: count }, (_, index) => {
     const targetAngle = angle + index * 2 * Math.PI / count;
-    return { at: offset(at, 138 * Math.cos(targetAngle), 138 * Math.sin(targetAngle)), role };
+    return { at: offset(at, GEN.targetDistance * Math.cos(targetAngle), GEN.targetDistance * Math.sin(targetAngle)), role };
   });
 }
 
