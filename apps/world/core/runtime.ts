@@ -128,3 +128,25 @@ export interface WorldModuleClass {
 export const DEPTH = {
   ground: 0, roads: 1, decals: 2, objects: 10, players: 20, canopy: 30, darkness: 40, popups: 50,
 } as const;
+
+// ---------------------------------------------------------------------------------------------
+// Activities: one file per kind, `apps/world/activities/kinds/<kind>.ts`, default export `ActivityKindDef`.
+// The activities module (W7a) finds sites near players, offers "A to start", runs one ActivityRun per player,
+// and awards stars on success via ctx.award(player, site.stars, site.id, ...).
+// ---------------------------------------------------------------------------------------------
+
+export type ActivityOutcome = 'running' | 'success' | 'fail';
+
+export interface ActivityRun {
+  /** Called every frame while running. The player keeps driving unless the run sets player.busy. */
+  update(dt: number): ActivityOutcome;
+  /** Remove sprites, timers and listeners. */
+  destroy(): void;
+}
+
+export interface ActivityKindDef {
+  kind: import('./types').ActivityKind;
+  /** Draw the idle site (props, targets) when its hex comes into range; return a cleanup function. */
+  decorate(ctx: WorldContext, site: ActivitySite, live: HexLive): () => void;
+  start(ctx: WorldContext, site: ActivitySite, player: WorldPlayer, live: HexLive): ActivityRun;
+}

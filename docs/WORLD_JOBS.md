@@ -99,3 +99,64 @@ state) plus helpers.
   spot (fetch) or on accept (deliver: carrying true), complete when the goal is met (hex biome / home / back at
   giver), drop/abandon, stars awarded, `questSeq` advance. Respect `traits.carry` for how many carried at once.
 - Tests: determinism, all text within limits at every level, tracker flows for each goal kind.
+
+## Wave 2a (merged wave 1: gen, traits/move, shell, quests are in `feature/world`)
+
+Runtime contract for all wave-2 jobs: `apps/world/core/runtime.ts` (WorldContext, WorldPlayer, WorldBus events,
+WorldModule auto-registration, HexLive, ActivityKindDef). Heading-up cameras (docs/WORLD.md). Placeholder art is
+code-drawn and **baked to textures** (CLAUDE.md rule 15); a later Sol art job replaces it, so keep one draw
+function per object kind in one table.
+
+### W1b gen richness — `apps/world/gen/**`, `apps/world/dev/GenMap.ts`, gen section of config
+The first pass is too sparse: blobs are 2–4 ellipses of ~300 px in a 2400 px hex and roads are straight spokes.
+- **Coverage per biome** (share of off-road area; GenMap prints the measured share per hex in debug text): lake
+  40–60% deep water as one or two big organic lakes (radius 800–1400) with islands and shallow shores; mud 30–45%
+  deepMud in big pools inside the mud ground; rocky boulder fields (many solid boulders 40–90 px) + rough + small
+  cliffs; darkwood dense trees (solid) with clearings, whole hex dark 0.6+, a cave; snow 25–40% ice sheets + ice
+  blocks; desert dunes (sand) + cactus clusters + rough mesas; jungle 40%+ tallGrass + dense trees/vines with narrow
+  paths; canyon: one or two real valleys whose walls are long cliff polygons (narrow valley feature inside),
+  gaps to jump with detours; geyser: many hot springs + a few vents (obstacle kind `vent`, effect `pass`, the play
+  module bounces you) ; meadow: flowers, a few trees, ponds. Use organic polygons (noise-perturbed, 24–40 points),
+  not plain ellipses.
+- **Scatter obstacles**: trees, rocks, bushes etc. at biome densities (dozens per hex, not 2–6), never on roads or
+  within `GEN.placementClearance` of road edges, sites, items, givers, homes.
+- **Roads wind**: meandering curves (offset midpoints, 2–4 bends per edge-to-hub road), hub offset from the hex
+  center, merge roads that arrive at similar angles; paths to sites curve too and avoid deep water/cliffs.
+- Keep every W1 test passing; add coverage-range tests per biome and a reachability test (from the hub, every site
+  target and item is reachable by the default car over passable surfaces, using a coarse grid flood fill with
+  `logic/rules.ts` passability). Keep `surfaceAt` fast (bbox prefilter, per-hex spatial grid for blobs/obstacles);
+  add a micro-benchmark test that 10k random samples run under ~50 ms.
+
+### W5a host + objects — `apps/world/shell/WorldScene.ts` (replace the placeholder), `apps/world/host/**`, `apps/world/render/objects*`, `apps/world/render/players*`, host section of config
+- WorldScene builds the `WorldContext` per `core/runtime.ts`: WorldGen + HexLive map (create on demand, drop beyond
+  `WORLD.keepRings`), bus, players from the shell's selection (profile, device, save, reading, creation via
+  `logic/slots.ts`, traits via `logic/traits.ts`), `award`, `save` (debounced), `setCreation`, `showOnlyTo`.
+- Module loader: `import.meta.glob('../{render,play,activities,hud}/**/*Module.ts', { eager: true })`, sort by
+  `order`, init, update each frame.
+- Input: map `shared/input` devices (pads + the two keyboard layouts + touch later) to `PlayerControls` each frame.
+- Cameras: 1P full screen; 2P two 960×1080 viewports. **Heading-up**: camera rotation follows the creation's angle
+  with smoothing (like Brain Racer's CameraRig), the creation sits lower than center (look-ahead). Zoom tunable.
+- Minimal driving so the scene is playable before W6: call `logic/move.ts` `step` with `ctx.world` per player,
+  update `hex`/`surface`, emit `player:hex`. Start positions per docs/WORLD.md (own home in 1P, P1's home in 2P,
+  `last` if saved); save `last` on leave and every few seconds.
+- Objects module: sprites for obstacles, items, givers, homes (pad + door), treasures, feature props (ramps, bridge
+  decks, tunnel roofs that fade when a player is under them) for hexes near players; create/destroy as hexes enter
+  and leave range; pooled; baked placeholder textures. Player sprites via `buildRig(scene, ws, model, 'top')`,
+  rebuilt on `player:swap`; both players visible to both cameras.
+- `window.__world` = ctx for tests. Dev quick start `world.html?play=1&seed=N` (skip title, default profile(s),
+  `play=2` for two keyboard players).
+- e2e: `tests/e2e/world.spec.ts` (one spec): quick start loads, a player moves when a key is held, no console errors.
+
+### W5b terrain + minimap — `apps/world/render/terrain*`, `apps/world/render/minimap*`, `apps/world/dev/TerrainView.ts`, terrain section of config
+- `TerrainModule`: bake the ground into chunk textures (e.g. 512 px chunks, sampling `ctx.world.surfaceAt` on a
+  grid, ~8–16 px cells) with a distinct, readable look per SurfaceKind (grass, mud with puddle sheen, deep mud darker,
+  rough pebbles, sand ripples, snow, ice shine, shallow and deep water with shore edge, hot springs, cliffs with a
+  shadowed lip), soft transitions between kinds, roads/paths/bridges drawn on top with edges. Bake progressively
+  (a few chunks per frame, nearest first, ahead of the heading); LRU cache sized for 2 players; no live Graphics.
+  Darkness: a per-player dark overlay with a light circle sized by `logic/rules.ts` `visibilityRadius` (only that
+  player's camera).
+- `MinimapModule`: per player, a corner hex minimap (north-up, biome colors, distinct and kid-readable), revealed hexes
+  (visited + neighbors this session), player arrows (both players), home markers, a marker for tracked quest targets
+  (read `player.save.quests`). Baked hex tiles, updated only when the reveal set changes.
+- Dev scene `TerrainView` renders terrain around a seed at a few zoom levels without the full host (for screenshots).
+- Perf: report chunk bake time per chunk and steady-state FPS in Edge at 1920×1080 with 6× CPU throttle (TV box proxy).
