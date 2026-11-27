@@ -229,3 +229,19 @@ From the W1b GenMap review (seed 29, 4 rings):
 - Canyon: cliffs are ~5%. Make one or two real valleys per canyon hex: long cliff walls 150–300 px thick bounding a
   valley 400–900 px wide that the road runs through, a narrow side valley (width max) and a jump gap with a detour.
   Target 15–30% cliff coverage. Keep reachability tests green.
+
+## All remaining jobs: input rule
+Every interaction must work with a pad button and with a tap (mobile is 1 player, touch only; see docs/WORLD.md
+"Input"). Panels/dialogs: tap targets >= 120 px, pad badges only when a pad is in use. Touch players get their
+controls from `apps/world/input/` (TouchModule writes `player.controls`); read `player.controls`, never raw input.
+
+### S1 touch controls (Claude Sonnet) — `apps/world/input/**`, `apps/world/dev/TouchView.ts`, input section of config
+- `TouchModule` (WorldModule, order 50, auto-loaded from `apps/world/input/*Module.ts`; if the host glob does not
+  include `input/`, report the one-line host change needed): active only when the game runs in touch mode (1 player,
+  `shared/device` isMobile or a `?touch=1` override). Draws a fixed-to-screen virtual stick (appears where the left
+  thumb lands in the left 45% of the screen, max radius ~150 px logical) and A / B / X / Y buttons bottom-right
+  (>= 130 px, high contrast, icons/letters), multi-touch (steer and press at once). Writes `player.controls`:
+  stick -> x/y, throttle = stick push forward (heading-up: up = forward), brake = pull back, edges for buttons.
+- Pure mapping logic (stick vector -> controls, dead zone, edge detection, pointer assignment) in a Phaser-free
+  file with tests. Baked textures only. Hide when a pad connects; show again on touch.
+- Dev scene `TouchView` to screenshot the overlay; e2e not required (note how to emulate touch in Playwright).

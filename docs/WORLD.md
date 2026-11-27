@@ -10,6 +10,12 @@ activities, do simple reading quests, and earn stars. Branch `feature/world` (in
   with their creation's heading, like Brain Racer (`CAMERA.rotTau`-style smoothing). The minimap stays north-up with
   a rotating player arrow. Two players = side-by-side split screen, each view 960×1080, one shared world scene with two cameras.
   Both players see each other. Mobile = 1 player.
+- **Input (user, 2026-11-27): controllers and mobile are the main ways it is played.** Mobile = 1 player, touch only
+  (on-screen stick + A/B/X/Y buttons, `apps/world/input/`). Controllers = usually 2 players (Xbox-style pads, also
+  generic pads via `shared/input/padMaps.ts`). Keyboard is for development. **Every interaction must work with a pad
+  button AND a tap**: dialogs and panels have tap targets >= 120 px and show pad button badges only when a pad is
+  in use; no hover-only UI; nothing needs a keyboard. Mobile also needs landscape full screen and must stay smooth on a
+  phone GPU (same budget as the TV box).
 - **No Matter physics.** Movement and collision are pure kinematics in `apps/world/logic/move.ts` (circle collider
   vs circle obstacles and polygon solids). Cheaper on the Mali TV box and unit-testable. Terrain must *feel*
   different, not just change top speed: per-surface acceleration, drag, sideways grip (ice and mud slide and drift,
