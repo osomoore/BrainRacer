@@ -1,6 +1,6 @@
 /** Desktop joins by device. Touch starts one player directly. */
 import Phaser from 'phaser';
-import { goToHub } from '../../../shared/hub';
+import { goToGame, goToHub } from '../../../shared/hub';
 import type { DeviceId } from '../../../shared/input/deviceInput';
 import { ConfirmPrompt, FaceButtonBadge } from '../../../shared/ui/menu/FaceButtonBadge';
 import { JoinCard } from '../../../shared/ui/menu/JoinCard';
@@ -22,6 +22,14 @@ export class TitleScene extends Phaser.Scene {
   private cards: JoinCard[] = [];
   private play?: ProfileMenuButton;
   private leaving = false;
+  private readonly fromWorld = new URLSearchParams(location.search).get('from') === 'world';
+
+  private leaveTitle(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    if (this.fromWorld) goToGame('world');
+    else goToHub();
+  }
 
   constructor() { super('title'); }
 
@@ -60,11 +68,9 @@ export class TitleScene extends Phaser.Scene {
   private buildMobile(): void {
     const start = () => this.begin([{ kind: 'touch' }]);
     new ProfileMenuButton(this, STAGE.w / 2, WS_UI.beta.mobile.playY, 780, 180, 'Tap to play', COLORS.p1, 100, start);
-    addTouchBackButton(this, () => {
-      if (this.leaving) return;
-      this.leaving = true;
-      goToHub();
-    });
+    addTouchBackButton(this, () => this.leaveTitle(),
+      this.fromWorld ? { x: 195, y: 118, w: 330, h: 100, fontSize: 44 } : undefined,
+      this.fromWorld ? 'Back to World' : 'Back');
     this.input.on('pointerdown', start);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.input.off('pointerdown', start));
   }
@@ -84,7 +90,11 @@ export class TitleScene extends Phaser.Scene {
     }
     this.play = new ProfileMenuButton(this, center, 752, 660, 112, '', COLORS.green, 60, () => this.begin(this.join.slots));
     new FaceButtonBadge(this, 67, STAGE.h - 63, 58, 'right', 'xbox', 'B');
-    bigText(this, 111, STAGE.h - 63, 'Back to games', 44, MENU.white, { origin: [0, 0.5] });
+    bigText(this, 111, STAGE.h - 63, this.fromWorld ? 'Back to World' : 'Back to games', 44, MENU.white, { origin: [0, 0.5] });
+    if (this.fromWorld) {
+      this.add.zone(270, STAGE.h - 63, 470, 110).setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.leaveTitle());
+    }
     this.refresh();
   }
 
@@ -114,7 +124,7 @@ export class TitleScene extends Phaser.Scene {
       if (ev.type !== 'action') continue;
       const r = reduceJoin(this.join, ev.device, ev.action, WS_UI.maxPlayers);
       this.join = r.state;
-      if (r.result === 'hub') { this.leaving = true; goToHub(); return; }
+      if (r.result === 'hub') { this.leaveTitle(); return; }
       if (r.result === 'start') { this.begin(this.join.slots); return; }
       if (r.result === 'joined') shell.baseAudio.sfx('select');
       if (r.result !== 'none') this.refresh();

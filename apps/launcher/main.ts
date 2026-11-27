@@ -50,7 +50,15 @@ const WORKSHOP_ART = `
   <path d="M470 60 l8 20 20 8 -20 8 -8 20 -8 -20 -20 -8 20 -8z" fill="#fff" stroke="#14213d" stroke-width="4"/>
 </svg>`;
 
-const ART: Record<GameId, string> = { racer: CAR_ART, workshop: WORKSHOP_ART };
+const WORLD_ART = `
+<svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="340" fill="#8ed7ff"/><path d="M0 250 Q140 150 280 240 T600 220 V340 H0Z" fill="#59c96d"/>
+  <path d="M0 300 Q130 260 220 286 T430 282 T600 260" fill="none" stroke="#d9b46d" stroke-width="28" stroke-linecap="round"/>
+  <g stroke="#14213d" stroke-width="7" stroke-linejoin="round"><path d="M300 140 380 185 380 270 300 315 220 270 220 185Z" fill="#8fdb78"/><path d="M300 140 380 185 300 230 220 185Z" fill="#b4eb8c"/><path d="M220 185 300 230 300 315 220 270Z" fill="#60c77b"/><path d="M380 185 300 230 300 315 380 270Z" fill="#46a96b"/></g>
+  <circle cx="115" cy="100" r="38" fill="#ffe45c"/><path d="M465 218v-76l44-40 44 40v76Z" fill="#ff8a65" stroke="#14213d" stroke-width="7"/><path d="M495 218v-42q14-23 28 0v42" fill="#fff0c2" stroke="#14213d" stroke-width="6"/>
+</svg>`;
+
+const ART: Record<GameId, string> = { racer: CAR_ART, workshop: WORKSHOP_ART, world: WORLD_ART };
 
 const CSS = `
 *{box-sizing:border-box}
@@ -58,15 +66,15 @@ const CSS = `
   background:radial-gradient(ellipse at 50% 0%,#2a4a94 0%,#14213d 70%);font-family:Arial,"Segoe UI",sans-serif;color:#fff}
 h1{margin:0;position:absolute;top:70px;width:100%;text-align:center;font:900 140px "Arial Black",Arial,sans-serif;color:#ffd43b;
   -webkit-text-stroke:14px #14213d;paint-order:stroke fill;text-shadow:0 10px 0 rgba(0,0,0,.45)}
-.tile{position:absolute;top:330px;width:700px;height:560px;border-radius:40px;background:#1d2f5a;border:10px solid #5b6fa8;
+.tile{position:absolute;top:330px;width:560px;height:560px;border-radius:40px;background:#1d2f5a;border:10px solid #5b6fa8;
   overflow:hidden;cursor:pointer;transform:scale(.94);opacity:.82;transition:transform .15s,opacity .15s}
 .tile.sel{transform:scale(1.06);opacity:1;border-color:#ffd43b;box-shadow:0 0 0 12px rgba(255,212,59,.45),0 24px 0 rgba(0,0,0,.35)}
 .tile svg{display:block;width:100%;height:400px}
 .tile .name{position:absolute;bottom:0;left:0;right:0;height:140px;display:flex;align-items:center;justify-content:center;
-  font:900 58px "Arial Black",Arial,sans-serif;background:#14213d}
+  font:900 48px "Arial Black",Arial,sans-serif;background:#14213d}
 .ribbon.beta{background:#ffd23f;color:#14213d}
 .ribbon{position:absolute;top:24px;left:50%;transform:translateX(-50%);padding:6px 36px;border-radius:40px;white-space:nowrap;background:#ff6b6b;border:5px solid #14213d;font:900 44px "Arial Black",Arial,sans-serif;color:#fff}
-.prompt{position:absolute;top:935px;width:700px;text-align:center;font:bold 64px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:24px}
+.prompt{position:absolute;top:935px;width:560px;text-align:center;font:bold 64px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:24px}
 .badge{display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:50%;background:#2ecc40;
   border:5px solid #fff;font:900 56px "Arial Black",Arial,sans-serif;color:#fff}
 .build-stamp{position:absolute;right:24px;bottom:16px;font-size:32px;color:#fff;opacity:.85;
@@ -84,12 +92,12 @@ function start(): void {
   app.appendChild(stage);
 
   let sel = 0;
-  const xs = [150, 1070];
+  const xs = [70, 680, 1290];
   const tiles = GAMES.map((g, i) => {
     const el = document.createElement('div');
     el.className = 'tile';
     el.dataset.game = g.id;
-    el.style.left = `${xs[i] ?? 150}px`;
+    el.style.left = `${xs[i] ?? 70}px`;
     el.innerHTML = `${ART[g.id]}<div class="name">${g.title}</div>${g.ready ? '' : '<div class="ribbon">Coming soon</div>'}${g.beta ? '<div class="ribbon beta">BETA</div>' : ''}`;
     el.addEventListener('click', () => { sel = i; render(); goToGame(g.id); });
     stage.appendChild(el);
@@ -108,7 +116,7 @@ function start(): void {
   sel = Math.max(0, GAMES.findIndex((g) => g.id === last));
   function render(): void {
     tiles.forEach((t, i) => t.classList.toggle('sel', i === sel));
-    prompt.style.left = `${xs[sel] ?? 150}px`;
+    prompt.style.left = `${xs[sel] ?? 70}px`;
   }
   render();
 

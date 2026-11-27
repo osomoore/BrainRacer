@@ -8,7 +8,7 @@
  */
 import { readShared, writeShared } from './storage';
 
-export type GameId = 'racer' | 'workshop';
+export type GameId = 'racer' | 'workshop' | 'world';
 
 export interface GameInfo {
   id: GameId;
@@ -25,6 +25,7 @@ export interface GameInfo {
 export const GAMES: readonly GameInfo[] = [
   { id: 'racer', title: 'Brain Racer', page: 'racer.html', ready: true },
   { id: 'workshop', title: 'Adventure Workshop', page: 'workshop.html', ready: true, beta: true },
+  { id: 'world', title: 'Adventure World', page: 'world.html', ready: true, beta: true },
 ];
 
 /** Launcher page, relative to the site root. */
