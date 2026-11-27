@@ -76,6 +76,7 @@ export const WORLD_TERRAIN = {
 } as const;
 
 // --- save + shell (W3) -------------------------------------------------------------------------
+export const WORLD_SAVE = { claimedLimit: 500, defaultReading: 'easy' } as const;
 
 // --- quests (W4) -------------------------------------------------------------------------------
 export const QUESTS = {

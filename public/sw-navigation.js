@@ -1,6 +1,6 @@
 // Workbox imports this before adding its cache-first precache route.
 const scope = self.registration.scope;
-const htmlByPath = new Map(['', 'index.html', 'racer.html', 'workshop.html'].map((path) => [
+const htmlByPath = new Map(['', 'index.html', 'racer.html', 'workshop.html', 'world.html'].map((path) => [
   new URL(path, scope).pathname,
   new URL(path || 'index.html', scope).href,
 ]));

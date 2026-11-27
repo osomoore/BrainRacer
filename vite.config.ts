@@ -46,7 +46,7 @@ export default defineConfig(async ({ command }) => ({
   build: {
     chunkSizeWarningLimit: 4000,
     // Multi-page site: launcher + one page per game (all at the root, relative paths).
-    rolldownOptions: { input: { index: page('index.html'), racer: page('racer.html'), workshop: page('workshop.html') } },
+    rolldownOptions: { input: { index: page('index.html'), racer: page('racer.html'), workshop: page('workshop.html'), world: page('world.html') } },
   },
   define: {
     __BUILD_ID__: JSON.stringify(process.env.BRAINRACER_BUILD_ID || gitHash()),

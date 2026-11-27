@@ -5,6 +5,7 @@
  */
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
+import { goToGame } from '../../../shared/hub';
 import { playWorkshopSfx } from '../audio';
 import { WS_BUDDIES, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
@@ -170,7 +171,11 @@ const roomScreen: ScreenFactory = (): Screen => {
       objs.push(character.root);
 
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
-      group.set([...signs, buddies, board]);
+      const fromWorld = new URLSearchParams(location.search).get('from') === 'world';
+      const returnButton = fromWorld ? addTouchBackButton(scene, () => goToGame('world'),
+        { x: ctx.layout === 'tall' ? ctx.size.w / 2 : ctx.size.w - 180, y: 72, w: 320, h: 100, fontSize: 44 }, 'Back to World').setDepth(140) : undefined;
+      if (returnButton) objs.push(returnButton);
+      group.set([...signs, buddies, board, ...(returnButton ? [returnButton] : [])]);
       const from = data.from;
       const fi = L.stations.findIndex((st) => st.aspect === from);
       group.focus(from === 'buddies' ? buddies : fi >= 0 ? signs[fi] : board);
