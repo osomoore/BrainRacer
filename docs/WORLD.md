@@ -10,6 +10,12 @@ activities, do simple reading quests, and earn stars. Branch `feature/world` (in
   with their creation's heading, like Brain Racer (`CAMERA.rotTau`-style smoothing). The minimap stays north-up with
   a rotating player arrow. Two players = side-by-side split screen, each view 960×1080, one shared world scene with two cameras.
   Both players see each other. Mobile = 1 player.
+- **Input (user, 2026-11-27): controllers and mobile are the main ways it is played.** Mobile = 1 player, touch only
+  (on-screen stick + A/B/X/Y buttons, `apps/world/input/`). Controllers = usually 2 players (Xbox-style pads, also
+  generic pads via `shared/input/padMaps.ts`). Keyboard is for development. **Every interaction must work with a pad
+  button AND a tap**: dialogs and panels have tap targets >= 120 px and show pad button badges only when a pad is
+  in use; no hover-only UI; nothing needs a keyboard. Mobile also needs landscape full screen and must stay smooth on a
+  phone GPU (same budget as the TV box).
 - **No Matter physics.** Movement and collision are pure kinematics in `apps/world/logic/move.ts` (circle collider
   vs circle obstacles and polygon solids). Cheaper on the Mali TV box and unit-testable. Terrain must *feel*
   different, not just change top speed: per-surface acceleration, drag, sideways grip (ice and mud slide and drift,
@@ -95,3 +101,17 @@ Hex minimap per player view (corner), biome colors, player dots, home and quest 
 | `apps/world/hud/**`, quest runtime | W8 quests runtime + HUD (wave 2) |
 
 Ports: W1 5211, W2 5212, W3 5213, W4 5214, W5 5215, W6 5216, W7 5217, W8 5218. Integration play server 5210.
+
+## How to test now (2026-11-27, early build)
+
+- Launcher tile **Adventure World** (beta) → join (pads: A; phone: tap) → pick profiles → drive.
+- Quick start: `world.html?play=1&seed=29` (1P), `?play=2` (2P), `&touch=1` forces touch controls on desktop.
+- **Works:** endless hex world from the family seed, 10 biomes with different ground, roads, obstacles, heading-up
+  cameras, 1P / 2P split screen, both players see each other, Workshop car or dino as your creation, quick swap
+  between primary and alternate, darkness in Dark Woods and caves, minimap, Workshop "Back to World" link,
+  pads, touch stick + buttons (S1).
+- **Not yet (Codex jobs after the cool-down):** terrain feel beyond speed (drift, bog-down, geyser hops), pushing and
+  breaking obstacles, jumps, home swap pad and Workshop door (W6); the 10 activities (W7a/W7b); quest givers, quest
+  cards and star HUD (W8); smoother roads, biome balance, canyon valleys (W1c); art pass; family sync of stars.
+- **Please note while testing:** controller feel (speed, turning, camera turn speed), phone touch feel and button
+  size, readability on the TV/projector, frame rate on the TV box and phone, anything confusing for the kids.

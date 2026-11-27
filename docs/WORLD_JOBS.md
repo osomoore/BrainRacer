@@ -217,3 +217,79 @@ The first pass is too sparse: blobs are 2–4 ellipses of ~300 px in a 2400 px h
   spot of the right biome (item shows above the creation; `carry` limit); deliver goals complete on entering the
   goal; `ctx.award` stars (claim id = quest id); `quest:*` events; save via `ctx.save`. Uses apps/world/quests/**.
 - Quest text stays as written in quests/phrases.ts (user review pending); don't rewrite wording.
+
+### W1c gen tuning (queued) — `apps/world/gen/**`, GenMap, gen config
+From the W1b GenMap review (seed 29, 4 rings):
+- Roads meander too tightly (a bend every ~200 px): use 1–3 wide, smooth bends per edge-to-hub road (min bend radius
+  ~600 px for roads, ~350 px for paths) so a young child can follow a road without constant steering. Keep paths to
+  sites gently curved.
+- Biome balance: in a 4-ring area geyser was 0 and darkwood 1 while jungle was 11. Rebalance so each biome is about
+  6–14% over a 20-ring area and every 3-ring neighborhood of a home has at least 6 different biomes; tighten the
+  frequency test to that.
+- Canyon: cliffs are ~5%. Make one or two real valleys per canyon hex: long cliff walls 150–300 px thick bounding a
+  valley 400–900 px wide that the road runs through, a narrow side valley (width max) and a jump gap with a detour.
+  Target 15–30% cliff coverage. Keep reachability tests green.
+- **Road network (user, 2026-11-27: "roads are too busy").** Replace "every linked edge runs to a hub" with 2–4
+  through-roads per hex, edge to edge, that cross the hex in simple wide arcs and meet at a clear crossroads or
+  T-junction. Fewer, longer roads; paths to sites stay short side spurs. Roads still continue across hex edges
+  (neighbors agree on edge points).
+- **Road types:** dirt, rocky, paved. Contract change (orchestrator applies at launch): `RoadPath.surface?: 'paved' |
+  'dirt' | 'rocky'`. Paved is fastest; dirt slightly slower with a little less grip; rocky is bumpy and slower but
+  every build can drive it. Pick the type by biome and road importance (paved through meadow and home hexes, dirt in
+  mud, jungle and darkwood, rocky in rocky, canyon and geyser). `surfaceAt` reports the road type; the terrain
+  bake draws each one differently (W5c renders, W1c generates).
+
+### W5c view, minimap, darkness (user feedback 2026-11-27) — `apps/world/render/**`, `apps/world/host/cameras.ts`, host + terrain sections of config
+- **Closer view:** about 2× closer, so the creation looks twice as big on screen (`WORLD_HOST.camera.soloZoom`
+  0.92 → about 1.8, `splitZoom` about 1.6). Keep the creation low on screen (`carScreenY`) so kids see ahead. Check
+  chunk bake cost and texture memory still fit the TV box budget (fewer chunks are visible, but each is magnified:
+  raise bake resolution only if it looks blurry).
+- **Smaller hexes to match (user):** a hex stays about 2 screens across at the new zoom, so `WORLD.hexSize`
+  2400 → 1200 (orchestrator-approved for this job). Halve the px-length GEN constants that assume the old size
+  (patch orbits/radii, lake radius/lobe, canyon sizes, activity/feature radii, hub/bend offsets; keep road/path
+  widths and creation sizes) so hexes keep the same look, just smaller. Gen, reachability and richness tests stay
+  green (adjust size-based thresholds only). W1c retunes gen properly later. Runs in parallel with W6/W7a: touch
+  only config values in the gen section, not gen code.
+- **Minimap heading-up:** rotates with the player's view (`ctx.viewRotation(player)`), player arrow fixed pointing
+  up, smooth (no snapping), and the map scrolls smoothly as the player moves between hexes instead of jumping per hex.
+  A small "N" marker on the rim shows north.
+- **Darkness is just dark:** a creation without a light trait gets no glow circle; the darkwood/cave view is evenly
+  dark (dim enough to feel like night, light enough that a 5-year-old can still steer along the road). Only builds
+  with a light trait get a light pool, bigger with more light. Glowing mushrooms and lanterns stay visible as small
+  lights.
+- Road types from W1c: paved (grey, lane line), dirt (brown, tire tracks), rocky (grey-brown, pebbles).
+
+### Button map (user, 2026-11-27; all jobs follow it)
+| Pad | Touch button icon | Action |
+|---|---|---|
+| A | hand | Interact: talk, pick up, start an activity, accept in dialogs |
+| B | horn / roar | Honk (car) or roar (dino), scares sheep etc.; Back / no in dialogs |
+| X | car⇄dino | Swap primary ⇄ alternate (poof) |
+| Y | lab door | Go to the Lab (Workshop): small yes/no card first, then save and open `workshop.html?from=world` |
+| Menu / Start | pause bars (top corner) | Pause card: Go Home (poof to nearest home), Quests, Resume |
+
+Replaces W6's "hold B 2 s to go home" (now in the pause card) and "Workshop door only at home" (the home pad keeps
+its door too). **Button hints:** a small always-on legend in each view's bottom corner with the four button glyphs
+in pad colors (A green, B red, X blue, Y yellow) and a picture icon for each action, no words; shown only while a pad
+is in use (touch players see the icons on their buttons). When an interaction is possible, a pulsing A badge with
+the action's icon floats above the creation. W6 owns the controls behaviour, W8 the legend and badges (HUD),
+a small follow-up to S1 puts the icons on the touch buttons.
+
+### Later (user, 2026-11-27): more terrain restrictions
+Narrow valleys, mountains that are rocky or snowy, other trait-gated terrain. After W6 and W1c.
+
+## All remaining jobs: input rule
+Every interaction must work with a pad button and with a tap (mobile is 1 player, touch only; see docs/WORLD.md
+"Input"). Panels/dialogs: tap targets >= 120 px, pad badges only when a pad is in use. Touch players get their
+controls from `apps/world/input/` (TouchModule writes `player.controls`); read `player.controls`, never raw input.
+
+### S1 touch controls (Claude Sonnet) — `apps/world/input/**`, `apps/world/dev/TouchView.ts`, input section of config
+- `TouchModule` (WorldModule, order 50, auto-loaded from `apps/world/input/*Module.ts`; if the host glob does not
+  include `input/`, report the one-line host change needed): active only when the game runs in touch mode (1 player,
+  `shared/device` isMobile or a `?touch=1` override). Draws a fixed-to-screen virtual stick (appears where the left
+  thumb lands in the left 45% of the screen, max radius ~150 px logical) and A / B / X / Y buttons bottom-right
+  (>= 130 px, high contrast, icons/letters), multi-touch (steer and press at once). Writes `player.controls`:
+  stick -> x/y, throttle = stick push forward (heading-up: up = forward), brake = pull back, edges for buttons.
+- Pure mapping logic (stick vector -> controls, dead zone, edge detection, pointer assignment) in a Phaser-free
+  file with tests. Baked textures only. Hide when a pad connects; show again on touch.
+- Dev scene `TouchView` to screenshot the overlay; e2e not required (note how to emulate touch in Playwright).

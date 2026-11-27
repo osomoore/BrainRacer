@@ -5,7 +5,7 @@
 // --- orchestrator ------------------------------------------------------------------------------
 export const WORLD = {
   /** Hex circumradius (center to corner), px. About two screen heights. */
-  hexSize: 2400,
+  hexSize: 1200,
   /** Logical screen. */
   width: 1920,
   height: 1080,
@@ -18,15 +18,43 @@ export const GEN = {
   roadWidth: 220,
   pathWidth: 140,
   edgeJitter: 0.19,
-  extraLinkChance: 0.26,
+  extraLinkChance: 0.1,
   curveSamples: 8,
+  hubOffset: [110, 235],
+  roadBends: [2, 4],
+  roadBendOffset: [95, 195],
+  sharedApproachAngle: Math.PI / 3,
+  pathBendOffset: 68,
+  canyon: { featureRadius: 975, wallOffset: 333, wallWidth: 207, wallLength: 745, mouth: 825, detour: 620 },
+  terrainVertices: 32,
+  spatialCell: 120,
+  coverageStep: 60,
+  lakeRadius: [645, 670],
+  lakeLobeOffset: 365,
+  lakeShore: 125,
+  scatterAttempts: 20,
+  terrainPatches: {
+    meadow: { count: 4, orbit: 590, radius: [125, 205], aspect: [0.6, 1] },
+    mud: { count: 3, orbit: 475, radius: [438, 467], aspect: [0.81, 0.91] },
+    rocky: { count: 4, orbit: 580, radius: [128, 195], aspect: [0.45, 0.72] },
+    darkwood: { count: 5, orbit: 500, radius: [290, 380], aspect: [0.66, 0.96] },
+    snow: { count: 3, orbit: 490, radius: [420, 470], aspect: [0.80, 0.94] },
+    desert: { count: 5, orbit: 580, radius: [195, 285], aspect: [0.56, 0.75] },
+    jungle: { count: 3, orbit: 450, radius: [540, 610], aspect: [0.88, 1] },
+    geyser: { count: 10, orbit: 560, radius: [125, 225], aspect: [0.65, 0.96] },
+  },
+  scatterDensity: {
+    meadow: 40, mud: 52, rocky: 82, lake: 40, darkwood: 125,
+    snow: 60, desert: 76, jungle: 125, canyon: 44, geyser: 39,
+  },
   planCacheSize: 96,
   biomeScale: 3,
   meadowFieldShare: 0.06,
   campChance: 1 / 12,
   treasureChance: 1 / 25,
   giverChance: 1 / 3,
-  activityRadius: 220,
+  activityRadius: 110,
+  targetDistance: 90,
   featureRadius: 660,
   placementClearance: 20,
 } as const;
@@ -79,7 +107,7 @@ export const WORLD_TERRAIN = {
 export const WORLD_TERRAIN_RENDER = {
   /** World-space edge length; terrain samples are taken at cellSize intervals. */
   chunkSize: 512,
-  cellSize: 12,
+  cellSize: 8,
   cacheChunks: 64,
   bakePerFrame: 2,
   prefetchRings: 2,
@@ -100,7 +128,7 @@ export const QUESTS = {
 
 // --- scene host (W5a) -------------------------------------------------------------------------
 export const WORLD_HOST = {
-  camera: { soloZoom: 0.92, splitZoom: 0.84, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
+  camera: { soloZoom: 1.8, splitZoom: 1.6, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
   maxFrameSeconds: 0.1,
   spawnSpacing: 110,
   saveEverySeconds: 5,
@@ -136,4 +164,47 @@ export const WORLD_PLAY = {
   homeRadius: 105,
   bumpCooldown: 0.65,
   pushSpeed: 150,
+} as const;
+
+// --- input (S1) --------------------------------------------------------------------------------
+export const TOUCH = {
+  /** Stick spawns where a thumb lands in the left share of the screen. */
+  stickZone: 0.45,
+  stickRadius: 150,
+  /** Fraction of the stick radius that is ignored. */
+  deadZone: 0.15,
+  /** Keep the stick base fully on screen. */
+  stickMargin: 40,
+  knobRadius: 62,
+  /** Diamond of buttons, bottom-right: centre, offset of each button from it, button radius (px logical). */
+  buttonCenter: { x: 1650, y: 830 },
+  buttonOffset: 115,
+  buttonRadius: 70,
+  /** Hit area grows a little so kids do not miss. */
+  hitScale: 1.15,
+  idleAlpha: 0.8,
+  activeAlpha: 0.95,
+  depth: 1000,
+  extraPointers: 3,
+} as const;
+
+// --- buttons (S3) ------------------------------------------------------------------------------
+export const BUTTONS = {
+  /** Pad colors, shared by the legend and the touch buttons. */
+  colors: { a: 0x2fbf5a, b: 0xe5484d, x: 0x2f7de1, y: 0xf5b81c },
+  /** Touch pause button (top-left corner; the minimap is top-right). */
+  pause: { x: 70, y: 70, radius: 48, hitScale: 1.4 },
+  /** Always-on legend in the bottom-left of each player view. */
+  legend: { margin: 22, glyph: 56, icon: 64, gap: 26, alpha: 0.92 },
+  /** Cards (Lab / pause). Tap targets are at least `minTap` px. */
+  card: { width: 760, minTap: 120, fontSize: 48, titleSize: 56, dim: 0.5, rowHeight: 130, rowGap: 22, btnWidth: 260, btnHeight: 140 },
+  /** Stick must pass this to move the pad selection; it re-arms below `navRelease`. */
+  navThreshold: 0.6,
+  navRelease: 0.3,
+  /** Honk / roar sound rings around the creation. */
+  honk: { rings: 3, stagger: 0.12, seconds: 0.7, startScale: 0.4, endScale: 2.2, cooldown: 0.35, size: 256 },
+  poof: { seconds: 0.5, scale: 2.2 },
+  /** Pulsing A badge above a creation. */
+  badge: { lift: 150, size: 96, pulse: 0.12, pulseSeconds: 0.45 },
+  depth: 2000,
 } as const;
