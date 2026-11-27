@@ -87,3 +87,20 @@ export const QUESTS = {
   stars: { fetch: 3, deliver: 2 },
   wordLimit: { starter: 5, easy: 8, medium: 12, hard: 16 },
 } as const;
+
+// --- scene host (W5a) -------------------------------------------------------------------------
+export const WORLD_HOST = {
+  camera: { soloZoom: 0.92, splitZoom: 0.84, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
+  maxFrameSeconds: 0.1,
+  spawnSpacing: 110,
+  saveEverySeconds: 5,
+  saveDebounceSeconds: 0.35,
+  stickDeadZone: 0.18,
+  pushSpeed: 150,
+  objectRings: 1,
+  roofFadeAlpha: 0.2,
+  roofFadeTau: 0.14,
+  playerLengths: [96, 120, 146, 176],
+  playerColors: [0xffd266, 0x80e5ff],
+  quickSeed: 29,
+} as const;
