@@ -37,7 +37,8 @@ export function buildActivities(layout: HexLayout, rng: Rng, featureSite?: Featu
   const choices = rng.shuffle([...BIOME_SITES[plan.biome].activities]);
   for (let index = 0; index < count; index++) {
     const special = index === 0 ? featureSite : undefined;
-    const at = special?.at ?? layout.place(rng, GEN.activityRadius, true);
+    const at = special?.at ?? layout.place(rng, GEN.activityRadius, true)
+      ?? (plan.biome === 'lake' ? layout.placeAlongRoad(rng, GEN.activityRadius, true) : undefined);
     if (!at) break;
     const kind = special?.kind ?? choices.pop()!;
     const activity = ACTIVITY[kind];
@@ -64,7 +65,7 @@ export function buildPickups(layout: HexLayout, rng: Rng): void {
   const content = BIOME_SITES[plan.biome];
   const items = rng.int(2, 4);
   for (let index = 0; index < items; index++) {
-    const at = layout.place(rng, 32);
+    const at = layout.place(rng, 32, true) ?? (plan.biome === 'lake' ? layout.placeAlongRoad(rng, 32, false) : undefined);
     if (!at) break;
     plan.items.push({ id: `${id}:i${index}`, at,
       item: index > 0 && rng.chance(0.17) ? 'egg' : rng.pick(content.items) });
@@ -74,7 +75,7 @@ export function buildPickups(layout: HexLayout, rng: Rng): void {
     if (at) plan.giver = { id: `${id}:g`, at, who: content.giver };
   }
   if (rng.chance(GEN.treasureChance)) {
-    const at = layout.place(rng, 48);
+    const at = layout.place(rng, 48, true);
     if (at) plan.treasure = { id: `${id}:t`, at, stars: 5, needs: [{ trait: 'dig', min: 2 }] };
   }
 }

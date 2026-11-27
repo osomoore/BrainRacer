@@ -2,8 +2,8 @@ import type { Rng } from '../../workshop/core/rng';
 import { GEN } from '../config';
 import type { ActivityKind, ActivityTarget, Feature, FeatureKind, SurfaceKind, TraitNeed, Vec } from '../core/types';
 import { hexKey } from './hex';
-import { box, ellipse, offset, type HexLayout } from './layout';
-import { pathThrough } from './roads';
+import { box, organic, offset, type HexLayout } from './layout';
+import { curvedPath, pathThrough } from './roads';
 
 export interface FeatureSite {
   kind: ActivityKind;
@@ -11,83 +11,63 @@ export interface FeatureSite {
   targets: ActivityTarget[];
 }
 
-function buildLake(frame: FeatureFrame, rng: Rng): FeatureSite {
-  frame.blob('shallow', ellipse({ x: 0, y: 20 }, 570, 316));
-  frame.blob('deep', ellipse({ x: 0, y: 20 }, 448, 249));
-  frame.blob('grass', ellipse({ x: 235, y: 55 }, 95, 77, rng));
-
-  frame.connect(-220, -320);
-  frame.path([{ x: -220, y: -320 }, { x: -220, y: 330 }]);
-  const low = rng.chance(0.5);
-  frame.feature('bridge', { x: -220, y: 20 }, box(-320, -253, -120, 293),
-    low ? [{ trait: 'height', max: 2 }, { trait: 'width', max: 3 }] : undefined, low);
-  if (low) {
-    // This path crosses the shallow shelf, beyond the deep pool.
-    frame.path([
-      { x: -220, y: -320 }, { x: -490, y: -253 }, { x: -540, y: 20 },
-      { x: -490, y: 280 }, { x: -220, y: 330 },
-    ]);
-  }
-
-  frame.connect(235, -292);
-  return { kind: 'islandSwim', at: frame.point(235, -292),
-    targets: [{ at: frame.point(235, 55), role: 'island' }] };
-}
-
-function buildPassage(frame: FeatureFrame, kind: 'tunnel' | 'cave' | 'narrow' | 'jump'): FeatureSite | undefined {
+function buildPassage(frame: FeatureFrame, kind: 'tunnel' | 'cave' | 'narrow', rng: Rng): FeatureSite | undefined {
   const canyon = frame.layout.plan.biome === 'canyon';
+  const { wallOffset, wallWidth, wallLength, mouth, detour } = GEN.canyon;
+  const end = canyon ? mouth : 505;
+  const turn = canyon ? detour : 470;
   if (canyon) {
-    frame.blob('cliff', ellipse({ x: -245, y: 0 }, 144, 330));
-    frame.blob('cliff', ellipse({ x: 232, y: 0 }, 118, 305));
+    frame.blob('cliff', organic({ x: -wallOffset, y: 0 }, wallWidth, wallLength, rng, 0.06));
+    frame.blob('cliff', organic({ x: wallOffset, y: 0 }, wallWidth, wallLength, rng, 0.06));
+    frame.blob('cliff', box(-112, -22, 112, 108));
   } else if (kind === 'narrow') {
-    frame.blob('rough', ellipse({ x: -217, y: 0 }, 125, 305));
-    frame.blob('rough', ellipse({ x: 217, y: 0 }, 125, 305));
+    frame.blob('rough', organic({ x: -217, y: 0 }, 125, 305, rng));
+    frame.blob('rough', organic({ x: 217, y: 0 }, 125, 305, rng));
   }
-  if (kind === 'jump') frame.blob('cliff', box(-112, -18, 112, 132));
-
   const covered = kind === 'cave' || kind === 'tunnel';
   if (covered) {
     frame.layout.plan.terrain.push({
-      kind: 'rough', poly: ellipse({ x: 0, y: 0 }, 150, 260).map(p => frame.point(p.x, p.y)),
+      kind: 'rough', poly: organic({ x: 0, y: 0 }, 145, 255, rng).map(p => frame.point(p.x, p.y)),
       covered: true, dark: kind === 'cave' ? 0.92 : 0.78,
     });
   }
-  const needs: TraitNeed[] = kind === 'jump' ? [{ trait: 'jump', min: 2 }] : [{ trait: 'width', max: 2 }];
+  const needs: TraitNeed[] = [{ trait: 'width', max: 2 }];
   if (covered) needs.push({ trait: 'height', max: 2 });
 
-  frame.connect(0, -505);
-  frame.path([{ x: 0, y: -505 }, { x: 0, y: 505 }]);
   frame.path([
-    { x: 0, y: -505 }, { x: 420, y: -390 }, { x: 464, y: 0 },
-    { x: 420, y: 390 }, { x: 0, y: 505 },
+    { x: 0, y: -end }, { x: turn, y: -end + 85 }, { x: turn + 25, y: 0 },
+    { x: turn, y: end - 85 }, { x: 0, y: end },
   ]);
-  const start = kind === 'jump' ? -175 : -255;
-  frame.feature(kind, { x: 0, y: kind === 'jump' ? -150 : 0 },
-    box(-105, start, 105, kind === 'jump' ? 158 : 255), needs, true);
-  if (covered) return {
+  frame.path([{ x: 0, y: -end }, { x: -25, y: -end / 2 }, { x: 0, y: end }]);
+  frame.connect(0, -end);
+  frame.feature(kind, { x: 0, y: 0 }, box(-103, -255, 103, 255), needs, true);
+  if (canyon) {
+    if (covered) frame.feature('narrow', { x: 0, y: -365 }, box(-103, -450, 103, -275),
+      [{ trait: 'width', max: 2 }], true);
+    frame.feature('jump', { x: 0, y: -75 }, box(-104, -100, 104, 108), [{ trait: 'jump', min: 2 }], true);
+  }
+  if (kind === 'cave') return {
     kind: 'lanternCave', at: frame.point(0, -305),
     targets: [-145, 0, 145].map(y => ({ at: frame.point(0, y), role: 'lantern' })),
-  };
-  if (kind === 'jump') return {
-    kind: 'ringJump', at: frame.point(0, -270),
-    targets: [25, 120, 225].map(y => ({ at: frame.point(0, y), role: 'ring' })),
   };
 }
 
 export function buildFeatures(layout: HexLayout, rng: Rng): FeatureSite | undefined {
   const { biome } = layout.plan;
-  if (biome !== 'lake' && biome !== 'canyon' && biome !== 'darkwood'
-      && biome !== 'rocky' && biome !== 'jungle') return;
-  const roomier = layout.place(rng, GEN.featureRadius);
-  const scale = roomier ? 1 : 0.83;
-  const at = roomier ?? layout.place(rng, GEN.featureRadius * scale);
-  if (!at) return;
-  const frame = new FeatureFrame(layout, at, scale);
+  if (biome !== 'canyon' && biome !== 'darkwood' && biome !== 'rocky' && biome !== 'jungle') return;
+  const radius = biome === 'canyon' ? GEN.canyon.featureRadius : GEN.featureRadius;
+  let frame: FeatureFrame | undefined;
+  for (const scale of [1, 0.78, 0.53, 0.46]) {
+    const at = layout.place(rng, radius * scale);
+    if (!at) continue;
+    frame = new FeatureFrame(layout, at, scale);
+    break;
+  }
+  if (!frame) return;
   switch (biome) {
-    case 'lake': return buildLake(frame, rng);
-    case 'canyon': return buildPassage(frame, rng.pick(['jump', 'tunnel', 'narrow']));
-    case 'darkwood': return buildPassage(frame, 'cave');
-    case 'jungle': return buildPassage(frame, 'narrow');
+    case 'canyon': return buildPassage(frame, rng.chance(0.32) ? 'tunnel' : 'narrow', rng);
+    case 'darkwood': return buildPassage(frame, 'cave', rng);
+    case 'jungle': return buildPassage(frame, 'narrow', rng);
     case 'rocky':
       frame.connect(0, -340);
       frame.path([{ x: 0, y: -340 }, { x: 0, y: 300 }]);
@@ -106,7 +86,7 @@ class FeatureFrame {
   private readonly cos: number;
 
   constructor(readonly layout: HexLayout, private readonly origin: Vec, private readonly scale: number) {
-    const { center } = layout.plan;
+    const center = layout.hub;
     this.dir = Math.atan2(origin.y - center.y, origin.x - center.x);
     this.sin = Math.sin(this.dir);
     this.cos = Math.cos(this.dir);
@@ -137,6 +117,6 @@ class FeatureFrame {
   }
 
   connect(x: number, y: number): void {
-    this.layout.plan.roads.push(pathThrough([this.layout.plan.center, this.point(x, y)]));
+    this.layout.plan.roads.push(curvedPath(this.layout.hub, this.point(x, y), -1));
   }
 }
