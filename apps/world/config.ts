@@ -114,3 +114,25 @@ export const WORLD_HOST = {
   playerColors: [0xffd266, 0x80e5ff],
   quickSeed: 29,
 } as const;
+
+// --- activities (W7) ---------------------------------------------------------------------------
+export const WORLD_ACTIVITIES = {
+  nearbyRings: 1,
+  ringJump: {
+    catchRadius: 78,
+    timeoutSeconds: 24,
+    firstRingOffset: 42,
+    ringSpacing: 45,
+    ringCountByJump: [1, 1, 2, 3],
+    ringSize: 54,
+  },
+  quickSearchRings: 12,
+  quickSpawnInset: 0.4,
+  duckParade: {
+    duckSpacing: 42, followSpeed: 155, maxSpeed: 155, pondRadius: 105, scatterDistance: 300,
+    tooFastSeconds: 0.3, scatterSeconds: 0.8, scatterSpeed: 245, timeoutSeconds: 38,
+  },
+  hideSeek: { hideRadius: 145, dinoPassDistance: 260, requiredSeconds: 3, maxSeconds: 14, caughtDistance: 105, passSeconds: 2.8 },
+  boulderPush: { timeoutSeconds: 55, contactRadius: 100, minPush: 2, minSpeed: 12, rollSpeed: 30, rollSpeedPerLevel: 16, maxRollSpeed: 100, spotRadius: 30, rockOffsetX: 82, rockOffsetY: -30, blockedSeconds: 4 },
+  fruitShake: { timeoutSeconds: 55, treeBaseRadius: 94, treeRadiusPerReach: 22, fruitContactRadius: 88, rollSpeed: 55, rollSpeedPerReach: 10, basketOffsetX: 150, basketOffsetY: 95, dropOffsetX: 44, dropOffsetY: 28, shakeSpeed: 12, bumpAlignment: -0.05, basketRadius: 30, missedReachSeconds: 8 },
+} as const;
