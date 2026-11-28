@@ -42,9 +42,10 @@ export default class TouchModule implements WorldModule {
     const { ctx, state, overlay } = this;
     if (!ctx || !state || !overlay) return;
     if (overlay.consumeTouched() && this.padHidden) { this.padHidden = false; overlay.setVisible(true); }
-    overlay.update();
+    const player = ctx.players[0];
+    overlay.update(player.busy ? 'cross' : player.special);
     if (this.padHidden) return;
-    ctx.players[0].controls = state.frame();
+    player.controls = state.frame();
   }
 
   destroy(): void {

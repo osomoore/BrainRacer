@@ -74,6 +74,9 @@ export interface Traits {
   smash?: number;
   /** Moves pushable props faster than ordinary builds. */
   pushBumper?: number;
+  rocket?: number;
+  wings?: number;
+  winch?: number;
   /** Width class 1 (small) .. 4 (huge): narrow passages have a max width. */
   width: number;
   /** Height class 1 .. 4: tunnels and low bridges have a max height. */

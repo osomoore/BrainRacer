@@ -20,10 +20,12 @@ export interface PlayerControls {
   y: number;
   throttle: number;
   brake: number;
-  /** Edge-triggered buttons this frame (docs/WORLD_JOBS.md "Button map"): A = interact / accept, B = honk or roar / back,
+  /** Edge-triggered buttons this frame (docs/WORLD_JOBS.md "Button map"): A = interact / accept, B = special / back,
    *  X = swap creation, Y = go to the Lab (Workshop), menu = pause card (Go Home, Quests, Resume). */
   pressed: { a: boolean; b: boolean; x: boolean; y: boolean; menu: boolean };
 }
+
+export type WorldSpecial = 'horn' | 'roar' | 'rocket' | 'wings' | 'winch';
 
 export interface WorldPlayer {
   index: 0 | 1;
@@ -36,6 +38,9 @@ export interface WorldPlayer {
   traits: Traits;
   /** Kinematic state (logic/move.ts). Owned by the play module; others read it. */
   move: MoveState;
+  /** Current B action in free play and the end time of a grounded flap, if any. */
+  special?: WorldSpecial;
+  flapUntil?: number;
   /** Hex the player is in (updated by the host each frame; 'player:hex' fires on change). */
   hex: HexCoord;
   surface: SurfaceSample;
@@ -59,6 +64,7 @@ export interface HexLive {
 }
 
 export interface WorldEvents {
+  'player:honk': { player: WorldPlayer };
   'player:hex': { player: WorldPlayer; from: HexCoord; to: HexCoord; biome: BiomeId };
   'player:swap': { player: WorldPlayer; creation: Creation };
   'player:respawn': { player: WorldPlayer; at: Vec };

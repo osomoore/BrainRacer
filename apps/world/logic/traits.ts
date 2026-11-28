@@ -27,7 +27,7 @@
 import { CATALOGS } from '../../workshop/content';
 import { computeModel, partTag } from '../../workshop/logic/stats';
 import { WORLD_DRIVE } from '../config';
-import type { Creation, Traits } from '../core/types';
+import type { Creation, ReadingLevel, Traits } from '../core/types';
 
 /** Thresholds for levels 1, 2 and 3. */
 function level(value: number, ok: number, good: number, great: number): number {
@@ -36,8 +36,10 @@ function level(value: number, ok: number, good: number, great: number): number {
   return value >= ok ? 1 : 0;
 }
 
-export function traitsOf(creation: Creation): Traits {
+export function traitsOf(creation: Creation, reading?: ReadingLevel): Traits {
   const { stats: s, tags } = computeModel(CATALOGS[creation.workshop], creation.model);
+  // Starter and Easy profiles can't equip Workshop extras.
+  const starterGear = reading === 'starter' || reading === 'easy';
   if (creation.workshop === 'race') {
     const drive = WORLD_DRIVE.car;
     const pushBumper = Number(tags.has(partTag('bumpers.pusher')));
@@ -54,6 +56,8 @@ export function traitsOf(creation: Creation): Traits {
       raised: Number(s.clearance > 2),
       smash: pushBumper,
       pushBumper,
+      rocket: Number(tags.has('rocket')),
+      winch: Number(tags.has('winch')),
       width: 1 + level(s.width, 3, 5, 6),
       height: 1 + level(s.height, 3, 4, 6),
       jump: level(s.bounce + s.speed / 2 + (tags.has('rocket') ? 2 : 0), 2.5, 5, 7),
@@ -62,7 +66,7 @@ export function traitsOf(creation: Creation): Traits {
       dig: 0,
       stealth: level(6 - s.noise + 2 * Number(tags.has('dark')) - Number(tags.has('bright')), 2, 4, 6),
       loud: level(s.noise, 2, 5, 7),
-      heat: tags.has('cooling') || tags.has('radiator') ? 3 : 0,
+      heat: starterGear || tags.has('cooling') || tags.has('radiator') ? 3 : 0,
       cold: level(s.snowGrip, 1, 3, 5),
       carry: Math.max(1, level(s.load, 1, 5, 7)),
     };
@@ -81,7 +85,8 @@ export function traitsOf(creation: Creation): Traits {
     snow: level(s.climb + s.warmth / 2, 2, 4, 7),
     rough: level(s.climb + s.toughness, 2, 5, 8),
     water: Math.max(swimmingPart ? 2 : 0, level(s.swim, 1, 4, 7)),
-    light: tags.has('glow') ? 3 : 0,
+    light: starterGear || tags.has('glow') ? 3 : 0,
+    wings: Number(tags.has('wings')),
     raised: Number(tags.has(partTag('legs.long'))),
     smash: Number(tags.has('horns') || tags.has(partTag('tail.heavy'))),
     width,

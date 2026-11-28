@@ -66,12 +66,13 @@ export class WorldScene extends Phaser.Scene {
       const handed = selections[i].workshop;
       if (handed && handed !== save.using) save = savePlayerSave(profile.id, { ...save, using: handed });
       const creation = activeCreation(profile.id, save);
+      const reading = readingOf(profile.id);
       const spawn = (selections.length === 1 || data.resume ? save.last : undefined) ?? {
         x: home.x, y: home.y + (i - (selections.length - 1) / 2) * WORLD_HOST.spawnSpacing, angle: 0,
       };
       return {
-        index, profileId: profile.id, name: profile.name, reading: readingOf(profile.id),
-        save, creation, traits: traitsOf(creation), move: { ...spawn, vx: 0, vy: 0, airborne: 0 },
+        index, profileId: profile.id, name: profile.name, reading,
+        save, creation, traits: traitsOf(creation, reading), move: { ...spawn, vx: 0, vy: 0, airborne: 0 },
         hex: world.hexAt(spawn.x, spawn.y), surface: world.surfaceAt(spawn.x, spawn.y),
         camera: worldCamera(this, index, selections.length), controls: idleControls(),
         carrying: save.quests.filter(quest => quest.carrying).map(quest => quest.quest.item),
@@ -109,7 +110,13 @@ export class WorldScene extends Phaser.Scene {
       },
       setCreation(player, creation) {
         player.creation = creation;
-        player.traits = traitsOf(creation);
+        player.traits = traitsOf(creation, player.reading);
+        if (!player.traits.wings) {
+          player.move.flying = false;
+          delete player.move.flightOrigin;
+          delete player.flapUntil;
+        }
+        delete player.move.boost;
         bus.emit('player:swap', { player, creation });
       },
       viewRotation,
@@ -132,7 +139,7 @@ export class WorldScene extends Phaser.Scene {
 
     const persist = (player: LivePlayer) => {
       const { x, y, angle } = player.move;
-      player.save.last = { x, y, angle };
+      player.save.last = { ...(player.move.flightOrigin ?? { x, y }), angle };
       savePlayerSave(player.profileId, player.save);
       saveDue.delete(player);
     };

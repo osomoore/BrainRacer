@@ -1,6 +1,6 @@
 import { buildRig } from '../../workshop/art';
 import type { ModelRig, RigAnim } from '../../workshop/core/runtime';
-import { WORLD_HOST } from '../config';
+import { WORLD_HOST, WORLD_PLAY } from '../config';
 import { DEPTH, type WorldContext, type WorldModule, type WorldPlayer } from '../core/runtime';
 
 export default class PlayersModule implements WorldModule {
@@ -20,13 +20,16 @@ export default class PlayersModule implements WorldModule {
     for (const [player, entry] of this.rigs) {
       const { move, traits } = player;
       const rolling = Math.hypot(move.vx, move.vy) > 12;
-      const animation = move.airborne > 0 ? 'jump' : rolling ? traits.kind === 'dino' ? 'walk' : 'drive' : 'idle';
+      const flapping = move.flying || (player.flapUntil ?? 0) > this.ctx.time;
+      // The Workshop rig maps a winged dino's idle and walk loops to flap.
+      const animation = flapping ? 'flap' : move.airborne > 0 ? 'jump' : traits.wings ? 'stand'
+        : rolling ? traits.kind === 'dino' ? 'walk' : 'drive' : 'idle';
       if (entry.animation !== animation) {
         entry.rig.play(animation);
         entry.animation = animation;
       }
       entry.rig.root.setPosition(move.x, move.y).setRotation(move.angle)
-        .setScale(entry.scale * (move.airborne > 0 ? 1.12 : 1));
+        .setScale(entry.scale * (move.flying ? WORLD_PLAY.flight.scale : move.airborne > 0 ? 1.12 : 1));
     }
   }
 
