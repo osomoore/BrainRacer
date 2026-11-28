@@ -38,10 +38,10 @@ export const GIVER_NAMES = {
 export const OTHER_GIVER = 'your pal';
 export const QUEST_PHRASES = {
   visitItem: {
-    starter: ['Go to the {item}. Tap the hand.'],
-    easy: ['Find {a} {item}. Tap the hand.'],
-    medium: ['Look for {a} {item}, then tap the hand.'],
-    hard: ['When you spot {a} {item}, go up to it and press the hand.'],
+    starter: ['Go see {a} {item}.'],
+    easy: ['Go find {a} {item} and see it.'],
+    medium: ['Look for {a} {item} and go take a close look.'],
+    hard: ['Search for {a} {item} out there and take a good close look at it.'],
   },
   visitPond: {
     starter: ['Go to the pond. Help the ducks.'],
@@ -56,8 +56,7 @@ export const QUEST_PHRASES = {
       'Go to the {biome}. Grab {a} {item}. Go back with it.',
     ],
     easy: [
-      'Get {a} {item} at {biome}. Return.',
-      'Find {a} {item} in {biome}. Return.',
+      'Bring me {a} {item} from {biome}.',
       'Bring {a} {item} back from {biome}.',
     ],
     medium: [
