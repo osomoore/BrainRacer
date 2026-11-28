@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { BUTTONS } from '../config';
 import { DEPTH, type WorldContext, type WorldPlayer } from '../core/runtime';
 import { bakeDisc, bakeIcons, iconKey, type IconName } from './icons';
+import { padConnected } from './questDialog';
 
 /**
  * Pulsing "press A" badge that floats above a creation (screen-up, so it stays upright in the heading-up camera).
@@ -28,7 +29,7 @@ export class ABadge {
     ctx.showOnlyTo(this.box, player);
   }
 
-  show(icon: IconName = 'hand', padHint = true): void {
+  show(icon: IconName = 'hand', padHint = padConnected()): void {
     this.icon.setTexture(iconKey(icon));
     this.letter.setVisible(padHint);
     this.shown = true;

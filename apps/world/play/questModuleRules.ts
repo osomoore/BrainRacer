@@ -1,34 +1,73 @@
-import type { WorldQuery } from '../core/runtime';
-import type { BiomeId, HexPlan, Quest, Vec } from '../core/types';
-import { QUESTS, WORLD_PLAY, WORLD_QUEST_HUD } from '../config';
+import type { HexLive, WorldQuery } from '../core/runtime';
+import type { HexPlan, ItemSpot, Quest, Traits, Vec } from '../core/types';
+import { QUESTS, WORLD_QUEST_HUD as HUD } from '../config';
+import { surfaceEffect } from '../logic/rules';
 import { questFor } from '../quests/gen';
 import type { QuestContact } from '../quests/track';
 
-export function touches(point: Vec, spot: Vec, radius: number): boolean {
-  return (point.x - spot.x) ** 2 + (point.y - spot.y) ** 2 <= radius ** 2;
+type Interactable = {
+  at: Vec;
+  contact: QuestContact;
+  kind: 'giver' | 'item' | 'pond' | 'obstacle' | 'treasure' | 'activity';
+  spot?: ItemSpot;
+  live: HexLive;
+};
+
+export function pondPoints(plan: HexPlan): Vec[] {
+  // The duck activity renders its first pond target, or the site when there is no target.
+  return plan.activities.filter(site => site.kind === 'duckParade')
+    .map(site => site.targets.find(target => target.role === 'pond')?.at ?? site.at);
 }
 
-export function questContact(plan: HexPlan, point: Vec): QuestContact {
-  return {
-    biome: plan.biome,
-    giverId: plan.giver && touches(point, plan.giver.at, WORLD_QUEST_HUD.talkRadius) ? plan.giver.id : undefined,
-    homeId: plan.home && touches(point, plan.home.at, WORLD_PLAY.homeRadius) ? plan.home.id : undefined,
-  };
+export function nearestInteraction(plans: readonly HexLive[], point: Vec): Interactable | undefined {
+  let nearest: Interactable | undefined;
+  let fallback: Interactable | undefined;
+  let best = Infinity;
+  let bestFallback = Infinity;
+  for (const live of plans) {
+    const { plan, obstacles, takenItems } = live;
+    const consider = (
+      kind: Interactable['kind'], at: Vec, radius: number, details?: Partial<QuestContact>, spot?: ItemSpot,
+    ) => {
+      const distance = Math.hypot(point.x - at.x, point.y - at.y);
+      if (distance > radius) return;
+      const hit = { kind, at, contact: { biome: plan.biome, ...details }, spot, live };
+      if (kind === 'obstacle' || kind === 'treasure') {
+        if (distance < bestFallback) { bestFallback = distance; fallback = hit; }
+        return;
+      }
+      if (distance >= best) return;
+      best = distance;
+      nearest = hit;
+    };
+
+    if (plan.giver) consider('giver', plan.giver.at, HUD.talkRadius, { giverId: plan.giver.id });
+    for (const spot of plan.items) {
+      if (!takenItems.has(spot.id)) consider('item', spot.at, HUD.pickupRadius, { target: 'item', item: spot.item }, spot);
+    }
+    for (const at of pondPoints(plan)) consider('pond', at, HUD.talkRadius, { target: 'pond' });
+    for (const obstacle of obstacles.values()) {
+      if (!obstacle.gone) consider('obstacle', obstacle.at, obstacle.radius + HUD.pickupRadius);
+    }
+    if (plan.treasure) consider('treasure', plan.treasure.at, HUD.pickupRadius);
+    for (const site of plan.activities) consider('activity', site.at, site.radius);
+  }
+  return nearest ?? fallback;
 }
 
-export function offerAt(world: Pick<WorldQuery, 'seed' | 'plan' | 'hexesNear'>, plan: HexPlan, n: number): Quest | undefined {
+export function offerAt(
+  world: Pick<WorldQuery, 'seed' | 'live' | 'hexesNear' | 'surfaceAt'>, plan: HexPlan, date: number, traits: Traits,
+): Quest | undefined {
   const { giver } = plan;
   if (!giver) return;
-  const plans = world.hexesNear(giver.at.x, giver.at.y, QUESTS.nearbyRings).map(coord => world.plan(coord));
-  const biomes = new Set(plans.map(plan => plan.biome));
-  const missingFetchBiomes = new Set<BiomeId>();
-  while (true) {
-    const quest = questFor(world.seed, giver, plan.coord, n, biome => biomes.has(biome) && !missingFetchBiomes.has(biome));
-    const { fromBiome } = quest;
-    if (!fromBiome || plans.some(plan => plan.biome === fromBiome && plan.items.some(item => item.item === quest.item))) {
-      return quest;
+  const plans = world.hexesNear(giver.at.x, giver.at.y, QUESTS.nearbyRings).map(coord => world.live(coord));
+  const items = new Map<string, { item: ItemSpot['item']; biome: HexPlan['biome'] }>();
+  const passable = ({ x, y }: Vec) => surfaceEffect(traits.kind, world.surfaceAt(x, y), traits).passable;
+  for (const { plan, takenItems } of plans) {
+    for (const spot of plan.items) {
+      if (!takenItems.has(spot.id) && passable(spot.at)) items.set(`${plan.biome}:${spot.item}`, { item: spot.item, biome: plan.biome });
     }
-    // A biome may exist nearby without generating the selected item (e.g. a Jungle with only ferns).
-    missingFetchBiomes.add(fromBiome);
   }
+  return questFor(world.seed, giver, plan.coord, date, [...items.values()],
+    plans.some(({ plan }) => pondPoints(plan).some(passable)), traits);
 }

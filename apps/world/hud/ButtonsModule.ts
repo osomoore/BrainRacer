@@ -133,6 +133,7 @@ export default class ButtonsModule implements WorldModule {
     if (!open && pr.b && !pr.y && !pr.menu && v.honkCooldown <= 0) this.honk(v);
     for (const e of events) {
       const previous = v.state.kind;
+      if (previous === 'quests' && e.type === 'nav' && this.quests.cycle(p, e.dir)) continue;
       if (previous === 'closed' && this.views.length === 2 && e.type === 'press' && e.button === 'y') {
         const next = stepLabRequest(this.labRequest, { type: 'request', player: p.index }).state;
         if (next !== this.labRequest) p.busy = true;

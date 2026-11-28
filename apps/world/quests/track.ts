@@ -1,62 +1,49 @@
 import { QUEST_SLOTS } from '../core/types';
-import type {
-  BiomeId, ItemSpot, Quest, ReadingLevel, Traits, WorldPlayerSave,
-} from '../core/types';
+import type { BiomeId, ItemId, Quest, QuestTargetKind, ReadingLevel, Traits, WorldPlayerSave } from '../core/types';
+import { meets } from '../logic/rules';
 import { questId } from './gen';
 
-export type QuestState = Pick<WorldPlayerSave, 'quests' | 'questSeq' | 'stars'>;
-type CarryTraits = Pick<Traits, 'carry'>;
+export type QuestState = Pick<WorldPlayerSave, 'quests' | 'questSeq'>;
 
 export interface QuestContact {
   biome: BiomeId;
-  /** IDs are present only on contact with the giver or home pad. */
   giverId?: string;
   homeId?: string;
+  target?: QuestTargetKind;
+  item?: ItemId;
 }
 
-export function nextQuestIndex(state: QuestState, giverId: string): number {
-  return Object.hasOwn(state.questSeq, giverId) ? state.questSeq[giverId] : 0;
+export function localQuestDate(now = new Date()): number {
+  return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
 }
 
-function canCarry(state: QuestState, traits: CarryTraits): boolean {
-  return state.quests.filter((active) => active.carrying).length < traits.carry;
+export function canOffer(state: QuestState, giverId: string, reading: ReadingLevel, date: number): boolean {
+  return state.quests.length < QUEST_SLOTS[reading] && state.questSeq[giverId] !== date;
 }
 
-/** Advance the giver's offer on acceptance so completed or abandoned offers cannot be replayed. */
-export function acceptQuest<T extends QuestState>(state: T, quest: Quest, reading: ReadingLevel, traits: CarryTraits): T {
-  const n = nextQuestIndex(state, quest.giverId);
-  if (state.quests.length >= QUEST_SLOTS[reading] || quest.id !== questId(quest.giverId, n)) return state;
-  if (state.quests.some((active) => active.quest.id === quest.id)) return state;
-  const carrying = quest.kind === 'deliver';
-  if (carrying && !canCarry(state, traits)) return state;
-  return {
-    ...state,
-    quests: [...state.quests, { quest, carrying }],
-    questSeq: { ...state.questSeq, [quest.giverId]: n + 1 },
-  };
+export function recordOffer(state: QuestState, giverId: string, date: number): void {
+  state.questSeq = { ...state.questSeq, [giverId]: date };
 }
 
-function setCarrying<T extends QuestState>(state: T, index: number, carrying: boolean): T {
-  if (index < 0) return state;
-  const quests = [...state.quests];
-  quests[index] = { ...quests[index], carrying };
-  return { ...state, quests };
+export function acceptQuest(state: QuestState, quest: Quest, reading: ReadingLevel, traits: Traits, date: number): boolean {
+  if (state.quests.length >= QUEST_SLOTS[reading] || !meets(quest.needs, traits)
+    || quest.id !== questId(quest.giverId, date) || state.questSeq[quest.giverId] !== date
+    || state.quests.some(active => active.quest.id === quest.id)) return false;
+  state.quests = [...state.quests, { quest, carrying: false }];
+  return true;
 }
 
-/** One item contact fills the oldest matching tracked fetch. */
-export function pickupQuestItem<T extends QuestState>(state: T, spot: ItemSpot, biome: BiomeId, traits: CarryTraits): T {
-  if (!canCarry(state, traits)) return state;
-  const index = state.quests.findIndex(({ quest, carrying }) =>
-    !carrying && quest.kind === 'fetch' && quest.item === spot.item && quest.fromBiome === biome);
-  return setCarrying(state, index, true);
-}
-
-/** A delivery can be picked up again from its original giver after dropping it. */
-export function pickupDelivery<T extends QuestState>(state: T, id: string, giverId: string, traits: CarryTraits): T {
-  if (!canCarry(state, traits)) return state;
-  const index = state.quests.findIndex(({ quest, carrying }) =>
-    !carrying && quest.id === id && quest.kind === 'deliver' && quest.giverId === giverId);
-  return setCarrying(state, index, true);
+export function pickupQuestItem(
+  state: QuestState, contact: QuestContact, carriedCount: number, traits: Traits, deliveryId?: string,
+): Quest | undefined {
+  if (carriedCount >= traits.carry) return;
+  const index = state.quests.findIndex(({ quest, carrying }) => !carrying && meets(quest.needs, traits) && (deliveryId !== undefined
+    ? quest.kind === 'deliver' && quest.id === deliveryId && quest.giverId === contact.giverId
+    : quest.kind === 'fetch' && contact.target === 'item' && quest.item === contact.item && quest.fromBiome === contact.biome));
+  if (index < 0) return;
+  const active = state.quests[index];
+  state.quests = state.quests.map((entry, i) => i === index ? { ...active, carrying: true } : entry);
+  return active.quest;
 }
 
 function atGoal(quest: Quest, contact: QuestContact): boolean {
@@ -64,21 +51,14 @@ function atGoal(quest: Quest, contact: QuestContact): boolean {
     case 'giver': return contact.giverId === quest.giverId;
     case 'biome': return contact.biome === quest.goal.biome;
     case 'home': return contact.homeId !== undefined;
+    case 'target': return contact.target === quest.goal.target
+      && (quest.goal.target !== 'item' || contact.item === quest.item);
   }
 }
 
-export function completeQuest<T extends QuestState>(state: T, id: string, contact: QuestContact): T {
-  const active = state.quests.find(({ quest }) => quest.id === id);
-  if (!active?.carrying || !atGoal(active.quest, contact)) return state;
-  return { ...abandonQuest(state, id), stars: state.stars + active.quest.stars };
-}
-
-/** Dropping frees a carry slot. A fetch can be filled by another matching spot. */
-export function dropQuestItem<T extends QuestState>(state: T, id: string): T {
-  return setCarrying(state, state.quests.findIndex(({ quest, carrying }) => carrying && quest.id === id), false);
-}
-
-export function abandonQuest<T extends QuestState>(state: T, id: string): T {
-  const quests = state.quests.filter(({ quest }) => quest.id !== id);
-  return quests.length === state.quests.length ? state : { ...state, quests };
+export function completeQuest(state: QuestState, contact: QuestContact): Quest | undefined {
+  const active = state.quests.find(({ quest, carrying }) => (quest.kind === 'visit' || carrying) && atGoal(quest, contact));
+  if (!active) return;
+  state.quests = state.quests.filter(entry => entry !== active);
+  return active.quest;
 }

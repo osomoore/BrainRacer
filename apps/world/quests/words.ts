@@ -8,8 +8,8 @@ const NO_SHOP_NAMES: WorkshopCatalog = {
   facetPhrases: [], scenarioPhrases: [], unlockOrder: [], starters: [],
 };
 
-// Allow whole map and item names. Other words still use the Workshop checker.
-const names = [...Object.values(BIOME_NAMES), ...Object.values(ITEM_NAMES)]
+// Allow names of places, items and the pictured hand control. Check other words with Workshop rules.
+const names = [...Object.values(BIOME_NAMES), ...Object.values(ITEM_NAMES), 'pond', 'hand']
   .sort((a, b) => b.length - a.length);
 const worldNames = new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
 const worldSoundOut = new Set(['bring', 'home']);

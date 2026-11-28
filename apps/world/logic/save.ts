@@ -57,9 +57,12 @@ function validQuest(raw: unknown): raw is ActiveQuest {
   const { id, giverId, giverHex, kind, item, fromBiome, goal, stars, text } = raw.quest;
   return typeof id === 'string' && id.length > 0 && typeof giverId === 'string' && giverId.length > 0
     && object(giverHex) && Number.isSafeInteger(giverHex.q) && Number.isSafeInteger(giverHex.r)
-    && (kind === 'fetch' || kind === 'deliver') && ITEMS.has(item)
+    && (kind === 'visit' || kind === 'fetch' || kind === 'deliver') && ITEMS.has(item)
     && (fromBiome === undefined || BIOMES.has(fromBiome))
-    && object(goal) && (goal.kind === 'giver' || goal.kind === 'home' || (goal.kind === 'biome' && BIOMES.has(goal.biome)))
+    && object(goal) && (kind === 'visit'
+      ? !raw.carrying && goal.kind === 'target' && (goal.target === 'item' || goal.target === 'pond')
+      : goal.kind === 'home' || goal.kind === 'giver' || (goal.kind === 'biome' && BIOMES.has(goal.biome))
+        || (kind === 'deliver' && goal.kind === 'target' && goal.target === 'pond'))
     && typeof stars === 'number' && Number.isSafeInteger(stars) && stars > 0
     && object(text) && READING_LEVELS.every(level => typeof text[level] === 'string');
 }

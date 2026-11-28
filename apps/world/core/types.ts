@@ -203,21 +203,26 @@ export const ITEM_IDS = [
 ] as const;
 export type ItemId = typeof ITEM_IDS[number];
 
+export type QuestTargetKind = 'item' | 'pond';
+
 export type QuestGoal =
   | { kind: 'giver' }                       // bring it back to the quest giver
   | { kind: 'biome'; biome: BiomeId }       // deliver into any hex of that biome (duck to a lake)
-  | { kind: 'home' };                       // bring it to any home base
+  | { kind: 'home' }                        // bring it to any home base (older quests)
+  | { kind: 'target'; target: QuestTargetKind };
 
 export interface Quest {
-  /** `${giverId}#${n}` */
+  /** `${giverId}#${dateKey}` for daily offers. */
   id: string;
   giverId: string;
   giverHex: HexCoord;
-  kind: 'fetch' | 'deliver';
+  kind: 'visit' | 'fetch' | 'deliver';
   item: ItemId;
   /** Where to find the item (fetch: any item spot of this biome; deliver: handed over by the giver). */
   fromBiome?: BiomeId;
   goal: QuestGoal;
+  /** Part-derived abilities required to see the offer. */
+  needs?: TraitNeed[];
   stars: number;
   /** Instruction text per reading level (quests/text.ts). */
   text: Record<ReadingLevel, string>;
@@ -226,7 +231,7 @@ export interface Quest {
 export interface ActiveQuest { quest: Quest; /** item picked up / handed over */ carrying: boolean }
 
 /** Tracked quests per reading level. */
-export const QUEST_SLOTS: Record<ReadingLevel, number> = { starter: 1, easy: 1, medium: 2, hard: 3 };
+export const QUEST_SLOTS: Record<ReadingLevel, number> = { starter: 1, easy: 2, medium: 3, hard: 4 };
 
 // ---------------------------------------------------------------------------------------------
 // Saves (localStorage `world.players.v1`: Record<profileId, WorldPlayerSave>)
@@ -240,7 +245,7 @@ export interface WorldPlayerSave {
   /** Claimed activity / treasure ids (stars pay once per id). Capped list, oldest dropped. */
   claimed: string[];
   quests: ActiveQuest[];
-  /** Per-giver quest counter (next quest index). */
+  /** Per-giver last offer date (local YYYYMMDD). Older saves hold small sequence counters. */
   questSeq: Record<string, number>;
   /** Where the player was when they left (restored when coming back, e.g. from the Workshop). */
   last?: { x: number; y: number; angle: number };

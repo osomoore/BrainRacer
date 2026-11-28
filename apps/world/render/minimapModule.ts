@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import type { BiomeId, HexCoord, Quest } from '../core/types';
+import type { BiomeId, HexCoord } from '../core/types';
 import type { WorldContext, WorldModule, WorldPlayer } from '../core/runtime';
 import { WORLD } from '../config';
 import { BIOME_IDS } from '../core/types';
@@ -51,7 +51,6 @@ type PlayerMap = {
   north: Phaser.GameObjects.Image;
   origin: { x: number; y: number };
   scale: number;
-  markerSignature: string;
   center: HexCoord;
 };
 
@@ -77,13 +76,8 @@ export default class MinimapModule implements WorldModule {
       if (map.center.q !== player.hex.q || map.center.r !== player.hex.r) {
         map.visited = revealHexes(map.visited, player.hex);
         this.updateTiles(map);
-        map.center = { ...player.hex };
-      }
-
-      const markerSignature = `${hexKey(player.hex)}|${player.save.quests.map(({ quest, carrying }) => `${quest.id}:${carrying}`).join(';')}`;
-      if (map.markerSignature !== markerSignature) {
         this.updateMarkers(map);
-        map.markerSignature = markerSignature;
+        map.center = { ...player.hex };
       }
 
       const camera = player.camera;
@@ -141,7 +135,7 @@ export default class MinimapModule implements WorldModule {
       .setDepth(10000).setScrollFactor(0);
     this.ctx.showOnlyTo(root, player);
     this.maps.push({ player, root, terrain, markers, visited: new Set(), tiles: new Map(), otherArrow, north,
-      markerSignature: '', center: { q: Number.NaN, r: Number.NaN }, origin, scale: size / MAP_SIZE });
+      center: { q: Number.NaN, r: Number.NaN }, origin, scale: size / MAP_SIZE });
   }
 
   private updateTiles(map: PlayerMap): void {
@@ -170,13 +164,6 @@ export default class MinimapModule implements WorldModule {
       if (!map.tiles.has(hexKey(coord))) continue;
       const plan = this.ctx.world.plan(coord);
       if (plan.home) this.addMarker(map, coord, 'world-minimap-home');
-      for (const active of player.save.quests) {
-        const quest = active.quest;
-        const target = !active.carrying && quest.kind === 'fetch'
-          ? plan.items.some((item) => item.item === quest.item && plan.biome === quest.fromBiome)
-          : questTarget(quest, coord, plan.biome, !!plan.home);
-        if (target) this.addMarker(map, coord, 'world-minimap-quest');
-      }
     }
   }
 
@@ -213,7 +200,6 @@ export default class MinimapModule implements WorldModule {
       g.fillStyle(0xff8570, 1); g.lineStyle(2, 0x39251d, 1); g.beginPath(); g.moveTo(28, 16); g.lineTo(5, 4); g.lineTo(9, 16); g.lineTo(5, 28); g.closePath(); g.fill(); g.stroke();
     });
     this.bakeTexture(scene, 'world-minimap-home', 24, (g) => { g.fillStyle(0xffdf58, 1); g.fillCircle(12, 12, 10); g.lineStyle(2, 0x45331a); g.strokeCircle(12, 12, 10); });
-    this.bakeTexture(scene, 'world-minimap-quest', 24, (g) => { g.fillStyle(0xf276d2, 1); g.fillCircle(12, 12, 10); g.lineStyle(2, 0x44213f); g.strokeCircle(12, 12, 10); });
   }
 
   private bakeTexture(scene: Phaser.Scene, key: string, size: number, draw: (g: Phaser.GameObjects.Graphics) => void): void {
@@ -223,10 +209,4 @@ export default class MinimapModule implements WorldModule {
     graphics.generateTexture(key, size, size);
     graphics.destroy();
   }
-}
-
-function questTarget(quest: Quest, coord: HexCoord, biome: BiomeId, home: boolean): boolean {
-  if (quest.goal.kind === 'giver') return coord.q === quest.giverHex.q && coord.r === quest.giverHex.r;
-  if (quest.goal.kind === 'home') return home;
-  return biome === quest.goal.biome;
 }

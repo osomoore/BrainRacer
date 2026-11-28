@@ -13,7 +13,7 @@ function checkPhrases(level: ReadingLevel, details: QuestTextDetails, place: str
   for (const phrase of QUEST_PHRASES[details.kind][level]) {
     const line = fillQuestPhrase(phrase, details);
     expect(line, phrase).toContain(ITEM_NAMES[details.item]);
-    expect(line, phrase).toContain(place);
+    if (place) expect(line, phrase).toContain(place);
     expect(line).not.toMatch(/[{}]|\ba egg\b/);
     expect(line).toMatch(/[.!?]$/);
     if (level === 'starter') {
@@ -36,12 +36,12 @@ describe('quest wording', () => {
       for (const who of givers) {
         for (const biome of BIOME_IDS) {
           checkPhrases(level, { kind: 'fetch', item, fromBiome: biome, who }, BIOME_NAMES[biome]);
-          checkPhrases(level, { kind: 'deliver', item, goal: { kind: 'biome', biome }, who }, BIOME_NAMES[biome]);
         }
-        checkPhrases(level, { kind: 'deliver', item, goal: { kind: 'home' }, who }, 'home');
-        checkPhrases(level, { kind: 'deliver', item, goal: { kind: 'giver' }, who }, 'back to your pal');
+        checkPhrases(level, { kind: 'visitItem', item, who }, '');
       }
     }
+    checkPhrases(level, { kind: 'visitPond', item: 'duck', who: 'farmer' }, 'pond');
+    checkPhrases(level, { kind: 'deliver', item: 'duck', who: 'farmer' }, 'pond');
   });
 
   it('uses the correct article for every item', () => {

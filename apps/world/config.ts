@@ -47,7 +47,7 @@ export const GEN = {
   planCacheSize: 96,
   campChance: 1 / 12,
   treasureChance: 1 / 25,
-  giverChance: 1 / 3,
+  giverChance: 0.5,
   activityRadius: 110,
   targetDistance: 90,
   featureRadius: 315,
