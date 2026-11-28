@@ -5,6 +5,8 @@ import { allPass, computeModel, partTag } from '../../logic/stats';
 import { evaluate } from '../../logic/evaluate';
 import { resolveSpec } from '../../logic/text';
 import { namedVariants, variantHelps } from '../../logic/validateCatalog';
+import { newProgress, purchase, setPart } from '../../logic/board';
+import { shopOffers } from '../../logic/shop';
 import { RACE_CATALOG as C, RACE_SCENE_NOTES } from './catalog';
 
 // ---- helpers for checking content balance ----
@@ -41,7 +43,7 @@ const starterChecks = (i: number) => C.starters[i].stages.flatMap((st) => st.fac
 
 // Variant names that must never appear in hints (multi-word names always; distinctive single words too).
 const DISTINCT = ['jeep', 'van', 'sleek', 'wedge', 'boxy', 'floaties', 'snorkel', 'winch', 'rainbow', 'tiny', 'truck',
-  'rocket', 'spoiler', 'turbo', 'electric', 'bouncy', 'rubber', 'racing', 'monster'];
+  'rocket', 'spoiler', 'turbo', 'electric', 'bouncy', 'rubber', 'racing', 'monster', 'radiator'];
 const MULTI = C.variants.map((v) => v.name.toLowerCase()).filter((n) => n.includes(' '));
 const words = (s: string): string[] => s.toLowerCase().match(/[a-z0-9']+/g) ?? [];
 const hasWord = (s: string, w: string) => words(s).includes(w);
@@ -83,6 +85,28 @@ describe('race catalog structure', () => {
     const nonStarters = C.variants.map((v) => v.id).filter((id) => !starters.has(id));
     expect([...C.unlockOrder].sort()).toEqual([...nonStarters].sort());
     expect(new Set(C.unlockOrder).size).toBe(C.unlockOrder.length);
+  });
+
+  it('offers the World extras after the earlier Extra purchases and equips their tags', () => {
+    const progress = { ...newProgress(C, undefined, 'medium'), wallet: 18 };
+    const earlier = ['extra.rocket', 'extra.snorkel', 'extra.winch', 'extra.floats', 'extra.spoiler'];
+    const ready = { ...progress, bought: earlier };
+    const initialTags = computeModel(C, progress.model).tags;
+    expect(initialTags.has('glow')).toBe(false);
+    expect(initialTags.has('cooling')).toBe(false);
+    expect(shopOffers(C, progress, 'extra').map((offer) => offer.variant)).toEqual(earlier.slice(0, 2));
+    expect(shopOffers(C, ready, 'extra')).toEqual([
+      { variant: 'extra.rallyLights', price: 15, affordable: true },
+      { variant: 'extra.radiator', price: 18, affordable: true },
+    ]);
+    for (const [variant, tag, price] of [['extra.rallyLights', 'glow', 15], ['extra.radiator', 'cooling', 18]] as const) {
+      const result = purchase(C, ready, 'extra', variant);
+      expect(result).toMatchObject({ status: 'bought', progress: { wallet: 18 - price, bought: [...earlier, variant] } });
+      const equipped = setPart(C, result.progress, 'extra', variant);
+      expect(equipped.model.extra).toBe(variant);
+      const { tags } = computeModel(C, equipped.model);
+      expect([...tags].filter((name) => name === 'glow' || name === 'cooling')).toEqual([tag]);
+    }
   });
 
   it('has scene notes for every scenario and facet', () => {

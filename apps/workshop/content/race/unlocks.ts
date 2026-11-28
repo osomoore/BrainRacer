@@ -34,4 +34,6 @@ export const RACE_UNLOCK_ORDER: readonly VariantId[] = [
   'shape.wedge', // log 2, low bridge
   'wheels.monster', // rocks, mud
   'paint.rainbow', // parade 3
+  'extra.rallyLights', // dark roads
+  'extra.radiator', // hot roads
 ];

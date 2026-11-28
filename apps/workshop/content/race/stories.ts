@@ -309,4 +309,6 @@ export const RACE_PRACTICE_STORIES: Readonly<Record<string, LeveledPhrases>> = p
   'extra.spoiler': 'The fast test track has a very sharp bend.',
   'extra.snorkel': 'A shallow stream covers the road and hides it.',
   'extra.winch': 'A friend is stuck in the mud. They need help.',
+  'extra.rallyLights': 'The road is too dark to see.',
+  'extra.radiator': 'The hot sun beats down on the car.',
 });

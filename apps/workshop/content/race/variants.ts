@@ -93,11 +93,13 @@ export const RACE_VARIANTS: readonly Variant[] = [
   v('size.tiny', 'Tiny',
     { width: -2, height: -2, weight: -2, load: -2, handling: 2, range: 2, power: -1, toughness: -1 }, [],
     'Squeezes anywhere; almost no room, weaker.'),
-  // extras: roofRack* (carry), rocket* (speed burst), then floats (rivers), spoiler (turns), snorkel (deep water), winch (pull)
+  // extras: roofRack* (carry), rocket* (speed burst), then river, turn, pull, light and cooling parts
   v('extra.roofRack', 'Roof Rack', { load: 2, height: 1 }, ['roofRack'], 'Extra cargo on top (default); adds height.'),
   v('extra.rocket', 'Rocket Booster', { speed: 3, noise: 3, range: -1 }, ['rocket'], 'Speed burst for jumps; loud.'),
   v('extra.floats', 'Floaties', { width: 1, speed: -1 }, ['canFloat'], 'Floats across deep rivers.'),
   v('extra.spoiler', 'Big Spoiler', { handling: 2, speed: 1 }, ['spoiler'], 'Presses the car down: turns.'),
   v('extra.snorkel', 'Snorkel', { height: 1 }, ['snorkel'], 'Breathes in deep water (stream crossing).'),
   v('extra.winch', 'Winch', { weight: 1, push: 1 }, ['winch'], 'Pulls stuck friends out of the mud.'),
+  v('extra.rallyLights', 'Rally Lights', {}, ['glow'], 'Lights up dark roads.'),
+  v('extra.radiator', 'Radiator', {}, ['cooling'], 'Keeps the car cool in the heat.'),
 ];

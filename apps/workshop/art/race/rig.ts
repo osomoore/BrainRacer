@@ -116,6 +116,8 @@ export class RaceRig extends BaseRig {
     if (ex) { const pipe = partImage(sc, ex).setPosition(geo.rear + 4, geo.bottom + 3); this.bumperG.add(pipe); P.engine.push(pipe); }
     // extras on top
     const winchAt = winchMount(L, geo);
+    const lightX = (r0 + r1) / 2;
+    const radiatorY = geo.chassisTop(geo.front);
     switch (m.extra) {
       case 'extra.roofRack': {
         const w = Math.max(70, (r1 - r0) * 0.9), cx = (r0 + r1) / 2;
@@ -140,6 +142,12 @@ export class RaceRig extends BaseRig {
         P.extra.push(winch);
         break;
       }
+      case 'extra.rallyLights':
+        add('extra', partImage(sc, S.rallyLightsSide()), lightX, geo.topY(lightX));
+        break;
+      case 'extra.radiator':
+        add('extra', partImage(sc, S.radiatorSide()), geo.front, radiatorY);
+        break;
       default: break;
     }
     // bumpers
@@ -175,6 +183,7 @@ export class RaceRig extends BaseRig {
       'extra.roofRack': [(r0 + r1) / 2, geo.roofTop - 20], 'extra.rocket': [geo.rear - 40, geo.bottom - 20],
       'extra.floats': [0, geo.bottom + 4], 'extra.spoiler': [rearDeckX, rearDeckY - 22],
       'extra.snorkel': [cabinFront, geo.roofTop - 10], 'extra.winch': [winchAt.x, winchAt.y - 9],
+      'extra.rallyLights': [lightX, geo.topY(lightX) - 23], 'extra.radiator': [geo.front - 10, radiatorY + 5],
     };
     const e = ex2[m.extra] ?? [0, -geo.height / 2];
     fx('extra', e[0], e[1], 2);
@@ -202,6 +211,12 @@ export class RaceRig extends BaseRig {
       case 'extra.roofRack': add('extra', partImage(sc, T.rackTop((c1 - c0) * 0.8, cw * 1.5, L.rackBags)), (c0 + c1) / 2, 0); break;
       case 'extra.spoiler': add('extra', partImage(sc, T.spoilerTop(hw, m.paint)), geo.rear + 28, 0); break;
       case 'extra.snorkel': add('extra', partImage(sc, T.snorkelTop()), c1 - 4, -cw); break;
+      case 'extra.rallyLights':
+        add('extra', partImage(sc, T.rallyLightsTop(Math.round(cw * 1.6))), (c0 + c1) / 2, 0);
+        break;
+      case 'extra.radiator':
+        add('extra', partImage(sc, T.radiatorTop(Math.round(hw * 1.1))), geo.front - 10, 0);
+        break;
       case 'extra.winch': {
         const { x, extension } = winchMount(L, geo);
         if (extension) add('extra', partImage(sc, S.winchBracket(extension)), geo.front, 0);

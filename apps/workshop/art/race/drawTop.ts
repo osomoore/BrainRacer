@@ -204,6 +204,53 @@ export function bumperTop(id: string, hw: number): PartSpec {
   };
 }
 
+/** Roof crossbar with four forward-facing lamps. */
+export function rallyLightsTop(width: number): PartSpec {
+  const ex = EXTRA['extra.rallyLights'];
+  return {
+    key: `ws:r:rallyLightsTop:${width}`, w: 48, h: width + 16, ox: 24, oy: width / 2 + 8,
+    draw: (g) => {
+      const shapes: Shape[] = [
+        { path: (c) => rrectPath(c, -13, -width / 2, 15, width, 6), fill: ex.color },
+      ];
+      const spacing = width / 4;
+      for (let i = 0; i < 4; i++) {
+        const y = (i - 1.5) * spacing - spacing * 0.37;
+        const lampWidth = spacing * 0.74;
+        shapes.push({
+          path: (c) => rrectPath(c, -7, y, 21, lampWidth, 5),
+          fill: ex.color2,
+          detail: (c) => {
+            c.fillStyle = ex.color3;
+            c.fillRect(4, y + 2, 10, lampWidth - 4);
+          },
+        });
+      }
+      drawShapes(g, shapes, 3.5);
+    },
+  };
+}
+
+/** Radiator face tipped into view at the leading edge of the hood. */
+export function radiatorTop(width: number): PartSpec {
+  const ex = EXTRA['extra.radiator'];
+  return {
+    key: `ws:r:radiatorTop:${width}`, w: 65, h: width + 18, ox: 36, oy: width / 2 + 9,
+    draw: (g) => {
+      drawShapes(g, [{
+        path: (c) => rrectPath(c, -27, -width / 2, 45, width, 9),
+        fill: ex.color,
+        detail: (c) => {
+          c.fillStyle = ex.color2;
+          c.beginPath(); rrectPath(c, -20, -width / 2 + 6, 33, width - 12, 5); c.fill();
+          c.fillStyle = ex.color3;
+          for (let x = -16; x < 12; x += 8) c.fillRect(x, -width / 2 + 8, 3.5, width - 16);
+        },
+      }], 4);
+    },
+  };
+}
+
 export function rackTop(len: number, wid: number, bagCount = 2): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   return {

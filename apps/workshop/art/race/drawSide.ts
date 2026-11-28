@@ -382,6 +382,56 @@ export function bumperSide(id: string): PartSpec {
 
 // ---------------------------------------------------------------- extras
 
+/** Roof lamp bar in the side view's slight three-quarter perspective. Origin = roof mount. */
+export function rallyLightsSide(): PartSpec {
+  const ex = EXTRA['extra.rallyLights'];
+  return {
+    key: 'ws:r:rallyLightsSide', w: 86, h: 60, ox: 44, oy: 51,
+    draw: (g) => {
+      const shapes: Shape[] = [
+        { path: (c) => rrectPath(c, -12, -15, 24, 17, 4), fill: ex.color },
+        { path: (c) => polyPath(c, [
+          { x: -34, y: -23 }, { x: 26, y: -37 }, { x: 29, y: -26 }, { x: -32, y: -12 },
+        ]), fill: ex.color },
+      ];
+      for (let i = 3; i >= 0; i--) {
+        const x = -27 + i * 18, y = -25 - i * 4;
+        shapes.push({
+          path: (c) => ellipsePath(c, x, y, 11, 12, -0.2),
+          fill: ex.color2,
+          detail: (c) => {
+            c.fillStyle = ex.color3;
+            c.beginPath(); ellipsePath(c, x + 1, y - 2, 6, 8, -0.2); c.fill();
+          },
+        });
+      }
+      drawShapes(g, shapes, 3.5);
+    },
+  };
+}
+
+/** Finned grille wraps over the hood edge. Origin = top of the nose. */
+export function radiatorSide(): PartSpec {
+  const ex = EXTRA['extra.radiator'];
+  return {
+    key: 'ws:r:radiatorSide', w: 74, h: 53, ox: 49, oy: 17,
+    draw: (g) => {
+      drawShapes(g, [
+        { path: (c) => rrectPath(c, -39, -8, 45, 17, 6), fill: ex.color },
+        {
+          path: (c) => rrectPath(c, -14, -7, 31, 32, 7), fill: ex.color,
+          detail: (c) => {
+            c.fillStyle = ex.color2;
+            c.fillRect(-9, -2, 22, 22);
+            c.fillStyle = ex.color3;
+            for (let y = 1; y < 20; y += 6) c.fillRect(-7, y, 18, 2.5);
+          },
+        },
+      ], 4);
+    },
+  };
+}
+
 export function rackSide(w: number, legH: number, bagCount = 2): PartSpec {
   const ex = EXTRA['extra.roofRack'];
   const H = legH + 70, W = w + 30;

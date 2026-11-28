@@ -153,6 +153,8 @@ export const EXTRA: Record<VariantId, ExtraLook> = {
   'extra.spoiler': { color: '#2a2d3a', color2: '#ee3b3b', color3: '#c3c9d4' },
   'extra.snorkel': { color: '#3a3d4c', color2: '#8d97a6', color3: '#1b1b3a' },
   'extra.winch': { color: '#ffd21f', color2: '#c3c9d4', color3: '#3a3d4c' },
+  'extra.rallyLights': { color: '#3a3d4c', color2: '#ffd254', color3: '#fff8cd' },
+  'extra.radiator': { color: '#a4b6cc', color2: '#354454', color3: '#d8edf5' },
 };
 
 export const RACE_WINDOW = '#bfeaff';
