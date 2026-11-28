@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { BUTTONS, QUESTS, WORLD_PLAY, WORLD_QUEST_HUD as HUD } from '../config';
 import { DEPTH, type HexLive, type WorldContext, type WorldEvents, type WorldModule, type WorldPlayer } from '../core/runtime';
-import type { HexPlan, ItemId, ItemSpot, Quest, Vec } from '../core/types';
+import type { HexPlan, ItemSpot, Quest, Vec } from '../core/types';
 import { isPathLog, touchesPath } from '../gen/errandSites';
 import { hexKey } from '../gen/hex';
 import { hexInset } from '../gen/layout';
@@ -19,8 +19,6 @@ type Delivery = { quest: Quest; at: Vec; image: Phaser.GameObjects.Image };
 type View = {
   player: WorldPlayer;
   badge: ABadge;
-  items: Phaser.GameObjects.Image[];
-  pictured: readonly ItemId[];
   deliveries: Map<Quest, Delivery>;
   offer?: { quest: Quest; date: number };
   choice?: 'accept' | 'decline';
@@ -52,7 +50,7 @@ export default class QuestModule implements WorldModule {
     });
     for (const player of ctx.players) {
       this.views.set(player, {
-        player, badge: new ABadge(ctx, player), items: [], pictured: [], deliveries: new Map(), nextHonk: 0,
+        player, badge: new ABadge(ctx, player), deliveries: new Map(), nextHonk: 0,
       });
     }
     this.off.push(
@@ -74,7 +72,6 @@ export default class QuestModule implements WorldModule {
       view.badge.hide();
       this.step(view, pads);
       view.badge.update();
-      this.showCarriedItems(view);
     }
   }
 
@@ -84,7 +81,6 @@ export default class QuestModule implements WorldModule {
       if (view.offer) this.close(view);
       view.badge.destroy();
       view.deliveries.forEach(({ image }) => image.destroy());
-      view.items.forEach(image => image.destroy());
     }
     for (const { items } of this.fieldItems.values()) items.forEach(image => image.destroy());
     this.fieldItems.clear();
@@ -143,6 +139,7 @@ export default class QuestModule implements WorldModule {
     if (!pressed.a) return;
     pressed.a = false;
     if (delivery) {
+      this.ctx.bus.emit('player:interact', { player, target: { kind: 'item', id: delivery.quest.item } });
       const picked = !move.flying && pickupQuestItem(save, { biome: plan.biome, giverId: delivery.quest.giverId },
         player.carrying.length, player.traits, delivery.quest.id);
       if (picked) this.picked(player, picked);
@@ -150,6 +147,7 @@ export default class QuestModule implements WorldModule {
       return;
     }
     if (!hit) return;
+    this.emitInteraction(player, hit);
     const completed = completeQuest(save, hit.contact);
     if (completed) {
       this.finish(player, completed);
@@ -173,6 +171,18 @@ export default class QuestModule implements WorldModule {
       }
     }
     this.reactToHit(player, hit);
+  }
+
+  private emitInteraction(player: WorldPlayer, hit: NonNullable<ReturnType<typeof nearestInteraction>>): void {
+    const { bus } = this.ctx;
+    if (hit.spot) bus.emit('player:interact', { player, target: { kind: 'item', id: hit.spot.item } });
+    else if (hit.errand) bus.emit('player:interact', { player, target: { kind: 'errand', id: hit.errand.kind } });
+    else if (hit.obstacle) bus.emit('player:interact', { player, target: { kind: 'obstacle', id: hit.obstacle.kind } });
+    else if (hit.kind === 'giver' && hit.live.plan.giver) {
+      bus.emit('player:interact', { player, target: { kind: 'giver', id: hit.live.plan.giver.who } });
+    } else if (hit.kind === 'pond' || hit.kind === 'treasure') {
+      bus.emit('player:interact', { player, target: { kind: hit.kind } });
+    }
   }
 
   private honk(player: WorldPlayer, plans: readonly HexLive[]): void {
@@ -338,27 +348,4 @@ export default class QuestModule implements WorldModule {
     }
   }
 
-  private showCarriedItems(view: View): void {
-    const { player } = view;
-    const { ctx } = this;
-    if (view.pictured !== player.carrying) {
-      view.items.forEach(image => image.destroy());
-      view.pictured = player.carrying;
-      view.items = player.carrying.map(item => {
-        const image = ctx.scene.add.image(0, 0, questItemTexture(ctx.scene, item)).setDepth(DEPTH.popups);
-        ctx.showOnlyTo(image, player);
-        return image;
-      });
-    }
-    if (!view.items.length) return;
-    const rotation = ctx.viewRotation(player), zoom = player.camera.zoom;
-    const { move } = player;
-    const size = HUD.carrySize / zoom, lift = HUD.carryLift / zoom;
-    const sin = Math.sin(rotation), cos = Math.cos(rotation);
-    view.items.forEach((image, i) => {
-      const side = (i - (view.items.length - 1) / 2) * size;
-      image.setPosition(move.x + side * cos - lift * sin, move.y - side * sin - lift * cos)
-        .setRotation(-rotation).setDisplaySize(size, size);
-    });
-  }
 }

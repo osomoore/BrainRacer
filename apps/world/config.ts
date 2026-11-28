@@ -296,8 +296,6 @@ export const WORLD_QUEST_HUD = {
   targetRings: 5,
   targetRefreshSeconds: 0.35,
   targetRefreshDistance: 120,
-  carryLift: 114,
-  carrySize: 55,
   bannerSeconds: 2.4,
   popupSeconds: 1.25,
   popupLift: 112,
@@ -308,3 +306,23 @@ export const WORLD_QUEST_HUD = {
   questFont: 40,
   starFont: 48,
 } as const;
+
+// Carry chip: kept below the minimap, in the free upper-right of each split view.
+export const WORLD_CARRY_HUD = {
+  carryChipWidth: 230,
+  carryChipHeight: 142,
+  carryChipY: 214,
+  carryFont: 40,
+} as const;
+
+// --- interaction reading aid (W11b) ---
+export const WORLD_NAME_PULSE = {
+  y: 68,
+  fontSize: 60,
+  seconds: 1.2,
+  pulseScale: 0.1,
+  fadeSeconds: 0.2,
+} as const;
+
+/** Cargo dimensions relative to the creation rig's width (forward is local +x). */
+export const WORLD_CARRY_ART = { rear: 0.34, size: 0.27, spacing: 0.68 } as const;

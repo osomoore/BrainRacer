@@ -9,7 +9,7 @@
 import type Phaser from 'phaser';
 import type { MoveState } from '../logic/move';
 import type {
-  ActivitySite, BiomeId, Creation, HexCoord, HexPlan, ItemId, Obstacle, Quest, ReadingLevel, SurfaceSample, Traits,
+  ActivitySite, BiomeId, Creation, ErrandSpotKind, HexCoord, HexPlan, ItemId, Obstacle, Quest, ReadingLevel, SurfaceSample, Traits,
   Vec, WorldPlayerSave,
 } from './types';
 
@@ -63,11 +63,19 @@ export interface HexLive {
   takenItems: Set<string>;
 }
 
+/** Object selected by a successful hand interaction, independent of quest progress. */
+export type WorldInteractionTarget =
+  | { kind: 'item'; id: ItemId }
+  | { kind: 'errand'; id: ErrandSpotKind }
+  | { kind: 'giver' | 'obstacle'; id: string }
+  | { kind: 'pond' | 'treasure' | 'home' };
+
 export interface WorldEvents {
   'player:honk': { player: WorldPlayer };
   'player:hex': { player: WorldPlayer; from: HexCoord; to: HexCoord; biome: BiomeId };
   'player:swap': { player: WorldPlayer; creation: Creation };
   'player:respawn': { player: WorldPlayer; at: Vec };
+  'player:interact': { player: WorldPlayer; target: WorldInteractionTarget };
   'obstacle:effect': { player: WorldPlayer; hex: HexCoord; obstacle: Obstacle; effect: 'push' | 'pass' | 'break' };
   'stars:award': { player: WorldPlayer; stars: number; at: Vec; reason: 'activity' | 'quest' | 'treasure' };
   'activity:start': { player: WorldPlayer; site: ActivitySite };
