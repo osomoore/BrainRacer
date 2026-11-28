@@ -358,3 +358,81 @@ controls from `apps/world/input/` (TouchModule writes `player.controls`); read `
   short reason + action ("My cows are hungry. Take them hay."). The user reviews wording later.
 - Interactables: baked placeholder art in the existing style, a small reaction each (wiggle, sound hook, hop),
   1 star per quest as now, all W9a rules unchanged (slots, one offer per giver per kid per day, no arrow/minimap).
+
+## Wave 4 (user feedback 2026-11-28): five parallel jobs W11a..W11d + WA art
+
+Shared rules for all W11 jobs: everything in `docs/WORLD.md` and the W9/W10 rules stays. Kid text at all four reading
+levels with the existing word tests (Starter word list, level word limits); the user reviews wording. Tunables in
+`apps/world/config.ts` (your own section). Contracts (`apps/world/core/types.ts`, `core/runtime.ts`): additive changes
+only, listed in your report. Pure logic Phaser-free with Vitest tests. `npm run typecheck && npm test` green; World
+e2e (`npx playwright test e2e/world*`) green.
+
+### W11a controls and speed — `apps/world/logic/move*`, `logic/traits*`, `host/**` (drive + cameras), gen surface code for ice roads, `play/PlayModule.ts` (blocked banners only)
+- **Steering never flips.** Car: stick left always turns left, also while reversing or with the stick down-left
+  (drop the `sign(forwardSpeed)` flip in `logic/move.ts`). Backing up is "mirrored" on purpose.
+- **Dino steers like the car** (heading-up camera made screen-aimed steering spin and run): stick x = turn,
+  stick up / throttle = walk forward, stick down / brake = walk slowly backward (reverse ~40 % speed). Same on
+  touch, pads and keyboard. Flying dinos the same.
+- **Zoom out with speed:** each view's zoom eases from the base (1P 1.8, 2P 1.6) toward about 75 % of it at top
+  speed, smoothed (no pumping on bumps); tunable.
+- **Top speed parts:** car Speed Gears and the Turbo / Big Engine raise World top speed (find the tags/stats in
+  `apps/workshop/content/race`), visible but modest (about +10-25 %); keep Climbing Gears for mud/hills.
+- **Icy roads:** roads in Snowy Hills get an ice surface: a small slide unless suited (snow tires / snow grip /
+  warm claws, the existing `cold` trait); slower turning, no wall.
+- **Blocked messages:** hitting the dark or heat wall shows a banner (per player, at most every ~4 s):
+  car "Too Hot! Cool off with a Radiator." / "Too Dark! Get Rally Lights."; dino "Too Hot! Cool off with a Neck
+  Frill." / "Too Dark! Get Glow Spots." (shorter at Starter/Easy: "Too hot!" / "Too dark!").
+- **Back Sail keeps a dino cool too:** tag `sail` gives `heat` 3 (it stays warm in snow as well). Hint still names
+  the Neck Frill.
+
+### W11b on-screen help — `apps/world/hud/**`, `render/playersModule.ts` + carried-item drawing, small hooks in `play/questModule.ts` (emit only)
+- **Name pulse:** every time A/hand interacts with anything (giver, item, errand object, obstacle, activity, home
+  pad), the thing's name shows big (>= 56 px) at the top centre of that player's view and pulses for ~1.2 s:
+  "Ice Block", "Egg", "Hay", "Cow Pen", "Bell", "Frog", "Sleepy Bear", "Apple Tree", "Boulder", "Crate"... One
+  name table, kid words. This is a reading aid (allowed exception to "no word popups").
+- **Quest card:** the A and B badges get the same border as other cards; labels "Yes" / "No" for Starter and Easy,
+  "Accept" / "No thanks" for Medium and Hard.
+- **Carrying:** carried things ride on the **back** bumper/back of the creation (like the egg art today), rotate
+  with it, stacked if several. Plus a small chip in a top corner of the player's view: "In the Car" / "On the Dino"
+  + little icon + name per item (>= 40 px text; must fit a 960 px wide 2P view next to the existing HUD).
+
+### W11c world content — `apps/world/activities/**`, `apps/world/quests/**`, `play/questModule*` (logic), `gen/**` (sites), `render/objects*`
+- **Ducks use real water:** the duck delivery and "feed the ducks" count any real water (lake, pond, river) at a
+  reachable shore point; put a mommy duck at ordinary water (not odd spots). Stop drawing the special duck-parade
+  pond (re-site the duck parade at real water or keep it without its fake pond).
+- **Pick-up quests start carried:** accepting the doggy / duck delivery puts it on the creation at once; reword the
+  "Pick it up here" lines.
+- **Gate Dash:** no start circle. Three pairs of small flags with big numbers 1, 2, 3, spread across the hex over
+  mixed terrain (several hundred px apart, never inside walls). Drive between flags 1 to start, then 2, then 3.
+  Timer tuned so a build suited to the hex terrain makes it with some spare time and an unsuited one usually
+  does not. Banner: "Drive through flags 1, 2, 3!".
+- **Dig Spot = one dirt mound** per site (not three X marks), one buried star. No dig skill: banner hint "Too hard to
+  dig! Dig with Digger Claws." (cars cannot dig; dino-only). Remove the "dirt mustache" line.
+- **Boulder push:** the target is a clear dug hole (code shape), banner "Push the rock into the hole!".
+- Review every activity's start banner for plain in-world words.
+- Code shapes for new things stay flat-fill + outline: WA paints them later.
+
+### W11d buddies — new `apps/world/buddies/**` (logic + module), `logic/save.ts` (buddy fields), pause card additions in `hud/ButtonsModule.ts` / `hud/cards.ts` (buddy row only), gen for buddy spots
+- Same buddies as the other games (`shared/buddies/*`). Buddy spots (a small cave / hut prop) in about 1 of 10
+  hexes (seeded, not home hexes, not blocking roads). Each spot offers one buddy per profile
+  (hash(seed, spot, profileId)): different kids may see different buddies at the same spot.
+- Hand at the spot: card "{Name} wants to come along! 10 stars?" Yes/No (Starter/Easy "Yes"/"No"). Not enough
+  stars: "You need 10 stars." Buy once per spot per player; in 2P each kid can buy once there.
+- Price 10 World stars (spend from the world star count; never below 0). Owned buddies saved per profile (if the
+  shared profile already stores owned buddies, add to that collection and report; else the world save).
+- Pause card gets "Buddy": pick which owned buddy follows (or none). The buddy follows behind the creation (smooth
+  trail, hops over obstacles, never blocks, never enters walls; teleports to you if far). Follow only for now.
+
+### WA overhead art run — `scripts/art/**` (World additions), `apps/world/art/**`, runtime loader hook in the World render art lookup, `tools/art-pick/**` (World mode)
+- Goal: every World object that has art (objects, givers, items, errand props, farm, home pads, activity props,
+  bushes/leaves, boulders, flags, mounds, logs, crates, treasure...) gets painted **true top-down** art (seen from
+  directly above, reads in any rotation), cartoony like the Workshop house style, via the existing ComfyUI pipeline
+  (`docs/WORKSHOP_ART_PIPELINE.md`: `realcartoonXL_v6` only, StickersRedmond + lightning LoRA, ControlNet from the
+  code shape).
+- Build a World art job manifest (key = World texture key, size = baked size), prompts with "top-down overhead
+  view, seen from directly above" and a negative for side views, horizon, perspective, text.
+- Candidates: N per job into `art-candidates/world/...`; extend `tools/art-pick` with a World mode that shows each
+  candidate rotated 0/90/180/270 on the matching terrain colour, plus the code shape, so the user can judge "looks
+  right from above in any orientation". Votes to `apps/world/art/picks.json`; `--apply-picks` installs into
+  `public/art/world/` + manifest. Runtime: painted art replaces the code shape when present, code shape otherwise.
+- Codex: build + dry-run only; the orchestrator runs ComfyUI.
