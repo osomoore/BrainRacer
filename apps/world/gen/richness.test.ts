@@ -40,6 +40,9 @@ function destinations(plan: HexPlan, canSwim = true): Vec[] {
 function unreachable(world: WorldGen, plan: HexPlan, canSwim = false): Vec[] {
   const traits = traitsOf({ workshop: 'race', model: defaultModel(CATALOGS.race) });
   if (canSwim) traits.water = 2;
+  // Reachability inside a restricted hex is measured with the entry ability equipped.
+  if (plan.biome === 'darkwood') traits.light = 3;
+  if (plan.biome === 'desert') traits.heat = 3;
   const goals = [...destinations(plan, canSwim),
     ...plan.features.flatMap(feature => feature.bypassAt ? [feature.bypassAt] : [])];
   const radius = WORLD_DRIVE.colliderRadius[traits.width - 1];
@@ -175,7 +178,7 @@ describe('world terrain richness', () => {
     expect(seen).toEqual(new Set(BIOME_IDS));
   }, 15_000);
 
-  it('connects sites, pickups, homes and bypasses to the hub, with swimming only for island targets', () => {
+  it('connects sites, pickups, homes and bypasses to the hub with the terrain entry abilities', () => {
     for (const seed of [29, 71, 8128]) {
       const world = new WorldGen(seed, ['player']);
       for (const coord of world.hexesNear(0, 0, 4)) {

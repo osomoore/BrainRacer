@@ -1,7 +1,9 @@
+import { WORLD, WORLD_TERRAIN } from '../config';
 import type { BiomeId, HexPlan, Obstacle, RoadPath, SurfaceKind, SurfaceSample } from '../core/types';
 import type { RoadSurfaceSample } from '../logic/rules';
 import { boundsOf, circleBounds, inBounds, inPolygon, segmentDistanceSquared, SpatialGrid } from './geometry';
 import { WorldGen } from './world';
+import { hexInset } from './layout';
 
 const DEFAULT_KIND: Record<BiomeId, SurfaceKind> = {
   meadow: 'grass', mud: 'mud', rocky: 'rough', lake: 'grass', darkwood: 'grass',
@@ -10,7 +12,15 @@ const DEFAULT_KIND: Record<BiomeId, SurfaceKind> = {
 
 /** Ambient surface where there is no terrain polygon. */
 export function biomeDefault(biome: BiomeId): SurfaceSample {
-  return { kind: DEFAULT_KIND[biome], biome, dark: biome === 'darkwood' ? 0.65 : 0, covered: false };
+  return { kind: DEFAULT_KIND[biome], biome, dark: biome === 'darkwood' ? 1 : 0, covered: false };
+}
+
+const biomeWallInset = WORLD.hexSize * Math.sqrt(3) / 2 * WORLD_TERRAIN.edgeInset;
+
+function exposure(inset: number, wallInset: number, fade: number): number {
+  const { wallThreshold } = WORLD_TERRAIN;
+  if (inset < wallInset) return wallThreshold * Math.max(0, inset) / wallInset;
+  return Math.min(1, wallThreshold + (1 - wallThreshold) * (inset - wallInset) / fade);
 }
 
 export function prepareGround(plan: HexPlan): (x: number, y: number) => SurfaceSample {
@@ -21,13 +31,25 @@ export function prepareGround(plan: HexPlan): (x: number, y: number) => SurfaceS
   }
   return (x, y) => {
     const sample = biomeDefault(plan.biome);
+    if (plan.biome === 'darkwood' || plan.biome === 'desert') {
+      const strength = exposure(hexInset(plan.center, { x, y }), biomeWallInset, WORLD_TERRAIN.edgeFade);
+      if (plan.biome === 'darkwood') sample.dark = strength;
+      else sample.heat = strength;
+    }
     const cell = blobs.at(x, y);
     for (let i = cell.length - 1; i >= 0; i--) {
       const { blob, bounds } = cell[i];
       if (!inBounds(bounds, x, y) || !inPolygon(blob.poly, x, y)) continue;
       sample.kind = blob.kind;
-      sample.dark = blob.dark ?? sample.dark;
       sample.covered = blob.covered ?? false;
+      if (blob.dark) {
+        let edge = Infinity;
+        for (let i = 0, j = blob.poly.length - 1; i < blob.poly.length; j = i++) {
+          edge = Math.min(edge, segmentDistanceSquared(x, y, blob.poly[j], blob.poly[i]));
+        }
+        const caveDark = exposure(Math.sqrt(edge), WORLD_TERRAIN.caveInset, WORLD_TERRAIN.caveFade);
+        sample.dark = Math.max(sample.dark, caveDark * (blob.covered ? 1 : blob.dark));
+      }
       break;
     }
     return sample;
@@ -78,6 +100,7 @@ export function prepareSurface(plan: HexPlan): (x: number, y: number) => RoadSur
     // Route paint cannot turn a cliff or unbridged deep water into drivable ground.
     if (sample.kind === 'cliff' || sample.kind === 'deep') return sample;
     for (const { a, b, kind, surface, bounds, limit } of segments.at(x, y)) {
+      if (kind === 'road' && sample.kind === 'shallow') continue;
       if (inBounds(bounds, x, y) && segmentDistanceSquared(x, y, a, b) <= limit) {
         sample.kind = kind;
         sample.roadSurface = surface ?? (kind === 'road' ? 'paved' : undefined);

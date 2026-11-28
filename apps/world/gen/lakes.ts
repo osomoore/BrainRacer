@@ -22,7 +22,7 @@ export function buildLakeIsland(layout: HexLayout, rng: Rng): FeatureSite | unde
   }
 }
 
-/** One deck polygon per contiguous wet run, including the full road width at the shore. */
+/** One narrow deck per contiguous wet run, with extra deck length at the approaches. */
 export function buildWaterCrossings(plan: HexPlan): void {
   if (plan.biome !== 'lake' && plan.biome !== 'meadow') return;
   const ground = prepareGround(plan);
@@ -34,7 +34,7 @@ export function buildWaterCrossings(plan: HexPlan): void {
       if (i < points.length && wet(points[i - 1], points[i], width / 2)) {
         if (start === -1) start = i - 1;
       } else if (start !== -1) {
-        addBridge(plan, points.slice(start, i), width);
+        addBridge(plan, points.slice(start, i), GEN.bridgeWidth);
         start = -1;
       }
     }
@@ -58,7 +58,7 @@ function addBridge(plan: HexPlan, points: Vec[], width: number): void {
   const rails = [1, -1].map(sign => points.map((at, i) => {
     const before = points[Math.max(0, i - 1)], after = points[Math.min(points.length - 1, i + 1)];
     const dx = after.x - before.x, dy = after.y - before.y, length = Math.hypot(dx, dy);
-    const radius = width / 2 + 12;
+    const radius = width / 2;
     const cap = i === 0 ? -18 : i === points.length - 1 ? 18 : 0;
     return offset(at, (dx * cap - dy * radius * sign) / length, (dy * cap + dx * radius * sign) / length);
   }));

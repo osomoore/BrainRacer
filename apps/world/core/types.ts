@@ -37,6 +37,8 @@ export interface SurfaceSample {
   dark: number;
   /** True inside a tunnel or cave roof (renderer hides the roof over the player). */
   covered: boolean;
+  /** Desert exposure, from 0 at the seam to 1 in the interior. */
+  heat?: number;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -64,8 +66,14 @@ export interface Traits {
   rough: number;
   /** 0 none, 1 wade shallow fast, 2 swim deep, 3 float/swim fast. Deep water needs >= 2. */
   water: number;
-  /** Sees in the dark (glow, bright paint). */
+  /** Emits light (rally lights or glow spots). */
   light: number;
+  /** Raised suspension, clearance or long legs keep full speed on grass. */
+  raised?: number;
+  /** Can break small props on contact. */
+  smash?: number;
+  /** Moves pushable props faster than ordinary builds. */
+  pushBumper?: number;
   /** Width class 1 (small) .. 4 (huge): narrow passages have a max width. */
   width: number;
   /** Height class 1 .. 4: tunnels and low bridges have a max height. */
@@ -128,9 +136,9 @@ export interface Obstacle {
   kind: string;          // art key suffix, e.g. 'boulder', 'log', 'bush', 'iceBlock', 'tree', 'cactus'
   at: Vec;
   radius: number;
-  /** Absent = always solid. Present = passable/movable when the needs hold (push a log, smash a bush...). */
+  /** Optional ability requirements. Standard prop kinds can also define their own rules. */
   needs?: TraitNeed[];
-  /** What happens when needs hold: 'push' moves it, 'pass' drives through (bush bends), 'break' comic poof. */
+  /** What happens when needs hold: 'push' moves it, 'pass' drives through, 'break' comic poof. */
   effect?: 'push' | 'pass' | 'break';
 }
 

@@ -81,17 +81,19 @@ export function buildTerrain(layout: HexLayout, rng: Rng): void {
 }
 
 type ObstacleStyle = Omit<Obstacle, 'id' | 'at' | 'radius'> & { size: readonly [number, number] };
-const BUSH: ObstacleStyle = { kind: 'bush', size: [24, 46], needs: [{ trait: 'push', min: 1 }], effect: 'pass' };
+const smash = [{ trait: 'smash', min: 1 }] satisfies Obstacle['needs'];
+const BUSH: ObstacleStyle = { kind: 'bush', size: [24, 46], needs: smash, effect: 'break' };
+const ROCK: ObstacleStyle = { kind: 'rock', size: [22, 36], needs: smash, effect: 'break' };
 const BOULDER: ObstacleStyle = { kind: 'boulder', size: [40, 90] };
-const LOG: ObstacleStyle = { kind: 'log', size: [40, 64], needs: [{ trait: 'push', min: 2 }], effect: 'push' };
+const LOG: ObstacleStyle = { kind: 'log', size: [40, 64], needs: [], effect: 'push' };
 const TREE: ObstacleStyle = { kind: 'tree', size: [49, 76] };
 const OBSTACLES: Record<BiomeId, readonly ObstacleStyle[]> = {
   meadow: [{ kind: 'flower', size: [18, 30], needs: [], effect: 'pass' }, BUSH, TREE],
   mud: [LOG, BUSH],
-  rocky: [BOULDER],
+  rocky: [BOULDER, ROCK],
   lake: [BUSH, LOG],
   darkwood: [TREE, TREE, TREE, LOG],
-  snow: [{ kind: 'iceBlock', size: [40, 69], needs: [{ trait: 'push', min: 2 }], effect: 'break' }],
+  snow: [{ kind: 'iceBlock', size: [40, 69], needs: smash, effect: 'break' }],
   desert: [{ kind: 'cactus', size: [35, 61] }, { kind: 'cactus', size: [35, 61] }, BOULDER],
   jungle: [TREE, TREE, TREE, { kind: 'vine', size: [30, 55], needs: [{ trait: 'reach', min: 1 }], effect: 'pass' }],
   canyon: [BOULDER],
