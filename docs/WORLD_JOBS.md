@@ -339,3 +339,22 @@ controls from `apps/world/input/` (TouchModule writes `player.controls`); read `
 - **Flying** (dino with wings only; cars never fly): half speed, glides slowly over water, mud, obstacles and gaps;
   stopped by dark and heat walls; can't pick up; can't take off while carrying (flap, stay down, wobbling "too heavy"
   bag icon, nothing dropped).
+
+### W10 errands, farms, doggy delivery (user, 2026-11-28) — `apps/world/quests/**`, `apps/world/play/questModule*`, new interactables in `apps/world/gen/**` (sites/objects only) + `apps/world/render/objects*`, gen + quest config
+- **Drop "go look at a {item}" quests** (visitItem). Every quest has a reason in the giver's words and a verb the
+  creation does. Keep fetch (add a short reason: "I need a shell for my hat.") and the duck delivery.
+- **Six errands** (kinds of things found in many places; the hand reacts on every one, quest or not):
+  1. **Hay for the cows** (farmer): pick up hay (hay bales near farms/meadows), drop it at any cow pen.
+  2. **Ring the bell** (farmer / camp): drive to a bell post at a farm or camp, hand → it rings (shake + rings).
+  3. **Wake the sleepy bear** (owl): find a sleeping bear (Dark Woods edge, Snowy Hills), honk/roar near it (B) → it
+     yawns and waves. Non-quest: it snores and rolls over.
+  4. **Move the log off the path** (goat / farmer): a log lying on a path; push it (or winch with B) off the path.
+  5. **Say hi to the frog** (turtle): frogs on lily pads in Lake and Mud Marsh; hand → it hops and croaks.
+  6. **Pick apples** (farmer): bump an apple tree (meadow, jungle) so an apple drops, pick it up, bring it back.
+- **Farms:** a new small place (barn, fence, cow pen, hay bales, bell post) in about 1 of 6 meadow hexes and some
+  other open hexes; never blocking roads. Camps get a bell post too.
+- **Doggy delivery:** besides the duck → pond, a lost doggy (or lamb, piglet) is led/carried to any farm.
+- Text at all four reading levels, checked by the existing word tests (Starter word list, level word limits);
+  short reason + action ("My cows are hungry. Take them hay."). The user reviews wording later.
+- Interactables: baked placeholder art in the existing style, a small reaction each (wiggle, sound hook, hop),
+  1 star per quest as now, all W9a rules unchanged (slots, one offer per giver per kid per day, no arrow/minimap).
