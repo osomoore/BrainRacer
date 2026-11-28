@@ -27,6 +27,23 @@ function path(g: G, pts: [number, number][]): void {
   g.strokePath();
 }
 
+export function globeTexture(scene: Phaser.Scene): string {
+  const key = 'ws:room-globe';
+  if (scene.textures.exists(key)) return key;
+  const g = scene.make.graphics({}, false);
+  g.lineStyle(6, INK, 1);
+  disc(g, 48, 48, 43, 0x2b8cff);
+  g.lineStyle(4, 0xffffff, 1).strokeCircle(48, 48, 28).strokeEllipse(48, 48, 25, 56);
+  path(g, [[20, 48], [76, 48]]);
+  g.lineStyle(4, INK, 1);
+  disc(g, 78, 78, 16, 0xffd23f);
+  path(g, [[71, 71], [78, 78], [85, 71]]);
+  path(g, [[78, 78], [78, 86]]);
+  g.generateTexture(key, 96, 96);
+  g.destroy();
+  return key;
+}
+
 function starPoints(cx: number, cy: number, ro: number, ri: number): [number, number][] {
   const out: [number, number][] = [];
   for (let i = 0; i < 10; i++) {

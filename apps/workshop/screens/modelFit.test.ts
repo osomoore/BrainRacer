@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SIZE_SCALE as RACE_SIZE } from '../art/race/looks';
 import { SIZE_SCALE as DINO_SIZE } from '../art/dino/looks';
 import { WS_ROOM } from '../config';
+import { CATALOGS } from '../content';
 import { roomLayout } from './room/layout';
 import { fitRoomModelScale, roomReferenceFit } from './modelFit';
 
@@ -34,6 +35,14 @@ describe('room model size framing', () => {
 
     expect(drawnHeight).toBeGreaterThan(layout.model.maxH);
     expect(drawnHeight).toBeLessThanOrEqual(layout.model.maxH * (1 + WS_ROOM.dinoTopOverhang));
+  });
+
+  it.each([
+    { workshop: 'race', bounds: { x: -285, y: -195, width: 585, height: 195 }, minimum: 0.85 },
+    { workshop: 'dino', bounds: { x: -523, y: -686, width: 1052, height: 776 }, minimum: 0.53 },
+  ] as const)('keeps the tall $workshop reference larger with all stations showing', ({ workshop, bounds, minimum }) => {
+    const layout = roomLayout('tall', CATALOGS[workshop].aspects.map((aspect) => aspect.id));
+    expect(roomReferenceFit(bounds, layout, 'tall', workshop, true).scale).toBeGreaterThanOrEqual(minimum);
   });
 
   it('clamps the model away from a room button hit area and above the pane edge', () => {

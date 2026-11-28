@@ -4,9 +4,9 @@
  * wires them to the browser. `createMenuInput` (menuInput.ts) stays the merged reader for the launcher.
  *
  * Layouts:
- *  - KB1: WASD move, Space confirm, Q / Escape back, Tab menu.
- *  - KB2: arrows move, Enter confirm, Backspace back, Right Shift menu.
- *  - Pad: d-pad / left stick move, A confirm, B back, Start menu.
+ *  - KB1: WASD move, Space confirm, Q / Escape back, Tab menu, 1 top face.
+ *  - KB2: arrows move, Enter confirm, Backspace back, Right Shift menu, 0 top face.
+ *  - Pad: d-pad / left stick move, A confirm, B back, Start menu, Y top face.
  * Admin chord: a pad holding LT + RT while pressing Start, or F9 on the keyboard.
  * Typing: letters (not the layout's own move keys, unless Shift is held) become `text` events; Enter also yields
  * text "\n" (submit) next to its confirm action so a text screen can treat it as "done".
@@ -14,7 +14,7 @@
 import { MENU_STICK_THRESHOLD, type MenuPadSnapshot } from './menuInput';
 import { resolvePadMap } from './padMaps';
 
-export type DeviceAction = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back' | 'menu';
+export type DeviceAction = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back' | 'menu' | 'topFace';
 
 export type DeviceId =
   | { kind: 'pad'; index: number }
@@ -36,11 +36,11 @@ export function sameDevice(a: DeviceId, b: DeviceId): boolean { return deviceKey
 export const KB_LAYOUT_KEYS: Readonly<Record<1 | 2, Readonly<Record<string, DeviceAction>>>> = {
   1: {
     KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
-    Space: 'confirm', KeyQ: 'back', Escape: 'back', Tab: 'menu',
+    Space: 'confirm', KeyQ: 'back', Escape: 'back', Tab: 'menu', Digit1: 'topFace',
   },
   2: {
     ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
-    Enter: 'confirm', NumpadEnter: 'confirm', Backspace: 'back', ShiftRight: 'menu',
+    Enter: 'confirm', NumpadEnter: 'confirm', Backspace: 'back', ShiftRight: 'menu', Digit0: 'topFace',
   },
 };
 
@@ -98,6 +98,7 @@ export function padDeviceActions(now: MenuPadSnapshot, prev: MenuPadSnapshot | n
   const edge = (i: number) => buttonOf(now, i) && !buttonOf(prev, i);
   if (edge(m.a)) out.actions.push('confirm');
   if (edge(m.b)) out.actions.push('back');
+  if (edge(m.y)) out.actions.push('topFace');
   if (edge(m.start)) {
     if (buttonOf(now, m.lt) && buttonOf(now, m.rt)) out.admin = true;
     else out.actions.push('menu');

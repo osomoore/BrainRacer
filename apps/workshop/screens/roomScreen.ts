@@ -5,8 +5,9 @@
  */
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
+import { getProfile } from '../../../shared/profiles';
 import { playWorkshopSfx } from '../audio';
-import { WS_BUDDIES, WS_UI } from '../config';
+import { WS_BUDDIES, WS_ROOM, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
 import { engine } from '../logic';
 import { visibleAspectIds } from '../logic/aspects';
@@ -14,12 +15,12 @@ import { Button } from '../ui/Button';
 import { Confirm } from '../ui/Confirm';
 import { FocusGroup } from '../ui/FocusGroup';
 import { addTouchBackButton, cardColor } from '../ui/screenChrome';
-import { COLORS, makeText } from '../ui/style';
+import { COLORS, makeText, roundedTexture } from '../ui/style';
 import { roomBackdrop } from './room/backdrop';
 import { buddyBar, buddyCelebration, buddyImage, flyBuddy } from './room/buddyDisplay';
 import { perchFor } from './room/buddyFlight';
 import { Character } from './room/Character';
-import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
+import { aspectIconTexture, bubbleTexture, globeTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
 import { dist, roomLayout, standOf, type Point } from './room/layout';
 import { isBackGuarded } from './backGuard';
@@ -38,7 +39,11 @@ const roomScreen: ScreenFactory = (): Screen => {
   let buddyTween: Phaser.Tweens.Tween | undefined;
   let busy = false;
   let popup: Confirm | undefined;
+  let cancelWorldRequest: (() => void) | undefined;
+  let worldBanner: Phaser.GameObjects.Container | undefined;
+  let declineTimer: Phaser.Time.TimerEvent | undefined;
   let requestLeave: () => void = () => {};
+  let requestWorld: () => void = () => {};
   const objs: Phaser.GameObjects.GameObject[] = [];
   const tweens: Phaser.Tweens.Tween[] = [];
 
@@ -56,7 +61,7 @@ const roomScreen: ScreenFactory = (): Screen => {
   };
 
   const goToPicker = () => {
-    if (busy) return;
+    if (busy || cancelWorldRequest) return;
     busy = true;
     popup = undefined;
     ctx.audio.sfx('back');
@@ -102,7 +107,9 @@ const roomScreen: ScreenFactory = (): Screen => {
       const home = { x: L.buddy.x, y: L.buddy.y - L.buddy.size / 2 };
       const buddy = buddyImage(scene, progress.buddies.selected, home.x, home.y, L.buddy.size);
       const buddyPose = { ...home, angle: 0 };
-      objs.push(buddy.setDepth(110).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
+      // A buddy crossing the narrower pane flies behind the model on its way to a station.
+      const buddyDepth = ctx.layout === 'tall' ? 99 : 110;
+      objs.push(buddy.setDepth(buddyDepth).setName('workshop-buddy'), buddyBar(scene, L.buddyBar, progress.buddies));
       animateBuddyIdle(scene, buddy, buddyPose);
       // Keep the wing animation, but leave position and heading to the path while the buddy moves.
       const applyMovingPose = () => {
@@ -116,24 +123,28 @@ const roomScreen: ScreenFactory = (): Screen => {
       };
       const allTiles = [...L.stations, L.buddyStation, L.board];
       const peekAt = (st: { x: number; y: number; w: number; h: number }) => drift(perchFor(st, L.size, L.buddy.size, allTiles), 0, { x: st.x, y: st.y });
-      const peekBoard = () => peekAt(L.board);
+      const peekBoard = () => {
+        if (ctx.layout === 'tall') drift(WS_ROOM.tallRoom.boardBuddy, 0, L.board);
+        else peekAt(L.board);
+      };
 
       // stations
       const signs: Button[] = [];
       L.stations.forEach((st, i) => {
         const def = cat.aspects.find((a) => a.id === st.aspect)!;
         const b = new Button(scene, { x: st.x, y: st.y, w: st.w, h: st.h, color: cardColor(i), onClick: () => {
-          if (busy) return;
+          if (busy || cancelWorldRequest) return;
           peekAt(st);
           walkThen(st.stand, () => ctx.go('station', { aspect: st.aspect }));
         } }).setDepth(130);
-        const icon = scene.add.image(0, -36, aspectIconTexture(scene, ws, st.aspect)).setScale(0.85);
-        const label = makeText(scene, 0, 52, def.label, { size: 44, color: COLORS.ink });
+        const tall = ctx.layout === 'tall';
+        const icon = scene.add.image(0, tall ? -28 : -36, aspectIconTexture(scene, ws, st.aspect)).setScale(tall ? 0.72 : 0.85);
+        const label = makeText(scene, 0, tall ? 39 : 52, def.label, { size: tall ? 40 : 44, color: COLORS.ink });
         b.add([icon, label]);
         signs.push(b);
       });
       const buddies = new Button(scene, { ...L.buddyStation, color: cardColor(signs.length), onClick: () => {
-        if (busy) return;
+        if (busy || cancelWorldRequest) return;
         peekAt(L.buddyStation);
         walkThen(L.buddyStation.stand, () => ctx.go('buddyStation'));
       } }).setDepth(130);
@@ -147,7 +158,7 @@ const roomScreen: ScreenFactory = (): Screen => {
         x: L.board.x, y: L.board.y, w: L.board.w, h: L.board.h, color: COLORS.yellow,
         label: 'Test', fontSize: 64,
         onClick: () => {
-          if (busy) return;
+          if (busy || cancelWorldRequest) return;
           busy = true;
           ctx.audio.sfx('boing', { volume: 0.55, rate: 1.3 });
           buddyTween?.remove();
@@ -168,28 +179,50 @@ const roomScreen: ScreenFactory = (): Screen => {
 
       // character
       const player = ctx.index === 0 ? COLORS.p1 : COLORS.p2;
-      character = new Character(scene, player, standOf(L, data.from), () => ctx.audio.sfx('step', { volume: 0.5 }));
+      character = new Character(scene, player, standOf(L, data.from), () => ctx.audio.sfx('step', { volume: 0.5 }), ctx.layout === 'tall');
       objs.push(character.root);
 
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
-      const fromWorld = new URLSearchParams(location.search).get('from') === 'world';
-      const swap = () => {
-        if (busy || popup) return;
-        if (shell.count < 2) { goToWorld(); return; }
-        popup = new Confirm(scene, {
-          cx: ctx.size.w / 2, cy: ctx.size.h / 2, w: Math.min(ctx.size.w - 80, 900),
-          text: 'Take both players to the World?', yes: 'Yes', no: 'No', defaultYes: true,
-          audio: ctx.audio, touch: ctx.input.touch, depth: 500,
-          onYes: () => { popup = undefined; goToWorld(); },
-          onNo: () => { popup = undefined; },
-        });
+      const clearWorldBanner = () => {
+        declineTimer?.remove(false);
+        declineTimer = undefined;
+        worldBanner?.destroy();
+        worldBanner = undefined;
       };
-      const wb = WS_UI.worldButton;
-      const returnButton = addTouchBackButton(scene, swap,
-        { x: ctx.layout === 'tall' ? ctx.size.w - wb.w / 2 - 20 : ctx.size.w - 180, y: ctx.layout === 'tall' ? wb.y - 10 : wb.y, w: wb.w, h: wb.h, fontSize: wb.fontSize },
-        fromWorld ? 'Back to World' : 'Go to World').setDepth(140);
-      objs.push(returnButton);
-      group.set([...signs, buddies, board, returnButton]);
+      const showWorldBanner = (text: string) => {
+        clearWorldBanner();
+        const panel = scene.add.image(0, 0, roundedTexture(scene, 270, 86, COLORS.paper));
+        worldBanner = scene.add.container(L.model.x, ctx.layout === 'tall' ? 160 : 260, [
+          panel, makeText(scene, 0, 0, text, { size: 48 }),
+        ]).setDepth(710);
+      };
+      const showDecline = () => {
+        showWorldBanner('Not now');
+        declineTimer = scene.time.delayedCall(WS_UI.worldButton.declineMs, clearWorldBanner);
+      };
+      requestWorld = () => {
+        if (busy || popup || cancelWorldRequest) return;
+        const solo = shell.count === 1;
+        const target = shell.panes[solo ? ctx.index : 1 - ctx.index];
+        const name = getProfile(ctx.profileId)?.name ?? `Player ${ctx.index + 1}`;
+        const text = solo ? 'Go to the World?' : `${name} wants to go to the World. OK?`;
+        cancelWorldRequest = target?.askToGoToWorld(text, (yes) => {
+          cancelWorldRequest = undefined;
+          clearWorldBanner();
+          if (yes) goToWorld();
+          else if (!solo) showDecline();
+        });
+        if (cancelWorldRequest) {
+          ctx.audio.sfx('select');
+          if (!solo) showWorldBanner('Waiting…');
+        } else if (!solo) showDecline();
+      };
+      const globe = L.worldButton;
+      const image = scene.add.image(globe.x, globe.y, globeTexture(scene)).setDisplaySize(WS_UI.worldButton.diameter, WS_UI.worldButton.diameter).setDepth(140);
+      const zone = scene.add.zone(globe.x, globe.y, globe.w, globe.h).setName('world-globe').setDepth(140).setInteractive({ useHandCursor: true });
+      zone.on('pointerdown', requestWorld);
+      objs.push(image, zone);
+      group.set([...signs, buddies, board]);
       const from = data.from;
       const fi = L.stations.findIndex((st) => st.aspect === from);
       group.focus(from === 'buddies' ? buddies : fi >= 0 ? signs[fi] : board);
@@ -244,12 +277,16 @@ const roomScreen: ScreenFactory = (): Screen => {
     update(dt) {
       character?.update(dt);
       const actions = ctx.input.poll();
-      if (busy) return;
+      if (busy || cancelWorldRequest) return;
       if (popup) {
         for (const a of actions) popup?.handle(a);
         return;
       }
       for (const a of actions) {
+        if (a === 'topFace') {
+          requestWorld();
+          return;
+        }
         if (a === 'back') {
           if (isBackGuarded(ctx, ctx.scene.time.now)) continue;
           requestLeave();
@@ -268,6 +305,10 @@ const roomScreen: ScreenFactory = (): Screen => {
       if (!busy) updateBuddyFocus?.();
     },
     destroy() {
+      cancelWorldRequest?.();
+      cancelWorldRequest = undefined;
+      declineTimer?.remove(false);
+      worldBanner?.destroy();
       group?.destroy();
       popup?.destroy();
       popup = undefined;
