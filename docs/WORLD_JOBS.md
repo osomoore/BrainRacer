@@ -293,3 +293,49 @@ controls from `apps/world/input/` (TouchModule writes `player.controls`); read `
 - Pure mapping logic (stick vector -> controls, dead zone, edge detection, pointer assignment) in a Phaser-free
   file with tests. Baked textures only. Hide when a pad connects; show again on touch.
 - Dev scene `TouchView` to screenshot the overlay; e2e not required (note how to emulate touch in Playwright).
+
+## Wave 3: rules pass (user decisions, 2026-11-27 evening)
+
+### W9a quests rework — `apps/world/quests/**`, `apps/world/play/questModule*`, quest parts of `apps/world/hud/**`, `GEN.giverChance` only in gen config
+- **Reading is the point.** A giver (farmer or friendly animal) asks for something in words at the kid's reading
+  level. The text may say where to go ("the ducks by the pond need food") but the game never points: **remove the
+  quest arrow and all minimap quest marks.** Keep the tracked quest text on screen (corner cards) and in the pause
+  card (all quests if they fit, else one plus a picker).
+- **Quest shapes:** (1) go to a kind of place/thing and press the hand (feed the ducks, ring the bell); (2) do
+  something and come back to the giver (get the log, fetch a rock); (3) pick up or lead something and take it to a
+  target (lead the ducklings next to the farmer to the pond). Targets are kinds of things found in many places, so
+  exploring finds more. Easy to do once you know what it is.
+- **Hand everywhere:** the hand badge shows on ANY interactable thing nearby; a non-quest thing just reacts
+  (noise, wiggle, hop). So the hand never reveals which thing the quest wants.
+- Several quests can be carried/led at once (respect `carry`); items stay with the kid when swapping car/dino.
+- **Slots:** Starter 1, Easy 2, Medium 3, Hard 4. Full = givers just say hello (no offer). No dropping quests.
+- **Givers:** on about half the tiles (`GEN.giverChance` 0.5). Each giver offers each kid at most one quest per
+  calendar day (save the date per giver per kid; next day the near givers have quests again).
+- A quest may need a part (cargo rack, winch, tall neck, digging claws…): only offer it if the kid's current car or
+  dino already has that part (traits/tags).
+- **1 star per quest.** Wording rules unchanged (Workshop word lists, level word limits); new phrases need the
+  user's wording review before release.
+
+### W9b terrain rules — `apps/world/logic/rules.ts`, `logic/move.ts`, `play/**` (not questModule), `gen/**` (not giverChance), terrain render for darkness/heat edge
+- **Dark is a wall:** Dark Woods and caves are very dark in the middle, dimming fast from the edge; without a light
+  source (car rally lights, dino glow spots) the inner ~95% of a dark tile cannot be entered (soft push back at the
+  dark edge, like a cliff but gentle). Roads inside do not exempt. Light lets you in.
+- **Heat is a wall:** desert heat waves (shimmer); without heat dissipation (car radiator, dino neck frill / low
+  warmth / desert camo) you can't go much past the desert edge (same soft push back).
+- **Grass 0.75** speed unless the build is raised (big tires, springs/shocks, clearance; long legs).
+- **Sliding** on ice/mud/slippery ground unless suited claws/tires (grip from traits; tune so suited = no slide).
+- **Bridges** about 2 car widths wide (one-lane look), still drivable by every build.
+- **Push and break:** logs are pushable (push bumper pushes best); push bumper, spiked head or thumper tail break
+  ice blocks, bushes, small rocks, fences, crates (comic poof, back next session). Boulders and trees stay solid.
+- Flying (W9c) ignores physical obstacles slowly but not dark or heat walls: leave a hook.
+
+### W9c B special, flying, new car extras — Workshop race catalog + art (rally lights, radiator), `apps/world/logic/traits.ts`, `play/**` B handling, hud legend icon
+- **New car extras** in the Race Shop: rally lights (light source) and radiator (heat dissipation), with art,
+  stats/tags, Workshop tests. Default car has neither.
+- **Lights and radiator work automatically** (no button).
+- **B = your special:** rocket = short boost with cooldown; dino wings = take off / land; winch = pull a nearby log
+  or crate toward you; nothing special = honk (car) / roar (dino). Several specials: best one for the place. Legend
+  shows the current B icon. B stays back/no inside cards.
+- **Flying** (dino with wings only; cars never fly): half speed, glides slowly over water, mud, obstacles and gaps;
+  stopped by dark and heat walls; can't pick up; can't take off while carrying (flap, stay down, wobbling "too heavy"
+  bag icon, nothing dropped).
