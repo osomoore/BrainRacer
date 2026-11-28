@@ -181,7 +181,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Check Body for a part that keeps rocks from hurting you.', 'Look at Body for a part that can stop a falling rock.']),
   ['tough', 'rocks', 'stones']),
   // ------------------------------------------------------------------ river
-  fp('river.swim', ['Calm River', 'Wide River', 'Fast River'], ['Swim Test', 'Long Swim', 'Fast Swim'], [
+  fp('river.swim', ['Calm River', 'Wide River', 'Fast River'], ['Swim Trip', 'Long Swim', 'Fast Swim'], [
     rows(['Get Flippers.', 'Get Flippers to swim.', 'Get Flippers to swim across the river.', 'Give your dino Flippers so it can swim across the calm river.'],
       ['Pick Paddle Tail.', 'Use a Paddle Tail to swim.', 'A Paddle Tail or Flippers help you swim.', 'Pick Flippers, a Paddle Tail, or Swimming to cross the river.']),
     rows(['Get Swimming.', 'Pick Swimming to cross.', 'Pick Swimming to cross the wide river.', 'The river is wide, so pick Swimming to get across.'],
@@ -236,7 +236,7 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
        ['Check Tail for a part that gives a strong push.', 'Look at Size for a dino that can move a heavy log.']),
   ['heavy', 'push', 'log']),
   // ------------------------------------------------------------------ snow
-  fp('snow.warm', ['Cold Snow', 'Snow Storm'], ['Cold Test', 'Cold Blast'], [
+  fp('snow.warm', ['Cold Snow', 'Snow Storm'], ['Cold Wind', 'Cold Blast'], [
     rows(['Get Back Sail.', 'Get a warm Back Sail.', 'Get a Back Sail to stay warm.', 'Give your dino a Back Sail to stay warm in the snow.'],
       ['Pick Feathers and Big.', 'Keep Feathers and be Big.', 'Keep your Feathers and pick the Big size.', 'Pick a Big Belly or the Big size to stay warm.']),
     rows(['Get Back Sail and Big.', 'A Back Sail and Big size.', 'Pick a Back Sail and the Big size.', 'For the cold storm, get a Back Sail and Big size.'],
@@ -291,21 +291,21 @@ export const DINO_FACET_PHRASES: readonly FacetPhrases[] = [
 
 /** One title per scenario, used when a stage has two or more requirements (it fits every facet of the scenario). */
 export const DINO_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
-  sp('snack', 'Snack Time', 'Snack Test'),
-  sp('chase', 'Lizard Chase', 'Dash Test'),
-  sp('ferns', 'Ferns and Flowers', 'Hide Test'),
-  sp('ledge', 'Rock Jump', 'Jump Test'),
+  sp('snack', 'Snack Time', 'Snack Grab'),
+  sp('chase', 'Lizard Chase', 'Fast Dash'),
+  sp('ferns', 'Ferns and Flowers', 'Hide Spot'),
+  sp('ledge', 'Rock Jump', 'Big Jump'),
   sp('burrow', 'Little Tunnel', 'Dig and Fit'),
-  sp('tallGrass', 'Nest in the Grass', 'Grass Test'),
-  sp('tallTree', 'Fruit Tree', 'Branch Test'),
-  sp('rocks', 'Rocky Hill', 'Rock Test'),
-  sp('river', 'Fishy River', 'Splash Test'),
-  sp('canyon', 'No Bridge', 'Gap Test'),
-  sp('nut', 'Nut Snack', 'Shell Test'),
-  sp('log', 'Blocked Path', 'Log Test'),
+  sp('tallGrass', 'Nest in the Grass', 'Tall Grass'),
+  sp('tallTree', 'Fruit Tree', 'Up a Tree'),
+  sp('rocks', 'Rocky Hill', 'Rock Hill'),
+  sp('river', 'Fishy River', 'Big Splash'),
+  sp('canyon', 'No Bridge', 'Big Gap'),
+  sp('nut', 'Nut Snack', 'Hard Shell'),
+  sp('log', 'Blocked Path', 'Big Log'),
   sp('snow', 'Snowy Mountain', 'Cold Run'),
-  sp('birds', 'Bird Trouble', 'Nest Test'),
-  sp('desert', 'Hot Desert', 'Sand Test'),
+  sp('birds', 'Bird Trouble', 'Big Nest'),
+  sp('desert', 'Hot Desert', 'Hot Sand'),
 ];
 
 /** Approved short words for parts in guidelines (besides the variant names). */

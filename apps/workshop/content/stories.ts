@@ -55,7 +55,7 @@ export function partPhrases(variants: readonly Variant[], words: PartWords): Rec
 /** Failure lines for practice cards (both workshops). */
 export const PRACTICE_FAIL: LeveledPhrases = storyRow(
   STARTER_FAIL,
-  'This test needed {parts}.',
-  'This test was checking for {parts}. Try again!',
-  'This test checked for {parts}, so put it on and try again.',
+  'You need {parts} here.',
+  'This place needs {parts}. Try again!',
+  'You can make it with {parts}. Put it on and try again.',
 );

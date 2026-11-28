@@ -329,7 +329,7 @@ export const DINO_PRACTICE_STORIES: Readonly<Record<string, LeveledPhrases>> = p
   'claws.digging': 'A pile of dirt blocks the hole.',
   'claws.grabby': 'A bit of fruit is just out of reach.',
   'claws.tinyArms': 'It is a race with no rocks to climb.',
-  'legs.short': 'The test takes place in a low dirt tunnel.',
+  'legs.short': 'The path goes through a low dirt tunnel.',
   'legs.long': 'The course has hurdles to step over.',
   'legs.powerful': 'The race goes up a steep hill.',
   'legs.hoppy': 'A high rock stands at the finish.',

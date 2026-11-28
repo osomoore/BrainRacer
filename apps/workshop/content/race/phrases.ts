@@ -169,20 +169,20 @@ const sp = (scenario: string, title: string, starterTitle: string): ScenarioPhra
 /** One title per scenario, used when a stage has two or more requirements (it fits every facet of the scenario). */
 export const RACE_SCENARIO_PHRASES: readonly ScenarioPhrases[] = [
   sp('mud', 'Muddy Farm Road', 'Mud and Ruts'),
-  sp('jump', 'Ramp Jump', 'Jump Test'),
-  sp('turn', 'Corners Ahead', 'Bend Test'),
+  sp('jump', 'Ramp Jump', 'Big Jump'),
+  sp('turn', 'Corners Ahead', 'Big Bend'),
   sp('hill', 'Hill Climb', 'Hill Run'),
   sp('fog', 'Fog and Ducks', 'Ducks in Fog'),
-  sp('lowBridge', 'Bridge Ahead', 'Fit Test'),
+  sp('lowBridge', 'Bridge Ahead', 'Fit Under'),
   sp('narrow', 'Tree Path', 'Thin Track'),
   sp('delivery', 'Heavy Delivery', 'Box Run'),
   sp('snow', 'Snowy Pass', 'Cold Run'),
   sp('rocks', 'Rocky Trail', 'Rock Run'),
-  sp('river', 'River Ahead', 'Splash Test'),
-  sp('wobbly', 'Old Bridge', 'Bridge Test'),
-  sp('beach', 'Beach Trip', 'Trip Test'),
+  sp('river', 'River Ahead', 'Big Splash'),
+  sp('wobbly', 'Old Bridge', 'Old Bridge'),
+  sp('beach', 'Beach Trip', 'Sand Trip'),
   sp('parade', 'Color Parade', 'Flag Run'),
-  sp('night', 'Sleepy Town', 'Hush Test'),
+  sp('night', 'Sleepy Town', 'Hush Hush'),
 ];
 
 /** Approved short words for parts in guidelines (besides the variant names). */
