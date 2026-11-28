@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { WORLD_PLAY } from '../config';
+import { WORLD_HOST, WORLD_PLAY } from '../config';
 import { DEPTH, type WorldContext, type WorldPlayer } from '../core/runtime';
 import type { Feature, Obstacle, SurfaceKind, Vec } from '../core/types';
 
@@ -8,12 +8,28 @@ type Particle = { image: Phaser.GameObjects.Image; vx: number; vy: number; life:
 
 const COLORS: Record<ParticleKind, number> = { dust: 0xcba66c, mud: 0x70513d, splash: 0x8fe8ed, snow: 0xf4ffff, poof: 0xffe4aa };
 const PARTICLE_SIZE = 24;
+const SHADOW_TEXTURE = 'world-creation-shadow';
+
+function bakeShadow(scene: Phaser.Scene): void {
+  if (scene.textures.exists(SHADOW_TEXTURE)) return;
+  const size = 128;
+  const half = size / 2;
+  const texture = scene.textures.createCanvas(SHADOW_TEXTURE, size, size)!;
+  const canvas = texture.getContext();
+  const gradient = canvas.createRadialGradient(half, half, 0, half, half, half);
+  gradient.addColorStop(0, '#183b38');
+  gradient.addColorStop(0.7, '#183b38');
+  gradient.addColorStop(1, 'rgba(24, 59, 56, 0)');
+  canvas.fillStyle = gradient;
+  canvas.fillRect(0, 0, size, size);
+  texture.refresh();
+}
 
 /** Baked and pooled cosmetic effects shared by the World play module. */
 export class PlayEffects {
   private readonly particles: Particle[] = [];
   private readonly pool: Phaser.GameObjects.Image[] = [];
-  private readonly shadows = new Map<WorldPlayer, Phaser.GameObjects.Ellipse>();
+  private readonly shadows: { player: WorldPlayer; viewer: WorldPlayer; image: Phaser.GameObjects.Image }[] = [];
   private readonly off: (() => void)[] = [];
   private readonly signs: { image: Phaser.GameObjects.Image; life: number }[] = [];
   private readonly bends = new Map<string, { obstacle: Obstacle; life: number; image?: Phaser.GameObjects.Image; scaleY?: number }>();
@@ -21,10 +37,13 @@ export class PlayEffects {
   private lastPushDust = -Infinity;
 
   constructor(private readonly ctx: WorldContext) {
-    for (const player of ctx.players) {
-      const shadow = ctx.scene.add.ellipse(player.move.x, player.move.y + 13, 78, 36, 0x183b38, 0.36)
-        .setDepth(19).setVisible(false);
-      this.shadows.set(player, shadow);
+    bakeShadow(ctx.scene);
+    for (const viewer of ctx.players) {
+      for (const player of ctx.players) {
+        const image = ctx.scene.add.image(0, 0, SHADOW_TEXTURE).setDepth(DEPTH.players - 1).setVisible(false);
+        ctx.showOnlyTo(image, viewer);
+        this.shadows.push({ player, viewer, image });
+      }
     }
     this.off.push(ctx.bus.on('obstacle:effect', ({ obstacle, effect }) => {
       if (effect === 'break') this.burst('poof', obstacle.at, 8);
@@ -45,10 +64,6 @@ export class PlayEffects {
   update(dt: number): void {
     for (const player of this.ctx.players) {
       const { move } = player;
-      const shadow = this.shadows.get(player)!;
-      shadow.setPosition(move.x, move.y + 13 + Math.min(16, move.airborne * 30))
-        .setScale(1 + Math.min(0.42, move.airborne * 0.6), 1 - Math.min(0.36, move.airborne * 0.45))
-        .setAlpha(move.airborne > 0 ? 0.2 : 0.36).setVisible(true);
       const speed = Math.hypot(move.vx, move.vy);
       if (move.airborne === 0 && speed > 18 && Math.random() < Math.min(1, dt * (6 + speed / 22))) {
         const kind = particleFor(this.ctx.world.surfaceAt(move.x, move.y).kind);
@@ -109,12 +124,12 @@ export class PlayEffects {
   destroy(): void {
     this.off.forEach(off => off());
     this.ctx.scene.events.off('postupdate', this.postUpdate, this);
-    this.shadows.forEach(shadow => shadow.destroy());
+    this.shadows.forEach(({ image }) => image.destroy());
     [...this.particles.map(p => p.image), ...this.pool, ...this.signs.map(s => s.image)].forEach(image => image.destroy());
     this.particles.length = 0; this.pool.length = 0; this.signs.length = 0;
     this.bends.clear();
     this.gapBumps.clear();
-    this.shadows.clear();
+    this.shadows.length = 0;
   }
 
   private emit(kind: ParticleKind, at: Vec, player?: WorldPlayer, travelAngle = Math.random() * Math.PI * 2): void {
@@ -134,6 +149,20 @@ export class PlayEffects {
   }
 
   private postUpdate(): void {
+    const shadow = WORLD_PLAY.shadow;
+    for (const { player, viewer, image } of this.shadows) {
+      const { move, sprite, traits } = player;
+      image.setVisible(!!sprite);
+      if (!sprite) continue;
+      const length = WORLD_HOST.playerLengths[traits.width - 1] * shadow.lengthScale;
+      const width = length * sprite.height / sprite.width;
+      const rotation = this.ctx.viewRotation(viewer);
+      const offset = (shadow.offset + Math.min(shadow.airOffset, move.airborne * 90)) / viewer.camera.zoom;
+      image.setPosition(move.x + Math.sin(rotation) * offset, move.y + Math.cos(rotation) * offset)
+        .setRotation(move.angle)
+        .setDisplaySize(length * (1 + Math.min(0.42, move.airborne * 0.6)), width * (1 - Math.min(0.36, move.airborne * 0.45)))
+        .setAlpha(move.airborne > 0 ? shadow.airAlpha : shadow.groundAlpha);
+    }
     for (const [id, bend] of this.bends) {
       const { x, y } = bend.obstacle.at;
       if (!bend.image) {

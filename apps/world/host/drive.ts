@@ -1,11 +1,10 @@
 import type { WorldContext, WorldPlayer } from '../core/runtime';
 import type { Feature } from '../core/types';
 import { step, type MoveWorld } from '../logic/move';
-import { activeCreation, swapSlots } from '../logic/slots';
+import { activeCreation, swapCreation } from '../logic/slots';
 
 export function quickSwap(ctx: WorldContext, player: WorldPlayer): void {
-  if (!player.save.alternate) return;
-  player.save.using = swapSlots(player.save).using;
+  player.save.using = swapCreation(player.save.using);
   ctx.setCreation(player, activeCreation(player.profileId, player.save));
   ctx.save(player);
 }

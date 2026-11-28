@@ -166,7 +166,7 @@ export interface ActivitySite {
 
 export interface QuestGiverSpot { id: string; at: Vec; /** art key suffix: 'turtle', 'owl', 'goat', 'farmer' ... */ who: string }
 
-/** A home base: start point, creation swap pad and Workshop door. `owner` = profile id for a player's own home. */
+/** A home base: start point and Workshop door. `owner` = profile id for a player's own home. */
 export interface HomeBase { id: string; at: Vec; owner?: string }
 
 export interface TreasureSpot { id: string; at: Vec; stars: number; needs: TraitNeed[] }
@@ -232,21 +232,11 @@ export const QUEST_SLOTS: Record<ReadingLevel, number> = { starter: 1, easy: 1, 
 // Saves (localStorage `world.players.v1`: Record<profileId, WorldPlayerSave>)
 // ---------------------------------------------------------------------------------------------
 
-/**
- * A creation slot. `live` follows the current Workshop build of that workshop (edits in the Workshop show up
- * right away). `copy` is a frozen copy taken in the World garage, so a player can keep two cars or two dinos.
- */
-export type CreationSlot =
-  | { source: 'live'; workshop: WorkshopId }
-  | { source: 'copy'; workshop: WorkshopId; model: Model };
-
 export interface WorldPlayerSave {
   version: 1;
   stars: number;
-  primary: CreationSlot;
-  alternate: CreationSlot | null;
-  /** Which slot is driven now. */
-  using: 'primary' | 'alternate';
+  /** Which live Workshop build is driven now. */
+  using: WorkshopId;
   /** Claimed activity / treasure ids (stars pay once per id). Capped list, oldest dropped. */
   claimed: string[];
   quests: ActiveQuest[];

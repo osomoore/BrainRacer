@@ -15,7 +15,7 @@ import { FallbackGround } from '../host/fallbackGround';
 import { LiveWorld } from '../host/liveWorld';
 import { loadPlayerSave, readingOf, savePlayerSave } from '../logic/save';
 import { worldSeed } from '../logic/seed';
-import { activeCreation, useWorkshop } from '../logic/slots';
+import { activeCreation } from '../logic/slots';
 import { traitsOf } from '../logic/traits';
 import type { WorkshopId } from '../../workshop/core/types';
 
@@ -64,10 +64,7 @@ export class WorldScene extends Phaser.Scene {
       const index = i as 0 | 1;
       let save = loadPlayerSave(profile.id);
       const handed = selections[i].workshop;
-      if (handed) {
-        const next = useWorkshop(save, handed);
-        if (next !== save) save = savePlayerSave(profile.id, next);
-      }
+      if (handed && handed !== save.using) save = savePlayerSave(profile.id, { ...save, using: handed });
       const creation = activeCreation(profile.id, save);
       const spawn = (selections.length === 1 || data.resume ? save.last : undefined) ?? {
         x: home.x, y: home.y + (i - (selections.length - 1) / 2) * WORLD_HOST.spawnSpacing, angle: 0,

@@ -6,6 +6,7 @@ import { hexToWorld } from '../gen/hex';
 import { touchModeWanted } from '../input/touchMapping';
 import { CLOSED, PAUSE_OPTIONS, StickNav, stepCard, type CardAction, type CardEvent, type CardState } from './cards';
 import { bakeDisc, bakeIcons, bakePlate, iconKey, type IconName } from './icons';
+import { stepLabRequest, type LabRequest } from './labRequest';
 import { padConnected } from './questDialog';
 import { QuestHud } from './questHud';
 
@@ -35,6 +36,8 @@ interface View {
   legend: Obj[];
   dim: Phaser.GameObjects.Image;
   lab: Obj[];
+  labTitle: Phaser.GameObjects.Text;
+  waiting: Obj[];
   /** Pad letters on the Lab buttons (hidden for touch players). */
   labPad: Obj[];
   pause: Obj[];
@@ -59,6 +62,7 @@ export default class ButtonsModule implements WorldModule {
   private touchMode = false;
   private padHints = true;
   private quests!: QuestHud;
+  private labRequest: LabRequest = null;
 
   init(ctx: WorldContext): void {
     this.ctx = ctx;
@@ -73,9 +77,14 @@ export default class ButtonsModule implements WorldModule {
 
   update(dt: number): void {
     this.padHints = padConnected();
+    const waiting = this.labRequest?.offered ? this.labRequest.requester : undefined;
     for (const v of this.views) {
       v.honkCooldown = Math.max(0, v.honkCooldown - dt);
-      this.step(v);
+      if (v.player.index === waiting) v.taps.length = 0;
+      else this.step(v);
+    }
+    this.offerLabRequest();
+    for (const v of this.views) {
       this.showView(v);
       this.quests.updatePlayer(v.player, v.state.kind);
     }
@@ -84,6 +93,7 @@ export default class ButtonsModule implements WorldModule {
   }
 
   destroy(): void {
+    this.releaseLabRequest();
     for (const v of this.views) if (v.ownsBusy) v.player.busy = false;
     this.views = [];
     for (const f of this.fx) f.img.destroy();
@@ -100,16 +110,35 @@ export default class ButtonsModule implements WorldModule {
     const pr = p.controls.pressed;
     const open = v.state.kind !== 'closed';
     const events: CardEvent[] = v.taps.splice(0);
-    if (!open && p.busy) return;
+    const answering = this.labRequest?.offered && this.labRequest.requester !== p.index;
+    if (!open && p.busy && !answering) return;
     if (pr.a) events.push({ type: 'press', button: 'a' });
     if (pr.b) events.push({ type: 'press', button: 'b' });
     if (pr.y) events.push({ type: 'press', button: 'y' });
     if (pr.menu) events.push({ type: 'press', button: 'menu' });
+    if (answering) {
+      for (const input of events) {
+        const { action } = stepLabRequest(this.labRequest, { type: 'answer', player: p.index, input });
+        if (!action) continue;
+        const requester = this.ctx.players[action.requester];
+        this.releaseLabRequest();
+        if (action.approved) this.ctx.bus.emit('nav:workshop', { player: requester });
+        else this.ctx.bus.emit('ui:banner', { player: requester, text: 'Not now' });
+        break;
+      }
+      return;
+    }
     const dir = v.nav.step(p.controls.y, BUTTONS.navThreshold, BUTTONS.navRelease);
     if (dir !== 0) events.push({ type: 'nav', dir });
     if (!open && pr.b && !pr.y && !pr.menu && v.honkCooldown <= 0) this.honk(v);
     for (const e of events) {
       const previous = v.state.kind;
+      if (previous === 'closed' && this.views.length === 2 && e.type === 'press' && e.button === 'y') {
+        const next = stepLabRequest(this.labRequest, { type: 'request', player: p.index }).state;
+        if (next !== this.labRequest) p.busy = true;
+        this.labRequest = next;
+        break;
+      }
       const was = previous !== 'closed';
       const r = stepCard(v.state, e);
       v.state = r.state;
@@ -119,6 +148,25 @@ export default class ButtonsModule implements WorldModule {
       if (r.action) this.run(v, r.action);
       if (previous !== r.state.kind) break;
     }
+  }
+
+  private offerLabRequest(): void {
+    const request = this.labRequest;
+    if (!request || request.offered) return;
+    const other = this.views.find(v => v.player.index !== request.requester);
+    if (!other || other.player.busy || other.state.kind !== 'closed') return;
+    this.labRequest = stepLabRequest(request, { type: 'ready', player: other.player.index }).state;
+    other.player.busy = true;
+    const name = this.ctx.players[request.requester].name;
+    other.labTitle.setText(`${name}\nwants to go to the Lab. OK?`).setFontSize(C.fontSize);
+  }
+
+  private releaseLabRequest(): void {
+    if (!this.labRequest) return;
+    for (const { player } of this.views) {
+      if (this.labRequest.offered || player.index === this.labRequest.requester) player.busy = false;
+    }
+    this.labRequest = null;
   }
 
   private run(v: View, action: CardAction): void {
@@ -172,10 +220,13 @@ export default class ButtonsModule implements WorldModule {
 
   private showView(v: View): void {
     const kind = v.state.kind;
-    vis(v.legend, this.padHints && kind === 'closed');
-    v.dim.setVisible(kind !== 'closed');
-    vis(v.lab, kind === 'lab');
-    vis(v.labPad, kind === 'lab' && this.padHints);
+    const waiting = this.labRequest?.requester === v.player.index;
+    const lab = kind === 'lab' || (!!this.labRequest?.offered && !waiting);
+    vis(v.legend, this.padHints && kind === 'closed' && !lab && !waiting);
+    v.dim.setVisible(kind !== 'closed' || lab);
+    vis(v.lab, lab);
+    vis(v.labPad, lab && this.padHints);
+    vis(v.waiting, waiting);
     vis(v.pause, kind === 'pause');
     vis(v.quests, kind === 'quests');
     vis(v.questsPad, kind === 'quests' && this.padHints);
@@ -220,6 +271,7 @@ export default class ButtonsModule implements WorldModule {
     bakeDisc(scene, 'world-disc:a-big', 24, BUTTONS.colors.a);
     bakeDisc(scene, 'world-disc:b-big', 24, BUTTONS.colors.b);
     bakePlate(scene, 'world-card-panel', C.width, 560, 0x16264a, 0.96, 44);
+    bakePlate(scene, 'world-card-waiting', 360, 104, 0x16264a, 0.96, 28);
     bakePlate(scene, 'world-card-panel-tall', C.width, PAUSE_HEIGHT, 0x16264a, 0.96, 44);
     bakePlate(scene, 'world-card-yes', C.btnWidth, C.btnHeight, BUTTONS.colors.a, 1, 36);
     bakePlate(scene, 'world-card-no', C.btnWidth, C.btnHeight, BUTTONS.colors.b, 1, 36);
@@ -249,6 +301,8 @@ export default class ButtonsModule implements WorldModule {
       const cy = WORLD.height / 2;
       const view: View = {
         player, state: CLOSED, ownsBusy: false, nav: new StickNav(), taps: [], legend: [], lab: [], labPad: [],
+        labTitle: label(cx, cy - 215, 'Go to the Lab?', C.titleSize).setAlign('center'),
+        waiting: [scene.add.image(cx, cy, 'world-card-waiting').setDepth(D + 2), label(cx, cy, 'Waiting…', C.fontSize)],
         pause: [], quests: [], questsPad: [], sel: [], selPad: [], rowY: [],
         dim: scene.add.image(cx, cy, 'world-dim').setDisplaySize(W, WORLD.height).setAlpha(C.dim).setDepth(D + 1), honkCooldown: 0,
       };
@@ -270,8 +324,8 @@ export default class ButtonsModule implements WorldModule {
       // Lab card
       const by = cy + 170;
       view.lab.push(scene.add.image(cx, cy, 'world-card-panel').setDepth(D + 2));
-      view.lab.push(label(cx, cy - 215, 'Go to the Lab?', C.titleSize));
-      view.lab.push(scene.add.image(cx, cy - 60, iconKey('lab')).setDisplaySize(200, 200).setDepth(D + 3));
+      view.lab.push(view.labTitle);
+      view.lab.push(scene.add.image(cx, cy - 48, iconKey('lab')).setDisplaySize(200, 200).setDepth(D + 3));
       const mkBtn = (bx: number, plate: string, icon: IconName, letter: 'a' | 'b', target: 'yes' | 'no') => {
         const b = scene.add.image(bx, by, plate).setDepth(D + 3).setInteractive({ useHandCursor: true });
         b.on('pointerdown', () => tap(target));
@@ -312,7 +366,7 @@ export default class ButtonsModule implements WorldModule {
       view.questsPad.push(scene.add.image(backHintX, backY, 'world-disc:b-big').setDepth(D + 5),
         label(backHintX, backY - 1, 'B', 30, 5));
 
-      vis([view.dim, ...view.legend, ...view.lab, ...view.labPad, ...view.pause, ...view.quests, ...view.questsPad,
+      vis([view.dim, ...view.legend, ...view.lab, ...view.labPad, ...view.waiting, ...view.pause, ...view.quests, ...view.questsPad,
         ...view.sel, ...view.selPad], false);
       this.views.push(view);
     }

@@ -1,4 +1,4 @@
-import { BIOME_IDS, ITEM_IDS, QUEST_SLOTS, type ActiveQuest, type CreationSlot, type ReadingLevel, type WorldPlayerSave } from '../core/types';
+import { BIOME_IDS, ITEM_IDS, QUEST_SLOTS, type ActiveQuest, type ReadingLevel, type WorldPlayerSave } from '../core/types';
 import { WORLD_SAVE } from '../config';
 import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
@@ -35,13 +35,9 @@ export function loadWorkshopPlayer(profileId: string): PlayerSave | undefined {
   return player as unknown as PlayerSave;
 }
 
-function validSlot(raw: unknown): CreationSlot | undefined {
+function legacyWorkshop(raw: unknown): WorkshopId | undefined {
   if (!object(raw) || !WORKSHOPS.has(raw.workshop as WorkshopId)) return undefined;
-  const workshop = raw.workshop as WorkshopId;
-  if (raw.source === 'live') return { source: 'live', workshop };
-  if (raw.source === 'copy' && object(raw.model)) {
-    return { source: 'copy', workshop, model: normalizeWorkshopModel(workshop, raw.model) };
-  }
+  if (raw.source === 'live' || raw.source === 'copy') return raw.workshop as WorkshopId;
   return undefined;
 }
 
@@ -70,10 +66,11 @@ function validQuest(raw: unknown): raw is ActiveQuest {
 
 export function normalizePlayerSave(raw: unknown, lastWorkshop: WorkshopId = 'race'): WorldPlayerSave {
   const from = object(raw) ? raw : {};
-  const primary = validSlot(from.primary) ?? { source: 'live', workshop: lastWorkshop } as const;
-  const other: WorkshopId = lastWorkshop === 'race' ? 'dino' : 'race';
-  const alternate = from.alternate === null ? null : validSlot(from.alternate) ?? { source: 'live', workshop: other } as const;
-  const using = from.using === 'alternate' && alternate ? 'alternate' : 'primary';
+  let using = lastWorkshop;
+  if (from.using === 'race' || from.using === 'dino') using = from.using;
+  else if (from.using === 'alternate' && from.alternate !== null) {
+    using = legacyWorkshop(from.alternate) ?? (lastWorkshop === 'race' ? 'dino' : 'race');
+  } else using = legacyWorkshop(from.primary) ?? lastWorkshop;
   const claimed = Array.isArray(from.claimed)
     ? from.claimed.filter((x): x is string => typeof x === 'string' && x.length > 0).slice(-WORLD_SAVE.claimedLimit) : [];
   const quests = Array.isArray(from.quests) ? from.quests.filter(validQuest).slice(0, QUEST_SLOTS.hard) : [];
@@ -85,7 +82,7 @@ export function normalizePlayerSave(raw: unknown, lastWorkshop: WorkshopId = 'ra
   const last = object(lastRaw) && Number.isFinite(lastRaw.x) && Number.isFinite(lastRaw.y) && Number.isFinite(lastRaw.angle)
     ? { x: lastRaw.x as number, y: lastRaw.y as number, angle: lastRaw.angle as number } : undefined;
   return { version: 1, stars: Number.isSafeInteger(from.stars) && (from.stars as number) >= 0 ? from.stars as number : 0,
-    primary, alternate, using, claimed, quests, questSeq, ...(last ? { last } : {}) };
+    using, claimed, quests, questSeq, ...(last ? { last } : {}) };
 }
 
 function allSaves(): Record<string, unknown> {

@@ -28,10 +28,10 @@ describe('quest tracker', () => {
   it('tracks a fetch through matching pickup and contact with the right giver', () => {
     const quest = fetch();
     const goal = { biome: 'meadow', giverId: quest.giverId } as const;
-    const start = { ...empty, using: 'primary' };
+    const start = { ...empty, using: 'dino' };
     const accepted = acceptQuest(start, quest, 'starter', one);
     expect(accepted.quests).toEqual([{ quest, carrying: false }]);
-    expect(accepted.using).toBe('primary');
+    expect(accepted.using).toBe('dino');
     expect(nextQuestIndex(start, quest.giverId)).toBe(0);
     expect(nextQuestIndex(accepted, quest.giverId)).toBe(1);
     expect(completeQuest(accepted, quest.id, goal)).toBe(accepted);

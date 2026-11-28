@@ -106,8 +106,8 @@ function home(c: CanvasRenderingContext2D): void {
   ellipse(c, '#284f55', 64, 64, 63, 63);
   ellipse(c, '#83d2b2', 64, 64, 56, 56);
   ellipse(c, '#397f76', 64, 64, 50, 50);
-  poly(c, '#e4ffe7', [80, 30], [104, 50], [80, 68], [80, 56], [35, 56], [35, 44], [80, 44]);
-  poly(c, '#e4ffe7', [48, 60], [24, 79], [48, 98], [48, 85], [92, 85], [92, 73], [48, 73]);
+  poly(c, '#e4ffe7', [29, 60], [64, 32], [99, 60], [91, 60], [91, 92], [37, 92], [37, 60]);
+  rect(c, '#397f76', 56, 70, 16, 22);
 }
 
 function door(c: CanvasRenderingContext2D): void {

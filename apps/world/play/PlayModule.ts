@@ -1,6 +1,6 @@
 import { WORLD_PLAY } from '../config';
 import type { WorldContext, WorldModule, WorldPlayer } from '../core/runtime';
-import { driveMovement } from '../host/drive';
+import { driveMovement, quickSwap } from '../host/drive';
 import { HomePadUI } from './homePad';
 import { PlayEffects } from './playEffects';
 
@@ -21,6 +21,7 @@ export default class PlayModule implements WorldModule {
     const { ctx } = this;
     for (const player of ctx.players) {
       this.home.updatePlayer(player);
+      if (!player.busy && player.controls.pressed.x) quickSwap(ctx, player);
       const feature = driveMovement(ctx, player, dt);
       if (feature && ctx.time >= (this.lastBump.get(player) ?? 0)) {
         this.lastBump.set(player, ctx.time + WORLD_PLAY.bumpCooldown);

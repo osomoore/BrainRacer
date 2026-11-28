@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addStars, claim, loadPlayerSave, normalizePlayerSave, readingOf, savePlayerSave } from './save';
-import { defaultSlots, resolveSlot, swapSlots, takeCopy } from './slots';
+import { activeCreation, swapCreation } from './slots';
 import { hashWorldCode, worldSeed } from './seed';
 
 const memoryStorage = () => {
@@ -37,28 +37,40 @@ describe('world saves', () => {
   });
 });
 
-describe('world slots', () => {
-  it('starts with live race and dino slots and swaps the active slot', () => {
-    const save = { version: 1 as const, stars: 0, ...defaultSlots('dino'), claimed: [], quests: [], questSeq: {} };
-    expect(save.primary).toEqual({ source: 'live', workshop: 'dino' });
-    expect(swapSlots(save).using).toBe('alternate');
+describe('world creations', () => {
+  it('starts with the last Workshop and swaps in both directions', () => {
+    const save = normalizePlayerSave(undefined, 'dino');
+    expect(save.using).toBe('dino');
+    expect(swapCreation(save.using)).toBe('race');
+    expect(swapCreation('race')).toBe('dino');
   });
-  it('resolves missing live builds to defaults and freezes a copy', () => {
-    const save = { version: 1 as const, stars: 0, ...defaultSlots(), claimed: [], quests: [], questSeq: {} };
-    const creation = resolveSlot('absent', save.primary);
-    expect(creation.model).toHaveProperty('wheels');
-    expect(takeCopy('absent', save).primary).toMatchObject({ source: 'copy', workshop: 'race' });
+  it('uses the default builds when no Workshop save exists', () => {
+    expect(activeCreation('absent', normalizePlayerSave(null)).model).toHaveProperty('wheels');
+    expect(activeCreation('absent', normalizePlayerSave(null, 'dino')).model).toHaveProperty('legs');
   });
-  it('follows Workshop edits in a live slot and keeps the frozen build', () => {
-    const save = loadPlayerSave('builder');
+  it('loads the live build even when the old slot held a copy', () => {
     const storeModel = (wheels: string) => storage.setItem('workshop.players.v1', JSON.stringify({
       builder: { version: 2, reading: 'easy', lastWorkshop: 'race', workshops: { race: { model: { wheels } } } },
     }));
-    storeModel('wheels.mud');
-    const copy = takeCopy('builder', save);
+    storage.setItem('world.players.v1', JSON.stringify({ builder: {
+      version: 1, using: 'alternate', primary: { source: 'live', workshop: 'dino' },
+      alternate: { source: 'copy', workshop: 'race', model: { wheels: 'wheels.mud' } },
+      stars: 4, claimed: ['a'], questSeq: { owl: 2 }, last: { x: 10, y: 20, angle: 0 },
+    } }));
     storeModel('wheels.road');
-    expect(resolveSlot('builder', save.primary).model.wheels).toBe('wheels.road');
-    expect(resolveSlot('builder', copy.primary).model.wheels).toBe('wheels.mud');
+    const save = loadPlayerSave('builder');
+    expect(save).toEqual({ version: 1, using: 'race', stars: 4, claimed: ['a'], quests: [], questSeq: { owl: 2 },
+      last: { x: 10, y: 20, angle: 0 } });
+    expect(JSON.parse(storage.getItem('world.players.v1')!).builder).toEqual(save);
+    expect(activeCreation('builder', save).model.wheels).toBe('wheels.road');
+    storeModel('wheels.mud');
+    expect(activeCreation('builder', save).model.wheels).toBe('wheels.mud');
+  });
+  it('handles a missing alternate and saves the current live selection across loads', () => {
+    expect(normalizePlayerSave({ using: 'alternate', primary: { source: 'live', workshop: 'dino' }, alternate: null }).using).toBe('dino');
+    const save = savePlayerSave('driver', { ...loadPlayerSave('driver'), using: 'dino' });
+    expect(loadPlayerSave('driver')).toEqual(save);
+    expect(activeCreation('driver', save).workshop).toBe('dino');
   });
 });
 

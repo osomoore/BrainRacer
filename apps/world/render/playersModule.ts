@@ -42,9 +42,8 @@ export default class PlayersModule implements WorldModule {
     const rig = buildRig(scene, creation.workshop, creation.model, 'top');
     const length = WORLD_HOST.playerLengths[traits.width - 1];
     const scale = length / rig.width;
-    const marker = scene.add.ellipse(0, 0, length / scale, (length * 0.55) / scale, WORLD_HOST.playerColors[player.index], 0.4);
-    rig.root.addAt(marker, 0);
-    rig.root.setDepth(DEPTH.players).setPosition(move.x, move.y).setRotation(move.angle).setScale(scale);
+    rig.root.setSize(rig.width, rig.height).setDepth(DEPTH.players)
+      .setPosition(move.x, move.y).setRotation(move.angle).setScale(scale);
     player.sprite = rig.root;
     this.rigs.set(player, { rig, scale });
   }

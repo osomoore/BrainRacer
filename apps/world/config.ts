@@ -142,7 +142,6 @@ export const WORLD_HOST = {
   roofFadeAlpha: 0.2,
   roofFadeTau: 0.14,
   playerLengths: [96, 120, 146, 176],
-  playerColors: [0xffd266, 0x80e5ff],
   quickSeed: 29,
 } as const;
 
@@ -165,6 +164,7 @@ export const WORLD_PLAY = {
   desert: { buildSeconds: 14, recoverSeconds: 5, maxPenalty: 0.22, shade: 0.35, heatForImmunity: 2 },
   ventSeconds: 0.36,
   homeRadius: 105,
+  shadow: { offset: 12, airOffset: 36, groundAlpha: 0.44, airAlpha: 0.23, lengthScale: 0.96 },
   bumpCooldown: 0.65,
   pushSpeed: 150,
 } as const;
