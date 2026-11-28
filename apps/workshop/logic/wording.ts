@@ -23,7 +23,7 @@ export const STARTER_HINT = ['Check {aspect}.', 'Go to {aspect}.'] as const;
 export const STARTER_PART = 'Get {part}.';
 export const STARTER_SHORT_FIX = 'Get {parts}.';
 export const STARTER_FAIL = 'Put on {parts}.';
-export const STARTER_TEST_TITLE = 'Test Run';
+export const STARTER_TEST_TITLE = 'Fun Run';
 
 export const STARTER_RESULTS = {
   win: 'You did it!',
