@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 
 /** Picture icons, baked once into 128 px textures `world-icon:<name>` (never drawn in a live Graphics). */
 export type IconName = 'hand' | 'horn' | 'swap' | 'lab' | 'tick' | 'cross' | 'play' | 'home' | 'exit' | 'pause'
-  | 'star' | 'quest' | 'direction';
+  | 'star' | 'quest';
 export const ICON_SIZE = 128;
 export const iconKey = (name: IconName) => `world-icon:${name}`;
 
@@ -95,9 +95,6 @@ const DRAW: Record<IconName, (g: Phaser.GameObjects.Graphics) => void> = {
     shapes(g, [rr(26, 14, 76, 100, 12)], 0xffe9ad, 6);
     g.fillStyle(INK, 1).fillRoundedRect(43, 41, 42, 8, 4).fillRoundedRect(43, 59, 42, 8, 4)
       .fillRoundedRect(43, 77, 28, 8, 4);
-  },
-  direction: g => {
-    shapes(g, [poly(15, 44, 67, 44, 67, 17, 115, 64, 67, 111, 67, 84, 15, 84)], 0xffdf66, 5);
   },
 };
 

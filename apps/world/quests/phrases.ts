@@ -36,9 +36,19 @@ export const GIVER_NAMES = {
 } as const;
 
 export const OTHER_GIVER = 'your pal';
-export const PLACES = { biome: 'to the {biome}', home: 'back home', giver: 'back to your pal' } as const;
-
 export const QUEST_PHRASES = {
+  visitItem: {
+    starter: ['Go to the {item}. Tap the hand.'],
+    easy: ['Find {a} {item}. Tap the hand.'],
+    medium: ['Look for {a} {item}, then tap the hand.'],
+    hard: ['When you spot {a} {item}, go up to it and press the hand.'],
+  },
+  visitPond: {
+    starter: ['Go to the pond. Help the ducks.'],
+    easy: ['Feed the ducks at the pond.'],
+    medium: ['Head to a pond and feed the ducks there.'],
+    hard: ['Find a duck pond and stop by to feed the ducks.'],
+  },
   fetch: {
     starter: [
       'Go to the {biome}. Get {a} {item}. Bring it back.',
@@ -62,25 +72,9 @@ export const QUEST_PHRASES = {
     ],
   },
   deliver: {
-    starter: [
-      'Take the {item}. Go {place}.',
-      'Get the {item}. Drive {place}.',
-      'Pick up the {item}. Go {place}.',
-    ],
-    easy: [
-      'Take the {item} {place}.',
-      'Bring the {item} {place}.',
-      'Carry the {item} {place}.',
-    ],
-    medium: [
-      'Take the {item} with you and go {place}.',
-      'Give the {item} a ride and head {place}.',
-      'Pick up the {item}, then take it {place}.',
-    ],
-    hard: [
-      'Take the {item} from {who}, then give it a ride {place}.',
-      'When you leave {who}, give the {item} a ride {place}.',
-      'The {item} is ready, so take it with you and drive {place}.',
-    ],
+    starter: ['Get the duck here. Go to the pond.'],
+    easy: ['Take my duck to the pond.'],
+    medium: ['Pick up my duck and give it a ride to a pond.'],
+    hard: ['Pick up my duck, then give it a ride to a pond.'],
   },
-} as const satisfies Record<'fetch' | 'deliver', Record<ReadingLevel, readonly string[]>>;
+} as const satisfies Record<string, Record<ReadingLevel, readonly string[]>>;

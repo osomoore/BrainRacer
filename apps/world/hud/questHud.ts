@@ -1,9 +1,8 @@
 import type Phaser from 'phaser';
 import { BUTTONS, WORLD, WORLD_QUEST_HUD as HUD } from '../config';
 import { DEPTH, type WorldContext, type WorldEvents, type WorldPlayer } from '../core/runtime';
-import { QUEST_SLOTS, type ActiveQuest, type Vec } from '../core/types';
-import { bakeDisc, bakeIcons, bakePlate, iconKey } from './icons';
-import { questTarget, targetAngle } from './questTarget';
+import { QUEST_SLOTS, type Vec } from '../core/types';
+import { bakeIcons, bakePlate, iconKey } from './icons';
 
 const D = BUTTONS.depth;
 const WIDTH = HUD.questCardWidth;
@@ -11,16 +10,14 @@ const HEIGHT = HUD.questCardHeights[2];
 const FONT = 'Arial, sans-serif';
 const CARD = 'world-tracked-quest';
 const QUEST_LIST_TOP = 222;
-const QUEST_LIST_HEIGHT = QUEST_SLOTS.hard * HEIGHT + (QUEST_SLOTS.hard - 1) * HUD.questCardGap;
+const QUEST_LIST_HEIGHT = 542;
+const PICKER_Y = 672;
 const plateKey = (height: number) => `${CARD}:${height}`;
 
 type Card = {
   root: Phaser.GameObjects.Container;
   plate: Phaser.GameObjects.Image;
   text: Phaser.GameObjects.Text;
-  arrow: Phaser.GameObjects.Image;
-  disc: Phaser.GameObjects.Image;
-  target?: Vec;
 };
 type Toast = { text: string; until: number };
 type View = {
@@ -32,9 +29,10 @@ type View = {
   bannerText: Phaser.GameObjects.Text;
   empty: Phaser.GameObjects.Text;
   cards: Card[];
-  quests?: ActiveQuest[];
-  refreshAt: number;
-  refreshFrom?: Vec;
+  picker: Phaser.GameObjects.Container;
+  pageLabel: Phaser.GameObjects.Text;
+  page: number;
+  pages: number;
 };
 type Popup = { label: Phaser.GameObjects.Text; at: Vec; player: WorldPlayer; since: number };
 
@@ -50,10 +48,6 @@ export class QuestHud {
         this.banners.set(player, { text, until: ctx.time + (seconds ?? HUD.bannerSeconds) });
       }),
       ctx.bus.on('ui:popup', event => this.popup(event)),
-      ctx.bus.on('quest:pickup', () => {
-        // Item spots are shared. A partner's pickup can move this player's arrow.
-        for (const view of this.views.values()) view.refreshFrom = undefined;
-      }),
       ctx.bus.on('stars:award', ({ player, at, stars }) => {
         ctx.bus.emit('ui:popup', { player, at, text: `+${stars}` });
       }),
@@ -63,7 +57,7 @@ export class QuestHud {
   build(scene: Phaser.Scene, touch: boolean): void {
     const width = WORLD.width / this.ctx.players.length;
     bakeIcons(scene);
-    bakeDisc(scene, 'world-quest-direction', 37, 0x253b57, 0x7790ac);
+    bakePlate(scene, 'world-quest-picker', 140, BUTTONS.card.minTap, 0x284666, 1, 24);
     for (const height of HUD.questCardHeights) {
       bakePlate(scene, plateKey(height), WIDTH, height, 0x152640, 0.98, 24, 0x85a0bc);
     }
@@ -89,23 +83,33 @@ export class QuestHud {
       }).setOrigin(0.5).setDepth(D + 4).setVisible(false);
       const cards = Array.from({ length: QUEST_SLOTS.hard }, (): Card => {
         const plate = scene.add.image(0, 0, plateKey(HEIGHT)).setOrigin(0);
-        const disc = scene.add.image(WIDTH - 66, HEIGHT / 2, 'world-quest-direction');
-        const arrow = scene.add.image(disc.x, disc.y, iconKey('direction')).setDisplaySize(61, 61);
         const text = scene.add.text(24, HEIGHT / 2, '', {
           fontFamily: FONT, fontStyle: 'bold', fontSize: `${HUD.questFont}px`, color: '#fff8df',
-          wordWrap: { width: WIDTH - 145, useAdvancedWrap: true },
+          wordWrap: { width: WIDTH - 48, useAdvancedWrap: true },
         }).setOrigin(0, 0.5);
-        const root = scene.add.container(0, 0, [plate, text, disc, arrow]).setVisible(false);
-        return { root, plate, text, disc, arrow };
+        const root = scene.add.container(0, 0, [plate, text]).setVisible(false);
+        return { root, plate, text };
       });
-      this.views.set(player, { x, width, stars, starPlate, banner, bannerText, empty, cards, refreshAt: 0 });
+      const picker = scene.add.container(x + width / 2, PICKER_Y).setDepth(D + 4).setVisible(false);
+      const pickerText = (at: number, text: string) => scene.add.text(at, 0, text, {
+        fontFamily: FONT, fontStyle: 'bold', fontSize: `${HUD.questFont}px`, color: '#fff8df',
+      }).setOrigin(0.5);
+      const pageLabel = pickerText(0, '');
+      picker.add(pageLabel);
+      for (const dir of [-1, 1] as const) {
+        const at = dir * 160;
+        const button = scene.add.image(at, 0, 'world-quest-picker').setInteractive({ useHandCursor: true });
+        button.on('pointerdown', () => { if (picker.visible) this.cycle(player, dir); });
+        picker.add([button, pickerText(at, dir < 0 ? '‹' : '›')]);
+      }
+      this.views.set(player, { x, width, stars, starPlate, banner, bannerText, empty, cards, picker, pageLabel, page: 0, pages: 0 });
     }
   }
 
   updatePlayer(player: WorldPlayer, cardState: 'closed' | 'pause' | 'lab' | 'quests'): void {
     const view = this.views.get(player);
     if (!view) return;
-    const { time, world } = this.ctx;
+    const { time } = this.ctx;
     const { quests, stars } = player.save;
     const value = String(stars);
     if (view.stars.text !== value) {
@@ -121,37 +125,38 @@ export class QuestHud {
     view.banner.setVisible(showBanner);
     if (showBanner && view.bannerText.text !== banner.text) view.bannerText.setText(banner.text);
 
-    const { move } = player;
-    const searched = view.refreshFrom;
-    const moved = !!searched && Math.hypot(searched.x - move.x, searched.y - move.y) >= HUD.targetRefreshDistance;
-    const refresh = visible && (view.quests !== quests || !searched || (moved && time >= view.refreshAt));
-    if (refresh) {
-      view.refreshAt = time + HUD.targetRefreshSeconds;
-      view.refreshFrom = { x: move.x, y: move.y };
-      view.quests = quests;
-    }
-    const rotation = this.ctx.viewRotation(player);
-    const openHeight = quests.length * HEIGHT + Math.max(quests.length - 1, 0) * HUD.questCardGap;
-    let y = open ? QUEST_LIST_TOP + (QUEST_LIST_HEIGHT - openHeight) / 2 : 126;
-    view.cards.forEach((card, index) => {
-      const active = quests[index];
-      card.root.setVisible(visible && !!active);
-      if (!visible || !active) return;
-      if (refresh) card.target = questTarget(world, player.move, player.profileId, active);
-      const text = active.quest.text[player.reading];
+    const heights = quests.map(({ quest }, index) => {
+      const card = view.cards[index];
+      const text = quest.text[player.reading];
       if (card.text.text !== text) card.text.setText(text);
-      const height = open ? HEIGHT : HUD.questCardHeights.find(height => height >= card.text.height + 24) ?? HEIGHT;
+      return HUD.questCardHeights.find(height => height >= card.text.height + 20) ?? HEIGHT;
+    });
+    const listHeight = heights.reduce((sum, height) => sum + height, 0) + Math.max(quests.length - 1, 0) * HUD.questCardGap;
+    view.pages = open && listHeight > QUEST_LIST_HEIGHT ? quests.length : 0;
+    if (!view.pages || view.page >= view.pages) view.page = 0;
+    view.picker.setVisible(view.pages > 0);
+    if (view.pages) view.pageLabel.setText(`${view.page + 1} / ${view.pages}`);
+    let y = open ? QUEST_LIST_TOP + (QUEST_LIST_HEIGHT - listHeight) / 2 : 126;
+    view.cards.forEach((card, index) => {
+      const height = heights[index];
+      const show = visible && height !== undefined && (!view.pages || view.page === index);
+      card.root.setVisible(show);
+      if (!show) return;
       card.plate.setTexture(plateKey(height));
-      card.text.y = card.arrow.y = card.disc.y = height / 2;
+      card.text.y = height / 2;
       card.root.setDepth(open ? D + 4 : D).setPosition(
         open ? view.x + (view.width - WIDTH) / 2 : view.x + 24,
-        y,
+        view.pages ? QUEST_LIST_TOP + (PICKER_Y - QUEST_LIST_TOP - BUTTONS.card.minTap / 2 - height) / 2 : y,
       );
       y += height + HUD.questCardGap;
-      card.disc.setVisible(!!card.target);
-      card.arrow.setVisible(!!card.target);
-      if (card.target) card.arrow.setRotation(targetAngle(player.move, card.target, rotation));
     });
+  }
+
+  cycle(player: WorldPlayer, dir: -1 | 1): boolean {
+    const view = this.views.get(player);
+    if (!view?.pages) return false;
+    view.page = (view.page + dir + view.pages) % view.pages;
+    return true;
   }
 
   update(): void {

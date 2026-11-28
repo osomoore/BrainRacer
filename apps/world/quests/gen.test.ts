@@ -1,55 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { BIOME_IDS } from '../core/types';
-import type { BiomeId, QuestGiverSpot } from '../core/types';
+import type { QuestGiverSpot } from '../core/types';
+import { traitsOf } from '../logic/traits';
 import { questFor } from './gen';
 
 const giver: QuestGiverSpot = { id: '-2,3:g', at: { x: 21, y: 42 }, who: 'turtle' };
 const hex = { q: -2, r: 3 };
-const series = (nearby: (biome: BiomeId) => boolean, seed = 42, spot = giver) =>
-  Array.from({ length: 40 }, (_, n) => questFor(seed, spot, hex, n, nearby));
+const traits = traitsOf({ workshop: 'race', model: {} });
+const date = 20261127;
 
 describe('questFor', () => {
-  it('generates a stable sequence of quests, including the wording', () => {
-    const quests = series(() => true);
-    expect(quests).toEqual(series(() => true));
-    expect(quests.map((quest) => quest.id)).toEqual(quests.map((_, n) => `${giver.id}#${n}`));
-    expect(quests.every((quest) => quest.giverId === giver.id && quest.giverHex.q === hex.q && quest.giverHex.r === hex.r)).toBe(true);
-    expect(quests.map((quest) => quest.item)).not.toEqual(series(() => true, 43).map((quest) => quest.item));
-    expect(quests.map((quest) => quest.item)).not.toEqual(
-      series(() => true, 42, { ...giver, id: '0,3:g' }).map((quest) => quest.item),
-    );
-    expect(new Set(quests.map((quest) => quest.goal.kind))).toEqual(new Set(['giver', 'biome', 'home']));
-    expect(new Set(quests.map((quest) => quest.stars))).toEqual(new Set([2, 3]));
-  });
-
-  it.each(BIOME_IDS)('fetches a native item when %s is the only nearby biome', (biome) => {
-    const nativeItems = {
-      meadow: ['feather'], mud: ['mudPie'], rocky: ['rock'], lake: ['shell'], darkwood: ['pinecone'],
-      snow: ['snowball'], desert: ['cactusFlower'], jungle: ['pinecone', 'fern'], canyon: ['crystal'], geyser: ['crystal'],
-    };
-    const quests = series((other) => other === biome);
-    const fetches = quests.filter((quest) => quest.kind === 'fetch');
-    expect(fetches.length).toBeGreaterThan(0);
-    for (const quest of fetches) {
-      expect(quest.fromBiome).toBe(biome);
-      expect(nativeItems[biome]).toContain(quest.item);
-      expect(quest.goal).toEqual({ kind: 'giver' });
-    }
-    for (const quest of quests.filter((quest) => quest.kind === 'deliver')) {
-      expect(quest.fromBiome).toBeUndefined();
-      if (quest.item === 'duck') {
-        expect(biome).toBe('lake');
-        expect(quest.goal).toEqual({ kind: 'biome', biome: 'lake' });
-      } else {
-        expect(quest.item).toBe('lamb');
-        expect(quest.goal).toEqual({ kind: 'home' });
-      }
+  it('generates deterministic daily offers of all three shapes, each worth one star', () => {
+    const make = () => Array.from({ length: 48 }, (_, seed) =>
+      questFor(seed, giver, hex, date, [{ item: 'rock', biome: 'rocky' }], true, traits)!);
+    const offers = make();
+    expect(offers).toEqual(make());
+    expect(new Set(offers.map(quest => quest.kind))).toEqual(new Set(['visit', 'fetch', 'deliver']));
+    for (const offer of offers) {
+      expect(offer).toMatchObject({ id: `${giver.id}#${date}`, giverId: giver.id, giverHex: hex, stars: 1 });
     }
   });
 
-  it('offers a home delivery when the lookup finds no biomes', () => {
-    for (const quest of series(() => false)) {
-      expect(quest).toMatchObject({ kind: 'deliver', item: 'lamb', goal: { kind: 'home' }, stars: 2 });
-    }
+  it('only offers part-gated fetches to a build that can reach the item', () => {
+    const make = (reach: number) => Array.from({ length: 48 }, (_, seed) =>
+      questFor(seed, giver, hex, date, [{ item: 'cactusFlower', biome: 'desert' }], false, { ...traits, reach })!);
+    expect(make(1).every(offer => offer.kind === 'visit')).toBe(true);
+    expect(make(2).filter(offer => offer.kind === 'fetch')).toContainEqual(expect.objectContaining({
+      item: 'cactusFlower', fromBiome: 'desert', needs: [{ trait: 'reach', min: 2 }],
+    }));
+    expect(questFor(42, giver, hex, date, [], false, traits)).toBeUndefined();
   });
 });
