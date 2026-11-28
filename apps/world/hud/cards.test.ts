@@ -32,7 +32,7 @@ describe('pause card', () => {
   });
   it('nav picks home / exit and clamps', () => {
     expect(run(CLOSED, press('menu'), { type: 'nav', dir: 1 }, press('a')).action).toBe('home');
-    expect(run(CLOSED, press('menu'), { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, press('a')).action).toBe('exit');
+    expect(run(CLOSED, press('menu'), { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, press('a')).action).toBe('exit');
     expect(run(CLOSED, press('menu'), { type: 'nav', dir: -1 }).state).toEqual({ kind: 'pause', sel: 0 });
   });
   it('B and menu resume, taps act directly', () => {
@@ -50,6 +50,17 @@ describe('pause card', () => {
     const selected = { state: { kind: 'pause', sel: 2 }, action: null };
     expect(stepCard(open.state, { type: 'tap', target: 'back' })).toEqual(selected);
     expect(stepCard(open.state, press('b'))).toEqual(selected);
+  });
+  it('opens Buddy and returns to the same pause row', () => {
+    const buddy = { kind: 'buddy', sel: 3 } as const;
+    expect(run(CLOSED, press('menu'), { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, { type: 'nav', dir: 1 }, press('a')).state).toEqual(buddy);
+    const paused = { kind: 'pause', sel: 0 } as const;
+    const open = stepCard(paused, { type: 'tap', target: 'buddy' });
+    expect(open).toEqual({ state: buddy, action: null });
+    const selected = { state: { kind: 'pause', sel: 3 }, action: null };
+    expect(stepCard(open.state, press('b'))).toEqual(selected);
+    expect(stepCard(open.state, press('menu'))).toEqual(selected);
+    expect(stepCard(open.state, { type: 'tap', target: 'back' })).toEqual(selected);
   });
 });
 

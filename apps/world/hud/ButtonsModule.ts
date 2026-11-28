@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { buddyTexture } from '../../../shared/buddies/catalog';
 import { isMobile } from '../../../shared/device';
 import { BUTTONS, WORLD } from '../config';
 import { DEPTH, type WorldContext, type WorldModule, type WorldPlayer } from '../core/runtime';
@@ -10,6 +11,7 @@ import { stepLabRequest, type LabRequest } from './labRequest';
 import { NamePulse } from './namePulse';
 import { padConnected } from './questDialog';
 import { QuestHud } from './questHud';
+import { BuddyModule } from '../buddies/BuddyModule';
 
 const KEY = 'WorldButtons';
 const FONT = 'Arial Black, Arial, sans-serif';
@@ -18,6 +20,8 @@ const LEGEND_ICONS: Record<typeof PAD_IDS[number], IconName> = { a: 'hand', b: '
 const C = BUTTONS.card;
 const ROW_W = C.width - 120;
 const PAUSE_HEIGHT = 816;
+const PAUSE_ROW_HEIGHT = C.minTap;
+const PAUSE_ROW_GAP = 4;
 
 type Obj = Phaser.GameObjects.GameObject;
 const vis = (list: Obj[], on: boolean) => list.forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(on));
@@ -64,6 +68,7 @@ export default class ButtonsModule implements WorldModule {
   private padHints = true;
   private quests!: QuestHud;
   private names!: NamePulse;
+  private buddies!: BuddyModule;
   private labRequest: LabRequest = null;
   private offHonk?: () => void;
 
@@ -72,6 +77,7 @@ export default class ButtonsModule implements WorldModule {
     this.touchMode = touchModeWanted(location.search, isMobile(), ctx.players.length);
     this.quests = new QuestHud(ctx);
     this.names = new NamePulse(ctx);
+    this.buddies = new BuddyModule(ctx);
     bakeIcons(ctx.scene);
     this.bakeWorldFx(ctx.scene);
     this.offHonk = ctx.bus.on('player:honk', ({ player }) => this.honk(player));
@@ -87,10 +93,11 @@ export default class ButtonsModule implements WorldModule {
       if (v.player.index === waiting) v.taps.length = 0;
       else this.step(v);
     }
+    this.buddies.update(dt);
     this.offerLabRequest();
     for (const v of this.views) {
       this.showView(v);
-      this.quests.updatePlayer(v.player, v.state.kind);
+      this.quests.updatePlayer(v.player, v.state.kind === 'buddy' ? 'pause' : v.state.kind);
     }
     this.quests.update();
     this.names.update();
@@ -106,6 +113,7 @@ export default class ButtonsModule implements WorldModule {
     this.fx = [];
     this.quests.destroy();
     this.names.destroy();
+    this.buddies.destroy();
     const manager = this.ctx.scene.scene;
     if (manager.get(KEY)) manager.remove(KEY);
   }
@@ -135,10 +143,16 @@ export default class ButtonsModule implements WorldModule {
       }
       return;
     }
-    const dir = v.nav.step(p.controls.y, BUTTONS.navThreshold, BUTTONS.navRelease);
+    const { x, y } = p.controls;
+    const axis = v.state.kind === 'buddy' && Math.abs(x) > Math.abs(y) ? x : y;
+    const dir = v.nav.step(axis, BUTTONS.navThreshold, BUTTONS.navRelease);
     if (dir !== 0) events.push({ type: 'nav', dir });
     for (const e of events) {
       const previous = v.state.kind;
+      if (previous === 'buddy' && (e.type === 'nav' || (e.type === 'press' && e.button === 'a'))) {
+        this.buddies.pick(p, e.type === 'nav' ? e : { type: 'press', button: 'a' });
+        continue;
+      }
       if (previous === 'quests' && e.type === 'nav' && this.quests.cycle(p, e.dir)) continue;
       if (previous === 'closed' && this.views.length === 2 && e.type === 'press' && e.button === 'y') {
         const next = stepLabRequest(this.labRequest, { type: 'request', player: p.index }).state;
@@ -241,6 +255,7 @@ export default class ButtonsModule implements WorldModule {
     vis(v.waiting, waiting);
     vis(v.pause, kind === 'pause');
     vis(v.quests, kind === 'quests');
+    this.buddies.showPicker(v.player, kind === 'buddy');
     vis(v.questsPad, kind === 'quests' && this.padHints);
     vis(v.sel, kind === 'pause' && (!this.touchMode || this.padHints));
     vis(v.selPad, kind === 'pause' && this.padHints);
@@ -275,6 +290,10 @@ export default class ButtonsModule implements WorldModule {
     const D = BUTTONS.depth;
     const L = BUTTONS.legend;
     bakeIcons(scene);
+    this.buddies.build(scene, player => {
+      const v = this.views.find(view => view.player === player);
+      if (v) v.taps.push({ type: 'tap', target: 'back' });
+    });
     this.quests.build(scene, this.touchMode);
     this.names.build(scene);
     const legendW = PAD_IDS.length * (L.glyph + 8 + L.icon) + (PAD_IDS.length - 1) * L.gap + 40;
@@ -288,14 +307,15 @@ export default class ButtonsModule implements WorldModule {
     bakePlate(scene, 'world-card-panel-tall', C.width, PAUSE_HEIGHT, 0x16264a, 0.96, 44);
     bakePlate(scene, 'world-card-yes', C.btnWidth, C.btnHeight, BUTTONS.colors.a, 1, 36);
     bakePlate(scene, 'world-card-no', C.btnWidth, C.btnHeight, BUTTONS.colors.b, 1, 36);
-    bakePlate(scene, 'world-row-resume', ROW_W, C.rowHeight, BUTTONS.colors.a, 1, 36);
-    bakePlate(scene, 'world-row-home', ROW_W, C.rowHeight, BUTTONS.colors.y, 1, 36);
-    bakePlate(scene, 'world-row-quests', ROW_W, C.rowHeight, BUTTONS.colors.x, 1, 36);
-    bakePlate(scene, 'world-row-exit', ROW_W, C.rowHeight, BUTTONS.colors.b, 1, 36);
+    bakePlate(scene, 'world-row-resume', ROW_W, PAUSE_ROW_HEIGHT, BUTTONS.colors.a, 1, 36);
+    bakePlate(scene, 'world-row-home', ROW_W, PAUSE_ROW_HEIGHT, BUTTONS.colors.y, 1, 36);
+    bakePlate(scene, 'world-row-quests', ROW_W, PAUSE_ROW_HEIGHT, BUTTONS.colors.x, 1, 36);
+    bakePlate(scene, 'world-row-buddy', ROW_W, PAUSE_ROW_HEIGHT, 0x7b61c9, 1, 36);
+    bakePlate(scene, 'world-row-exit', ROW_W, PAUSE_ROW_HEIGHT, BUTTONS.colors.b, 1, 36);
     if (!scene.textures.exists('world-row-sel')) {
       const g = scene.make.graphics({ x: 0, y: 0 });
-      g.lineStyle(10, 0xffffff, 1).strokeRoundedRect(5, 5, ROW_W + 14, C.rowHeight + 14, 44);
-      g.generateTexture('world-row-sel', ROW_W + 24, C.rowHeight + 24);
+      g.lineStyle(10, 0xffffff, 1).strokeRoundedRect(5, 5, ROW_W + 14, PAUSE_ROW_HEIGHT + 14, 44);
+      g.generateTexture('world-row-sel', ROW_W + 24, PAUSE_ROW_HEIGHT + 24);
       g.destroy();
     }
     if (!scene.textures.exists('world-dim')) {
@@ -356,16 +376,18 @@ export default class ButtonsModule implements WorldModule {
       view.pause.push(scene.add.image(cx, cy, 'world-card-panel-tall').setDepth(D + 2));
       view.pause.push(scene.add.image(cx - 130, cy - panelH / 2 + 80, iconKey('pause')).setDisplaySize(80, 80).setDepth(D + 3));
       view.pause.push(label(cx + 30, cy - panelH / 2 + 80, 'Paused', C.titleSize));
-      const rowDefs: { id: typeof PAUSE_OPTIONS[number]; icon: IconName; text: string }[] = [
+      const rowDefs: { id: typeof PAUSE_OPTIONS[number]; icon?: IconName; text: string }[] = [
         { id: 'resume', icon: 'play', text: 'Resume' }, { id: 'home', icon: 'home', text: 'Go Home' },
-        { id: 'quests', icon: 'quest', text: 'Quests' }, { id: 'exit', icon: 'exit', text: 'Exit' },
+        { id: 'quests', icon: 'quest', text: 'Quests' }, { id: 'buddy', text: 'Buddy' },
+        { id: 'exit', icon: 'exit', text: 'Exit' },
       ];
       rowDefs.forEach((row, i) => {
-        const ry = cy - panelH / 2 + 210 + i * (C.rowHeight + C.rowGap);
+        const ry = cy - 198 + i * (PAUSE_ROW_HEIGHT + PAUSE_ROW_GAP);
         view.rowY.push(ry);
         const b = scene.add.image(cx, ry, `world-row-${row.id}`).setDepth(D + 3).setInteractive({ useHandCursor: true });
         b.on('pointerdown', () => tap(row.id));
-        view.pause.push(b, scene.add.image(cx - ROW_W / 2 + 80, ry, iconKey(row.icon)).setDisplaySize(96, 96).setDepth(D + 4),
+        const icon = row.icon ? iconKey(row.icon) : buddyTexture('dino');
+        view.pause.push(b, scene.add.image(cx - ROW_W / 2 + 80, ry, icon).setDisplaySize(96, 96).setDepth(D + 4),
           label(cx + 30, ry, row.text, C.fontSize));
       });
       view.sel.push(scene.add.image(cx, view.rowY[0], 'world-row-sel').setDepth(D + 5));

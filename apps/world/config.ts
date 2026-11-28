@@ -326,3 +326,21 @@ export const WORLD_NAME_PULSE = {
 
 /** Cargo dimensions relative to the creation rig's width (forward is local +x). */
 export const WORLD_CARRY_ART = { rear: 0.34, size: 0.27, spacing: 0.68 } as const;
+// --- World buddies (W11d) ----------------------------------------------------------------------
+export const WORLD_BUDDIES = {
+  spotChance: 0.11,
+  spotClearance: 180,
+  handRadius: 105,
+  price: 10,
+  renderRings: 1,
+  follower: {
+    distance: 112,
+    catchUpDistance: 450,
+    smoothingSeconds: 0.19,
+    radius: 17,
+    probeStride: 8,
+    size: 56,
+    hopHeight: 27,
+    hopMargin: 45,
+  },
+} as const;

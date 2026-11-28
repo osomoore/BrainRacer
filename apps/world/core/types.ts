@@ -4,6 +4,7 @@
  * See docs/WORLD.md for the design and package map.
  */
 import type { Model, ReadingLevel, WorkshopId } from '../../workshop/core/types';
+import type { BuddyKind } from '../../../shared/buddies/catalog';
 
 export type { Model, ReadingLevel, WorkshopId };
 
@@ -184,6 +185,8 @@ export interface HomeBase { id: string; at: Vec; owner?: string }
 
 export interface TreasureSpot { id: string; at: Vec; stars: number; needs: TraitNeed[] }
 
+export interface BuddySpot { id: string; at: Vec }
+
 /** A pickup-able quest item lying in the world (rock in rocky biome, shell by the lake ...). */
 export interface ItemSpot { id: string; item: ItemId; at: Vec }
 
@@ -208,6 +211,7 @@ export interface HexPlan {
   giver?: QuestGiverSpot;
   home?: HomeBase;
   treasure?: TreasureSpot;
+  buddySpot?: BuddySpot;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -267,4 +271,9 @@ export interface WorldPlayerSave {
   questSeq: Record<string, number>;
   /** Where the player was when they left (restored when coming back, e.g. from the Workshop). */
   last?: { x: number; y: number; angle: number };
+  buddies?: {
+    /** World seed + spot id -> bought buddy. Also serves as the permanent purchase ledger. */
+    purchases: Record<string, BuddyKind>;
+    following?: BuddyKind;
+  };
 }

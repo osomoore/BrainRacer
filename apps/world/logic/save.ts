@@ -1,5 +1,6 @@
 import { BIOME_IDS, ITEM_IDS, QUEST_SLOTS, QUEST_TARGET_KINDS, type ActiveQuest, type ReadingLevel, type WorldPlayerSave } from '../core/types';
 import { WORLD_SAVE } from '../config';
+import { normalizeBuddies } from '../buddies/ownership';
 import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
 import { index } from '../../workshop/logic/catalogIndex';
@@ -86,8 +87,9 @@ export function normalizePlayerSave(raw: unknown, lastWorkshop: WorkshopId = 'ra
   const lastRaw = from.last;
   const last = object(lastRaw) && Number.isFinite(lastRaw.x) && Number.isFinite(lastRaw.y) && Number.isFinite(lastRaw.angle)
     ? { x: lastRaw.x as number, y: lastRaw.y as number, angle: lastRaw.angle as number } : undefined;
+  const buddies = normalizeBuddies(from.buddies);
   return { version: 1, stars: Number.isSafeInteger(from.stars) && (from.stars as number) >= 0 ? from.stars as number : 0,
-    using, claimed, quests, questSeq, ...(last ? { last } : {}) };
+    using, claimed, quests, questSeq, ...(last ? { last } : {}), ...(buddies ? { buddies } : {}) };
 }
 
 function allSaves(): Record<string, unknown> {

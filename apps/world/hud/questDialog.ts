@@ -90,7 +90,7 @@ export class QuestDialog {
           scene.add.image(0, 0, `${PANEL}:${key.toLowerCase()}`).setDisplaySize(60, 60), hint,
         ]);
         root.add([button, art, caption, badge]);
-        hints.push(hint);
+        hints.push(badge);
         choices.push(caption);
       });
       this.views.set(player, { root, text, hints, choices });

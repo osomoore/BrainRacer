@@ -54,6 +54,7 @@ export class HomePadUI {
       // The door uses the same Lab shortcut as Y, including the HUD confirmation.
       controls.pressed.a = false;
       controls.pressed.y = true;
+      this.ctx.bus.emit('player:interact', { player, target: { kind: 'home' } });
     }
     door.tapped = false;
     const rotation = this.ctx.viewRotation(player);
