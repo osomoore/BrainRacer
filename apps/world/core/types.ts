@@ -33,6 +33,8 @@ export type SurfaceKind =
 export interface SurfaceSample {
   kind: SurfaceKind;
   biome: BiomeId;
+  /** True on roads in the snow biome, which have an icy driving feel. */
+  icyRoad?: boolean;
   /** 0 = daylight, 1 = pitch dark (darkwood, caves). The renderer dims the view; light traits see further. */
   dark: number;
   /** True inside a tunnel or cave roof (renderer hides the roof over the player). */

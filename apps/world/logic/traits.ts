@@ -6,9 +6,9 @@
  * speed         | Speed                             | Speed
  * accel         | Power minus excess weight         | Strength
  * turn          | Handling                          | Smaller size
- * mud           | Mud grip, winch boosts weak builds| Climb and dig
+ * mud           | Mud grip, winch, climbing gears   | Climb and dig
  * snow          | Snow grip                         | Climb and warmth
- * rough         | Clearance and toughness           | Climb and toughness
+ * rough         | Clearance, toughness, climbing gears | Climb and toughness
  * water         | Clearance, snorkel, floaties      | Swim, flippers, paddle tail, swimming pose
  * light         | Rally lights                      | Glow spots
  * raised        | Clearance                        | Long legs
@@ -20,7 +20,7 @@
  * dig           | No digging part                   | Dig, digging claws
  * stealth       | Low noise, dark or bright paint   | Stealth and camouflage
  * loud          | Noise                             | Loudness
- * heat          | Radiator                         | Neck frill, low warmth, desert camouflage
+ * heat          | Radiator                         | Neck frill, back sail, low warmth, desert camouflage
  * cold          | Snow grip                         | Warmth
  * carry         | Load, including roof rack         | Strength, size and bite (carrying grip)
  */
@@ -43,14 +43,28 @@ export function traitsOf(creation: Creation, reading?: ReadingLevel): Traits {
   if (creation.workshop === 'race') {
     const drive = WORLD_DRIVE.car;
     const pushBumper = Number(tags.has(partTag('bumpers.pusher')));
+    const climbingGrip = tags.has(partTag('gears.climbing')) ? WORLD_DRIVE.climbingGearGrip : 0;
+    const speedEngine = tags.has(partTag('engine.big')) || tags.has(partTag('engine.turbo'));
+    const speedGears = tags.has(partTag('gears.speedy'));
+    let speed = drive.speed + drive.speedPerStat * s.speed;
+    if (speedEngine || speedGears) {
+      // Keep the Workshop's speed gains, capped against the same build with stock engine/gears.
+      const stock = computeModel(CATALOGS.race, {
+        ...creation.model,
+        ...(speedEngine ? { engine: 'engine.small' } : {}),
+        ...(speedGears ? { gears: 'gears.easy' } : {}),
+      }).stats;
+      const stockSpeed = drive.speed + drive.speedPerStat * stock.speed;
+      speed = Math.min(speed, stockSpeed * (1 + WORLD_DRIVE.maxSpeedUpgrade));
+    }
     return {
       kind: 'car',
-      speed: drive.speed + drive.speedPerStat * s.speed,
+      speed,
       accel: drive.accel + drive.accelPerStat * Math.max(0, s.power - Math.max(0, s.weight - 4) / 2),
       turn: drive.turn + drive.turnPerStat * s.handling,
-      mud: level(Math.max(s.mudGrip, tags.has('winch') ? 3 : 0), 1, 3, 5),
+      mud: Math.max(climbingGrip, level(Math.max(s.mudGrip, tags.has('winch') ? 3 : 0), 1, 3, 5)),
       snow: level(s.snowGrip, 1, 3, 5),
-      rough: level(2 * s.clearance + s.toughness, 3, 9, 13),
+      rough: Math.max(climbingGrip, level(2 * s.clearance + s.toughness, 3, 9, 13)),
       water: tags.has('canFloat') ? 3 : tags.has('snorkel') ? 2 : Number(s.clearance >= 2),
       light: tags.has('glow') || tags.has('light') || tags.has('rallyLights') ? 3 : 0,
       raised: Number(s.clearance > 2),
@@ -97,7 +111,7 @@ export function traitsOf(creation: Creation, reading?: ReadingLevel): Traits {
     dig: Math.max(tags.has('digger') ? 3 : 0, level(s.dig, 1, 3, 5)),
     stealth: level(s.stealth + 2 * Number(camouflaged), 2, 5, 7),
     loud: level(s.loudness, 1, 3, 5),
-    heat: tags.has('frill') ? 3 : Math.max(tags.has('camo:desert') ? 2 : 0, level(4 - s.warmth, 1, 2, 3)),
+    heat: tags.has('frill') || tags.has('sail') ? 3 : Math.max(tags.has('camo:desert') ? 2 : 0, level(4 - s.warmth, 1, 2, 3)),
     cold: level(s.warmth, 2, 5, 7),
     carry: Math.max(1, level(s.strength + s.size / 2 + s.bite / 2, 1, 6, 10)),
   };

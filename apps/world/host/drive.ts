@@ -1,6 +1,5 @@
 import type { WorldContext, WorldPlayer } from '../core/runtime';
-import type { Feature } from '../core/types';
-import { canGroundAt, step, type MoveWorld } from '../logic/move';
+import { canGroundAt, step, type MoveResult, type MoveWorld } from '../logic/move';
 import { activeCreation, swapCreation } from '../logic/slots';
 import { traitsOf } from '../logic/traits';
 
@@ -24,18 +23,11 @@ export function drivePlayer(ctx: WorldContext, player: WorldPlayer, dt: number):
 }
 
 /** Adapt shared player input and live hexes to pure movement. */
-export function driveMovement(ctx: WorldContext, player: WorldPlayer, dt: number): Feature | undefined {
+export function driveMovement(ctx: WorldContext, player: WorldPlayer, dt: number)
+  : Pick<MoveResult, 'blockedFeature' | 'blockedWall'> | undefined {
   if (player.busy) return;
   const { controls, move } = player;
   const { world } = ctx;
-  // Rotate screen-relative dino input back into world axes. Cars steer relative to their nose.
-  const rotation = -ctx.viewRotation(player);
-  const cos = Math.cos(rotation), sin = Math.sin(rotation);
-  const input = player.traits.kind === 'car' ? controls : {
-    ...controls,
-    x: controls.x * cos - controls.y * sin,
-    y: controls.x * sin + controls.y * cos,
-  };
   const collisionWorld: MoveWorld = {
     surfaceAt: (x, y) => world.surfaceAt(x, y),
     nearbySolids: (x, y, radius) => world.nearbySolids(x, y, radius),
@@ -46,7 +38,7 @@ export function driveMovement(ctx: WorldContext, player: WorldPlayer, dt: number
       return from.q === to.q && from.r === to.r;
     },
   };
-  const { obstacleEffects, blockedFeature, ...next } = step(move, input, player.traits, collisionWorld, dt);
+  const { obstacleEffects, blockedFeature, blockedWall, ...next } = step(move, controls, player.traits, collisionWorld, dt);
   Object.assign(move, next);
   for (const { obstacle, effect, at } of obstacleEffects) {
     const hex = world.hexAt(obstacle.at.x, obstacle.at.y);
@@ -56,5 +48,5 @@ export function driveMovement(ctx: WorldContext, player: WorldPlayer, dt: number
     if (at) live.at = at;
     ctx.bus.emit('obstacle:effect', { player, hex, obstacle: live, effect });
   }
-  return blockedFeature;
+  return { blockedFeature, blockedWall };
 }

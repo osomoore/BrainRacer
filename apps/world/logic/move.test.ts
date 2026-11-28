@@ -12,7 +12,6 @@ const winged = { ...dino, wings: 1 };
 const road: SurfaceSample = { kind: 'road', biome: 'meadow', dark: 0, covered: false };
 const start: MoveState = { x: 0, y: 0, angle: 0, vx: 0, vy: 0, airborne: 0 };
 const forward: MoveInput = { x: 0, y: 0, throttle: 1, brake: 0 };
-const dinoForward = { ...forward, x: 1 };
 const neutral: MoveInput = { ...forward, throttle: 0 };
 const box = (left: number, right: number) => [
   { x: left, y: -90 }, { x: right, y: -90 }, { x: right, y: 90 }, { x: left, y: 90 },
@@ -50,16 +49,42 @@ describe('kinematic driving', () => {
     expect(braking.x).toBeGreaterThan(ahead.x);
   });
 
-  it('limits dino turning and normalizes diagonal analog input', () => {
-    const down = { ...neutral, y: 1 };
-    const first = step(start, down, dino, world(), 1 / 60);
-    expect(first.angle).toBeGreaterThan(0);
-    expect(first.angle).toBeLessThan(Math.PI / 2);
-    const diagonal = simulate({ ...down, x: 1 }, dino);
-    expect(diagonal.angle).toBeCloseTo(Math.PI / 4);
-    expect(Math.hypot(diagonal.vx, diagonal.vy)).toBeCloseTo(dino.speed);
-    const partial = simulate({ ...neutral, x: 0.5 }, dino);
-    expect(partial.vx).toBeCloseTo(dino.speed / 2);
+  it.each([car, dino, winged])('turns left while reversing the $kind', build => {
+    const state = { ...start, flying: build === winged, vx: -90 };
+    const left = { ...neutral, x: -0.75 };
+    const reverseLeft = step(state, { ...left, y: 1, throttle: -1 }, build, world(), 1 / 60);
+    const forwardLeft = step({ ...state, vx: 90 }, { ...left, throttle: 1 }, build, world(), 1 / 60);
+    expect(reverseLeft.angle).toBeLessThan(0);
+    expect(reverseLeft.angle).toBeCloseTo(forwardLeft.angle);
+    expect(reverseLeft.vx).toBeLessThan(0);
+  });
+
+  it.each([false, true])('uses nose-relative dino input with flight=%s', flying => {
+    const state = { ...start, angle: Math.PI / 2, flying };
+    const turn = step(state, { ...neutral, x: 0.5 }, winged, world(), 1 / 60);
+    expect(turn.angle).toBeCloseTo(state.angle + winged.turn / 120);
+    expect(Math.hypot(turn.vx, turn.vy)).toBe(0);
+    const ahead = simulate({ ...neutral, y: -1 }, winged, world(), state);
+    expect(ahead.vy).toBeGreaterThan(0);
+    for (const reverse of [{ throttle: -1 }, { y: 1 }, { brake: 1 }]) {
+      const back = simulate({ ...neutral, ...reverse }, winged, world(), state);
+      expect(back.angle).toBeCloseTo(state.angle);
+      expect(back.vy / ahead.vy).toBeCloseTo(-0.42);
+    }
+  });
+
+  it.each([car, dino])('slides and turns more slowly on icy roads until the $kind is suited', build => {
+    const terrain = world({}, () => ({ ...road, biome: 'snow', icyRoad: true }));
+    const sliding = { ...start, vx: 150, vy: 125 };
+    const unsuited = { ...build, snow: 0, cold: 0 };
+    const suited = { ...unsuited, cold: 2 };
+    const loose = step(sliding, forward, unsuited, terrain, 0.15);
+    const steady = step(sliding, forward, suited, terrain, 0.15);
+    expect(loose.x).toBeGreaterThan(0);
+    expect(loose.blockedWall).toBeUndefined();
+    expect(loose.y).toBeGreaterThan(steady.y);
+    expect(step(start, { ...neutral, x: 1 }, unsuited, terrain, 0.15).angle)
+      .toBeLessThan(step(start, { ...neutral, x: 1 }, suited, terrain, 0.15).angle);
   });
 
   it.each([['ice', 'snow'], ['mud', 'mud']] as const)('preserves sideways drift on %s until grip catches it', (kind, trait) => {
@@ -147,12 +172,15 @@ describe('collisions', () => {
     const approach = { ...start, vx: 250 };
     const bump = step(approach, forward, car, terrain, 0.16);
     expect(bump.x).toBeLessThan(40);
+    expect(bump.blockedWall).toBe(wall);
+    expect(step(approach, forward, { ...car, [ability]: 3 }, terrain, 0.16).blockedWall).toBeUndefined();
     for (const state of [approach, { ...approach, airborne: 0.4 }]) {
       expect(simulate(forward, car, terrain, state).x).toBeLessThan(40);
       expect(simulate(forward, { ...car, [ability]: 3 }, terrain, state).x).toBeGreaterThan(100);
     }
-    expect(simulate(dinoForward, winged, terrain, { ...approach, flying: true }).x).toBeLessThan(40);
-    expect(simulate(dinoForward, { ...winged, [ability]: 3 }, terrain, { ...approach, flying: true }).x).toBeGreaterThan(100);
+    expect(step({ ...approach, flying: true }, forward, winged, terrain, 0.3).blockedWall).toBe(wall);
+    expect(simulate(forward, winged, terrain, { ...approach, flying: true }).x).toBeLessThan(40);
+    expect(simulate(forward, { ...winged, [ability]: 3 }, terrain, { ...approach, flying: true }).x).toBeGreaterThan(100);
     expect(simulate({ ...forward, throttle: -1 }, car, terrain, { ...start, x: 65 }).x).toBeLessThan(40);
   });
 
@@ -181,19 +209,19 @@ describe('collisions', () => {
     expect(step(start, forward, build, terrain, 0.6).obstacleEffects).toEqual([]);
     expect(simulate(forward, build, terrain).x).toBeLessThan(rock.at.x);
     expect(simulate(forward, build, terrain, { ...start, flying: true }).x).toBeLessThan(rock.at.x);
-    expect(simulate(dinoForward, winged, terrain, { ...start, flying: true }).x).toBeGreaterThan(rock.at.x);
+    expect(simulate(forward, winged, terrain, { ...start, flying: true }).x).toBeGreaterThan(rock.at.x);
   });
 });
 
 describe('World specials', () => {
   it.each(['deep', 'deepMud', 'cliff'] as const)('glides across %s at half speed', kind => {
     const terrain = world({}, x => x > 20 && x < 90 ? { ...road, kind } : road);
-    const across = simulate(dinoForward, winged, terrain, { ...start, flying: true });
+    const across = simulate(forward, winged, terrain, { ...start, flying: true });
     expect(across.x).toBeGreaterThan(90);
     expect(across.vx).toBeCloseTo(winged.speed * 0.5);
     expect(canGroundAt(terrain, across, winged)).toBe(true);
     if (kind !== 'deepMud') expect(canGroundAt(terrain, { x: 60, y: 0 }, winged)).toBe(false);
-    expect(step({ ...start, flying: true }, dinoForward, dino, terrain, 0.1).flying).toBe(false);
+    expect(step({ ...start, flying: true }, forward, dino, terrain, 0.1).flying).toBe(false);
   });
 
   it('boosts a rocket car forward without throttle and runs out', () => {
