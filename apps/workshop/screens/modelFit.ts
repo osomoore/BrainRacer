@@ -85,7 +85,10 @@ export function roomReferenceFit(
     : layout.model.maxW;
   const width = workshop === 'dino' && kind === 'tall' ? Math.max(layout.model.maxW, centerChannel) : layout.model.maxW;
   const obstacles = buttons.map((o) => ({ x: o.x, y: o.y, width: o.w, height: o.h }));
-  const scale = fitRoomModelScale(bounds,
+  // Feet, tails and shadows that hang a little below the floor line must not shrink the model to clear the
+  // Test button below it (a huge dino's silhouette reaches ~90 px under its anchor).
+  const standing = { ...bounds, height: Math.min(bounds.height, -bounds.y + WS_ROOM.modelBelowFloorPx) };
+  const scale = fitRoomModelScale(standing,
     { x: layout.model.x, y: layout.model.groundY, width, height: layout.model.maxH },
     WS_ROOM.modelScale[kind], obstacles,
     { topOverhang: workshop === 'dino' ? WS_ROOM.dinoTopOverhang : 0,

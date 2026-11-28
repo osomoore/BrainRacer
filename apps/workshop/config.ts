@@ -178,6 +178,8 @@ export const WS_ROOM = {
   modelScale: { wide: 1.5, tall: 0.95 },
   /** Largest dino room model may extend this fraction above its nominal height box. */
   dinoTopOverhang: 0.145,
+  /** Room fit: how far below its floor anchor a model's silhouette may count (the rest overlaps the floor band). */
+  modelBelowFloorPx: 20,
   /** Keep the tallest room silhouette this far below the pane edge and buttons. */
   modelTopClearancePx: 16,
   /** Station sign size per layout (px). */
