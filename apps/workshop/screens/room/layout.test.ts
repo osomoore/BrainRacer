@@ -23,12 +23,12 @@ describe('roomLayout', () => {
       }
     });
     it(`${kind}/${name}: signs, board and model area never overlap`, () => {
-      const rects = [...L.stations, L.buddyStation, L.buddyBar, L.board];
+      const rects = [...L.stations, L.buddyStation, L.buddyBar, L.board, L.worldButton, WS_UI.roomBack];
       for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) expect(rectsOverlap(rects[i], rects[j])).toBe(false);
       const m = { x: L.model.x, y: L.model.groundY - L.model.maxH / 2, w: L.model.maxW, h: L.model.maxH };
       for (const r of rects) expect(rectsOverlap(m, r)).toBe(false);
       expect(L.board.y + L.board.h / 2).toBeLessThanOrEqual(L.size.h);
-      const wallet = { ...WS_WALLET[kind], w: 192, h: 92 };
+      const wallet = { ...WS_WALLET[kind === 'tall' ? 'tallRoom' : 'wide'], w: 192, h: 92 };
       expect(rectsOverlap(wallet, L.buddyBar)).toBe(false);
       expect(rectsOverlap(wallet, L.buddyStation)).toBe(false);
     });
@@ -41,13 +41,13 @@ describe('roomLayout', () => {
       expect(ids.every((id) => CATALOGS[workshop].aspects.some((a) => a.id === id))).toBe(true);
       const L = roomLayout(kind, ids);
       expect(L.stations).toHaveLength(6);
-      const rects = [...L.stations, L.buddyStation, L.buddyBar, L.board];
+      const rects = [...L.stations, L.buddyStation, L.buddyBar, L.board, L.worldButton, WS_UI.roomBack];
       for (let i = 0; i < rects.length; i++) {
         for (let j = i + 1; j < rects.length; j++) expect(rectsOverlap(rects[i], rects[j])).toBe(false);
       }
       const model = { x: L.model.x, y: L.model.groundY - L.model.maxH / 2, w: L.model.maxW, h: L.model.maxH };
       for (const rect of rects) expect(rectsOverlap(model, rect)).toBe(false);
-      const wallet = { ...WS_WALLET[kind], w: 192, h: 92 };
+      const wallet = { ...WS_WALLET[kind === 'tall' ? 'tallRoom' : 'wide'], w: 192, h: 92 };
       for (const rect of [...L.stations, L.buddyStation, L.buddyBar]) expect(rectsOverlap(wallet, rect)).toBe(false);
       for (const s of L.stations) {
         expect(s.x - s.w / 2).toBeGreaterThanOrEqual(0);
@@ -66,6 +66,26 @@ describe('roomLayout', () => {
     expect(standOf(L, 'buddies')).toEqual(L.buddyStation.stand);
     expect(standOf(L, 'center')).toEqual(L.board.stand);
     expect(standOf(L, undefined)).toEqual(L.board.stand);
+  });
+
+  it.each(kinds)('gives the %s globe a full-sized tap target inside the top corner', (kind) => {
+    const L = roomLayout(kind, []);
+    const g = L.worldButton;
+    expect(Math.min(g.w, g.h)).toBeGreaterThanOrEqual(WS_UI.tapMin);
+    expect(g.x + g.w / 2).toBeLessThanOrEqual(L.size.w);
+    expect(g.y - g.h / 2).toBeGreaterThanOrEqual(0);
+    expect(g.y + g.h / 2).toBeLessThan(160);
+    const wallet = { ...WS_WALLET[kind === 'tall' ? 'tallRoom' : 'wide'], w: 192, h: 92 };
+    expect(rectsOverlap(g, wallet)).toBe(false);
+  });
+
+  it('puts the tall tracker at the top and the kid off to the model’s side on return', () => {
+    const L = roomLayout('tall', ['wheels']);
+    expect(L.buddyBar.w).toBeGreaterThan(L.buddyBar.h);
+    expect(L.buddyBar.y + L.buddyBar.h / 2).toBeLessThan(120);
+    expect(L.characterHome.x).toBeGreaterThan(L.model.x + L.model.maxW / 2);
+    expect(standOf(L, 'wheels')).toEqual(L.characterHome);
+    expect(standOf(L, undefined)).toEqual(L.characterHome);
   });
 
   it('walking: duration and stepping reach the target', () => {

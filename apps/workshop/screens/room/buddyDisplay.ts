@@ -20,6 +20,20 @@ export function buddyBar(scene: Phaser.Scene, at: Rect, buddies: WorkshopBuddies
   const stepHeight = 36;
   const gap = 6;
   const segmentStyle = { shadow: 0, gloss: false, strokeW: 2, radius: 8 };
+  if (w > h) {
+    const inset = 14, iconW = 54;
+    const stepW = Math.floor((w - 2 * inset - iconW - (steps - 1) * gap) / steps);
+    const empty = roundedTexture(scene, stepW, stepHeight, 0x586091, segmentStyle);
+    const filled = roundedTexture(scene, stepW, stepHeight, COLORS.yellow, segmentStyle);
+    for (let i = 0; i < steps; i++) {
+      const x = -w / 2 + inset + stepW / 2 + i * (stepW + gap);
+      children.push(scene.add.image(x, 0, i < buddies.progress ? filled : empty));
+    }
+    if (buddies.unlocked.length < BUDDY_KINDS.length) {
+      children.push(makeText(scene, w / 2 - inset - iconW / 2, 0, '?', { size: 46, color: COLORS.paper }));
+    }
+    return scene.add.container(at.x, at.y, children).setName('buddy-progress');
+  }
   const empty = roundedTexture(scene, w - 22, stepHeight, 0x586091, segmentStyle);
   const filled = roundedTexture(scene, w - 22, stepHeight, COLORS.yellow, segmentStyle);
   for (let i = 0; i < steps; i++) {

@@ -14,7 +14,7 @@ import type { AspectId, ChallengeId, Model, PlayerSave, ReadingLevel, RunResult,
 // ------------------------------------------------------------------ input
 
 /** Edge-triggered menu actions for ONE player (their pad or keyboard layout). Taps arrive as Phaser pointer events. */
-export type PaneAction = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back' | 'menu';
+export type PaneAction = 'left' | 'right' | 'up' | 'down' | 'confirm' | 'back' | 'menu' | 'topFace';
 
 export interface PaneInput {
   /** Actions since the last poll (call once per frame from the active screen's update). */

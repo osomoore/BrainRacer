@@ -10,8 +10,9 @@ import { buildRig } from '../art';
 import type { ReadingLevel, PlayerSave, WorkshopId } from '../core/types';
 import { engine } from '../logic';
 import { currencyBadge } from '../ui/CurrencyBadge';
+import { Confirm } from '../ui/Confirm';
 import { backdropTexture } from '../ui/style';
-import type { ShellPaneInput } from '../ui/input';
+import { promptLabel, type ShellPaneInput } from '../ui/input';
 import type { ShellPaneContext } from './paneContext';
 import { waitingScreen } from './placeholderScreen';
 import { sandboxSave } from './sandboxes';
@@ -28,6 +29,8 @@ const attribution = [new ActiveChallengeAttribution(activeTimeTracker, selectedC
 export class PaneScene extends Phaser.Scene {
   private count: 1 | 2 = 1;
   private screen?: Screen;
+  private worldConfirm?: Confirm;
+  private declineWorldConfirm?: () => void;
   private wallet?: ReturnType<typeof currencyBadge>;
   private pending?: { id: string; data: ScreenData; push: boolean };
   private history: HistoryEntry[] = [];
@@ -51,6 +54,34 @@ export class PaneScene extends Phaser.Scene {
   }
 
   get screenId(): string { return this.current.id; }
+
+  /** Show the invitation over this player's current screen, using only this pane's input. */
+  askToGoToWorld(text: string, onAnswer: (yes: boolean) => void): (() => void) | undefined {
+    if (!this.profileId || this.exited || this.worldConfirm) return;
+    const { input, size, audio } = this.ctx;
+    input.poll();
+    input.text();
+    const finish = (yes: boolean) => {
+      cancel();
+      onAnswer(yes);
+    };
+    const confirm = new Confirm(this, {
+      cx: size.w / 2, cy: size.h / 2, w: Math.min(size.w - 80, 900),
+      text, audio, touch: input.touch, depth: 11_000,
+      direct: { yesBadge: promptLabel(input, 'confirm'), noBadge: promptLabel(input, 'back') },
+      onYes: () => finish(true),
+      onNo: () => finish(false),
+    });
+    const cancel = () => {
+      if (this.worldConfirm !== confirm) return;
+      if (confirm.open) confirm.destroy();
+      this.worldConfirm = undefined;
+      this.declineWorldConfirm = undefined;
+    };
+    this.worldConfirm = confirm;
+    this.declineWorldConfirm = () => finish(false);
+    return cancel;
+  }
 
   create(): void {
     const w = this.count === 1 ? STAGE.w : STAGE.w / 2;
@@ -207,7 +238,9 @@ export class PaneScene extends Phaser.Scene {
     const ws = this.workshopId;
     if (!ws) return;
     if (!['room', 'station', 'buddyStation', 'board', 'run', 'results'].includes(id)) return;
-    const at = this.ctx.input.touch && id === 'room'
+    const at = id === 'room' && this.ctx.layout === 'tall'
+      ? WS_WALLET.tallRoom
+      : this.ctx.input.touch && id === 'room'
       ? WS_WALLET.touchRoom
       : this.ctx.input.touch && id === 'board'
         ? WS_WALLET.touchBoard
@@ -224,6 +257,7 @@ export class PaneScene extends Phaser.Scene {
   }
 
   private unmount(): void {
+    this.declineWorldConfirm?.();
     this.pauseActiveTime();
     this.wallet?.root.destroy();
     this.wallet = undefined;
@@ -234,6 +268,11 @@ export class PaneScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     shell.router.step(this.game.getFrame());
+    if (this.worldConfirm) {
+      this.ctx.input.text();
+      for (const action of this.ctx.input.poll()) this.worldConfirm?.handle(action);
+      return;
+    }
     if (this.pending) {
       const p = this.pending;
       this.pending = undefined;

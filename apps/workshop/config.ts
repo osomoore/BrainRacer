@@ -85,9 +85,9 @@ export const WS_UI = {
   /** Minimum tap target (px) for any button a kid presses. */
   tapMin: 120,
   /** Room's touch Back button: smaller and tucked into the top-left corner, clear of the part buttons below it. */
-  roomBack: { x: 92, y: 50, w: 170, h: 88, fontSize: 40 },
-  /** Room's Go to World button (always shown; pads reach it through the focus group). */
-  worldButton: { y: 72, w: 320, h: 120, fontSize: 44 },
+  roomBack: { x: 92, y: 68, w: 170, h: 120, fontSize: 40 },
+  /** The globe has a separate 120 px hit area around its smaller round face. */
+  worldButton: { inset: 18, y: 68, diameter: 96, declineMs: 1800 },
   /** Ignore another Back press for this long after leaving a variant or part view (ms). */
   backGuardMs: 500,
   radius: 28,
@@ -134,7 +134,7 @@ export const WS_ADMIN = {
 export const WS_WALLET = {
   wide: { x: 126, y: 80 }, tall: { x: 480, y: 80 },
   /** Touch-only placements leave the shared top-left Back target clear. */
-  touchRoom: { x: 385, y: 80 }, touchBoard: { x: 126, y: 185 },
+  touchRoom: { x: 385, y: 80 }, tallRoom: { x: 720, y: 68 }, touchBoard: { x: 126, y: 185 },
 } as const;
 
 export const WS_BUDDIES = {
@@ -155,8 +155,9 @@ export const WS_BUDDIES = {
   },
   room: {
     wide: { signX: 1450, signY: 110, barX: 405, barW: 64, buddyX: 1490, buddySize: 170 },
-    tall: { signX: 480, signY: 192, barX: 284, barW: 52, buddyX: 678, buddySize: 112 },
+    tall: { signX: 126, signY: 1000, buddyX: 738, buddySize: 84 },
   },
+  roomStrip: { x: 400, y: 68, w: 410, h: 60 },
   signW: 230,
   signH: 128,
   barY: 550,
@@ -174,6 +175,16 @@ export const WS_ROOM = {
   bobPx: 12,
   /** Character height (px). */
   charH: 150,
+  tallCharH: 108,
+  tallRoom: {
+    stationInset: 93,
+    starterRows: [216, 396, 576],
+    fullRows: [216, 376, 536, 696, 856],
+    board: { x: 480, y: 975, w: 420, h: 164 },
+    boardBuddy: { x: 783, y: 984 },
+    characterHome: { x: 870, y: 1052 },
+    model: { x: 480, groundY: 818, maxW: 566, maxH: 650 },
+  },
   /** Side-view model scale in the room (before fitting into the model area) per layout. */
   modelScale: { wide: 1.5, tall: 0.95 },
   /** Largest dino room model may extend this fraction above its nominal height box. */
@@ -183,7 +194,7 @@ export const WS_ROOM = {
   /** Keep the tallest room silhouette this far below the pane edge and buttons. */
   modelTopClearancePx: 16,
   /** Station sign size per layout (px). */
-  signSize: { wide: { w: 300, h: 170 }, tall: { w: 230, h: 160 } },
+  signSize: { wide: { w: 300, h: 170 }, tall: { w: 172, h: 144 } },
   /** Station screen: camera zoom tween, sparkle burst before returning to the room (ms), max total scale. */
   stationZoomMs: 550,
   stationConfirmMs: 650,

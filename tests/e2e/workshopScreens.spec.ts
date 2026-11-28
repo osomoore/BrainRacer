@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { seedProfiles } from './profiles';
+import { installGamepadMock, tapPad } from './gamepadMock';
 
 /** Adventure Workshop: room, station and board screens (keyboard, touch, 2P split). Hooks: window.__ws. */
 
@@ -9,6 +10,9 @@ type Reading = 'starter' | 'easy' | 'medium' | 'hard';
 const screens = (page: Page) => page.evaluate(() => (window as any).__ws.screens() as string[]);
 const expectScreens = (page: Page, want: string) => expect.poll(async () => (await screens(page)).join(','), { timeout: 15_000 }).toBe(want);
 const key = async (page: Page, k: string) => { await page.keyboard.press(k); await page.waitForTimeout(150); };
+const expectWorldPlayers = (page: Page, ids: string[]) => expect.poll(() => page.evaluate(() =>
+  (window as any).__world?.players?.map((p: { profileId: string }) => p.profileId),
+), { timeout: 30_000 }).toEqual(ids);
 
 async function boot(page: Page, url = '/workshop.html'): Promise<void> {
   await seedProfiles(page);
@@ -17,11 +21,18 @@ async function boot(page: Page, url = '/workshop.html'): Promise<void> {
   await page.waitForTimeout(300);
 }
 
-/** Joins with the keyboard (1P or 2P), starts, and gives each pane a profile + a fresh save in `workshop`. */
-async function enter(page: Page, opts: { players: 1 | 2; ws?: 'race' | 'dino'; reading?: Reading; screen?: string; data?: Record<string, unknown> }): Promise<void> {
-  await key(page, 'Space');
-  if (opts.players === 2) await key(page, 'Enter');
-  await key(page, 'Space');
+/** Joins, starts, and gives each pane a profile and a fresh workshop save. */
+async function enter(page: Page, opts: { players: 1 | 2; ws?: 'race' | 'dino'; reading?: Reading; screen?: string; data?: Record<string, unknown>; pads?: boolean; touch?: boolean }): Promise<void> {
+  if (opts.touch) {
+    const canvas = await page.locator('canvas').first().boundingBox();
+    if (!canvas) throw new Error('No workshop canvas');
+    await page.touchscreen.tap(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+  } else {
+    const join = (i: number) => opts.pads ? tapPad(page, i, 0) : key(page, i === 0 ? 'Space' : 'Enter');
+    await join(0);
+    if (opts.players === 2) await join(1);
+    await join(0);
+  }
   await expectScreens(page, Array(opts.players).fill('profile').join(','));
   await page.evaluate(({ ws, reading, screen, data }) => {
     const w = (window as any).__ws;
@@ -375,6 +386,73 @@ test('2P split: both panes show the room, each in its own player colour, and mov
   await expectScreens(page, 'pickWorkshop,room');
 });
 
+test('room World globe: Y opens the solo prompt, B cancels, and A goes to the World', async ({ page }) => {
+  await installGamepadMock(page, 1);
+  await boot(page, '/workshop.html?mobile=0');
+  await enter(page, { players: 1, pads: true });
+  await tapPad(page, 0, 3);
+  expect(await paneTexts(page)).toContain('Go to the World?');
+  await tapPad(page, 0, 1);
+  await expectScreens(page, 'room');
+  expect(await paneTexts(page)).not.toContain('Go to the World?');
+  await tapPad(page, 0, 3);
+  await tapPad(page, 0, 0);
+  await expect(page).toHaveURL(/\/world\.html/);
+  await expectWorldPlayers(page, ['p1']);
+});
+
+test('room World globe: only the other keyboard can answer, even from the Test board', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 2 });
+  await key(page, 'Enter');
+  await expectScreens(page, 'room,board');
+  const prompt = 'Robin wants to go to the World. OK?';
+  await key(page, '1');
+  expect(await paneTexts(page, 0)).not.toContain(prompt);
+  expect(await paneTexts(page, 1)).toContain(prompt);
+  await key(page, 'Space');
+  await key(page, 'Escape');
+  expect(await paneTexts(page, 1)).toContain(prompt);
+  await key(page, 'Backspace');
+  expect(await paneTexts(page, 0)).toContain('Not now');
+  expect(await paneTexts(page, 1)).not.toContain(prompt);
+  await expectScreens(page, 'room,board');
+  await key(page, 'Backspace');
+  await expectScreens(page, 'room,room');
+  await key(page, '0');
+  expect(await paneTexts(page, 0)).toContain('Sam wants to go to the World. OK?');
+  await key(page, 'Space');
+  await expect(page).toHaveURL(/\/world\.html/);
+  await expectWorldPlayers(page, ['p1', 'p2']);
+});
+
+test('room World globe: either split pane can tap to ask, and only the other pane shows the buttons', async ({ page }) => {
+  await boot(page);
+  await enter(page, { players: 2, ws: 'dino' });
+  const canvas = await page.locator('canvas').first().boundingBox();
+  if (!canvas) throw new Error('No workshop canvas');
+  const click = (x: number, y: number) => page.mouse.click(canvas.x + x * canvas.width / 1920, canvas.y + y * canvas.height / 1080);
+  const globe = await page.evaluate(() => {
+    const g = (window as any).__ws.panes[1].children.getByName('world-globe');
+    return { x: g.x, y: g.y, w: g.width, h: g.height };
+  });
+  expect(globe.w).toBeGreaterThanOrEqual(120);
+  expect(globe.h).toBeGreaterThanOrEqual(120);
+  await click(960 + globe.x + 55, globe.y); // the tappable area extends beyond the art
+  const prompt = 'Sam wants to go to the World. OK?';
+  await expect.poll(() => paneTexts(page, 0)).toContain(prompt);
+  expect(await paneTexts(page, 1)).not.toContain(prompt);
+  await click(960 + 280, 650); // the requester's pane cannot tap Yes at the same coordinates
+  expect(await paneTexts(page, 0)).toContain(prompt);
+  await click(680, 650);
+  await expect.poll(() => paneTexts(page, 1)).toContain('Not now');
+  await click(960 + globe.x, globe.y);
+  await expect.poll(() => paneTexts(page, 0)).toContain(prompt);
+  await click(280, 650);
+  await expect(page).toHaveURL(/\/world\.html/);
+  await expectWorldPlayers(page, ['p1', 'p2']);
+});
+
 test('mobile: tap a station sign, the character walks there and the station opens; tap Back', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, hasTouch: true });
   const page = await ctx.newPage();
@@ -403,4 +481,31 @@ test('mobile: tap a station sign, the character walks there and the station open
   await tap('Test', 960, 950);
   await expectScreens(page, 'board');
   await ctx.close();
+});
+
+test('room World globe: phone taps open and answer the prompt', async ({ browser, baseURL }) => {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, baseURL });
+  try {
+    const page = await ctx.newPage();
+    await boot(page, '/workshop.html?mobile=1');
+    await enter(page, { players: 1, touch: true });
+    const canvas = await page.locator('canvas').first().boundingBox();
+    if (!canvas) throw new Error('No workshop canvas');
+    const tap = (x: number, y: number) => page.touchscreen.tap(canvas.x + x * canvas.width / 1920, canvas.y + y * canvas.height / 1080);
+    const globe = await page.evaluate(() => {
+      const g = (window as any).__ws.panes[0].children.getByName('world-globe');
+      return { x: g.x, y: g.y };
+    });
+    await tap(globe.x, globe.y);
+    await expect.poll(() => paneTexts(page)).toContain('Go to the World?');
+    await tap(1160, 650);
+    await expect.poll(() => paneTexts(page)).not.toContain('Go to the World?');
+    await tap(globe.x, globe.y);
+    await expect.poll(() => paneTexts(page)).toContain('Go to the World?');
+    await tap(760, 650);
+    await expect(page).toHaveURL(/\/world\.html/);
+    await expectWorldPlayers(page, ['p1']);
+  } finally {
+    await ctx.close();
+  }
 });

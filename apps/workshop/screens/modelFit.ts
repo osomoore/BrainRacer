@@ -76,14 +76,9 @@ export function roomReferenceFit(
   workshop: WorkshopId,
   touch: boolean,
 ): { scale: number; width: number } {
-  const buttons: Rect[] = [...layout.stations, layout.buddyStation, layout.board];
+  const buttons: Rect[] = [...layout.stations, layout.buddyStation, layout.board, layout.worldButton, layout.buddyBar];
   if (touch) buttons.push(WS_UI.roomBack);
-  const left = buttons.filter((o) => o.x < layout.model.x);
-  const right = buttons.filter((o) => o.x > layout.model.x);
-  const centerChannel = left.length && right.length
-    ? Math.min(...right.map((o) => o.x - o.w / 2)) - Math.max(...left.map((o) => o.x + o.w / 2))
-    : layout.model.maxW;
-  const width = workshop === 'dino' && kind === 'tall' ? Math.max(layout.model.maxW, centerChannel) : layout.model.maxW;
+  const width = layout.model.maxW;
   const obstacles = buttons.map((o) => ({ x: o.x, y: o.y, width: o.w, height: o.h }));
   // Feet, tails and shadows that hang a little below the floor line must not shrink the model to clear the
   // Test button below it (a huge dino's silhouette reaches ~90 px under its anchor).

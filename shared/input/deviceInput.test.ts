@@ -23,6 +23,10 @@ describe('keyboard layouts', () => {
   it('unknown keys map to nothing', () => {
     expect(keyAction('KeyZ')).toBeNull();
   });
+  it('gives each keyboard its own Y equivalent', () => {
+    expect(keyAction('Digit1')).toEqual({ layout: 1, action: 'topFace' });
+    expect(keyAction('Digit0')).toEqual({ layout: 2, action: 'topFace' });
+  });
 });
 
 describe('keyText', () => {
@@ -49,6 +53,11 @@ describe('padDeviceActions', () => {
   });
   it('does not repeat while held', () => {
     expect(padDeviceActions(pad([0]), pad([0])).actions).toEqual([]);
+  });
+  it('reports Y on its own press edge', () => {
+    expect(padDeviceActions(pad([3]), null).actions).toEqual([]);
+    expect(padDeviceActions(pad([3]), pad()).actions).toEqual(['topFace']);
+    expect(padDeviceActions(pad([3]), pad([3])).actions).toEqual([]);
   });
   it('d-pad and stick give directions on edge', () => {
     expect(padDeviceActions(pad([15]), pad()).actions).toEqual(['right']);

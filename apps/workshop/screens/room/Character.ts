@@ -17,9 +17,10 @@ export class Character {
   private stepClock = 0;
   private readonly scale: number;
 
-  constructor(scene: Phaser.Scene, color: number, at: Point, private readonly onStep: () => void) {
+  constructor(scene: Phaser.Scene, color: number, at: Point, private readonly onStep: () => void,
+    private readonly tall = false) {
     const t = kidTextures(scene, color);
-    this.scale = WS_ROOM.charH / KID_H;
+    this.scale = (tall ? WS_ROOM.tallCharH : WS_ROOM.charH) / KID_H;
     this.pos = { ...at };
     this.shadow = scene.add.ellipse(0, 0, 80, 20, 0x000000, 0.25);
     this.legL = scene.add.image(-16, -16, t.leg).setOrigin(0.5, 1);
@@ -71,7 +72,7 @@ export class Character {
     }
   }
 
-  private syncDepth(): void { this.root.setDepth(500 + this.pos.y / 10); }
+  private syncDepth(): void { this.root.setDepth(this.tall ? 95 : 500 + this.pos.y / 10); }
 
   destroy(): void { this.root.destroy(); }
 }
