@@ -34,6 +34,23 @@ describe('creation traits', () => {
       .toMatchObject({ light: 0, heat: 0, carry: 3 });
   });
 
+  it('raises World road speed modestly with engine and gear upgrades', () => {
+    const stock = build('race').speed;
+    const upgrades: Model[] = [
+      { engine: 'engine.big' }, { engine: 'engine.turbo' },
+      { gears: 'gears.speedy' }, { engine: 'engine.turbo', gears: 'gears.speedy' },
+    ];
+    for (const parts of upgrades) {
+      const speed = build('race', parts).speed;
+      expect(speed).toBeGreaterThanOrEqual(stock * 1.10 - 0.001);
+      expect(speed).toBeLessThanOrEqual(stock * 1.25);
+    }
+    const climber = build('race', { gears: 'gears.climbing' });
+    expect(climber.speed).toBeLessThan(stock);
+    expect(climber.mud).toBeGreaterThan(build('race').mud);
+    expect(climber.rough).toBeGreaterThan(build('race').rough);
+  });
+
   it.each(['starter', 'easy', 'medium', 'hard'] as const)('applies the World reading rule at %s', reading => {
     const young = reading === 'starter' || reading === 'easy';
     const car = traitsOf({ workshop: 'race', model: defaultModel(CATALOGS.race) }, reading);
@@ -49,7 +66,8 @@ describe('creation traits', () => {
   it('gives heat dissipation to cool dinos and smash to the contact parts', () => {
     expect(build('dino', { color: 'color.sandy' }).heat).toBe(2);
     expect(build('dino', { body: 'body.slim' }).heat).toBe(2);
-    expect(build('dino', { extra: 'extra.frill', body: 'body.sail' }).heat).toBe(3);
+    expect(build('dino', { extra: 'extra.frill' }).heat).toBe(3);
+    expect(build('dino', { body: 'body.sail' })).toMatchObject({ heat: 3, cold: 2 });
     expect(build('dino', { head: 'head.horned' }).smash).toBe(1);
     expect(build('dino', { tail: 'tail.heavy' }).smash).toBe(1);
     expect(build('race', { bumpers: 'bumpers.pusher' })).toMatchObject({ smash: 1, pushBumper: 1 });

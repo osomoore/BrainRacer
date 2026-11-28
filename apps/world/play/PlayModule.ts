@@ -12,6 +12,7 @@ export default class PlayModule implements WorldModule {
   private effects!: PlayEffects;
   private readonly home = new HomePadUI();
   private readonly lastBump = new Map<WorldPlayer, number>();
+  private readonly nextWallBanner = new Map<WorldPlayer, number>();
   private readonly cooldowns = new Map<WorldPlayer, { rocket: number; horn: number }>();
 
   init(ctx: WorldContext): void {
@@ -34,14 +35,28 @@ export default class PlayModule implements WorldModule {
         const target = this.winchTarget(player);
         this.activate(player, this.specialFor(player, target), target);
       }
-      const feature = driveMovement(ctx, player, dt);
+      const movement = driveMovement(ctx, player, dt);
+      const feature = movement?.blockedFeature;
       if (!player.busy) player.special = this.specialFor(player, this.winchTarget(player));
       if (feature && ctx.time >= (this.lastBump.get(player) ?? 0)) {
         this.lastBump.set(player, ctx.time + WORLD_PLAY.bumpCooldown);
         this.effects.blocked(player, feature);
       }
+      if (movement?.blockedWall) this.showWallBanner(player, movement.blockedWall);
     }
     this.effects.update(dt);
+  }
+
+  private showWallBanner(player: WorldPlayer, wall: 'dark' | 'heat'): void {
+    const { time, bus } = this.ctx;
+    if (time < (this.nextWallBanner.get(player) ?? 0)) return;
+    this.nextWallBanner.set(player, time + WORLD_PLAY.wallBannerCooldown);
+    const simple = player.reading === 'starter' || player.reading === 'easy';
+    const car = player.traits.kind === 'car';
+    const text = wall === 'heat'
+      ? (simple ? 'Too hot!' : `Too Hot! Cool off with a ${car ? 'Radiator' : 'Neck Frill'}.`)
+      : (simple ? 'Too dark!' : `Too Dark! Get ${car ? 'Rally Lights' : 'Glow Spots'}.`);
+    bus.emit('ui:banner', { player, text });
   }
 
   private winchTarget({ move, traits }: WorldPlayer): Obstacle | undefined {
@@ -122,6 +137,7 @@ export default class PlayModule implements WorldModule {
     this.home.destroy();
     this.effects.destroy();
     this.lastBump.clear();
+    this.nextWallBanner.clear();
     this.cooldowns.clear();
   }
 }

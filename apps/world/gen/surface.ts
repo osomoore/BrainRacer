@@ -104,6 +104,7 @@ export function prepareSurface(plan: HexPlan): (x: number, y: number) => RoadSur
       if (inBounds(bounds, x, y) && segmentDistanceSquared(x, y, a, b) <= limit) {
         sample.kind = kind;
         sample.roadSurface = surface ?? (kind === 'road' ? 'paved' : undefined);
+        sample.icyRoad = kind === 'road' && sample.biome === 'snow';
         if (surface === 'rocky') sample.roadRoughness = (1 + Math.sin(x / 15 + y / 19)) / 2;
         break;
       }

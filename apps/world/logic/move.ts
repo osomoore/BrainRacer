@@ -20,7 +20,7 @@ export interface MoveState extends Vec {
 }
 
 export interface MoveInput extends Vec {
-  /** Signed car throttle. Negative is reverse. */
+  /** Signed throttle. Negative is reverse. */
   throttle: number;
   brake: number;
 }
@@ -42,7 +42,10 @@ export interface MoveResult extends MoveState {
   /** Once per obstacle per step. The caller applies world changes such as pushing or breaking. */
   obstacleEffects: { obstacle: Obstacle; effect: NonNullable<Obstacle['effect']>; at?: Vec }[];
   blockedFeature?: Feature;
+  blockedWall?: TerrainWall;
 }
+
+type TerrainWall = NonNullable<ReturnType<typeof terrainWall>>;
 
 const add = (a: Vec, b: Vec): Vec => ({ x: a.x + b.x, y: a.y + b.y });
 const subtract = (a: Vec, b: Vec): Vec => ({ x: a.x - b.x, y: a.y - b.y });
@@ -57,46 +60,35 @@ const AIR = { speedMult: PLAY.flight.speedMult, grip: 1, passable: true, acceler
   lateralGrip: 1, noSlide: false };
 
 function drive(state: MoveState, input: MoveInput, traits: Traits, sample: SurfaceSample, dt: number) {
+  const dino = traits.kind === 'dino';
   const { speedMult, grip, passable, acceleration: traction, drag, lateralGrip, noSlide } =
     state.flying ? AIR : surfaceEffect(traits.kind, sample, traits);
+  const icy = !state.flying && sample.icyRoad && Math.max(traits.cold, traits.snow) < WORLD_TERRAIN.suitedGrip;
   // A restored position or a wider swapped build may start in blocked terrain.
-  const control = passable ? grip : 1;
+  const control = passable ? grip * (icy ? DRIVE.icyRoad.grip : 1) : 1;
   const boost = traits.kind === 'car' && (state.boost ?? 0) > 0;
   const topSpeed = traits.speed * (passable ? speedMult : 1) * (boost ? PLAY.rocket.speedMult : 1)
     * (1 - PLAY.desert.maxPenalty * (state.heatFatigue ?? 0));
   const acceleration = traits.accel * (passable ? traction : 1) * (boost ? PLAY.rocket.accelMult : 1) * dt;
   const coast = DRIVE.coastDeceleration * (passable ? drag : 1);
-  const lateralAmount = traits.accel * DRIVE.lateralDeceleration * (passable ? lateralGrip : 1) * dt;
+  const lateralAmount = traits.accel * DRIVE.lateralDeceleration * dt
+    * (passable ? lateralGrip * (icy ? DRIVE.icyRoad.lateralGrip : 1) : 1);
   const maxTurn = traits.turn * control * dt;
   const velocity = { x: state.vx, y: state.vy };
   const brake = Math.max(0, clamp(input.brake, 1));
-  if (traits.kind === 'dino') {
-    const aim = { x: clamp(input.x, 1), y: clamp(input.y, 1) };
-    const magnitude = Math.min(1, length(aim));
-    const targetAngle = Math.atan2(aim.y, aim.x);
-    const turn = targetAngle - state.angle;
-    const angle = magnitude ? state.angle + clamp(Math.atan2(Math.sin(turn), Math.cos(turn)), maxTurn) : state.angle;
-    const forward = facing(angle);
-    const along = dot(velocity, forward);
-    const lateral = subtract(velocity, scale(forward, along));
-    const speed = approach(along, topSpeed * magnitude, acceleration * (magnitude ? 1 : coast));
-    const slip = noSlide ? 0 : Math.max(0, length(lateral) - lateralAmount);
-    const next = add(scale(forward, speed), scale(unit(lateral), slip));
-    const speedAfterBrake = Math.max(0, length(next) - brake * acceleration * DRIVE.brakeDeceleration);
-    return { angle, velocity: scale(unit(next), state.flying ? Math.min(topSpeed, speedAfterBrake) : speedAfterBrake) };
-  }
-
-  const throttle = boost ? 1 : clamp(input.throttle, 1);
-  const forwardSpeed = dot(velocity, facing(state.angle));
-  const angle = state.angle + clamp(input.x, 1) * maxTurn * (Math.sign(forwardSpeed || throttle) || 1);
+  // LT and the touch stick's brake input both command reverse for a dino.
+  const requestedThrottle = dino ? (brake > 0 ? -brake : input.throttle || -input.y) : input.throttle;
+  const throttle = boost ? 1 : clamp(requestedThrottle, 1);
+  const angle = state.angle + clamp(input.x, 1) * maxTurn;
   const forward = facing(angle);
   const along = dot(velocity, forward);
   const lateral = subtract(velocity, scale(forward, along));
   const target = topSpeed * throttle * (throttle < 0 ? DRIVE.reverseSpeed : 1);
   const propelled = approach(along, target, acceleration * (throttle === 0 ? coast : 1));
-  const speed = approach(propelled, 0, brake * acceleration * DRIVE.brakeDeceleration);
+  const speed = dino ? propelled : approach(propelled, 0, brake * acceleration * DRIVE.brakeDeceleration);
   const slip = noSlide ? 0 : Math.max(0, length(lateral) - lateralAmount);
-  return { angle, velocity: add(scale(forward, speed), scale(unit(lateral), slip)) };
+  const next = add(scale(forward, speed), scale(unit(lateral), slip));
+  return { angle, velocity: state.flying ? scale(next, Math.min(1, topSpeed / (length(next) || 1))) : next };
 }
 
 /** Outward normal of the nearest polygon edge when the circle touches or is inside the footprint. */
@@ -158,12 +150,12 @@ function wallAt(world: MoveWorld, at: Vec, traits: Traits) {
 
 function collision(from: Vec, to: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits, radius: number,
   airborne: number, flying?: boolean)
-  : { normal: Vec; bounce: number; feature?: Feature } | undefined {
+  : { normal: Vec; bounce: number; feature?: Feature; wall?: TerrainWall } | undefined {
   const sample = world.surfaceAt(to.x, to.y);
   const wall = terrainWall(sample, traits);
   if (wall && wallAt(world, from, traits) !== wall) {
     return { normal: boundaryNormal(from, to, point => wallAt(world, point, traits) === wall),
-      bounce: WORLD_TERRAIN.wallBounce };
+      bounce: WORLD_TERRAIN.wallBounce, wall };
   }
   if (flying) return;
   const delta = subtract(to, from);
@@ -247,6 +239,7 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
   let boost = traits.kind === 'car' && traits.rocket ? state.boost : undefined;
   let heatFatigue = state.heatFatigue ?? 0;
   let blockedFeature: Feature | undefined;
+  let blockedWall: TerrainWall | undefined;
   const speedLimit = traits.speed * (boost ? PLAY.rocket.speedMult : 1);
   const count = Math.ceil(dt / Math.min(DRIVE.maxStepSeconds, DRIVE.maxStepDistance / Math.max(speedLimit, length(velocity))));
   const interval = dt / count;
@@ -328,6 +321,7 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
     const hit = collision(at, to, nearby, world, traits, radius, airborne, flying);
     if (hit) {
       blockedFeature ??= hit.feature;
+      blockedWall ??= hit.wall;
       const normalVelocity = scale(hit.normal, dot(velocity, hit.normal));
       const tangent = subtract(velocity, normalVelocity);
       const slide = add(at, scale(tangent, interval));
@@ -355,5 +349,5 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
   }
   return { x: at.x, y: at.y, angle, vx: velocity.x, vy: velocity.y, airborne, flying,
     flightOrigin: flying ? state.flightOrigin : undefined, boost, jump, heatFatigue,
-    obstacleEffects: [...effects.values()], blockedFeature };
+    obstacleEffects: [...effects.values()], blockedFeature, blockedWall };
 }

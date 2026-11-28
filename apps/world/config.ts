@@ -73,6 +73,9 @@ export const WORLD_DRIVE = {
   car: { speed: 240, speedPerStat: 36, accel: 290, accelPerStat: 45, turn: 1.9, turnPerStat: 0.27 },
   dino: { speed: 240, speedPerStat: 36, accel: 340, accelPerStat: 35, turn: 2.7, turnPerSize: 0.35 },
   reverseSpeed: 0.42,
+  maxSpeedUpgrade: 0.25,
+  climbingGearGrip: 2,
+  icyRoad: { grip: 0.68, lateralGrip: 0.45 },
   brakeDeceleration: 2.2,
   coastDeceleration: 0.65,
   lateralDeceleration: 2,
@@ -158,7 +161,7 @@ export const QUESTS = {
 
 // --- scene host (W5a) -------------------------------------------------------------------------
 export const WORLD_HOST = {
-  camera: { soloZoom: 1.8, splitZoom: 1.6, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
+  camera: { soloZoom: 1.8, splitZoom: 1.6, minSpeedZoom: 0.75, speedZoomTau: 0.65, carScreenY: 0.68, rotTau: 0.16, maxAngVel: 6 },
   maxFrameSeconds: 0.1,
   spawnSpacing: 110,
   saveEverySeconds: 5,
@@ -193,6 +196,7 @@ export const WORLD_PLAY = {
   homeRadius: 105,
   shadow: { offset: 12, airOffset: 36, groundAlpha: 0.44, airAlpha: 0.23, lengthScale: 0.96 },
   bumpCooldown: 0.65,
+  wallBannerCooldown: 4,
   pushSpeed: 150,
   logPushSpeed: [60, 90, 125, 175],
   bumperPushSpeed: 245,
