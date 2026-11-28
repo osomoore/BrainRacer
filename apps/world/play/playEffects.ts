@@ -2,11 +2,14 @@ import Phaser from 'phaser';
 import { WORLD_HOST, WORLD_PLAY } from '../config';
 import { DEPTH, type WorldContext, type WorldPlayer } from '../core/runtime';
 import type { Feature, SurfaceKind, Vec } from '../core/types';
+import { bakeIcons, iconKey } from '../hud/icons';
 
-type ParticleKind = 'dust' | 'mud' | 'splash' | 'snow' | 'poof';
+type ParticleKind = 'dust' | 'mud' | 'splash' | 'snow' | 'poof' | 'exhaust';
 type Particle = { image: Phaser.GameObjects.Image; vx: number; vy: number; life: number; age: number; spin: number };
 
-const COLORS: Record<ParticleKind, number> = { dust: 0xcba66c, mud: 0x70513d, splash: 0x8fe8ed, snow: 0xf4ffff, poof: 0xffe4aa };
+const COLORS: Record<ParticleKind, number> = {
+  dust: 0xcba66c, mud: 0x70513d, splash: 0x8fe8ed, snow: 0xf4ffff, poof: 0xffe4aa, exhaust: 0xff902e,
+};
 const PARTICLE_SIZE = 24;
 const SHADOW_TEXTURE = 'world-creation-shadow';
 
@@ -33,11 +36,16 @@ export class PlayEffects {
   private readonly off: (() => void)[] = [];
   private readonly signs: { image: Phaser.GameObjects.Image; life: number }[] = [];
   private readonly gapBumps = new Map<WorldPlayer, number>();
+  private readonly bags = new Map<WorldPlayer, Phaser.GameObjects.Image>();
   private lastPushDust = -Infinity;
 
   constructor(private readonly ctx: WorldContext) {
     bakeShadow(ctx.scene);
+    bakeIcons(ctx.scene);
     for (const viewer of ctx.players) {
+      const bag = ctx.scene.add.image(0, 0, iconKey('bag')).setDepth(DEPTH.popups + 1).setVisible(false);
+      ctx.showOnlyTo(bag, viewer);
+      this.bags.set(viewer, bag);
       for (const player of ctx.players) {
         const image = ctx.scene.add.image(0, 0, SHADOW_TEXTURE).setDepth(DEPTH.players - 1).setVisible(false);
         ctx.showOnlyTo(image, viewer);
@@ -61,8 +69,8 @@ export class PlayEffects {
     for (const player of this.ctx.players) {
       const { move } = player;
       const speed = Math.hypot(move.vx, move.vy);
-      if (move.airborne === 0 && speed > 18 && Math.random() < Math.min(1, dt * (6 + speed / 22))) {
-        const kind = particleFor(this.ctx.world.surfaceAt(move.x, move.y).kind);
+      if (!move.flying && move.airborne === 0 && speed > 18 && Math.random() < Math.min(1, dt * (6 + speed / 22))) {
+        const kind = move.boost ? 'exhaust' : particleFor(this.ctx.world.surfaceAt(move.x, move.y).kind);
         const angle = Math.atan2(move.vy, move.vx);
         const x = move.x - Math.cos(angle) * 27, y = move.y - Math.sin(angle) * 27;
         if (kind === 'splash') {
@@ -70,6 +78,10 @@ export class PlayEffects {
             this.emit(kind, { x: x - side * Math.sin(angle) * 16, y: y + side * Math.cos(angle) * 16 },
               undefined, angle + side * 2.2);
           }
+        } else if (kind === 'exhaust') {
+          const tail = WORLD_HOST.playerLengths[player.traits.width - 1] / 2;
+          this.emit(kind, { x: move.x - Math.cos(move.angle) * tail, y: move.y - Math.sin(move.angle) * tail },
+            undefined, move.angle + Math.PI);
         } else if (kind) this.emit(kind, { x, y });
       }
     }
@@ -120,6 +132,8 @@ export class PlayEffects {
     this.off.forEach(off => off());
     this.ctx.scene.events.off('postupdate', this.postUpdate, this);
     this.shadows.forEach(({ image }) => image.destroy());
+    this.bags.forEach(image => image.destroy());
+    this.bags.clear();
     [...this.particles.map(p => p.image), ...this.pool, ...this.signs.map(s => s.image)].forEach(image => image.destroy());
     this.particles.length = 0; this.pool.length = 0; this.signs.length = 0;
     this.gapBumps.clear();
@@ -151,11 +165,25 @@ export class PlayEffects {
       const length = WORLD_HOST.playerLengths[traits.width - 1] * shadow.lengthScale;
       const width = length * sprite.height / sprite.width;
       const rotation = this.ctx.viewRotation(viewer);
-      const offset = (shadow.offset + Math.min(shadow.airOffset, move.airborne * 90)) / viewer.camera.zoom;
+      const lift = move.flying ? WORLD_PLAY.flight.shadowOffset : Math.min(shadow.airOffset, move.airborne * 90);
+      const offset = (shadow.offset + lift) / viewer.camera.zoom;
       image.setPosition(move.x + Math.sin(rotation) * offset, move.y + Math.cos(rotation) * offset)
         .setRotation(move.angle)
         .setDisplaySize(length * (1 + Math.min(0.42, move.airborne * 0.6)), width * (1 - Math.min(0.36, move.airborne * 0.45)))
-        .setAlpha(move.airborne > 0 ? shadow.airAlpha : shadow.groundAlpha);
+        .setAlpha(move.flying || move.airborne > 0 ? shadow.airAlpha : shadow.groundAlpha);
+    }
+    const flight = WORLD_PLAY.flight;
+    for (const [player, bag] of this.bags) {
+      const left = (player.flapUntil ?? 0) - this.ctx.time;
+      bag.setVisible(left > 0);
+      if (left <= 0) continue;
+      const rotation = this.ctx.viewRotation(player);
+      const zoom = player.camera.zoom;
+      const lift = flight.bagLift / zoom;
+      const wobble = Math.sin((flight.flapSeconds - left) * 30) * 0.25;
+      bag.setPosition(player.move.x - Math.sin(rotation) * lift, player.move.y - Math.cos(rotation) * lift)
+        .setDisplaySize(flight.bagSize / zoom, flight.bagSize / zoom).setRotation(-rotation + wobble)
+        .setAlpha(Math.min(1, left * 6));
     }
     for (const player of this.ctx.players) {
       if (!player.sprite) continue;
@@ -166,7 +194,7 @@ export class PlayEffects {
         continue;
       }
       this.gapBumps.delete(player);
-      if (player.move.airborne === 0 && player.surface.kind === 'rough' && Math.hypot(player.move.vx, player.move.vy) > 20) {
+      if (!player.move.flying && player.move.airborne === 0 && player.surface.kind === 'rough' && Math.hypot(player.move.vx, player.move.vy) > 20) {
         const phase = this.ctx.time * 34 + player.index * 1.7;
         player.sprite.x = player.move.x + Math.sin(phase) * 1.7;
         player.sprite.y = player.move.y + Math.cos(phase * 1.31) * 1.3;

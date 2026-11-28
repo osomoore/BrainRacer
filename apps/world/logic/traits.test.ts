@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
 import type { Model, WorkshopId } from '../core/types';
+import { terrainWall } from './rules';
 import { traitsOf } from './traits';
 
 function build(workshop: WorkshopId, parts: Model = {}) {
@@ -25,10 +26,24 @@ describe('creation traits', () => {
     expect(build('race', { wheels: 'wheels.monster', body: 'body.jeep' }).rough).toBe(3);
     expect(build('race', { extra: 'extra.snorkel' }).water).toBe(2);
     expect(build('race', { extra: 'extra.floats' }).water).toBe(3);
-    expect(build('race', { extra: 'extra.winch' })).toMatchObject({ mud: 2, push: 2 });
-    expect(build('race', { extra: 'extra.rocket', springs: 'springs.bouncy' }).jump).toBe(3);
+    expect(build('race', { extra: 'extra.winch' })).toMatchObject({ mud: 2, push: 2, winch: 1, rocket: 0 });
+    expect(build('race', { extra: 'extra.rocket', springs: 'springs.bouncy' })).toMatchObject({ jump: 3, rocket: 1, winch: 0 });
+    expect(build('race', { extra: 'extra.radiator' }).heat).toBe(3);
+    expect(build('race', { extra: 'extra.rallyLights' }).light).toBe(3);
     expect(build('race', { paint: 'paint.yellow', body: 'body.van', engine: 'engine.efficient' }))
       .toMatchObject({ light: 0, heat: 0, carry: 3 });
+  });
+
+  it.each(['starter', 'easy', 'medium', 'hard'] as const)('applies the World reading rule at %s', reading => {
+    const young = reading === 'starter' || reading === 'easy';
+    const car = traitsOf({ workshop: 'race', model: defaultModel(CATALOGS.race) }, reading);
+    const dino = traitsOf({ workshop: 'dino', model: defaultModel(CATALOGS.dino) }, reading);
+    expect(car).toMatchObject({ heat: young ? 3 : 0, light: 0 });
+    expect(dino).toMatchObject({ light: young ? 3 : 0, heat: 0 });
+    expect(terrainWall({ kind: 'road', biome: 'desert', covered: false, dark: 0, heat: 1 }, car))
+      .toBe(young ? undefined : 'heat');
+    expect(terrainWall({ kind: 'road', biome: 'darkwood', covered: false, dark: 1 }, dino))
+      .toBe(young ? undefined : 'dark');
   });
 
   it('gives heat dissipation to cool dinos and smash to the contact parts', () => {
@@ -43,7 +58,7 @@ describe('creation traits', () => {
 
   it('maps dino specialties from Workshop stats and tags', () => {
     expect(build('dino', { claws: 'claws.digging', head: 'head.longNeck', move: 'move.fly', extra: 'extra.glow' }))
-      .toMatchObject({ dig: 3, reach: 3, jump: 3, light: 3 });
+      .toMatchObject({ dig: 3, reach: 3, jump: 3, light: 3, wings: 1 });
     expect(build('dino', { tail: 'tail.paddle', legs: 'legs.flippers', move: 'move.swim' }).water).toBe(3);
     expect(build('dino', { tail: 'tail.paddle' }).water).toBe(2);
     expect(build('dino', { size: 'size.huge', body: 'body.sail', head: 'head.crest' }))

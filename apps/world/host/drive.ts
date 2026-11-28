@@ -1,11 +1,18 @@
 import type { WorldContext, WorldPlayer } from '../core/runtime';
 import type { Feature } from '../core/types';
-import { step, type MoveWorld } from '../logic/move';
+import { canGroundAt, step, type MoveWorld } from '../logic/move';
 import { activeCreation, swapCreation } from '../logic/slots';
+import { traitsOf } from '../logic/traits';
 
 export function quickSwap(ctx: WorldContext, player: WorldPlayer): void {
-  player.save.using = swapCreation(player.save.using);
-  ctx.setCreation(player, activeCreation(player.profileId, player.save));
+  const using = swapCreation(player.save.using);
+  const creation = activeCreation(player.profileId, { ...player.save, using });
+  if (player.move.flying) {
+    const traits = traitsOf(creation, player.reading);
+    if (!traits.wings && !canGroundAt(ctx.world, player.move, traits)) return;
+  }
+  player.save.using = using;
+  ctx.setCreation(player, creation);
   ctx.save(player);
 }
 

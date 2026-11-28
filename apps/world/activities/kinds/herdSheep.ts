@@ -47,6 +47,8 @@ const herdSheep: ActivityKindDef = {
   start(ctx, site, player) {
     const positions = sheepPositions(site);
     let state = startHerd(positions);
+    let honked = false;
+    const offHonk = ctx.bus.on('player:honk', event => { if (event.player === player) honked = true; });
     const sprites = positions.map(at => drawSheep(ctx, at));
     sprites.forEach(({ sprite }, index) => {
       const at = positions[index];
@@ -64,10 +66,10 @@ const herdSheep: ActivityKindDef = {
 
     return {
       update(dt) {
-        const { move, traits, controls } = player;
-        const { b, y, menu } = controls.pressed;
-        const velocity = move.airborne === 0 ? { x: move.vx, y: move.vy } : { x: 0, y: 0 };
-        state = stepHerd(state, site.at, move, velocity, b && !y && !menu, traits.loud, dt, canStep);
+        const { move, traits } = player;
+        const velocity = move.airborne === 0 && !move.flying ? { x: move.vx, y: move.vy } : { x: 0, y: 0 };
+        state = stepHerd(state, site.at, move, velocity, honked, traits.loud, dt, canStep);
+        honked = false;
         state.sheep.forEach(({ at, away, penned, stride }, index) => {
           const { sprite, fleece } = sprites[index];
           sprite.setPosition(at.x, at.y).setScale(1 + (stride > 0 ? 0.08 * Math.sin(state.elapsed * 32) : 0));
@@ -76,7 +78,7 @@ const herdSheep: ActivityKindDef = {
         });
         return state.outcome;
       },
-      destroy() { sprites.forEach(({ sprite }) => sprite.destroy()); },
+      destroy() { offHonk(); sprites.forEach(({ sprite }) => sprite.destroy()); },
     };
   },
 };

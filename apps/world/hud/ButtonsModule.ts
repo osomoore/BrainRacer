@@ -34,6 +34,7 @@ interface View {
   nav: StickNav;
   taps: CardEvent[];
   legend: Obj[];
+  specialIcon?: Phaser.GameObjects.Image;
   dim: Phaser.GameObjects.Image;
   lab: Obj[];
   labTitle: Phaser.GameObjects.Text;
@@ -47,7 +48,6 @@ interface View {
   sel: Obj[];
   selPad: Obj[];
   rowY: number[];
-  honkCooldown: number;
 }
 
 interface Fx {
@@ -63,6 +63,7 @@ export default class ButtonsModule implements WorldModule {
   private padHints = true;
   private quests!: QuestHud;
   private labRequest: LabRequest = null;
+  private offHonk?: () => void;
 
   init(ctx: WorldContext): void {
     this.ctx = ctx;
@@ -70,6 +71,7 @@ export default class ButtonsModule implements WorldModule {
     this.quests = new QuestHud(ctx);
     bakeIcons(ctx.scene);
     this.bakeWorldFx(ctx.scene);
+    this.offHonk = ctx.bus.on('player:honk', ({ player }) => this.honk(player));
     const manager = ctx.scene.scene;
     if (manager.get(KEY)) manager.remove(KEY);
     manager.add(KEY, new HudScene(s => this.build(s)), true);
@@ -79,7 +81,6 @@ export default class ButtonsModule implements WorldModule {
     this.padHints = padConnected();
     const waiting = this.labRequest?.offered ? this.labRequest.requester : undefined;
     for (const v of this.views) {
-      v.honkCooldown = Math.max(0, v.honkCooldown - dt);
       if (v.player.index === waiting) v.taps.length = 0;
       else this.step(v);
     }
@@ -93,6 +94,7 @@ export default class ButtonsModule implements WorldModule {
   }
 
   destroy(): void {
+    this.offHonk?.();
     this.releaseLabRequest();
     for (const v of this.views) if (v.ownsBusy) v.player.busy = false;
     this.views = [];
@@ -130,7 +132,6 @@ export default class ButtonsModule implements WorldModule {
     }
     const dir = v.nav.step(p.controls.y, BUTTONS.navThreshold, BUTTONS.navRelease);
     if (dir !== 0) events.push({ type: 'nav', dir });
-    if (!open && pr.b && !pr.y && !pr.menu && v.honkCooldown <= 0) this.honk(v);
     for (const e of events) {
       const previous = v.state.kind;
       if (previous === 'quests' && e.type === 'nav' && this.quests.cycle(p, e.dir)) continue;
@@ -183,18 +184,21 @@ export default class ButtonsModule implements WorldModule {
     const at = hexToWorld(hex);
     this.poof(p.move.x, p.move.y);
     p.move.x = at.x; p.move.y = at.y; p.move.vx = 0; p.move.vy = 0; p.move.airborne = 0; delete p.move.jump;
+    p.move.flying = false;
+    delete p.move.flightOrigin;
+    delete p.move.boost;
+    delete p.flapUntil;
     this.poof(at.x, at.y);
     this.ctx.bus.emit('player:respawn', { player: p, at });
   }
 
-  private honk(v: View): void {
+  private honk(player: WorldPlayer): void {
     const h = BUTTONS.honk;
-    v.honkCooldown = h.cooldown;
-    const tint = v.player.traits.kind === 'dino' ? 0xff9a3c : 0xffffff;
+    const tint = player.traits.kind === 'dino' ? 0xff9a3c : 0xffffff;
     // TODO(audio): play the honk / roar sound here once the audio service exists.
     for (let i = 0; i < h.rings; i++) {
-      const img = this.ctx.scene.add.image(v.player.move.x, v.player.move.y, 'world-ring').setDepth(DEPTH.popups).setTint(tint).setVisible(false);
-      this.fx.push({ img, player: v.player, delay: i * h.stagger, t: 0, dur: h.seconds, from: h.startScale, to: h.endScale });
+      const img = this.ctx.scene.add.image(player.move.x, player.move.y, 'world-ring').setDepth(DEPTH.popups).setTint(tint).setVisible(false);
+      this.fx.push({ img, player, delay: i * h.stagger, t: 0, dur: h.seconds, from: h.startScale, to: h.endScale });
     }
   }
 
@@ -223,7 +227,9 @@ export default class ButtonsModule implements WorldModule {
     const kind = v.state.kind;
     const waiting = this.labRequest?.requester === v.player.index;
     const lab = kind === 'lab' || (!!this.labRequest?.offered && !waiting);
-    vis(v.legend, this.padHints && kind === 'closed' && !lab && !waiting);
+    vis(v.legend, this.padHints && kind === 'closed' && !v.player.busy && !lab && !waiting);
+    const specialKey = iconKey(v.player.special ?? 'horn');
+    if (v.specialIcon && v.specialIcon.texture.key !== specialKey) v.specialIcon.setTexture(specialKey);
     v.dim.setVisible(kind !== 'closed' || lab);
     vis(v.lab, lab);
     vis(v.labPad, lab && this.padHints);
@@ -305,7 +311,7 @@ export default class ButtonsModule implements WorldModule {
         labTitle: label(cx, cy - 215, 'Go to the Lab?', C.titleSize).setAlign('center'),
         waiting: [scene.add.image(cx, cy, 'world-card-waiting').setDepth(D + 2), label(cx, cy, 'Waiting…', C.fontSize)],
         pause: [], quests: [], questsPad: [], sel: [], selPad: [], rowY: [],
-        dim: scene.add.image(cx, cy, 'world-dim').setDisplaySize(W, WORLD.height).setAlpha(C.dim).setDepth(D + 1), honkCooldown: 0,
+        dim: scene.add.image(cx, cy, 'world-dim').setDisplaySize(W, WORLD.height).setAlpha(C.dim).setDepth(D + 1),
       };
       const tap = (target: Extract<CardEvent, { type: 'tap' }>['target']) => view.taps.push({ type: 'tap', target });
 
@@ -318,7 +324,9 @@ export default class ButtonsModule implements WorldModule {
       for (const id of PAD_IDS) {
         view.legend.push(scene.add.image(x + L.glyph / 2, ccy, `world-disc:${id}`).setDepth(D + 1));
         view.legend.push(label(x + L.glyph / 2, ccy - 1, id.toUpperCase(), 34, 6));
-        view.legend.push(scene.add.image(x + L.glyph + 8 + L.icon / 2, ccy, iconKey(LEGEND_ICONS[id])).setDisplaySize(L.icon, L.icon).setDepth(D + 1));
+        const icon = scene.add.image(x + L.glyph + 8 + L.icon / 2, ccy, iconKey(LEGEND_ICONS[id])).setDisplaySize(L.icon, L.icon).setDepth(D + 1);
+        if (id === 'b') view.specialIcon = icon;
+        view.legend.push(icon);
         x += L.glyph + 8 + L.icon + L.gap;
       }
 

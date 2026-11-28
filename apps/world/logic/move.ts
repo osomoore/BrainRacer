@@ -8,8 +8,12 @@ export interface MoveState extends Vec {
   vy: number;
   /** Seconds left in the current jump. */
   airborne: number;
-  /** Sustained flight can bypass physical obstacles, while atmospheric walls still apply. */
+  /** Sustained flight bypasses physical obstacles. Atmospheric walls still apply. */
   flying?: boolean;
+  /** Grounded checkpoint used while a player is flying. */
+  flightOrigin?: Vec;
+  /** Seconds left in the current rocket burst. */
+  boost?: number;
   heatFatigue?: number;
   /** Keep while stepping to avoid relaunching and to recover from blocked landings. */
   jump?: { id: string; takeoff: Vec };
@@ -49,14 +53,18 @@ const unit = (v: Vec): Vec => scale(v, 1 / (length(v) || 1));
 const facing = (angle: number): Vec => ({ x: Math.cos(angle), y: Math.sin(angle) });
 const clamp = (value: number, limit: number): number => Math.max(-limit, Math.min(limit, value));
 const approach = (value: number, target: number, amount: number): number => value + clamp(target - value, amount);
+const AIR = { speedMult: PLAY.flight.speedMult, grip: 1, passable: true, acceleration: 1, drag: 0.65,
+  lateralGrip: 1, noSlide: false };
 
 function drive(state: MoveState, input: MoveInput, traits: Traits, sample: SurfaceSample, dt: number) {
   const { speedMult, grip, passable, acceleration: traction, drag, lateralGrip, noSlide } =
-    surfaceEffect(traits.kind, sample, traits);
+    state.flying ? AIR : surfaceEffect(traits.kind, sample, traits);
   // A restored position or a wider swapped build may start in blocked terrain.
   const control = passable ? grip : 1;
-  const topSpeed = traits.speed * (passable ? speedMult : 1) * (1 - PLAY.desert.maxPenalty * (state.heatFatigue ?? 0));
-  const acceleration = traits.accel * (passable ? traction : 1) * dt;
+  const boost = traits.kind === 'car' && (state.boost ?? 0) > 0;
+  const topSpeed = traits.speed * (passable ? speedMult : 1) * (boost ? PLAY.rocket.speedMult : 1)
+    * (1 - PLAY.desert.maxPenalty * (state.heatFatigue ?? 0));
+  const acceleration = traits.accel * (passable ? traction : 1) * (boost ? PLAY.rocket.accelMult : 1) * dt;
   const coast = DRIVE.coastDeceleration * (passable ? drag : 1);
   const lateralAmount = traits.accel * DRIVE.lateralDeceleration * (passable ? lateralGrip : 1) * dt;
   const maxTurn = traits.turn * control * dt;
@@ -74,10 +82,11 @@ function drive(state: MoveState, input: MoveInput, traits: Traits, sample: Surfa
     const speed = approach(along, topSpeed * magnitude, acceleration * (magnitude ? 1 : coast));
     const slip = noSlide ? 0 : Math.max(0, length(lateral) - lateralAmount);
     const next = add(scale(forward, speed), scale(unit(lateral), slip));
-    return { angle, velocity: scale(unit(next), Math.max(0, length(next) - brake * acceleration * DRIVE.brakeDeceleration)) };
+    const speedAfterBrake = Math.max(0, length(next) - brake * acceleration * DRIVE.brakeDeceleration);
+    return { angle, velocity: scale(unit(next), state.flying ? Math.min(topSpeed, speedAfterBrake) : speedAfterBrake) };
   }
 
-  const throttle = clamp(input.throttle, 1);
+  const throttle = boost ? 1 : clamp(input.throttle, 1);
   const forwardSpeed = dot(velocity, facing(state.angle));
   const angle = state.angle + clamp(input.x, 1) * maxTurn * (Math.sign(forwardSpeed || throttle) || 1);
   const forward = facing(angle);
@@ -187,6 +196,11 @@ function canLand(at: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits
       || !featurePassable(feature, traits)) && polygonNormal(at, feature.area, radius));
 }
 
+export function canGroundAt(world: MoveWorld, at: Vec, traits: Traits): boolean {
+  const radius = DRIVE.colliderRadius[traits.width - 1];
+  return canLand(at, world.nearbySolids(at.x, at.y, radius), world, traits, radius);
+}
+
 /** A pushed prop rests against the first solid. It cannot swim or use a jump. */
 function obstacleClear(obstacle: Obstacle, at: Vec, nearby: NearbySolids, world: MoveWorld): boolean {
   if ((nearby.obstacles ?? []).some(other => other.id !== obstacle.id && other.kind !== 'vent'
@@ -203,6 +217,24 @@ function obstacleClear(obstacle: Obstacle, at: Vec, nearby: NearbySolids, world:
   return true;
 }
 
+/** Pull along the cable up to the first obstruction or the player's bumper. */
+export function winchPull(world: MoveWorld, player: Vec, traits: Traits, obstacle: Obstacle): Vec | undefined {
+  const offset = subtract(player, obstacle.at);
+  const clearance = DRIVE.colliderRadius[traits.width - 1] + obstacle.radius + PLAY.winch.clearance;
+  const distance = Math.min(PLAY.winch.pullDistance, length(offset) - clearance);
+  if (distance <= 0) return;
+  const direction = unit(offset);
+  const steps = Math.ceil(distance / DRIVE.maxStepDistance);
+  let destination: Vec | undefined;
+  for (let i = 1; i <= steps; i++) {
+    const at = add(obstacle.at, scale(direction, distance * i / steps));
+    if (world.obstacleCanMoveTo?.(obstacle, at) === false
+      || !obstacleClear(obstacle, at, world.nearbySolids(at.x, at.y, obstacle.radius), world)) break;
+    destination = at;
+  }
+  return destination;
+}
+
 /** Pure movement in world pixels. dt is elapsed seconds. Substeps bound tunneling at low frame rates. */
 export function step(state: MoveState, input: MoveInput, traits: Traits, world: MoveWorld, dt: number): MoveResult {
   const effects = new Map<string, MoveResult['obstacleEffects'][number]>();
@@ -211,10 +243,12 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
   let at: Vec = { x: state.x, y: state.y };
   let velocity = { x: state.vx, y: state.vy };
   let { angle, airborne, jump } = state;
-  const { flying } = state;
+  const flying = !!state.flying && traits.kind === 'dino' && !!traits.wings;
+  let boost = traits.kind === 'car' && traits.rocket ? state.boost : undefined;
   let heatFatigue = state.heatFatigue ?? 0;
   let blockedFeature: Feature | undefined;
-  const count = Math.ceil(dt / Math.min(DRIVE.maxStepSeconds, DRIVE.maxStepDistance / Math.max(traits.speed, length(velocity))));
+  const speedLimit = traits.speed * (boost ? PLAY.rocket.speedMult : 1);
+  const count = Math.ceil(dt / Math.min(DRIVE.maxStepSeconds, DRIVE.maxStepDistance / Math.max(speedLimit, length(velocity))));
   const interval = dt / count;
   const liveSolids = (point: Vec, reach: number): NearbySolids => {
     const nearby = world.nearbySolids(point.x, point.y, reach);
@@ -234,9 +268,10 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
     const sample = world.surfaceAt(at.x, at.y);
     heatFatigue = desertFatigue(heatFatigue, sample, traits, interval);
     if (airborne === 0) {
-      ({ angle, velocity } = drive({ ...at, angle, vx: velocity.x, vy: velocity.y, airborne, heatFatigue },
+      ({ angle, velocity } = drive({ ...at, angle, vx: velocity.x, vy: velocity.y, airborne, heatFatigue, flying, boost },
         input, traits, sample, interval));
     }
+    if (boost) boost = Math.max(0, boost - interval);
     const reach = radius + Math.max(length(velocity), traits.speed) * interval;
     let nearby = flying ? {} : liveSolids(at, reach);
     let to = add(at, scale(velocity, interval));
@@ -318,6 +353,7 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
       }
     }
   }
-  return { x: at.x, y: at.y, angle, vx: velocity.x, vy: velocity.y, airborne, flying, jump, heatFatigue,
+  return { x: at.x, y: at.y, angle, vx: velocity.x, vy: velocity.y, airborne, flying,
+    flightOrigin: flying ? state.flightOrigin : undefined, boost, jump, heatFatigue,
     obstacleEffects: [...effects.values()], blockedFeature };
 }

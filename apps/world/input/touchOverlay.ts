@@ -45,7 +45,7 @@ function bake(scene: Phaser.Scene): void {
 }
 
 export interface TouchOverlay {
-  update(): void;
+  update(specialIcon?: IconName): void;
   /** True once any pointer went down on the overlay since the last call. */
   consumeTouched(): boolean;
   setVisible(visible: boolean): void;
@@ -65,7 +65,7 @@ export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): Touc
     const img = scene.add.image(spec.x, spec.y, `touch:btn:${spec.id}`).setDepth(D).setAlpha(TOUCH.idleAlpha);
     const size = spec.r * 1.4;
     const text = scene.add.image(spec.x, spec.y - 2, iconKey(ICONS[spec.id])).setDisplaySize(size, size).setDepth(D + 1).setAlpha(TOUCH.idleAlpha);
-    return { spec, img, text };
+    return { spec, img, text, size };
   });
   const pz = BUTTONS.pause;
   const pauseBtn = scene.add.image(pz.x, pz.y, 'touch:pause').setDepth(D).setAlpha(TOUCH.idleAlpha);
@@ -86,7 +86,7 @@ export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): Touc
   const all = () => [base, knob, pauseBtn, pauseIcon, ...buttons.flatMap(b => [b.img, b.text])];
 
   return {
-    update() {
+    update(specialIcon = 'horn') {
       if (!visible) return;
       const pa = state.pauseHeld ? TOUCH.activeAlpha : TOUCH.idleAlpha;
       pauseBtn.setAlpha(pa);
@@ -102,7 +102,8 @@ export function createTouchOverlay(scene: Phaser.Scene, state: TouchState): Touc
         const alpha = held ? TOUCH.activeAlpha : TOUCH.idleAlpha;
         const scale = held ? 0.9 : 1;
         b.img.setAlpha(alpha).setScale(scale);
-        b.text.setAlpha(alpha).setScale(scale);
+        if (b.spec.id === 'b' && b.text.texture.key !== iconKey(specialIcon)) b.text.setTexture(iconKey(specialIcon));
+        b.text.setAlpha(alpha).setDisplaySize(b.size * scale, b.size * scale);
       }
     },
     consumeTouched() { const t = touched; touched = false; return t; },

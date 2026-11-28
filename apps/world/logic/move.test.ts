@@ -2,15 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
 import type { Feature, Obstacle, SurfaceSample } from '../core/types';
-import { step } from './move';
+import { canGroundAt, step, winchPull } from './move';
 import type { MoveInput, MoveState, MoveWorld, NearbySolids } from './move';
 import { traitsOf } from './traits';
 
 const car = traitsOf({ workshop: 'race', model: defaultModel(CATALOGS.race) });
 const dino = traitsOf({ workshop: 'dino', model: defaultModel(CATALOGS.dino) });
+const winged = { ...dino, wings: 1 };
 const road: SurfaceSample = { kind: 'road', biome: 'meadow', dark: 0, covered: false };
 const start: MoveState = { x: 0, y: 0, angle: 0, vx: 0, vy: 0, airborne: 0 };
 const forward: MoveInput = { x: 0, y: 0, throttle: 1, brake: 0 };
+const dinoForward = { ...forward, x: 1 };
 const neutral: MoveInput = { ...forward, throttle: 0 };
 const box = (left: number, right: number) => [
   { x: left, y: -90 }, { x: right, y: -90 }, { x: right, y: 90 }, { x: left, y: 90 },
@@ -145,10 +147,12 @@ describe('collisions', () => {
     const approach = { ...start, vx: 250 };
     const bump = step(approach, forward, car, terrain, 0.16);
     expect(bump.x).toBeLessThan(40);
-    for (const state of [approach, { ...approach, flying: true }, { ...approach, airborne: 0.4 }]) {
+    for (const state of [approach, { ...approach, airborne: 0.4 }]) {
       expect(simulate(forward, car, terrain, state).x).toBeLessThan(40);
       expect(simulate(forward, { ...car, [ability]: 3 }, terrain, state).x).toBeGreaterThan(100);
     }
+    expect(simulate(dinoForward, winged, terrain, { ...approach, flying: true }).x).toBeLessThan(40);
+    expect(simulate(dinoForward, { ...winged, [ability]: 3 }, terrain, { ...approach, flying: true }).x).toBeGreaterThan(100);
     expect(simulate({ ...forward, throttle: -1 }, car, terrain, { ...start, x: 65 }).x).toBeLessThan(40);
   });
 
@@ -176,7 +180,37 @@ describe('collisions', () => {
     const build = { ...car, smash: 1, push: 3 };
     expect(step(start, forward, build, terrain, 0.6).obstacleEffects).toEqual([]);
     expect(simulate(forward, build, terrain).x).toBeLessThan(rock.at.x);
-    expect(simulate(forward, build, terrain, { ...start, flying: true }).x).toBeGreaterThan(rock.at.x);
+    expect(simulate(forward, build, terrain, { ...start, flying: true }).x).toBeLessThan(rock.at.x);
+    expect(simulate(dinoForward, winged, terrain, { ...start, flying: true }).x).toBeGreaterThan(rock.at.x);
+  });
+});
+
+describe('World specials', () => {
+  it.each(['deep', 'deepMud', 'cliff'] as const)('glides across %s at half speed', kind => {
+    const terrain = world({}, x => x > 20 && x < 90 ? { ...road, kind } : road);
+    const across = simulate(dinoForward, winged, terrain, { ...start, flying: true });
+    expect(across.x).toBeGreaterThan(90);
+    expect(across.vx).toBeCloseTo(winged.speed * 0.5);
+    expect(canGroundAt(terrain, across, winged)).toBe(true);
+    if (kind !== 'deepMud') expect(canGroundAt(terrain, { x: 60, y: 0 }, winged)).toBe(false);
+    expect(step({ ...start, flying: true }, dinoForward, dino, terrain, 0.1).flying).toBe(false);
+  });
+
+  it('boosts a rocket car forward without throttle and runs out', () => {
+    const rocketCar = { ...car, rocket: 1 };
+    const burst = step({ ...start, boost: 0.65 }, neutral, rocketCar, world(), 0.5);
+    expect(burst.vx).toBeGreaterThan(car.speed);
+    expect(step(burst, neutral, rocketCar, world(), 0.2).boost).toBe(0);
+    expect(step({ ...start, boost: 0.65 }, neutral, car, world(), 0.5).x).toBe(0);
+  });
+
+  it.each(['log', 'crate'] as const)('pulls a %s toward the bumper and respects obstructions', kind => {
+    const target: Obstacle = { id: 'target', kind, radius: 16, at: { x: 180, y: 0 } };
+    const blocker: Obstacle = { id: 'blocker', kind: 'tree', radius: 12, at: { x: 105, y: 0 } };
+    expect(winchPull(world({ obstacles: [target] }), start, car, target)).toEqual({ x: 70, y: 0 });
+    const stopped = winchPull(world({ obstacles: [target, blocker] }), start, car, target)!;
+    expect(stopped.x).toBeLessThan(target.at.x);
+    expect(stopped.x).toBeGreaterThan(blocker.at.x + blocker.radius + target.radius);
   });
 });
 

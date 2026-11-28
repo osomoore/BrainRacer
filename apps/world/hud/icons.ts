@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 
 /** Picture icons, baked once into 128 px textures `world-icon:<name>` (never drawn in a live Graphics). */
 export type IconName = 'hand' | 'horn' | 'swap' | 'lab' | 'tick' | 'cross' | 'play' | 'home' | 'exit' | 'pause'
-  | 'star' | 'quest';
+  | 'star' | 'quest' | 'roar' | 'rocket' | 'wings' | 'winch' | 'bag';
 export const ICON_SIZE = 128;
 export const iconKey = (name: IconName) => `world-icon:${name}`;
 
@@ -50,6 +50,37 @@ const DRAW: Record<IconName, (g: Phaser.GameObjects.Graphics) => void> = {
     shapes(g, [rr(16, 50, 28, 30, 6), poly(40, 50, 90, 22, 90, 108, 40, 80), rr(86, 20, 12, 90, 6), rr(22, 80, 16, 26, 5)], 0xffd54a);
     g.lineStyle(7, WHITE, 1);
     for (const r of [14, 26]) { g.beginPath(); g.arc(104, 65, r, -0.9, 0.9, false); g.strokePath(); }
+  },
+  roar: g => {
+    shapes(g, [rr(14, 30, 62, 36, 16), rr(19, 80, 57, 20, 10), poly(14, 48, 39, 56, 35, 99, 12, 95)], 0x95e283);
+    g.fillStyle(INK, 1).fillCircle(61, 43, 5);
+    g.fillStyle(WHITE, 1).fillTriangle(48, 64, 57, 77, 64, 64);
+    g.lineStyle(7, WHITE, 1);
+    for (const r of [14, 29]) { g.beginPath(); g.arc(94, 71, r, -0.92, 0.92, false); g.strokePath(); }
+  },
+  rocket: g => {
+    shapes(g, [poly(48, 79, 34, 116, 65, 101, 77, 80)], 0xffc44d);
+    shapes(g, [poly(50, 59, 29, 72, 27, 94, 56, 81), poly(69, 69, 66, 96, 91, 83, 92, 54)], 0xff6d64);
+    shapes(g, [poly(42, 74, 55, 44, 77, 22, 108, 14, 103, 46, 87, 72, 59, 92)], WHITE);
+    shapes(g, [circ(80, 46, 11)], 0x6ec6ff, 3);
+  },
+  wings: g => {
+    shapes(g, [poly(61, 64, 44, 38, 10, 24, 17, 61, 32, 79, 52, 88, 62, 102),
+      poly(67, 64, 84, 38, 118, 24, 111, 61, 96, 79, 76, 88, 66, 102)], 0xcfeaff);
+    g.lineStyle(5, INK, 1).lineBetween(25, 52, 46, 69).lineBetween(103, 52, 82, 69);
+  },
+  winch: g => {
+    shapes(g, [rr(10, 26, 66, 57, 10), rr(68, 51, 36, 12, 5)], 0xffd54a);
+    shapes(g, [circ(42, 55, 16)], 0xd9edfb, 4);
+    for (const [width, color] of [[20, INK], [11, WHITE]] as const) {
+      g.lineStyle(width, color, 1).beginPath().arc(96, 84, 19, -Math.PI / 2, Math.PI, false).strokePath();
+    }
+  },
+  bag: g => {
+    shapes(g, [rr(47, 18, 34, 28, 10)], WHITE);
+    shapes(g, [rr(23, 36, 82, 76, 17)], 0xf6ae4e);
+    shapes(g, [rr(37, 65, 54, 31, 7)], 0xffda75, 4);
+    g.fillStyle(INK, 1).fillRoundedRect(59, 62, 10, 18, 3);
   },
   swap: g => {
     // little car (top-left), dino (bottom-right), a double arrow between them

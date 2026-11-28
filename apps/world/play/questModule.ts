@@ -115,7 +115,7 @@ export default class QuestModule implements WorldModule {
     let best = hit ? Math.hypot(move.x - hit.at.x, move.y - hit.at.y) : Infinity;
     for (const candidate of view.deliveries.values()) {
       const distance = Math.hypot(move.x - candidate.at.x, move.y - candidate.at.y);
-      if (distance > HUD.pickupRadius || distance > best) continue;
+      if (move.flying || distance > HUD.pickupRadius || distance > best) continue;
       best = distance;
       delivery = candidate;
     }
@@ -141,7 +141,7 @@ export default class QuestModule implements WorldModule {
       this.talk(view, hit.live.plan);
       return;
     }
-    if (hit.spot) {
+    if (hit.spot && !move.flying) {
       const picked = pickupQuestItem(save, hit.contact, player.carrying.length, player.traits);
       if (picked) {
         hit.live.takenItems.add(hit.spot.id);

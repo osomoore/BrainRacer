@@ -181,6 +181,9 @@ export const WORLD_PLAY = {
   pushSpeed: 150,
   logPushSpeed: [60, 90, 125, 175],
   bumperPushSpeed: 245,
+  flight: { speedMult: 0.5, scale: 1.14, shadowOffset: 62, flapSeconds: 0.85, bagSize: 70, bagLift: 132 },
+  rocket: { seconds: 0.65, cooldown: 3, speedMult: 1.85, accelMult: 4 },
+  winch: { reach: 235, pullDistance: 110, clearance: 12 },
 } as const;
 
 // --- activities (W7) ---------------------------------------------------------------------------
