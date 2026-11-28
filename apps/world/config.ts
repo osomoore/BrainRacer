@@ -304,3 +304,22 @@ export const WORLD_QUEST_HUD = {
   questFont: 40,
   starFont: 48,
 } as const;
+
+// --- World buddies (W11d) ----------------------------------------------------------------------
+export const WORLD_BUDDIES = {
+  spotChance: 0.11,
+  spotClearance: 180,
+  handRadius: 105,
+  price: 10,
+  renderRings: 1,
+  follower: {
+    distance: 112,
+    catchUpDistance: 450,
+    smoothingSeconds: 0.19,
+    radius: 17,
+    probeStride: 8,
+    size: 56,
+    hopHeight: 27,
+    hopMargin: 45,
+  },
+} as const;

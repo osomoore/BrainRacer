@@ -1,9 +1,9 @@
 /** Phaser-free card state machine for the Lab yes/no card and the pause card (tested in cards.test.ts). */
 
-export const PAUSE_OPTIONS = ['resume', 'home', 'quests', 'exit'] as const;
+export const PAUSE_OPTIONS = ['resume', 'home', 'quests', 'buddy', 'exit'] as const;
 export type PauseOption = typeof PAUSE_OPTIONS[number];
 
-export type CardState = { kind: 'closed' } | { kind: 'lab' } | { kind: 'pause'; sel: number } | { kind: 'quests'; sel: number };
+export type CardState = { kind: 'closed' } | { kind: 'lab' } | { kind: 'pause'; sel: number } | { kind: 'quests'; sel: number } | { kind: 'buddy'; sel: number };
 
 export type CardEvent =
   | { type: 'press'; button: 'a' | 'b' | 'y' | 'menu' }
@@ -17,7 +17,9 @@ export type CardAction = 'lab' | 'home' | 'exit' | 'resume' | 'cancel' | null;
 export const CLOSED: CardState = { kind: 'closed' };
 
 function choosePause(option: PauseOption, sel: number): { state: CardState; action: CardAction } {
-  return option === 'quests' ? { state: { kind: 'quests', sel }, action: null } : { state: CLOSED, action: option };
+  if (option === 'quests') return { state: { kind: 'quests', sel }, action: null };
+  if (option === 'buddy') return { state: { kind: 'buddy', sel }, action: null };
+  return { state: CLOSED, action: option };
 }
 
 export function stepCard(state: CardState, ev: CardEvent): { state: CardState; action: CardAction } {
@@ -51,6 +53,7 @@ export function stepCard(state: CardState, ev: CardEvent): { state: CardState; a
       return stay;
     }
     case 'quests':
+    case 'buddy':
       if ((ev.type === 'press' && (ev.button === 'a' || ev.button === 'b' || ev.button === 'menu'))
         || (ev.type === 'tap' && ev.target === 'back')) return { state: { kind: 'pause', sel: state.sel }, action: null };
       return stay;

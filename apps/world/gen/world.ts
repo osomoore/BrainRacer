@@ -3,6 +3,7 @@ import { GEN } from '../config';
 import type { HexCoord, HexPlan, Obstacle } from '../core/types';
 import type { RoadSurfaceSample } from '../logic/rules';
 import { biomeAt, homeHexFor, isCamp } from './biome';
+import { buildBuddySpot } from './buddySpots';
 import { buildFeatures } from './features';
 import { buildErrandSites } from './errandSites';
 import { circleBounds } from './geometry';
@@ -51,6 +52,7 @@ function buildPlan(seed: number, coord: HexCoord, owner?: string): HexPlan {
   buildActivities(layout, activityRng, featureSite);
   buildPickups(layout, pickupRng);
   buildErrandSites(layout, rng.fork(6));
+  buildBuddySpot(layout, rng.fork(7));
   scatterObstacles(layout, obstacleRng);
   return plan;
 }
