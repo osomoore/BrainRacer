@@ -7,6 +7,7 @@ import { touchModeWanted } from '../input/touchMapping';
 import { CLOSED, PAUSE_OPTIONS, StickNav, stepCard, type CardAction, type CardEvent, type CardState } from './cards';
 import { bakeDisc, bakeIcons, bakePlate, iconKey, type IconName } from './icons';
 import { stepLabRequest, type LabRequest } from './labRequest';
+import { NamePulse } from './namePulse';
 import { padConnected } from './questDialog';
 import { QuestHud } from './questHud';
 
@@ -62,6 +63,7 @@ export default class ButtonsModule implements WorldModule {
   private touchMode = false;
   private padHints = true;
   private quests!: QuestHud;
+  private names!: NamePulse;
   private labRequest: LabRequest = null;
   private offHonk?: () => void;
 
@@ -69,6 +71,7 @@ export default class ButtonsModule implements WorldModule {
     this.ctx = ctx;
     this.touchMode = touchModeWanted(location.search, isMobile(), ctx.players.length);
     this.quests = new QuestHud(ctx);
+    this.names = new NamePulse(ctx);
     bakeIcons(ctx.scene);
     this.bakeWorldFx(ctx.scene);
     this.offHonk = ctx.bus.on('player:honk', ({ player }) => this.honk(player));
@@ -90,6 +93,7 @@ export default class ButtonsModule implements WorldModule {
       this.quests.updatePlayer(v.player, v.state.kind);
     }
     this.quests.update();
+    this.names.update();
     this.updateFx(dt);
   }
 
@@ -101,6 +105,7 @@ export default class ButtonsModule implements WorldModule {
     for (const f of this.fx) f.img.destroy();
     this.fx = [];
     this.quests.destroy();
+    this.names.destroy();
     const manager = this.ctx.scene.scene;
     if (manager.get(KEY)) manager.remove(KEY);
   }
@@ -271,6 +276,7 @@ export default class ButtonsModule implements WorldModule {
     const L = BUTTONS.legend;
     bakeIcons(scene);
     this.quests.build(scene, this.touchMode);
+    this.names.build(scene);
     const legendW = PAD_IDS.length * (L.glyph + 8 + L.icon) + (PAD_IDS.length - 1) * L.gap + 40;
     const legendH = L.icon + 28;
     bakePlate(scene, 'world-legend-bg', legendW, legendH, 0x102b35, 0.62, 30);

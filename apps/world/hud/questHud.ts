@@ -1,8 +1,10 @@
 import type Phaser from 'phaser';
-import { BUTTONS, WORLD, WORLD_QUEST_HUD as HUD } from '../config';
+import { BUTTONS, WORLD, WORLD_CARRY_HUD as CARRY, WORLD_QUEST_HUD as HUD } from '../config';
 import { DEPTH, type WorldContext, type WorldEvents, type WorldPlayer } from '../core/runtime';
-import { QUEST_SLOTS, type Vec } from '../core/types';
+import { QUEST_SLOTS, type ItemId, type Vec } from '../core/types';
 import { bakeIcons, bakePlate, iconKey } from './icons';
+import { questItemTexture } from './questItemArt';
+import { itemDisplayName } from './interactionNames';
 
 const D = BUTTONS.depth;
 const WIDTH = HUD.questCardWidth;
@@ -33,10 +35,14 @@ type View = {
   pageLabel: Phaser.GameObjects.Text;
   page: number;
   pages: number;
+  carry: Phaser.GameObjects.Container;
+  carried: readonly ItemId[];
+  carryKind?: 'car' | 'dino';
 };
 type Popup = { label: Phaser.GameObjects.Text; at: Vec; player: WorldPlayer; since: number };
 
 export class QuestHud {
+  private scene!: Phaser.Scene;
   private readonly views = new Map<WorldPlayer, View>();
   private readonly banners = new Map<WorldPlayer, Toast>();
   private readonly popups: Popup[] = [];
@@ -55,6 +61,7 @@ export class QuestHud {
   }
 
   build(scene: Phaser.Scene, touch: boolean): void {
+    this.scene = scene;
     const width = WORLD.width / this.ctx.players.length;
     bakeIcons(scene);
     bakePlate(scene, 'world-quest-picker', 140, BUTTONS.card.minTap, 0x284666, 1, 24);
@@ -63,6 +70,7 @@ export class QuestHud {
     }
     bakePlate(scene, 'world-star-counter', 168, 78, 0x152640, 0.98, 24, 0xffdf66);
     bakePlate(scene, 'world-quest-banner', WIDTH, 108, 0x152640, 0.98, 24, 0xffdf66);
+    bakePlate(scene, 'world-carry-chip', CARRY.carryChipWidth, CARRY.carryChipHeight, 0x152640, 0.98, 22, 0xffdf66);
     for (const player of this.ctx.players) {
       const x = player.index * width;
       const starX = x + (touch ? 140 : 24);
@@ -102,7 +110,9 @@ export class QuestHud {
         button.on('pointerdown', () => { if (picker.visible) this.cycle(player, dir); });
         picker.add([button, pickerText(at, dir < 0 ? '‹' : '›')]);
       }
-      this.views.set(player, { x, width, stars, starPlate, banner, bannerText, empty, cards, picker, pageLabel, page: 0, pages: 0 });
+      const carry = scene.add.container(x + width - 24, CARRY.carryChipY).setDepth(D + 2).setVisible(false);
+      this.views.set(player, { x, width, stars, starPlate, banner, bannerText, empty, cards, picker, pageLabel, page: 0, pages: 0,
+        carry, carried: [] });
     }
   }
 
@@ -111,6 +121,7 @@ export class QuestHud {
     if (!view) return;
     const { time } = this.ctx;
     const { quests, stars } = player.save;
+    this.updateCarry(player, view, cardState);
     const value = String(stars);
     if (view.stars.text !== value) {
       view.stars.setText(value);
@@ -150,6 +161,40 @@ export class QuestHud {
       );
       y += height + HUD.questCardGap;
     });
+  }
+
+  private updateCarry(player: WorldPlayer, view: View, cardState: 'closed' | 'pause' | 'lab' | 'quests'): void {
+    const items = player.carrying;
+    if (items !== view.carried || player.traits.kind !== view.carryKind) {
+      view.carried = items;
+      view.carryKind = player.traits.kind;
+      view.carry.removeAll(true);
+      if (items.length) {
+        const header = player.traits.kind === 'dino' ? 'On the Dino' : 'In the Car';
+        const title = this.scene.add.text(-CARRY.carryChipWidth / 2, 8, header, {
+          fontFamily: FONT, fontStyle: 'bold', fontSize: `${CARRY.carryFont}px`, color: '#fff8df', align: 'center',
+          wordWrap: { width: CARRY.carryChipWidth - 20, useAdvancedWrap: true },
+        }).setOrigin(0.5, 0);
+        view.carry.add(title);
+        let y = 12 + title.height;
+        items.forEach(item => {
+          const text = this.scene.add.text(-CARRY.carryChipWidth + 55, y, itemDisplayName(item), {
+            fontFamily: FONT, fontStyle: 'bold', fontSize: `${CARRY.carryFont}px`, color: '#ffffff',
+            wordWrap: { width: CARRY.carryChipWidth - 68, useAdvancedWrap: true },
+          }).setOrigin(0, 0);
+          const height = Math.max(42, text.height);
+          const icon = this.scene.add.image(-CARRY.carryChipWidth + 30, y + height / 2, questItemTexture(this.scene, item))
+            .setDisplaySize(42, 42);
+          view.carry.add([icon, text]);
+          y += height + 6;
+        });
+        const height = Math.max(CARRY.carryChipHeight, y + 4);
+        const plate = this.scene.add.image(0, 0, 'world-carry-chip').setOrigin(1, 0)
+          .setDisplaySize(CARRY.carryChipWidth, height);
+        view.carry.addAt(plate, 0);
+      }
+    }
+    view.carry.setVisible(items.length > 0 && cardState === 'closed' && !player.busy);
   }
 
   cycle(player: WorldPlayer, dir: -1 | 1): boolean {
