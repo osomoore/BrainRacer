@@ -4,14 +4,15 @@ import { BIOME_NAMES, GIVER_NAMES, ITEM_NAMES, OTHER_GIVER, QUEST_PHRASES } from
 
 export type QuestTextDetails = { item: ItemId; who: string } & (
   | { kind: 'fetch'; fromBiome: BiomeId }
-  | { kind: 'deliver' | 'visitItem' | 'visitPond' }
+  | { kind: Exclude<keyof typeof QUEST_PHRASES, 'fetch'> }
 );
 
 export function fillQuestPhrase(phrase: string, details: QuestTextDetails): string {
   const item = ITEM_NAMES[details.item];
   const who = Object.hasOwn(GIVER_NAMES, details.who)
     ? GIVER_NAMES[details.who as keyof typeof GIVER_NAMES] : OTHER_GIVER;
-  const slots: Record<string, string> = { item, a: /^[aeiou]/.test(item) ? 'an' : 'a', who };
+  const use = details.item === 'shell' || details.item === 'feather' ? 'hat' : 'box';
+  const slots: Record<string, string> = { item, a: /^[aeiou]/.test(item) ? 'an' : 'a', who, use };
   if (details.kind === 'fetch') slots.biome = BIOME_NAMES[details.fromBiome];
   return phrase.replace(/\{(\w+)\}/g, (match, slot: string) => slots[slot] ?? match);
 }

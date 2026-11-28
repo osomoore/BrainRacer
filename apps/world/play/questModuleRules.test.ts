@@ -13,6 +13,7 @@ function setup(): HexLive {
   plan.giver = { id: 'pal', who: 'goat', at: { x: 600, y: 0 } };
   plan.items = [{ id: 'rock', item: 'rock', at: { x: 160, y: 0 } }];
   plan.activities = [];
+  plan.errands = [];
   return { plan, obstacles: new Map(), takenItems: new Set() };
 }
 
@@ -38,9 +39,25 @@ describe('quest runtime rules', () => {
       surfaceAt: () => ({ kind: 'grass', biome: 'rocky', dark: 0, covered: false }),
     };
     const offers = Array.from({ length: 24 }, (_, n) => offerAt(world, live.plan, 20261101 + n, traits));
-    expect(new Set(offers.map(offer => offer?.kind))).toEqual(new Set(['visit', 'fetch']));
+    expect(new Set(offers.map(offer => offer?.kind))).toEqual(new Set(['fetch']));
     expect(offers.every(quest => quest?.item === 'rock')).toBe(true);
     live.takenItems.add('rock');
     expect(offerAt(world, live.plan, 20261127, traits)).toBeUndefined();
+  });
+
+  it('uses the same hand contact for an errand prop whether or not a quest is tracked', () => {
+    const live = setup();
+    const at = { x: 300, y: 0 };
+    live.plan.errands = [{ id: 'frog', kind: 'frog', at }];
+    expect(nearestInteraction([live], at)).toMatchObject({
+      kind: 'errand', contact: { target: 'frog' }, errand: { id: 'frog' },
+    });
+    const apple = { id: 'canopy', item: 'apple', at } as const;
+    live.obstacles.set(apple.id, { id: apple.id, kind: 'appleCanopy', at, radius: 47 });
+    live.plan.errands = [];
+    expect(nearestInteraction([live], at)).toBeUndefined();
+    expect(nearestInteraction([live], at, new Map([[apple.id, apple]]))).toMatchObject({
+      contact: { target: 'item', item: 'apple' },
+    });
   });
 });

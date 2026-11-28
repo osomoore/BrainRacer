@@ -13,7 +13,7 @@ function checkPhrases(level: ReadingLevel, details: QuestTextDetails, place: str
   for (const phrase of QUEST_PHRASES[details.kind][level]) {
     const line = fillQuestPhrase(phrase, details);
     expect(line, phrase).toContain(ITEM_NAMES[details.item]);
-    if (place) expect(line, phrase).toContain(place);
+    if (place && !(details.kind === 'fetch' && level === 'easy')) expect(line, phrase).toContain(place);
     expect(line).not.toMatch(/[{}]|\ba egg\b/);
     expect(line).toMatch(/[.!?]$/);
     if (level === 'starter') {
@@ -37,17 +37,23 @@ describe('quest wording', () => {
         for (const biome of BIOME_IDS) {
           checkPhrases(level, { kind: 'fetch', item, fromBiome: biome, who }, BIOME_NAMES[biome]);
         }
-        checkPhrases(level, { kind: 'visitItem', item, who }, '');
       }
     }
-    checkPhrases(level, { kind: 'visitPond', item: 'duck', who: 'farmer' }, 'pond');
     checkPhrases(level, { kind: 'deliver', item: 'duck', who: 'farmer' }, 'pond');
+    checkPhrases(level, { kind: 'visitPond', item: 'duck', who: 'farmer' }, 'pond');
+    checkPhrases(level, { kind: 'hay', item: 'hay', who: 'farmer' }, 'cow pen');
+    checkPhrases(level, { kind: 'bell', item: 'bell', who: 'farmer' }, '');
+    checkPhrases(level, { kind: 'bear', item: 'bear', who: 'owl' }, '');
+    checkPhrases(level, { kind: 'pathLog', item: 'log', who: 'goat' }, 'path');
+    checkPhrases(level, { kind: 'frog', item: 'frog', who: 'turtle' }, '');
+    checkPhrases(level, { kind: 'apple', item: 'apple', who: 'farmer' }, 'tree');
+    checkPhrases(level, { kind: 'doggy', item: 'doggy', who: 'farmer' }, 'farm');
   });
 
   it('uses the correct article for every item', () => {
     for (const item of ITEM_IDS) {
       const phrase = fillQuestPhrase('Get {a} {item}.', { kind: 'fetch', item, fromBiome: 'meadow', who: 'owl' });
-      const vowelStarts: ItemId[] = ['egg'];
+      const vowelStarts: ItemId[] = ['egg', 'apple'];
       expect(phrase).toBe(`Get ${vowelStarts.includes(item) ? 'an' : 'a'} ${ITEM_NAMES[item]}.`);
     }
   });

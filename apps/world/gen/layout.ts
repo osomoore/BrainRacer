@@ -106,7 +106,7 @@ export class HexLayout {
       && this.clearOfReservations(at, clearance);
   }
 
-  private clearOfReservations(at: Vec, clearance: number): boolean {
+  clearOfReservations(at: Vec, clearance: number): boolean {
     return !this.reserved.some(zone =>
       (at.x - zone.at.x) ** 2 + (at.y - zone.at.y) ** 2 < (zone.radius + clearance) ** 2);
   }
@@ -135,14 +135,15 @@ export class HexLayout {
     return true;
   }
 
-  place(rng: Rng, radius: number, access?: 'path' | 'ground'): Vec | undefined {
+  place(rng: Rng, radius: number, access?: 'path' | 'ground', accepts?: (at: Vec) => boolean): Vec | undefined {
     const start = rng.range(0, 2 * Math.PI);
     for (const range of [0.64, 0.78, 0.50, 0.89, 0.39, 0.28, 0.94]) {
       for (let step = 0; step < 36; step++) {
         const angle = start + step * Math.PI / 18;
         const at = offset(this.plan.center,
           Math.cos(angle) * WORLD.hexSize * range, Math.sin(angle) * WORLD.hexSize * range);
-        if (this.free(at, radius) && this.clearGround(at, radius) && (!access || this.approach(at, access === 'path'))) {
+        if ((!accepts || accepts(at)) && this.free(at, radius) && this.clearGround(at, radius)
+          && (!access || this.approach(at, access === 'path'))) {
           this.reserve(at, radius);
           return at;
         }

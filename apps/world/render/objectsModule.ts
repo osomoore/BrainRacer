@@ -1,13 +1,16 @@
 import Phaser from 'phaser';
 import { WORLD_HOST } from '../config';
 import { DEPTH, type HexLive, type WorldContext, type WorldModule } from '../core/runtime';
-import type { Feature, Vec } from '../core/types';
+import type { ErrandSpotKind, Feature, Vec } from '../core/types';
 import { nearbyHexes } from '../host/liveWorld';
 import { objectTexture } from './objectsArt';
 
 type Image = Phaser.GameObjects.Image;
 type ObjectImage = { id: string; image: Image };
 type Roof = { footprint: Phaser.Geom.Polygon; images: Image[] };
+const errandSize: Record<ErrandSpotKind, number> = {
+  barn: 150, cowPen: 176, hay: 70, bell: 98, bear: 112, frog: 93, doggy: 67,
+};
 type HexImages = {
   live: HexLive;
   props: Image[];
@@ -68,9 +71,13 @@ export default class ObjectsModule implements WorldModule {
     const { plan } = live;
     const images: HexImages = { live, props: [], obstacles: [], items: [], roofs: [] };
     for (const obstacle of live.obstacles.values()) {
-      if (obstacle.gone) continue;
-      const image = this.image(obstacle.kind, obstacle.at, obstacle.radius * 2, DEPTH.objects, true);
+      if (obstacle.gone || obstacle.kind === 'appleCanopy') continue;
+      const size = obstacle.kind === 'appleTree' ? 108 : obstacle.radius * 2;
+      const image = this.image(obstacle.kind, obstacle.at, size, DEPTH.objects, true).setName(obstacle.id);
       images.obstacles.push({ id: obstacle.id, image });
+    }
+    for (const spot of plan.errands ?? []) {
+      images.props.push(this.image(spot.kind, spot.at, errandSize[spot.kind], DEPTH.objects).setName(spot.id));
     }
     for (const item of plan.items) {
       images.items.push({ id: item.id, image: this.image('item', item.at, 56, DEPTH.objects) });
@@ -129,6 +136,8 @@ export default class ObjectsModule implements WorldModule {
       ...images.props, ...images.obstacles.map(o => o.image), ...images.items.map(o => o.image),
       ...images.roofs.flatMap(roof => roof.images),
     ]) {
+      this.ctx.scene.tweens.killTweensOf(image);
+      image.setName('');
       image.setVisible(false);
       this.pool.push(image);
     }

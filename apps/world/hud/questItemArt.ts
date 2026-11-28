@@ -1,15 +1,19 @@
 import type Phaser from 'phaser';
 import type { ItemId } from '../core/types';
+import { objectTexture } from '../render/objectsArt';
 
 const SIZE = 96;
 const INK = 0x182740;
-const colors: Record<ItemId, number> = {
+const colors = {
   rock: 0xa8b6c9, mudPie: 0xb78051, shell: 0xffa9af, pinecone: 0xd09757, snowball: 0xdaf5ff,
   cactusFlower: 0xff87bb, fern: 0x8ee582, crystal: 0x9af4ff, feather: 0xf9eddf,
   egg: 0xffd5a5, duck: 0xffde57, lamb: 0xfbf4e1,
 };
 
 export function questItemTexture(scene: Phaser.Scene, item: ItemId): string {
+  if (item === 'doggy' || item === 'hay' || item === 'apple') return objectTexture(scene, item);
+  if (item === 'bell' || item === 'bear' || item === 'frog') return objectTexture(scene, item);
+  if (item === 'log') return objectTexture(scene, item, true);
   const key = `world-quest-item:${item}`;
   if (scene.textures.exists(key)) return key;
   const g = scene.make.graphics({ x: 0, y: 0 });

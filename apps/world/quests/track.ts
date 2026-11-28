@@ -11,6 +11,7 @@ export interface QuestContact {
   homeId?: string;
   target?: QuestTargetKind;
   item?: ItemId;
+  action?: 'honk' | 'push';
 }
 
 export function localQuestDate(now = new Date()): number {
@@ -39,7 +40,8 @@ export function pickupQuestItem(
   if (carriedCount >= traits.carry) return;
   const index = state.quests.findIndex(({ quest, carrying }) => !carrying && meets(quest.needs, traits) && (deliveryId !== undefined
     ? quest.kind === 'deliver' && quest.id === deliveryId && quest.giverId === contact.giverId
-    : quest.kind === 'fetch' && contact.target === 'item' && quest.item === contact.item && quest.fromBiome === contact.biome));
+    : quest.kind === 'fetch' && contact.target === 'item' && quest.item === contact.item
+      && (quest.fromBiome === undefined || quest.fromBiome === contact.biome)));
   if (index < 0) return;
   const active = state.quests[index];
   state.quests = state.quests.map((entry, i) => i === index ? { ...active, carrying: true } : entry);
@@ -51,8 +53,12 @@ function atGoal(quest: Quest, contact: QuestContact): boolean {
     case 'giver': return contact.giverId === quest.giverId;
     case 'biome': return contact.biome === quest.goal.biome;
     case 'home': return contact.homeId !== undefined;
-    case 'target': return contact.target === quest.goal.target
-      && (quest.goal.target !== 'item' || contact.item === quest.item);
+    case 'target':
+      if (quest.goal.target === 'farm' && contact.target === 'cowPen') return true;
+      if (contact.target !== quest.goal.target) return false;
+      if (quest.goal.target === 'bear') return contact.action === 'honk';
+      if (quest.goal.target === 'pathLog') return contact.action === 'push';
+      return quest.goal.target !== 'item' || contact.item === quest.item;
   }
 }
 

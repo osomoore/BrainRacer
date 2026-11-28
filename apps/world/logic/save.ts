@@ -1,4 +1,4 @@
-import { BIOME_IDS, ITEM_IDS, QUEST_SLOTS, type ActiveQuest, type ReadingLevel, type WorldPlayerSave } from '../core/types';
+import { BIOME_IDS, ITEM_IDS, QUEST_SLOTS, QUEST_TARGET_KINDS, type ActiveQuest, type ReadingLevel, type WorldPlayerSave } from '../core/types';
 import { WORLD_SAVE } from '../config';
 import { CATALOGS } from '../../workshop/content';
 import { defaultModel } from '../../workshop/logic/stats';
@@ -12,6 +12,7 @@ const READINGS = new Set(READING_LEVELS);
 const WORKSHOPS = new Set(WORKSHOP_IDS);
 const BIOMES = new Set<unknown>(BIOME_IDS);
 const ITEMS = new Set<unknown>(ITEM_IDS);
+const VISIT_TARGETS = new Set<unknown>(QUEST_TARGET_KINDS.filter(target => target !== 'farm' && target !== 'cowPen'));
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 function readJson(key: string): unknown {
@@ -60,9 +61,10 @@ function validQuest(raw: unknown): raw is ActiveQuest {
     && (kind === 'visit' || kind === 'fetch' || kind === 'deliver') && ITEMS.has(item)
     && (fromBiome === undefined || BIOMES.has(fromBiome))
     && object(goal) && (kind === 'visit'
-      ? !raw.carrying && goal.kind === 'target' && (goal.target === 'item' || goal.target === 'pond')
+      ? !raw.carrying && goal.kind === 'target' && VISIT_TARGETS.has(goal.target)
       : goal.kind === 'home' || goal.kind === 'giver' || (goal.kind === 'biome' && BIOMES.has(goal.biome))
-        || (kind === 'deliver' && goal.kind === 'target' && goal.target === 'pond'))
+        || (goal.kind === 'target' && (kind === 'deliver' && (goal.target === 'pond' || goal.target === 'farm' && item === 'doggy')
+          || kind === 'fetch' && goal.target === 'cowPen' && item === 'hay')))
     && typeof stars === 'number' && Number.isSafeInteger(stars) && stars > 0
     && object(text) && READING_LEVELS.every(level => typeof text[level] === 'string');
 }
