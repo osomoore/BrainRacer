@@ -1,3 +1,4 @@
+import { WORLD_TERRAIN, WORLD_TERRAIN_RENDER as RENDER } from '../config';
 import type { WorldQuery } from '../core/runtime';
 import type { Feature, HexCoord, HexPlan, RoadPath, SurfaceKind, Vec } from '../core/types';
 import { prepareSurface } from '../gen/surface';
@@ -61,7 +62,10 @@ interface Ground {
   firstX: number;
   firstY: number;
   cells: number;
+  atmosphere: TerrainAtmosphere;
 }
+
+export interface TerrainAtmosphere { dark?: HTMLCanvasElement; heat?: HTMLCanvasElement }
 
 const surfaceSamplers = new WeakMap<HexPlan, ReturnType<typeof prepareSurface>>();
 
@@ -90,6 +94,8 @@ function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number,
   const grid = gridCanvas.createImageData(cells, cells);
   const pixels = grid.data;
   const kind: SurfaceKind[] = [];
+  const dark: number[] = [];
+  const heat: number[] = [];
 
   const sameHex = (a: HexCoord, b: HexCoord) => a.q === b.q && a.r === b.r;
   const lastX = (firstX + cells - 1) * cell;
@@ -115,9 +121,15 @@ function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number,
       const surfaceAt = samplerFor(plan);
       for (; col < end; col++) {
         const gx = firstX + col;
-        const surface = surfaceAt(gx * cell, wy).kind;
+        const sample = surfaceAt(gx * cell, wy);
+        const surface = sample.kind;
         const i = row * cells + col;
         kind.push(surface);
+        if (sample.dark > 0) dark[i] = sample.dark * RENDER.darknessAlpha;
+        if (sample.heat && sample.heat < 1) {
+          const edge = sample.heat / WORLD_TERRAIN.wallThreshold;
+          heat[i] = Math.min(edge, 1, (1 - sample.heat) / (1 - WORLD_TERRAIN.wallThreshold));
+        }
         const [r, g, b] = COLORS[surface];
         const tint = mottling(world.seed, gx, gy);
         const darkwood = plan.biome === 'darkwood' && !travelSurface(surface);
@@ -158,7 +170,21 @@ function bakeGround(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number,
   ctx.imageSmoothingQuality = 'low';
   ctx.drawImage(gridCanvas.canvas, firstX * cell - x - cell / 2, firstY * cell - y - cell / 2,
     cells * cell, cells * cell);
-  return { kind, firstX, firstY, cells };
+
+  const mask = (alphas: number[]): HTMLCanvasElement | undefined => {
+    if (!alphas.length) return;
+    const data = gridCanvas!.createImageData(cells, cells);
+    alphas.forEach((alpha, i) => { data.data[i * 4 + 3] = alpha * 255; });
+    gridCanvas!.putImageData(data, 0, 0);
+    // The terrain image has one pixel of bleed on each edge. The masks are stitched without overlap.
+    const maskSize = Math.ceil((size - 2) * RENDER.atmosphereScale);
+    const result = createCanvas(maskSize, maskSize);
+    result.scale(maskSize / (size - 2), maskSize / (size - 2));
+    result.drawImage(gridCanvas!.canvas, firstX * cell - x - cell / 2 - 1, firstY * cell - y - cell / 2 - 1,
+      cells * cell, cells * cell);
+    return result.canvas;
+  };
+  return { kind, firstX, firstY, cells, atmosphere: { dark: mask(dark), heat: mask(heat) } };
 }
 
 function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number,
@@ -484,7 +510,7 @@ function paintBridge(ctx: CanvasRenderingContext2D, bridge: Feature, shape: Shap
 }
 
 export function bakeTerrain(ctx: CanvasRenderingContext2D, world: WorldQuery, x: number, y: number,
-  size: number, cellSize: number): void {
+  size: number, cellSize: number): TerrainAtmosphere {
   const paths: Route[] = [];
   const roads: Route[] = [];
   const bridges: { feature: Feature; shape: Shape }[] = [];
@@ -507,8 +533,27 @@ export function bakeTerrain(ctx: CanvasRenderingContext2D, world: WorldQuery, x:
   ctx.translate(-x, -y);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  ctx.save();
+  if (ground.kind.some(water)) {
+    // Keep the road shoulders on land so only the deck continues across the water.
+    const dry = new Path2D();
+    const { cells, firstX, firstY, kind } = ground;
+    const left = (firstX - 0.5) * cellSize;
+    for (let row = 0; row < cells; row++) {
+      let start = 0;
+      for (let col = 0; col <= cells; col++) {
+        if (col < cells && !water(kind[row * cells + col])) continue;
+        if (col > start) dry.rect(left + start * cellSize, (firstY + row - 0.5) * cellSize,
+          (col - start) * cellSize, cellSize);
+        start = col + 1;
+      }
+    }
+    ctx.clip(dry);
+  }
   paintRoutes(ctx, paths, true);
   paintRoutes(ctx, roads, false);
+  ctx.restore();
   for (const { feature, shape } of bridges) paintBridge(ctx, feature, shape);
   ctx.restore();
+  return ground.atmosphere;
 }

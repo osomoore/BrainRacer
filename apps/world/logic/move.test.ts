@@ -65,10 +65,10 @@ describe('kinematic driving', () => {
     for (const build of [car, dino]) {
       const sliding = { ...start, vx: 100, vy: 130 };
       const loose = step(sliding, forward, { ...build, [trait]: 0 }, terrain, 0.15);
-      const suited = step(sliding, forward, { ...build, [trait]: 3 }, terrain, 0.15);
+      const suited = step(sliding, forward, { ...build, [trait]: 2 }, terrain, 0.15);
       expect(loose.y).toBeGreaterThan(suited.y);
       expect(loose.vy).toBeGreaterThan(60);
-      expect(suited.vy).toBeLessThan(20);
+      expect(suited.vy).toBe(0);
     }
   });
 
@@ -137,6 +137,46 @@ describe('collisions', () => {
     const lake = world({}, x => x >= 40 ? { ...road, kind: 'deep', biome: 'lake' } : road);
     expect(simulate(forward, car, lake).x).toBeLessThan(40);
     expect(simulate(forward, { ...car, water: 3 }, lake).x).toBeGreaterThan(80);
+  });
+
+  it.each(['dark', 'heat'] as const)('blocks the %s edge on a road, even in flight', wall => {
+    const ability = wall === 'dark' ? 'light' : 'heat';
+    const terrain = world({}, x => x >= 40 ? { ...road, [wall]: 1 } : road);
+    const approach = { ...start, vx: 250 };
+    const bump = step(approach, forward, car, terrain, 0.16);
+    expect(bump.x).toBeLessThan(40);
+    for (const state of [approach, { ...approach, flying: true }, { ...approach, airborne: 0.4 }]) {
+      expect(simulate(forward, car, terrain, state).x).toBeLessThan(40);
+      expect(simulate(forward, { ...car, [ability]: 3 }, terrain, state).x).toBeGreaterThan(100);
+    }
+    expect(simulate({ ...forward, throttle: -1 }, car, terrain, { ...start, x: 65 }).x).toBeLessThan(40);
+  });
+
+  it('pushes a log with either build and moves it faster with the Push Bumper', () => {
+    const log: Obstacle = { ...rock, kind: 'log' };
+    const approach = { ...start, vx: 250 };
+    const terrain = world({ obstacles: [log] });
+    const normal = step(approach, forward, car, terrain, 0.4).obstacleEffects[0];
+    const strong = step(approach, forward, { ...car, pushBumper: 1 }, terrain, 0.4).obstacleEffects[0];
+    expect(normal.at!.x).toBeGreaterThan(log.at.x);
+    expect(strong.at!.x).toBeGreaterThan(normal.at!.x + 20);
+  });
+
+  it.each(['iceBlock', 'bush', 'rock', 'fence', 'crate'])('breaks a %s on contact with the smash trait', kind => {
+    const obstacle = { ...rock, kind };
+    const terrain = world({ obstacles: [obstacle] });
+    expect(step(start, forward, { ...car, push: 3 }, terrain, 0.6).obstacleEffects).toEqual([]);
+    const smashed = step(start, forward, { ...car, smash: 1 }, terrain, 0.6);
+    expect(smashed.obstacleEffects).toEqual([{ obstacle, effect: 'break' }]);
+    expect(smashed.x).toBeGreaterThan(obstacle.at.x + obstacle.radius);
+  });
+
+  it.each(['boulder', 'tree'])('keeps a %s solid for a smash build', kind => {
+    const terrain = world({ obstacles: [{ ...rock, kind, needs: [], effect: 'break' }] });
+    const build = { ...car, smash: 1, push: 3 };
+    expect(step(start, forward, build, terrain, 0.6).obstacleEffects).toEqual([]);
+    expect(simulate(forward, build, terrain).x).toBeLessThan(rock.at.x);
+    expect(simulate(forward, build, terrain, { ...start, flying: true }).x).toBeGreaterThan(rock.at.x);
   });
 });
 

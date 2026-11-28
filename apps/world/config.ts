@@ -29,6 +29,7 @@ export const GEN = {
   lakeRadius: [675, 735],
   lakeLobeOffset: 620,
   lakeShore: 85,
+  bridgeWidth: 112,
   scatterAttempts: 20,
   terrainPatches: {
     meadow: { count: 4, orbit: 670, radius: [125, 192], aspect: [0.6, 1] },
@@ -81,7 +82,7 @@ export const WORLD_SURFACES = {
     handling: [0.94, 1.05, 0.88] },
   rockyRoad: { speed: [0.79, 0.79, 0.79, 0.79], grip: [0.83, 0.83, 0.83, 0.83],
     handling: [0.86, 1.15, 0.93], bumpGripLoss: 0.13, bumpDrag: 0.32 },
-  grass: { speed: [0.9, 0.9, 0.9, 0.9], grip: [0.88, 0.88, 0.88, 0.88] },
+  grass: { speed: [0.75, 1, 1, 1], grip: [0.88, 0.88, 0.88, 0.88] },
   tallGrass: { speed: [0.35, 0.49, 0.72, 0.92], grip: [0.45, 0.65, 0.8, 0.95] },
   sand: { speed: [0.38, 0.52, 0.75, 0.94], grip: [0.45, 0.6, 0.75, 0.9] },
   snow: { speed: [0.29, 0.45, 0.67, 0.9], grip: [0.31, 0.49, 0.7, 0.92] },
@@ -96,6 +97,13 @@ export const WORLD_SURFACES = {
 } as const;
 
 export const WORLD_TERRAIN = {
+  edgeInset: 1 - Math.sqrt(0.95),
+  edgeFade: 118,
+  caveInset: 4,
+  caveFade: 36,
+  wallThreshold: 0.23,
+  wallBounce: 0.09,
+  suitedGrip: 2,
   darkSpeed: [0.24, 0.3, 0.7, 1],
   daylightRadius: 1100,
   darkRadius: [140, 210, 340, 520],
@@ -111,7 +119,11 @@ export const WORLD_TERRAIN_RENDER = {
   bakePerFrame: 2,
   prefetchRings: 2,
   /** Overlay opacity at maximum surface darkness. */
-  darknessAlpha: 0.72,
+  darknessAlpha: 0.93,
+  atmosphereScale: 0.25,
+  heatWaveSpacing: 35,
+  heatWaveSpeed: 1.6,
+  heatWaveAlpha: 0.5,
   /** Light pool radius in world pixels, indexed by the creation's light trait. */
   lightRadius: [0, 145, 245, 365],
 } as const;
@@ -167,6 +179,8 @@ export const WORLD_PLAY = {
   shadow: { offset: 12, airOffset: 36, groundAlpha: 0.44, airAlpha: 0.23, lengthScale: 0.96 },
   bumpCooldown: 0.65,
   pushSpeed: 150,
+  logPushSpeed: [60, 90, 125, 175],
+  bumperPushSpeed: 245,
 } as const;
 
 // --- activities (W7) ---------------------------------------------------------------------------

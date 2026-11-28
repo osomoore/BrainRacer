@@ -14,8 +14,9 @@ describe('creation traits', () => {
     expect(kind).toBe(workshop === 'race' ? 'car' : 'dino');
     expect({ width, height }).toEqual({ width: 2, height: 2 });
     for (const value of [speed, turn, accel]) expect(value).toBeGreaterThan(0);
-    expect(Object.values(abilities).filter(value => value === 1).length).toBeGreaterThan(7);
+    expect(Object.values(abilities).filter(value => value === 1).length).toBeGreaterThan(5);
     expect(Math.max(...Object.values(abilities))).toBe(1);
+    expect(abilities).toMatchObject({ light: 0, heat: 0, smash: 0, raised: 0 });
   });
 
   it('maps car specialties and water gear from Workshop stats and tags', () => {
@@ -26,7 +27,18 @@ describe('creation traits', () => {
     expect(build('race', { extra: 'extra.floats' }).water).toBe(3);
     expect(build('race', { extra: 'extra.winch' })).toMatchObject({ mud: 2, push: 2 });
     expect(build('race', { extra: 'extra.rocket', springs: 'springs.bouncy' }).jump).toBe(3);
-    expect(build('race', { paint: 'paint.yellow', body: 'body.van' })).toMatchObject({ light: 3, carry: 3 });
+    expect(build('race', { paint: 'paint.yellow', body: 'body.van', engine: 'engine.efficient' }))
+      .toMatchObject({ light: 0, heat: 0, carry: 3 });
+  });
+
+  it('gives heat dissipation to cool dinos and smash to the contact parts', () => {
+    expect(build('dino', { color: 'color.sandy' }).heat).toBe(2);
+    expect(build('dino', { body: 'body.slim' }).heat).toBe(2);
+    expect(build('dino', { extra: 'extra.frill', body: 'body.sail' }).heat).toBe(3);
+    expect(build('dino', { head: 'head.horned' }).smash).toBe(1);
+    expect(build('dino', { tail: 'tail.heavy' }).smash).toBe(1);
+    expect(build('race', { bumpers: 'bumpers.pusher' })).toMatchObject({ smash: 1, pushBumper: 1 });
+    expect(build('race', { gears: 'gears.climbing', shape: 'shape.wedge' }).smash).toBe(0);
   });
 
   it('maps dino specialties from Workshop stats and tags', () => {

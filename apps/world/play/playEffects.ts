@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { WORLD_HOST, WORLD_PLAY } from '../config';
 import { DEPTH, type WorldContext, type WorldPlayer } from '../core/runtime';
-import type { Feature, Obstacle, SurfaceKind, Vec } from '../core/types';
+import type { Feature, SurfaceKind, Vec } from '../core/types';
 
 type ParticleKind = 'dust' | 'mud' | 'splash' | 'snow' | 'poof';
 type Particle = { image: Phaser.GameObjects.Image; vx: number; vy: number; life: number; age: number; spin: number };
@@ -32,7 +32,6 @@ export class PlayEffects {
   private readonly shadows: { player: WorldPlayer; viewer: WorldPlayer; image: Phaser.GameObjects.Image }[] = [];
   private readonly off: (() => void)[] = [];
   private readonly signs: { image: Phaser.GameObjects.Image; life: number }[] = [];
-  private readonly bends = new Map<string, { obstacle: Obstacle; life: number; image?: Phaser.GameObjects.Image; scaleY?: number }>();
   private readonly gapBumps = new Map<WorldPlayer, number>();
   private lastPushDust = -Infinity;
 
@@ -47,9 +46,6 @@ export class PlayEffects {
     }
     this.off.push(ctx.bus.on('obstacle:effect', ({ obstacle, effect }) => {
       if (effect === 'break') this.burst('poof', obstacle.at, 8);
-      if (effect === 'pass' && obstacle.kind === 'bush' && !this.bends.has(obstacle.id)) {
-        this.bends.set(obstacle.id, { obstacle, life: BEND_SECONDS });
-      }
       if (effect === 'push' && ctx.time - this.lastPushDust > 0.09) {
         this.lastPushDust = ctx.time;
         this.burst('dust', obstacle.at, 2);
@@ -98,7 +94,6 @@ export class PlayEffects {
       sign.image.setAlpha(Math.min(1, sign.life * 2));
       if (sign.life <= 0) { sign.image.destroy(); this.signs.splice(i, 1); }
     }
-    for (const bend of this.bends.values()) bend.life -= dt;
   }
 
   /** Aim the sign toward the detour from the approach, where both players can see their own cue. */
@@ -127,7 +122,6 @@ export class PlayEffects {
     this.shadows.forEach(({ image }) => image.destroy());
     [...this.particles.map(p => p.image), ...this.pool, ...this.signs.map(s => s.image)].forEach(image => image.destroy());
     this.particles.length = 0; this.pool.length = 0; this.signs.length = 0;
-    this.bends.clear();
     this.gapBumps.clear();
     this.shadows.length = 0;
   }
@@ -162,20 +156,6 @@ export class PlayEffects {
         .setRotation(move.angle)
         .setDisplaySize(length * (1 + Math.min(0.42, move.airborne * 0.6)), width * (1 - Math.min(0.36, move.airborne * 0.45)))
         .setAlpha(move.airborne > 0 ? shadow.airAlpha : shadow.groundAlpha);
-    }
-    for (const [id, bend] of this.bends) {
-      const { x, y } = bend.obstacle.at;
-      if (!bend.image) {
-        bend.image = this.ctx.scene.children.list.find((object): object is Phaser.GameObjects.Image =>
-          object instanceof Phaser.GameObjects.Image && object.visible && object.x === x && object.y === y
-          && object.texture.key === 'world:w5a:obstacle:bush');
-        bend.scaleY = bend.image?.scaleY;
-      }
-      if (bend.image && bend.scaleY !== undefined && bend.image.x === x && bend.image.y === y) {
-        const squash = Math.sin(Math.PI * Math.max(0, bend.life / BEND_SECONDS)) * 0.4;
-        bend.image.scaleY = bend.scaleY * (1 - squash);
-      }
-      if (bend.life <= 0) this.bends.delete(id);
     }
     for (const player of this.ctx.players) {
       if (!player.sprite) continue;
@@ -212,8 +192,6 @@ export class PlayEffects {
     return key;
   }
 }
-
-const BEND_SECONDS = 0.38;
 
 function particleFor(surface: SurfaceKind): ParticleKind | undefined {
   if (surface === 'sand' || surface === 'rough' || surface === 'tallGrass') return 'dust';

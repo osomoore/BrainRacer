@@ -1,6 +1,6 @@
-import { WORLD_DRIVE as DRIVE, WORLD_PLAY as PLAY } from '../config';
+import { WORLD_DRIVE as DRIVE, WORLD_PLAY as PLAY, WORLD_TERRAIN } from '../config';
 import type { Feature, Obstacle, SurfaceSample, Traits, Vec } from '../core/types';
-import { desertFatigue, featurePassable, obstaclePassable, surfaceEffect } from './rules';
+import { desertFatigue, featurePassable, obstacleEffect, obstaclePassable, surfaceEffect, terrainWall } from './rules';
 
 export interface MoveState extends Vec {
   angle: number;
@@ -8,6 +8,8 @@ export interface MoveState extends Vec {
   vy: number;
   /** Seconds left in the current jump. */
   airborne: number;
+  /** Sustained flight can bypass physical obstacles, while atmospheric walls still apply. */
+  flying?: boolean;
   heatFatigue?: number;
   /** Keep while stepping to avoid relaunching and to recover from blocked landings. */
   jump?: { id: string; takeoff: Vec };
@@ -49,7 +51,8 @@ const clamp = (value: number, limit: number): number => Math.max(-limit, Math.mi
 const approach = (value: number, target: number, amount: number): number => value + clamp(target - value, amount);
 
 function drive(state: MoveState, input: MoveInput, traits: Traits, sample: SurfaceSample, dt: number) {
-  const { speedMult, grip, passable, acceleration: traction, drag, lateralGrip } = surfaceEffect(traits.kind, sample, traits);
+  const { speedMult, grip, passable, acceleration: traction, drag, lateralGrip, noSlide } =
+    surfaceEffect(traits.kind, sample, traits);
   // A restored position or a wider swapped build may start in blocked terrain.
   const control = passable ? grip : 1;
   const topSpeed = traits.speed * (passable ? speedMult : 1) * (1 - PLAY.desert.maxPenalty * (state.heatFatigue ?? 0));
@@ -69,7 +72,7 @@ function drive(state: MoveState, input: MoveInput, traits: Traits, sample: Surfa
     const along = dot(velocity, forward);
     const lateral = subtract(velocity, scale(forward, along));
     const speed = approach(along, topSpeed * magnitude, acceleration * (magnitude ? 1 : coast));
-    const slip = Math.max(0, length(lateral) - lateralAmount);
+    const slip = noSlide ? 0 : Math.max(0, length(lateral) - lateralAmount);
     const next = add(scale(forward, speed), scale(unit(lateral), slip));
     return { angle, velocity: scale(unit(next), Math.max(0, length(next) - brake * acceleration * DRIVE.brakeDeceleration)) };
   }
@@ -83,7 +86,7 @@ function drive(state: MoveState, input: MoveInput, traits: Traits, sample: Surfa
   const target = topSpeed * throttle * (throttle < 0 ? DRIVE.reverseSpeed : 1);
   const propelled = approach(along, target, acceleration * (throttle === 0 ? coast : 1));
   const speed = approach(propelled, 0, brake * acceleration * DRIVE.brakeDeceleration);
-  const slip = Math.max(0, length(lateral) - lateralAmount);
+  const slip = noSlide ? 0 : Math.max(0, length(lateral) - lateralAmount);
   return { angle, velocity: add(scale(forward, speed), scale(unit(lateral), slip)) };
 }
 
@@ -132,8 +135,28 @@ function featureBlocks(feature: Feature, traits: Traits, velocity: Vec, airborne
     && dot(unit(velocity), facing(feature.dir)) < DRIVE.jumpAlignment;
 }
 
-function collision(from: Vec, to: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits, radius: number, airborne: number)
+function boundaryNormal(from: Vec, to: Vec, blocked: (at: Vec) => boolean): Vec {
+  const delta = subtract(to, from);
+  const xBlocked = blocked({ x: to.x, y: from.y });
+  const yBlocked = blocked({ x: from.x, y: to.y });
+  return xBlocked === yBlocked ? scale(unit(delta), -1)
+    : xBlocked ? { x: -Math.sign(delta.x), y: 0 } : { x: 0, y: -Math.sign(delta.y) };
+}
+
+function wallAt(world: MoveWorld, at: Vec, traits: Traits) {
+  return terrainWall(world.surfaceAt(at.x, at.y), traits);
+}
+
+function collision(from: Vec, to: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits, radius: number,
+  airborne: number, flying?: boolean)
   : { normal: Vec; bounce: number; feature?: Feature } | undefined {
+  const sample = world.surfaceAt(to.x, to.y);
+  const wall = terrainWall(sample, traits);
+  if (wall && wallAt(world, from, traits) !== wall) {
+    return { normal: boundaryNormal(from, to, point => wallAt(world, point, traits) === wall),
+      bounce: WORLD_TERRAIN.wallBounce };
+  }
+  if (flying) return;
   const delta = subtract(to, from);
   for (const feature of nearby.features ?? []) {
     if (!featureBlocks(feature, traits, delta, airborne)) continue;
@@ -144,24 +167,21 @@ function collision(from: Vec, to: Vec, nearby: NearbySolids, world: MoveWorld, t
   if (airborne > 0) return;
 
   for (const obstacle of nearby.obstacles ?? []) {
-    if (obstaclePassable(obstacle, traits) && obstacle.effect !== 'push') continue;
+    if (obstaclePassable(obstacle, traits) && obstacleEffect(obstacle) !== 'push') continue;
     const next = circleNormal(to, obstacle, radius);
     const normal = circleNormal(from, obstacle, radius) ?? next;
     if (next && normal && dot(delta, normal) < 0) return { normal, bounce: DRIVE.bounce };
   }
 
-  const ground = groundAt(world, to, traits);
+  const ground = surfaceEffect(traits.kind, sample, traits);
   if (ground.passable || !groundAt(world, from, traits).passable) return;
-  const xBlocked = !groundAt(world, { x: to.x, y: from.y }, traits).passable;
-  const yBlocked = !groundAt(world, { x: from.x, y: to.y }, traits).passable;
-  const normal = xBlocked === yBlocked ? scale(unit(delta), -1)
-    : xBlocked ? { x: -Math.sign(delta.x), y: 0 } : { x: 0, y: -Math.sign(delta.y) };
-  return { normal, bounce: ground.bounce ?? 0 };
+  return { normal: boundaryNormal(from, to, point => !groundAt(world, point, traits).passable),
+    bounce: ground.bounce ?? 0 };
 }
 
 function canLand(at: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits, radius: number): boolean {
   return groundAt(world, at, traits).passable
-    && !(nearby.obstacles ?? []).some(obstacle => (!obstaclePassable(obstacle, traits) || obstacle.effect === 'push')
+    && !(nearby.obstacles ?? []).some(obstacle => (!obstaclePassable(obstacle, traits) || obstacleEffect(obstacle) === 'push')
       && circleNormal(at, obstacle, radius))
     && !(nearby.features ?? []).some(feature => (feature.kind === 'jump' && !!feature.needs?.length
       || !featurePassable(feature, traits)) && polygonNormal(at, feature.area, radius));
@@ -170,7 +190,7 @@ function canLand(at: Vec, nearby: NearbySolids, world: MoveWorld, traits: Traits
 /** A pushed prop rests against the first solid. It cannot swim or use a jump. */
 function obstacleClear(obstacle: Obstacle, at: Vec, nearby: NearbySolids, world: MoveWorld): boolean {
   if ((nearby.obstacles ?? []).some(other => other.id !== obstacle.id && other.kind !== 'vent'
-    && other.effect !== 'pass' && circleNormal(at, other, obstacle.radius))) return false;
+    && obstacleEffect(other) !== 'pass' && circleNormal(at, other, obstacle.radius))) return false;
   if ((nearby.features ?? []).some(feature => feature.needs?.length && polygonNormal(at, feature.area, obstacle.radius))) return false;
   const blockedGround = (point: Vec) => {
     const kind = world.surfaceAt(point.x, point.y).kind;
@@ -191,6 +211,7 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
   let at: Vec = { x: state.x, y: state.y };
   let velocity = { x: state.vx, y: state.vy };
   let { angle, airborne, jump } = state;
+  const { flying } = state;
   let heatFatigue = state.heatFatigue ?? 0;
   let blockedFeature: Feature | undefined;
   const count = Math.ceil(dt / Math.min(DRIVE.maxStepSeconds, DRIVE.maxStepDistance / Math.max(traits.speed, length(velocity))));
@@ -217,9 +238,9 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
         input, traits, sample, interval));
     }
     const reach = radius + Math.max(length(velocity), traits.speed) * interval;
-    let nearby = liveSolids(at, reach);
+    let nearby = flying ? {} : liveSolids(at, reach);
     let to = add(at, scale(velocity, interval));
-    if (airborne === 0) {
+    if (airborne === 0 && !flying) {
       if (jump && !nearby.features?.some(f => f.id === jump?.id && polygonNormal(at, f.area, radius))
         && !nearby.obstacles?.some(o => o.kind === 'vent' && o.id === jump?.id && circleNormal(at, o, radius))) jump = undefined;
       const ramp = nearby.features?.find(feature => feature.kind === 'jump' && feature.id !== jump?.id
@@ -242,30 +263,40 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
         airborne = PLAY.ventSeconds;
       }
     }
-    if (airborne === 0) {
+    if (airborne === 0 && !flying) {
       let pushed = false;
       for (const obstacle of nearby.obstacles ?? []) {
-        if (obstacle.effect !== 'push' || !obstaclePassable(obstacle, traits) || !circleNormal(to, obstacle, radius)) continue;
+        if (obstacleEffect(obstacle) !== 'push' || !obstaclePassable(obstacle, traits) || !circleNormal(to, obstacle, radius)) continue;
         const axis = unit(subtract(obstacle.at, at));
-        const speed = Math.min(PLAY.pushSpeed, dot(velocity, axis));
+        const cap = obstacle.kind === 'log'
+          ? (traits.pushBumper ? PLAY.bumperPushSpeed : PLAY.logPushSpeed[traits.push])
+          : PLAY.pushSpeed;
+        const approachSpeed = dot(velocity, axis);
+        const speed = Math.min(cap, approachSpeed);
         if (speed <= 0) continue;
+        const wall = wallAt(world, to, traits);
+        if (wall && terrainWall(sample, traits) !== wall) continue;
         const destination = add(obstacle.at, scale(axis, speed * interval));
         const original = effects.get(obstacle.id)?.obstacle ?? obstacle;
         if (world.obstacleCanMoveTo?.(original, destination) === false ||
           !obstacleClear(obstacle, destination, liveSolids(destination, obstacle.radius), world)) continue;
         effects.set(obstacle.id, { obstacle: original, effect: 'push', at: destination });
+        const clearance = Math.max(0, length(subtract(obstacle.at, at)) - obstacle.radius - radius);
+        const contactSpeed = Math.max(0, speed + clearance / interval - 0.01);
+        velocity = subtract(velocity, scale(axis, Math.max(0, approachSpeed - contactSpeed)));
+        to = add(at, scale(velocity, interval));
         pushed = true;
       }
       if (pushed) nearby = liveSolids(at, reach);
     }
 
-    const hit = collision(at, to, nearby, world, traits, radius, airborne);
+    const hit = collision(at, to, nearby, world, traits, radius, airborne, flying);
     if (hit) {
       blockedFeature ??= hit.feature;
       const normalVelocity = scale(hit.normal, dot(velocity, hit.normal));
       const tangent = subtract(velocity, normalVelocity);
       const slide = add(at, scale(tangent, interval));
-      if (!collision(at, slide, nearby, world, traits, radius, airborne)) at = slide;
+      if (!collision(at, slide, nearby, world, traits, radius, airborne, flying)) at = slide;
       velocity = subtract(tangent, scale(normalVelocity, hit.bounce));
     } else {
       at = to;
@@ -281,11 +312,12 @@ export function step(state: MoveState, input: MoveInput, traits: Traits, world: 
       continue;
     }
     for (const obstacle of nearby.obstacles ?? []) {
-      if (obstacle.effect && obstacle.effect !== 'push' && obstaclePassable(obstacle, traits) && circleNormal(at, obstacle, radius)) {
-        effects.set(obstacle.id, { obstacle, effect: obstacle.effect });
+      const effect = obstacleEffect(obstacle);
+      if (effect && effect !== 'push' && obstaclePassable(obstacle, traits) && circleNormal(at, obstacle, radius)) {
+        effects.set(obstacle.id, { obstacle, effect });
       }
     }
   }
-  return { x: at.x, y: at.y, angle, vx: velocity.x, vy: velocity.y, airborne, jump, heatFatigue,
+  return { x: at.x, y: at.y, angle, vx: velocity.x, vy: velocity.y, airborne, flying, jump, heatFatigue,
     obstacleEffects: [...effects.values()], blockedFeature };
 }

@@ -15,6 +15,8 @@ export interface SurfaceEffect {
   acceleration: number;
   drag: number;
   lateralGrip: number;
+  /** A suitable tire or claw immediately grips in its heading on slippery ground. */
+  noSlide?: boolean;
   passable: boolean;
   /** Normal velocity retained in the opposite direction after a blocked entry. */
   bounce?: number;
@@ -28,7 +30,7 @@ const rules: Record<SurfaceKind, SurfaceRule> = {
   road: { profile: WORLD_SURFACES.open },
   path: { profile: WORLD_SURFACES.open },
   bridge: { profile: WORLD_SURFACES.open },
-  grass: { profile: WORLD_SURFACES.grass },
+  grass: { profile: WORLD_SURFACES.grass, ability: (_, t) => t.raised ? 3 : 0 },
   tallGrass: { profile: WORLD_SURFACES.tallGrass, ability: (_, t) => Math.max(compact(t), t.reach) },
   sand: { profile: WORLD_SURFACES.sand, ability: (_, t) => t.heat },
   snow: { profile: WORLD_SURFACES.snow, ability: (_, t) => Math.max(t.snow, t.cold) },
@@ -51,6 +53,11 @@ const rules: Record<SurfaceKind, SurfaceRule> = {
 
 const unit = (value: number): number => Math.max(0, Math.min(1, value));
 
+export function terrainWall(sample: SurfaceSample, traits: Traits): 'dark' | 'heat' | undefined {
+  if (traits.light === 0 && sample.dark >= WORLD_TERRAIN.wallThreshold) return 'dark';
+  if (traits.heat === 0 && (sample.heat ?? 0) >= WORLD_TERRAIN.wallThreshold) return 'heat';
+}
+
 export function surfaceEffect(kind: Traits['kind'], sample: RoadSurfaceSample, traits: Traits): SurfaceEffect {
   const { profile: baseProfile, ability } = rules[sample.kind];
   const route = sample.kind === 'road' || sample.kind === 'path' ? sample.roadSurface : undefined;
@@ -59,23 +66,29 @@ export function surfaceEffect(kind: Traits['kind'], sample: RoadSurfaceSample, t
   const profile = roadProfile ?? baseProfile;
   const level = ability?.(sample, traits) ?? 0;
   const speedMult = profile.speed[level];
+  if (terrainWall(sample, traits)) return {
+    speedMult: 0, grip: 0, acceleration: 0, drag: 0, lateralGrip: 0, passable: false, bounce: WORLD_TERRAIN.wallBounce,
+  };
   if (speedMult === 0) return {
     speedMult, grip: 0, acceleration: 0, drag: 0, lateralGrip: 0, passable: false, bounce: WORLD_DRIVE.groundBounce,
   };
 
   const darkPenalty = baseProfile === WORLD_SURFACES.open ? 0 : unit(sample.dark) * (1 - WORLD_TERRAIN.darkSpeed[traits.light]);
   const bump = rocky ? unit(sample.roadRoughness ?? 0) : 0;
-  const grip = Math.min(1, profile.grip[level] + (kind === 'dino' ? WORLD_TERRAIN.dinoGripBonus : 0))
+  const sureFooted = level >= WORLD_TERRAIN.suitedGrip
+    && (sample.kind === 'ice' || sample.kind === 'mud' || sample.kind === 'deepMud');
+  const grip = sureFooted ? 1 : Math.min(1, profile.grip[level] + (kind === 'dino' ? WORLD_TERRAIN.dinoGripBonus : 0))
     - (rocky?.bumpGripLoss ?? 0) * bump;
   const handling: Partial<Record<SurfaceKind, readonly [number, number, number]>> = WORLD_PLAY.handling;
   const [acceleration, drag, lateralGrip] = roadProfile?.handling ?? handling[sample.kind] ?? [1, 1, 1];
-  const suited = level / 3;
+  const suited = sureFooted ? 1 : level / 3;
   return {
     speedMult: speedMult * (1 - darkPenalty),
     grip,
     acceleration: acceleration + (1 - acceleration) * suited,
     drag: drag + (1 - drag) * suited + (rocky?.bumpDrag ?? 0) * bump,
     lateralGrip: lateralGrip + (1 - lateralGrip) * suited,
+    noSlide: sureFooted,
     passable: true,
   };
 }
@@ -89,10 +102,25 @@ export function desertFatigue(current: number, sample: SurfaceSample, traits: Tr
 }
 
 export function meets(needs: readonly TraitNeed[] | undefined, traits: Traits): boolean {
-  return needs?.every(({ trait, min, max }) => traits[trait] >= (min ?? -Infinity) && traits[trait] <= (max ?? Infinity)) ?? true;
+  return needs?.every(({ trait, min = -Infinity, max = Infinity }) => {
+    const value = traits[trait] ?? 0;
+    return value >= min && value <= max;
+  }) ?? true;
+}
+
+const breakable = new Set(['iceBlock', 'bush', 'rock', 'fence', 'crate']);
+
+export function obstacleEffect(obstacle: Obstacle): Obstacle['effect'] {
+  if (obstacle.kind === 'boulder' || obstacle.kind === 'tree') return;
+  if (breakable.has(obstacle.kind)) return 'break';
+  if (obstacle.kind === 'log') return 'push';
+  return obstacle.effect;
 }
 
 export function obstaclePassable(obstacle: Obstacle, traits: Traits): boolean {
+  if (obstacle.kind === 'boulder' || obstacle.kind === 'tree') return false;
+  if (breakable.has(obstacle.kind)) return !!traits.smash;
+  if (obstacle.kind === 'log') return meets(obstacle.needs, traits);
   return obstacle.kind === 'vent' || (obstacle.needs !== undefined && meets(obstacle.needs, traits));
 }
 
