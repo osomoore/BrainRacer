@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { isMobile } from '../../../shared/device';
 import type { WorkshopAudio } from '../core/runtime';
 import type { DeviceId } from '../../../shared/input/deviceInput';
+import type { HandoffPlayer } from '../../../shared/handoff';
 import { createWorkshopAudio } from '../audio';
 import { STAGE, WS_RUN } from '../config';
 import { engine } from '../logic';
@@ -64,7 +65,9 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
       store.setDevice({ version: 1, adminMode: on });
       shell.sandboxes.clear();
     },
-    startPanes(devices: readonly DeviceId[]) {
+    resume: [],
+    startPanes(devices: readonly DeviceId[], resume: readonly HandoffPlayer[] = []) {
+      shell.resume = resume;
       shell.count = devices.length >= 2 ? 2 : 1;
       router.devices = devices.slice(0, shell.count);
       router.clearQueues();
@@ -72,6 +75,7 @@ export function createWorkshopGame(parent: HTMLElement): Phaser.Game {
       shell.mixer.count = shell.count;
       shell.mixer.clear();
       game.scene.stop('title');
+      if (!game.scene.isActive('overlay')) game.scene.start('overlay');
       game.scene.start('pane0', { count: shell.count });
       if (shell.count === 2) game.scene.start('pane1', { count: 2 });
     },

@@ -5,7 +5,6 @@
  */
 import type Phaser from 'phaser';
 import { animateBuddyIdle, bakeBuddyTextures } from '../../../shared/buddies';
-import { goToGame } from '../../../shared/hub';
 import { playWorkshopSfx } from '../audio';
 import { WS_BUDDIES, WS_UI } from '../config';
 import type { ModelRig, PaneContext, Screen, ScreenFactory } from '../core/runtime';
@@ -24,6 +23,8 @@ import { aspectIconTexture, bubbleTexture, starTexture } from './room/icons';
 import { currentProgress } from './room/progress';
 import { dist, roomLayout, standOf, type Point } from './room/layout';
 import { isBackGuarded } from './backGuard';
+import { shell } from '../shell/shell';
+import { goToWorld } from '../shell/worldSwap';
 import { roomReferenceFit } from './modelFit';
 
 const roomScreen: ScreenFactory = (): Screen => {
@@ -172,10 +173,23 @@ const roomScreen: ScreenFactory = (): Screen => {
 
       group = new FocusGroup({ audio: ctx.audio, touch: ctx.input.touch });
       const fromWorld = new URLSearchParams(location.search).get('from') === 'world';
-      const returnButton = fromWorld ? addTouchBackButton(scene, () => goToGame('world'),
-        { x: ctx.layout === 'tall' ? ctx.size.w / 2 : ctx.size.w - 180, y: 72, w: 320, h: 100, fontSize: 44 }, 'Back to World').setDepth(140) : undefined;
-      if (returnButton) objs.push(returnButton);
-      group.set([...signs, buddies, board, ...(returnButton ? [returnButton] : [])]);
+      const swap = () => {
+        if (busy || popup) return;
+        if (shell.count < 2) { goToWorld(); return; }
+        popup = new Confirm(scene, {
+          cx: ctx.size.w / 2, cy: ctx.size.h / 2, w: Math.min(ctx.size.w - 80, 900),
+          text: 'Take both players to the World?', yes: 'Yes', no: 'No', defaultYes: true,
+          audio: ctx.audio, touch: ctx.input.touch, depth: 500,
+          onYes: () => { popup = undefined; goToWorld(); },
+          onNo: () => { popup = undefined; },
+        });
+      };
+      const wb = WS_UI.worldButton;
+      const returnButton = addTouchBackButton(scene, swap,
+        { x: ctx.layout === 'tall' ? ctx.size.w - wb.w / 2 - 20 : ctx.size.w - 180, y: ctx.layout === 'tall' ? wb.y - 10 : wb.y, w: wb.w, h: wb.h, fontSize: wb.fontSize },
+        fromWorld ? 'Back to World' : 'Go to World').setDepth(140);
+      objs.push(returnButton);
+      group.set([...signs, buddies, board, returnButton]);
       const from = data.from;
       const fi = L.stations.findIndex((st) => st.aspect === from);
       group.focus(from === 'buddies' ? buddies : fi >= 0 ? signs[fi] : board);

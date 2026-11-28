@@ -4,6 +4,7 @@ import { reduceJoin, emptyJoin, goButtonLabel, type JoinState } from '../../work
 import { Button } from '../../workshop/ui/Button';
 import type { DeviceId, DeviceInput } from '../../../shared/input/deviceInput';
 import { WORLD } from '../config';
+import type { WorldPlayer } from './WorldScene';
 import { bigText, FONT_HEAD, MENU } from '../../../shared/ui/menu/style';
 
 /** Device join screen shared by keyboard layouts and gamepads. */
@@ -13,9 +14,17 @@ export class TitleScene extends Phaser.Scene {
   private statusText?: Phaser.GameObjects.Text;
   private cards: Phaser.GameObjects.Text[] = [];
 
-  constructor(private readonly devices: DeviceInput, private readonly mobile: boolean) { super('Title'); }
+  /** `resume`: players handed over by the Workshop; they skip the join and profile screens. Used once. */
+  constructor(private readonly devices: DeviceInput, private readonly mobile: boolean, private resume: readonly WorldPlayer[] = []) { super('Title'); }
 
   create(): void {
+    if (this.resume.length) {
+      const players = this.resume;
+      this.resume = [];
+      this.leaving = true;
+      this.scene.start('World', { players, resume: true });
+      return;
+    }
     this.join = emptyJoin;
     this.leaving = false;
     this.cards = [];

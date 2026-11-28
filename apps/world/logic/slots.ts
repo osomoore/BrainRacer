@@ -30,3 +30,18 @@ export function takeCopy(profileId: string, save: WorldPlayerSave, which: 'prima
   const copy: CreationSlot = { source: 'copy', workshop: creation.workshop, model: creation.model };
   return { ...save, [which]: copy };
 }
+
+/**
+ * Makes the slot for `workshop` the driven one (Workshop hand-off: the player just came from that room).
+ * Prefers the slot already in use, then the other slot; otherwise a new live slot goes into the free one
+ * (never overwriting a frozen copy).
+ */
+export function useWorkshop(save: WorldPlayerSave, workshop: WorkshopId): WorldPlayerSave {
+  const current = save.using === 'alternate' && save.alternate ? save.alternate : save.primary;
+  if (current.workshop === workshop) return save;
+  if (save.using === 'primary' && save.alternate?.workshop === workshop) return { ...save, using: 'alternate' };
+  if (save.using === 'alternate' && save.primary.workshop === workshop) return { ...save, using: 'primary' };
+  const live: CreationSlot = { source: 'live', workshop };
+  if (!save.alternate) return { ...save, alternate: live, using: 'alternate' };
+  return save.using === 'primary' ? { ...save, alternate: live, using: 'alternate' } : { ...save, primary: live, using: 'primary' };
+}

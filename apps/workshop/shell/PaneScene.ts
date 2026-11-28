@@ -62,7 +62,23 @@ export class PaneScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.PAUSE, this.onScenePause, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.onSceneResume, this);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
-    this.mount('profile', {});
+    const start = this.startScreen();
+    this.mount(start.id, start.data);
+  }
+
+  /** Normal start is the profile picker; a World hand-off already knows the profile and the workshop. */
+  private startScreen(): HistoryEntry {
+    const handed = shell.resume[this.index];
+    const id = handed ? resolveActiveProfileId(handed.profileId) : undefined;
+    if (!handed || !id) return { id: 'profile', data: {} };
+    this.profileId = id;
+    if (!shell.store.hasPlayer(id)) return { id: 'reading', data: {} };
+    if (!handed.workshop) return { id: 'pickWorkshop', data: {} };
+    const ws: WorkshopId = handed.workshop === 'dino' ? 'dino' : 'race';
+    this.workshopId = ws;
+    const save = this.ctx.save();
+    this.ctx.commit({ ...save, lastWorkshop: ws, workshops: { ...save.workshops, [ws]: engine.progressOf(save, ws) } });
+    return { id: 'room', data: {} };
   }
 
   private makeContext(w: number): ShellPaneContext {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { goToGame } from '../../../shared/hub';
+import { writeHandoff } from '../../../shared/handoff';
 import type { DeviceId, DeviceInput } from '../../../shared/input/deviceInput';
 import { listProfiles, type PlayerProfile } from '../../../shared/profiles';
 import { WORLD_HOST, WORLD_SAVE } from '../config';
@@ -14,11 +15,12 @@ import { FallbackGround } from '../host/fallbackGround';
 import { LiveWorld } from '../host/liveWorld';
 import { loadPlayerSave, readingOf, savePlayerSave } from '../logic/save';
 import { worldSeed } from '../logic/seed';
-import { activeCreation } from '../logic/slots';
+import { activeCreation, useWorkshop } from '../logic/slots';
 import { traitsOf } from '../logic/traits';
+import type { WorkshopId } from '../../workshop/core/types';
 
 /** ProfileScene's selection payload. The scene resolves these selections into runtime players. */
-export interface WorldPlayer { profile: PlayerProfile; device: DeviceId }
+export interface WorldPlayer { profile: PlayerProfile; device: DeviceId; /** Workshop hand-off: the build this player was just working on. */ workshop?: WorkshopId }
 
 const moduleFiles = import.meta.glob<{ default: WorldModuleClass }>('../{input,render,play,activities,hud}/**/*Module.ts', { eager: true });
 const modules = Object.entries(moduleFiles)
@@ -49,7 +51,7 @@ export class WorldScene extends Phaser.Scene {
     this.quick = quick;
   }
 
-  create(data: { players?: readonly WorldPlayer[] } = {}): void {
+  create(data: { players?: readonly WorldPlayer[]; resume?: boolean } = {}): void {
     const selections = data.players ?? this.quick;
     if (!selections?.length) { this.scene.start('Title'); return; }
     if (!data.players) this.scene.stop('Title');
@@ -60,9 +62,14 @@ export class WorldScene extends Phaser.Scene {
     const home = hexToWorld(gen.homeFor(selections[0].profile.id)!);
     const players = selections.map(({ profile }, i): LivePlayer => {
       const index = i as 0 | 1;
-      const save = loadPlayerSave(profile.id);
+      let save = loadPlayerSave(profile.id);
+      const handed = selections[i].workshop;
+      if (handed) {
+        const next = useWorkshop(save, handed);
+        if (next !== save) save = savePlayerSave(profile.id, next);
+      }
       const creation = activeCreation(profile.id, save);
-      const spawn = (selections.length === 1 ? save.last : undefined) ?? {
+      const spawn = (selections.length === 1 || data.resume ? save.last : undefined) ?? {
         x: home.x, y: home.y + (i - (selections.length - 1) / 2) * WORLD_HOST.spawnSpacing, angle: 0,
       };
       return {
@@ -135,6 +142,8 @@ export class WorldScene extends Phaser.Scene {
     const persistAll = () => players.forEach(persist);
     const offWorkshop = bus.on('nav:workshop', () => {
       persistAll();
+      writeHandoff({ to: 'workshop', players: players.map(p => ({ profileId: p.profileId, device: deviceIds[p.index],
+        workshop: p.creation.workshop === 'dino' ? 'dino' : 'car' })) });
       goToGame('workshop', '?from=world');
     });
     const offRespawn = bus.on('player:respawn', ({ player }) => followPlayer(player, 0));

@@ -3,6 +3,7 @@
  * any scene runs, so scenes can import `shell` safely.
  */
 import type Phaser from 'phaser';
+import type { HandoffPlayer } from '../../../shared/handoff';
 import type { DeviceId } from '../../../shared/input/deviceInput';
 import type { WorkshopAudio } from '../core/runtime';
 import type { AudioMixer } from './audioMixer';
@@ -29,7 +30,10 @@ export interface Shell {
   adminOpen: boolean;
   adminMode(): boolean;
   setAdminMode(on: boolean): void;
-  startPanes(devices: readonly DeviceId[]): void;
+  /** Per-pane hand-off from the World (profile + workshop), consumed by the pane's first screen. */
+  resume: readonly (HandoffPlayer | undefined)[];
+  /** `resume` skips the profile screen: each pane opens its player's workshop room. */
+  startPanes(devices: readonly DeviceId[], resume?: readonly HandoffPlayer[]): void;
   toTitle(fromBoot?: boolean): void;
   /** Opens the grown-up admin (gate = ask the multiplication question first: gear). */
   openAdmin(gate: boolean): void;
