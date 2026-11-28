@@ -26,6 +26,13 @@ export const ITEM_NAMES: Record<ItemId, string> = {
   egg: 'egg',
   duck: 'duck',
   lamb: 'lamb',
+  doggy: 'doggy',
+  hay: 'hay',
+  apple: 'apple',
+  bell: 'bell',
+  bear: 'bear',
+  log: 'log',
+  frog: 'frog',
 };
 
 export const GIVER_NAMES = {
@@ -37,43 +44,64 @@ export const GIVER_NAMES = {
 
 export const OTHER_GIVER = 'your pal';
 export const QUEST_PHRASES = {
-  visitItem: {
-    starter: ['Go see {a} {item}.'],
-    easy: ['Go find {a} {item} and see it.'],
-    medium: ['Look for {a} {item} and go take a close look.'],
-    hard: ['Search for {a} {item} out there and take a good close look at it.'],
-  },
   visitPond: {
-    starter: ['Go to the pond. Help the ducks.'],
-    easy: ['Feed the ducks at the pond.'],
-    medium: ['Head to a pond and feed the ducks there.'],
-    hard: ['Find a duck pond and stop by to feed the ducks.'],
+    starter: ['The ducks need a snack. Go to the pond. Help them.'],
+    easy: ['Hungry ducks! Feed them at a pond.'],
+    medium: ['The ducks are hungry. Feed them at a pond.'],
+    hard: ['The ducks are hungry. Find a pond and feed them a snack.'],
   },
   fetch: {
-    starter: [
-      'Go to the {biome}. Get {a} {item}. Bring it back.',
-      'Drive to the {biome}. Pick up {a} {item}. Bring it back.',
-      'Go to the {biome}. Grab {a} {item}. Go back with it.',
-    ],
-    easy: [
-      'Bring me {a} {item} from {biome}.',
-      'Bring {a} {item} back from {biome}.',
-    ],
-    medium: [
-      'Find {a} {item} in the {biome}, then bring it back.',
-      'Head to the {biome} for {a} {item}, then come back.',
-      'Pick up {a} {item} in {biome} and come back.',
-    ],
-    hard: [
-      'Look for {a} {item} in the {biome}, then bring it back to {who}.',
-      'When you find {a} {item} in the {biome}, take it back to {who}.',
-      'Head to {biome} and pick up {a} {item} to bring back to {who}.',
-    ],
+    starter: ['It is for the {use}. Try the {biome}. Get {a} {item}. Bring it back.'],
+    easy: ['Bring me {a} {item} for my {use}.'],
+    medium: ['For my {use}, bring me {a} {item}. Try the {biome}.'],
+    hard: ['I need {a} {item} for my {use}. Try {biome}, then bring it back.'],
   },
   deliver: {
-    starter: ['Get the duck here. Go to the pond.'],
-    easy: ['Take my duck to the pond.'],
-    medium: ['Pick up my duck and give it a ride to a pond.'],
-    hard: ['Pick up my duck, then give it a ride to a pond.'],
+    starter: ['The duck can swim. Pick it up here. Take it to the pond.'],
+    easy: ['Swim time! Drive my duck to the pond.'],
+    medium: ['My duck wants a swim. Carry it to a pond.'],
+    hard: ['My duck wants a swim. Pick it up and give it a ride to a pond.'],
+  },
+  hay: {
+    starter: ['The cows need hay. Pick up the hay. Go to the cow pen. Drop it there.'],
+    easy: ['Hungry cows! Take hay to a cow pen.'],
+    medium: ['Hungry cows! Pick up hay. Drop it at any cow pen.'],
+    hard: ['Our cows are hungry. Pick up a hay bale and drop it at any cow pen.'],
+  },
+  bell: {
+    starter: ['The sun is up. Ring the bell.'],
+    easy: ['Time to eat! Ring a bell.'],
+    medium: ['Dinner is ready. Find a farm or camp bell and ring it.'],
+    hard: ['Dinner is ready. Ring a bell at a farm or camp so everyone knows.'],
+  },
+  bear: {
+    starter: ['The bear is asleep. Honk or roar. Wake it up.'],
+    easy: ['Bear overslept. Honk or roar near the bear.'],
+    medium: ['The bear slept in. Honk or roar nearby to wake it.'],
+    hard: ['The bear missed breakfast. Honk or roar near one in Snowy Hills or by Dark Woods.'],
+  },
+  pathLog: {
+    starter: ['The log is stuck. Push it off the path.'],
+    easy: ['Stuck log! Push it off the path.'],
+    medium: ['A log is in the way. Push it off the path.'],
+    hard: ['A log is in the way. Push it off the path so we can pass.'],
+  },
+  frog: {
+    starter: ['Go to the frog. Help it hop.'],
+    easy: ['The frog is shy. Go say hi.'],
+    medium: ['The frog wants a friend. Say hi by its lily pad.'],
+    hard: ['The frog could use a friend. Say hi to one in Lake or Mud Marsh.'],
+  },
+  apple: {
+    starter: ['I need an apple. Bump the apple tree. Pick it up. Bring it back.'],
+    easy: ['Snack time! Bump an apple tree. Bring one.'],
+    medium: ['I need a snack. Bump an apple tree. Bring one back.'],
+    hard: ['I need a snack. Bump an apple tree, pick up an apple, and bring it back.'],
+  },
+  doggy: {
+    starter: ['Help the doggy get home. Pick it up here. Go to a farm. Drop it off.'],
+    easy: ['Lost doggy! Take it to a farm.'],
+    medium: ['This doggy is lost. Pick it up and drive to a farm.'],
+    hard: ['This doggy lost its way. Pick it up here and take it to any farm.'],
   },
 } as const satisfies Record<string, Record<ReadingLevel, readonly string[]>>;

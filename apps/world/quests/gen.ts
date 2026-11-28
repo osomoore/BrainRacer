@@ -1,5 +1,5 @@
 import { Rng } from '../../workshop/core/rng';
-import type { BiomeId, HexCoord, ItemId, Quest, QuestGiverSpot, Traits } from '../core/types';
+import type { BiomeId, HexCoord, ItemId, Quest, QuestGiverSpot, QuestTargetKind, Traits } from '../core/types';
 import { meets } from '../logic/rules';
 import { questText, type QuestTextDetails } from './text';
 
@@ -9,9 +9,11 @@ export function questId(giverId: string, date: number): string {
 
 type NearbyItem = { item: ItemId; biome: BiomeId };
 
+export type QuestPlace = Exclude<QuestTargetKind, 'item'> | 'hay' | 'apple';
+
 export function questFor(
   seed: number, giver: QuestGiverSpot, giverHex: HexCoord, date: number,
-  items: readonly NearbyItem[], hasPond: boolean, traits: Traits,
+  items: readonly NearbyItem[], places: ReadonlySet<QuestPlace>, traits: Traits,
 ): Quest | undefined {
   const id = questId(giver.id, date);
   let hash = seed;
@@ -19,34 +21,34 @@ export function questFor(
   const rng = new Rng(hash);
   const base = { id, giverId: giver.id, giverHex: { ...giverHex }, stars: 1 };
   type Offer = { quest: Omit<Quest, 'text'>; details: QuestTextDetails };
-  const visits: Offer[] = [];
+  const offers: Offer[] = [];
   const fetches: Offer[] = [];
-  const deliveries: Offer[] = [];
 
-  if (hasPond) {
-    visits.push({
-      quest: { ...base, kind: 'visit', item: 'duck', goal: { kind: 'target', target: 'pond' } },
-      details: { kind: 'visitPond', item: 'duck', who: giver.who },
-    });
-    deliveries.push({
-      quest: { ...base, kind: 'deliver', item: 'duck', goal: { kind: 'target', target: 'pond' } },
-      details: { kind: 'deliver', item: 'duck', who: giver.who },
-    });
-  }
+  const add = (type: Quest['kind'], item: ItemId, goal: Quest['goal'], kind: Exclude<QuestTextDetails['kind'], 'fetch'>) => {
+    offers.push({ quest: { ...base, kind: type, item, goal }, details: { kind, item, who: giver.who } });
+  };
+  const target = (kind: Quest['kind'], item: ItemId, target: QuestTargetKind, phrase: Exclude<QuestTextDetails['kind'], 'fetch'>) =>
+    add(kind, item, { kind: 'target', target }, phrase);
+  const farmer = giver.who === 'farmer';
+  if (places.has('pond') && traits.carry > 0) target('deliver', 'duck', 'pond', 'deliver');
+  if (places.has('farm') && traits.carry > 0) target('deliver', 'doggy', 'farm', 'doggy');
+  if (farmer && traits.carry > 0 && places.has('cowPen') && places.has('hay')) target('fetch', 'hay', 'cowPen', 'hay');
+  if (farmer && places.has('bell')) target('visit', 'bell', 'bell', 'bell');
+  if (giver.who === 'owl' && places.has('bear')) target('visit', 'bear', 'bear', 'bear');
+  if ((farmer || giver.who === 'goat') && places.has('pathLog')) target('visit', 'log', 'pathLog', 'pathLog');
+  if (giver.who === 'turtle' && places.has('frog')) target('visit', 'frog', 'frog', 'frog');
+  if (farmer && places.has('apple') && traits.carry > 0) add('fetch', 'apple', { kind: 'giver' }, 'apple');
+  if (places.has('pond')) target('visit', 'duck', 'pond', 'visitPond');
   for (const { item, biome } of items) {
-    visits.push({
-      quest: { ...base, kind: 'visit', item, goal: { kind: 'target', target: 'item' } },
-      details: { kind: 'visitItem', item, who: giver.who },
-    });
     const needs = item === 'cactusFlower' ? [{ trait: 'reach', min: 2 }] as const : [];
-    if (!meets(needs, traits)) continue;
+    if (traits.carry <= 0 || !meets(needs, traits)) continue;
     fetches.push({
-      quest: { ...base, kind: 'fetch', item, fromBiome: biome, goal: { kind: 'giver' }, needs: [...needs] },
+      quest: { ...base, kind: 'fetch', item, goal: { kind: 'giver' }, needs: [...needs] },
       details: { kind: 'fetch', item, fromBiome: biome, who: giver.who },
     });
   }
-  const available = [visits, fetches, deliveries].filter(offers => offers.length > 0);
-  if (!available.length) return;
-  const { quest, details } = rng.pick(rng.pick(available));
+  if (fetches.length) offers.push(rng.pick(fetches));
+  if (!offers.length) return;
+  const { quest, details } = rng.pick(offers);
   return { ...quest, text: questText(rng, details) };
 }

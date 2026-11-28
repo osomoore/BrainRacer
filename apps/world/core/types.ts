@@ -182,6 +182,9 @@ export interface TreasureSpot { id: string; at: Vec; stars: number; needs: Trait
 /** A pickup-able quest item lying in the world (rock in rocky biome, shell by the lake ...). */
 export interface ItemSpot { id: string; item: ItemId; at: Vec }
 
+export type ErrandSpotKind = 'barn' | 'cowPen' | 'hay' | 'bell' | 'bear' | 'frog' | 'doggy';
+export interface ErrandSpot { id: string; kind: ErrandSpotKind; at: Vec }
+
 /** Everything in one hex. Pure function of (world seed, coord). */
 export interface HexPlan {
   coord: HexCoord;
@@ -196,6 +199,7 @@ export interface HexPlan {
   obstacles: Obstacle[];
   activities: ActivitySite[];
   items: ItemSpot[];
+  errands?: ErrandSpot[];
   giver?: QuestGiverSpot;
   home?: HomeBase;
   treasure?: TreasureSpot;
@@ -207,11 +211,12 @@ export interface HexPlan {
 
 export const ITEM_IDS = [
   'rock', 'mudPie', 'shell', 'pinecone', 'snowball', 'cactusFlower', 'fern', 'crystal', 'feather', 'egg',
-  'duck', 'lamb',
+  'duck', 'lamb', 'doggy', 'hay', 'apple', 'bell', 'bear', 'log', 'frog',
 ] as const;
 export type ItemId = typeof ITEM_IDS[number];
 
-export type QuestTargetKind = 'item' | 'pond';
+export const QUEST_TARGET_KINDS = ['item', 'pond', 'farm', 'cowPen', 'bell', 'bear', 'pathLog', 'frog'] as const;
+export type QuestTargetKind = typeof QUEST_TARGET_KINDS[number];
 
 export type QuestGoal =
   | { kind: 'giver' }                       // bring it back to the quest giver

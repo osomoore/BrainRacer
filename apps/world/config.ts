@@ -53,6 +53,18 @@ export const GEN = {
   targetDistance: 90,
   featureRadius: 315,
   placementClearance: 20,
+  errands: {
+    farmChance: { meadow: 1 / 6, rocky: 1 / 15, snow: 1 / 15 },
+    farmRadius: 195,
+    bearChance: 0.6,
+    frogChance: 0.7,
+    appleChance: 0.7,
+    appleTrunk: 26,
+    appleCanopy: 47,
+    pathLogChance: 0.65,
+    pathLogRadius: 20,
+    pathLogShoulderOffset: 10,
+  },
 } as const;
 
 // --- traits + movement (W2) --------------------------------------------------------------------
@@ -139,6 +151,9 @@ export const QUESTS = {
   duckChance: 0.5,
   stars: { fetch: 3, deliver: 2 },
   wordLimit: { starter: 5, easy: 8, medium: 12, hard: 16 },
+  bearRadius: 185,
+  appleDropDistance: 84,
+  appleRegrowSeconds: 1.5,
 } as const;
 
 // --- scene host (W5a) -------------------------------------------------------------------------

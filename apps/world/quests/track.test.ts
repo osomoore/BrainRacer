@@ -73,4 +73,28 @@ describe('quest contact', () => {
     expect(canOffer(save, 'owl', 'easy', date)).toBe(true);
     expect(completeQuest(save, { biome: 'meadow', homeId: 'camp' })).toEqual(quest);
   });
+
+  it.each([
+    ['bear', 'bear', 'honk'],
+    ['log', 'pathLog', 'push'],
+  ] as const)('reloads %s errands and requires the right action', (item, target, action) => {
+    const quest = makeQuest(item, { kind: 'visit', item, goal: { kind: 'target', target } });
+    const save = normalizePlayerSave({ quests: [{ quest, carrying: false }] });
+    expect(save.quests).toHaveLength(1);
+    expect(completeQuest(save, { biome: 'meadow', target })).toBeUndefined();
+    expect(completeQuest(save, { biome: 'meadow', target, action })).toEqual(quest);
+  });
+
+  it.each([['hay', 'fetch'], ['doggy', 'deliver'], ['apple', 'fetch']] as const)(
+    'reloads carried %s and completes it at the right place', (item, kind) => {
+      const goal = item === 'apple' ? { kind: 'giver' } as const
+        : { kind: 'target', target: item === 'doggy' ? 'farm' : 'cowPen' } as const;
+      const quest = makeQuest('farmer', { item, kind, goal });
+      const save = normalizePlayerSave({ quests: [{ quest, carrying: true }] });
+      expect(save.quests).toHaveLength(1);
+      expect(completeQuest(save, { biome: 'meadow', target: 'pond' })).toBeUndefined();
+      const contact = item === 'apple' ? { giverId: 'farmer' } : { target: 'cowPen' as const };
+      expect(completeQuest(save, { biome: 'snow', ...contact })).toEqual(quest);
+    },
+  );
 });

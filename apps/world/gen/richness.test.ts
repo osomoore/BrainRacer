@@ -7,6 +7,7 @@ import { BIOME_IDS, type BiomeId, type HexPlan, type Obstacle, type Vec } from '
 import { featurePassable, obstaclePassable, surfaceEffect } from '../logic/rules';
 import { traitsOf } from '../logic/traits';
 import { COVERAGE_KIND, offRoadCoverage } from './coverage';
+import { isPathLog, touchesPath } from './errandSites';
 import { circleBounds, inPolygon, polygonDistanceSquared, SpatialGrid } from './geometry';
 import { hexKey } from './hex';
 import { hexInset } from './layout';
@@ -135,7 +136,13 @@ describe('world terrain richness', () => {
       }
       for (const obstacle of plan.obstacles) {
         const clearance = obstacle.radius + GEN.placementClearance;
-        expect(plan.roads.some(road => roadOverlap(road, obstacle.at, clearance)), obstacle.id).toBe(false);
+        if (isPathLog(obstacle)) {
+          expect(touchesPath(plan, obstacle), obstacle.id).toBe(true);
+          expect(plan.roads.some(road => roadOverlap(road, obstacle.at, road.kind === 'path'
+            ? obstacle.radius + Math.max(...WORLD_DRIVE.colliderRadius) - road.width / 2 : clearance)), obstacle.id).toBe(false);
+        } else {
+          expect(plan.roads.some(road => roadOverlap(road, obstacle.at, clearance)), obstacle.id).toBe(false);
+        }
         expect(points.every(at => Math.hypot(at.x - obstacle.at.x, at.y - obstacle.at.y) >= clearance), obstacle.id)
           .toBe(true);
       }
@@ -188,6 +195,22 @@ describe('world terrain richness', () => {
       }
     }
   }, 15_000);
+
+  it('places frogs in both wet biomes and gives each camp a bell off the road', () => {
+    const world = new WorldGen(29);
+    const frogBiomes = new Set<BiomeId>();
+    for (const coord of world.hexesNear(0, 0, 5)) {
+      const plan = world.plan(coord);
+      if (plan.home) expect(plan.errands?.some(spot => spot.id.endsWith(':campBell'))).toBe(true);
+      for (const spot of plan.errands ?? []) {
+        expect(plan.roads.some(road => roadOverlap(road, spot.at)), spot.id).toBe(false);
+        if (spot.kind !== 'frog') continue;
+        frogBiomes.add(plan.biome);
+        expect(world.surfaceAt(spot.at.x, spot.at.y).kind).toBe(plan.biome === 'lake' ? 'shallow' : 'mud');
+      }
+    }
+    expect(frogBiomes).toEqual(new Set(['lake', 'mud']));
+  });
 
   it('matches indexed obstacle queries against the full plan', () => {
     const world = new WorldGen(29);

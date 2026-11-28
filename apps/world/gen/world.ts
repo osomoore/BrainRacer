@@ -4,6 +4,7 @@ import type { HexCoord, HexPlan, Obstacle } from '../core/types';
 import type { RoadSurfaceSample } from '../logic/rules';
 import { biomeAt, homeHexFor, isCamp } from './biome';
 import { buildFeatures } from './features';
+import { buildErrandSites } from './errandSites';
 import { circleBounds } from './geometry';
 import { hexKey, hexToWorld, ring, worldToHex } from './hex';
 import { buildLakeIsland, buildWaterCrossings } from './lakes';
@@ -49,6 +50,7 @@ function buildPlan(seed: number, coord: HexCoord, owner?: string): HexPlan {
   layout.setTerrain(groundAt, plan.biome === 'lake' ? prepareSurface(publicNetwork) : groundAt);
   buildActivities(layout, activityRng, featureSite);
   buildPickups(layout, pickupRng);
+  buildErrandSites(layout, rng.fork(6));
   scatterObstacles(layout, obstacleRng);
   return plan;
 }

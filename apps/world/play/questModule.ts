@@ -1,17 +1,19 @@
 import type Phaser from 'phaser';
-import { WORLD_PLAY, WORLD_QUEST_HUD as HUD } from '../config';
-import { DEPTH, type HexLive, type WorldContext, type WorldModule, type WorldPlayer } from '../core/runtime';
-import type { HexPlan, ItemId, Quest, Vec } from '../core/types';
+import { BUTTONS, QUESTS, WORLD_PLAY, WORLD_QUEST_HUD as HUD } from '../config';
+import { DEPTH, type HexLive, type WorldContext, type WorldEvents, type WorldModule, type WorldPlayer } from '../core/runtime';
+import type { HexPlan, ItemId, ItemSpot, Quest, Vec } from '../core/types';
+import { isPathLog, touchesPath } from '../gen/errandSites';
 import { hexKey } from '../gen/hex';
 import { hexInset } from '../gen/layout';
 import { nearbyHexes } from '../host/liveWorld';
 import { ABadge } from '../hud/aBadge';
 import { QuestDialog, padConnected } from '../hud/questDialog';
 import { questItemTexture } from '../hud/questItemArt';
+import { reactToObject } from '../render/objectsReactions';
 import {
   acceptQuest, canOffer, completeQuest, localQuestDate, pickupQuestItem, recordOffer,
 } from '../quests/track';
-import { nearestInteraction, offerAt } from './questModuleRules';
+import { deliveryPoint, nearestBear, nearestInteraction, offerAt, pressedHonk } from './questModuleRules';
 
 type Delivery = { quest: Quest; at: Vec; image: Phaser.GameObjects.Image };
 type View = {
@@ -22,6 +24,7 @@ type View = {
   deliveries: Map<Quest, Delivery>;
   offer?: { quest: Quest; date: number };
   choice?: 'accept' | 'decline';
+  nextHonk: number;
 };
 
 export default class QuestModule implements WorldModule {
@@ -30,7 +33,12 @@ export default class QuestModule implements WorldModule {
   private dialog!: QuestDialog;
   private readonly views = new Map<WorldPlayer, View>();
   private readonly playing = new Set<WorldPlayer>();
-  private readonly fieldItems = new Map<string, { live: HexLive; items: Map<string, Phaser.GameObjects.Image> }>();
+  private readonly fieldItems = new Map<string, {
+    live: HexLive; items: Map<string, Phaser.GameObjects.Image>; canopy?: string;
+  }>();
+  private readonly apples = new Map<string, ItemSpot>();
+  private readonly regrowAt = new Map<string, number>();
+  private readonly logOnPath = new Map<string, boolean>();
   private readonly off: (() => void)[] = [];
   private centers = '';
 
@@ -41,7 +49,9 @@ export default class QuestModule implements WorldModule {
       if (view?.offer) view.choice ??= choice;
     });
     for (const player of ctx.players) {
-      this.views.set(player, { player, badge: new ABadge(ctx, player), items: [], pictured: [], deliveries: new Map() });
+      this.views.set(player, {
+        player, badge: new ABadge(ctx, player), items: [], pictured: [], deliveries: new Map(), nextHonk: 0,
+      });
     }
     this.off.push(
       ctx.bus.on('player:respawn', ({ player }) => {
@@ -50,6 +60,7 @@ export default class QuestModule implements WorldModule {
       }),
       ctx.bus.on('activity:start', ({ player }) => this.playing.add(player)),
       ctx.bus.on('activity:end', ({ player }) => this.playing.delete(player)),
+      ctx.bus.on('obstacle:effect', event => this.obstacleEffect(event)),
     );
   }
 
@@ -97,7 +108,7 @@ export default class QuestModule implements WorldModule {
     const center = world.hexAt(move.x, move.y);
     const live = world.live(center);
     const { plan } = live;
-    const plans = hexInset(plan.center, move) < HUD.pickupHintRadius * 2
+    const plans = hexInset(plan.center, move) < Math.max(HUD.pickupHintRadius * 2, QUESTS.bearRadius)
       ? world.hexesNear(move.x, move.y, 1).map(coord => world.live(coord)) : [live];
     this.showDeliveries(view, plans);
     if (player.busy || this.playing.has(player)) return;
@@ -110,7 +121,11 @@ export default class QuestModule implements WorldModule {
       if (old) this.finish(player, old);
     }
 
-    const hit = nearestInteraction(plans, move);
+    if (pressedHonk(player) && this.ctx.time >= view.nextHonk) {
+      view.nextHonk = this.ctx.time + BUTTONS.honk.cooldown;
+      this.honk(player, plans);
+    }
+    const hit = nearestInteraction(plans, move, this.apples);
     let delivery: Delivery | undefined;
     let best = hit ? Math.hypot(move.x - hit.at.x, move.y - hit.at.y) : Infinity;
     for (const candidate of view.deliveries.values()) {
@@ -124,7 +139,7 @@ export default class QuestModule implements WorldModule {
     if (!pressed.a) return;
     pressed.a = false;
     if (delivery) {
-      const picked = pickupQuestItem(save, { biome: plan.biome, giverId: delivery.quest.giverId },
+      const picked = !move.flying && pickupQuestItem(save, { biome: plan.biome, giverId: delivery.quest.giverId },
         player.carrying.length, player.traits, delivery.quest.id);
       if (picked) this.picked(player, picked);
       else this.react(player, delivery.at, delivery.image);
@@ -134,22 +149,71 @@ export default class QuestModule implements WorldModule {
     const completed = completeQuest(save, hit.contact);
     if (completed) {
       this.finish(player, completed);
-      this.react(player, hit.at);
+      this.reactToHit(player, hit);
       return;
     }
     if (hit.kind === 'giver') {
       this.talk(view, hit.live.plan);
       return;
     }
-    if (hit.spot) {
+    if ((hit.spot || hit.errand?.kind === 'hay') && !player.move.flying) {
       const picked = pickupQuestItem(save, hit.contact, player.carrying.length, player.traits);
       if (picked) {
-        hit.live.takenItems.add(hit.spot.id);
+        if (hit.spot?.item === 'apple') {
+          this.apples.delete(hit.spot.id);
+          this.regrowAt.set(hit.spot.id, this.ctx.time + QUESTS.appleRegrowSeconds);
+        } else if (hit.spot) hit.live.takenItems.add(hit.spot.id);
         this.picked(player, picked);
+        if (hit.errand) this.reactToHit(player, hit);
         return;
       }
     }
-    this.react(player, hit.at, hit.spot && this.fieldItems.get(hexKey(hit.live.plan.coord))?.items.get(hit.spot.id));
+    this.reactToHit(player, hit);
+  }
+
+  private honk(player: WorldPlayer, plans: readonly HexLive[]): void {
+    const hit = nearestBear(plans, player.move);
+    if (!hit) return;
+    const completed = completeQuest(player.save, { biome: hit.live.plan.biome, target: 'bear', action: 'honk' });
+    if (completed) this.finish(player, completed);
+    reactToObject(this.ctx.scene, hit.bear.id, hit.bear.at, completed ? 'wake' : 'snore');
+  }
+
+  private obstacleEffect({ player, hex, obstacle, effect }: WorldEvents['obstacle:effect']): void {
+    if (effect === 'push' && isPathLog(obstacle)) {
+      const { plan } = this.ctx.world.live(hex);
+      const original = plan.obstacles.find(prop => prop.id === obstacle.id);
+      const wasOnPath = this.logOnPath.get(obstacle.id) ?? (original && touchesPath(plan, original));
+      const onPath = touchesPath(plan, obstacle);
+      this.logOnPath.set(obstacle.id, onPath);
+      if (!wasOnPath || onPath || player.busy || this.playing.has(player)) return;
+      const completed = completeQuest(player.save, { biome: plan.biome, target: 'pathLog', action: 'push' });
+      if (completed) this.finish(player, completed);
+      return;
+    }
+    if (effect !== 'pass' || obstacle.kind !== 'appleCanopy' || player.busy || this.playing.has(player)
+      || this.apples.has(obstacle.id) || this.ctx.time < (this.regrowAt.get(obstacle.id) ?? 0)) return;
+    const dx = player.move.x - obstacle.at.x, dy = player.move.y - obstacle.at.y;
+    const scale = QUESTS.appleDropDistance / (Math.hypot(dx, dy) || 1);
+    const at = { x: obstacle.at.x + dx * scale, y: obstacle.at.y + dy * scale };
+    this.regrowAt.delete(obstacle.id);
+    this.apples.set(obstacle.id, { id: obstacle.id, item: 'apple', at });
+    const tree = this.ctx.world.live(hex).plan.obstacles.find(prop => prop.kind === 'appleTree');
+    if (tree) reactToObject(this.ctx.scene, tree.id, tree.at, 'shake');
+  }
+
+  private reactToHit(player: WorldPlayer, hit: NonNullable<ReturnType<typeof nearestInteraction>>): void {
+    const { scene } = this.ctx;
+    if (hit.errand) {
+      const { id, kind, at } = hit.errand;
+      const reaction = { bell: 'ring', frog: 'croak', bear: 'snore', doggy: 'hop',
+        barn: 'shake', hay: 'shake', cowPen: 'shake' } as const;
+      reactToObject(scene, id, at, reaction[kind]);
+    } else if (hit.obstacle?.kind === 'log' || hit.obstacle?.kind === 'appleTree') {
+      reactToObject(scene, hit.obstacle.id, hit.at, 'shake');
+    } else {
+      this.react(player, hit.at, hit.spot && this.fieldItems.get(hexKey(hit.live.plan.coord))?.items.get(hit.spot.id));
+    }
   }
 
   private talk(view: View, plan: HexPlan): void {
@@ -221,10 +285,8 @@ export default class QuestModule implements WorldModule {
     for (const { quest } of pending) {
       if (view.deliveries.has(quest)) continue;
       const plan = available(quest);
-      const giver = plan?.giver;
-      if (!giver) continue;
-      const angle = Math.atan2(plan.center.y - giver.at.y, plan.center.x - giver.at.x);
-      const at = { x: giver.at.x + Math.cos(angle) * HUD.pickupRadius, y: giver.at.y + Math.sin(angle) * HUD.pickupRadius };
+      if (!plan?.giver) continue;
+      const at = deliveryPoint(this.ctx.world, plan, view.player.traits);
       const image = scene.add.image(at.x, at.y, questItemTexture(scene, quest.item))
         .setDepth(DEPTH.objects + 1).setDisplaySize(57, 57);
       this.ctx.showOnlyTo(image, view.player);
@@ -250,10 +312,24 @@ export default class QuestModule implements WorldModule {
           spot.id, scene.add.image(spot.at.x, spot.at.y, questItemTexture(scene, spot.item))
             .setDisplaySize(58, 58).setDepth(DEPTH.objects + 1),
         ]));
-        this.fieldItems.set(key, { live, items });
+        const canopy = live.plan.obstacles.find(prop => prop.kind === 'appleCanopy')?.id;
+        this.fieldItems.set(key, { live, items, canopy });
       }
     }
-    for (const { live, items } of this.fieldItems.values()) {
+    for (const { live, items, canopy } of this.fieldItems.values()) {
+      if (canopy) {
+        const apple = this.apples.get(canopy);
+        const image = items.get(canopy);
+        if (apple && !image) {
+          const { x, y } = apple.at;
+          const drop = scene.add.image(x, y - 32, questItemTexture(scene, 'apple')).setDisplaySize(44, 44).setDepth(DEPTH.objects + 1);
+          scene.tweens.add({ targets: drop, y, duration: 235, ease: 'Bounce.Out' });
+          items.set(canopy, drop);
+        } else if (!apple && image) {
+          image.destroy();
+          items.delete(canopy);
+        }
+      }
       for (const [id, image] of items) image.setVisible(!live.takenItems.has(id));
     }
   }

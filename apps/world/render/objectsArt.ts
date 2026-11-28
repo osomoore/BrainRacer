@@ -156,10 +156,128 @@ function narrow(c: CanvasRenderingContext2D): void {
   }
 }
 
+function barn(c: CanvasRenderingContext2D): void {
+  shadow(c);
+  rect(c, '#b7443c', 15, 46, 98, 68);
+  poly(c, '#6e2f38', [3, 54], [21, 24], [44, 10], [84, 10], [107, 24], [125, 54]);
+  poly(c, '#ea7161', [13, 48], [29, 26], [49, 16], [79, 16], [99, 26], [115, 48]);
+  rect(c, '#fff1c4', 38, 64, 52, 50);
+  rect(c, '#60363c', 44, 70, 40, 44);
+  poly(c, '#f7c28c', [44, 70], [50, 70], [84, 106], [84, 114], [78, 114], [44, 78]);
+  poly(c, '#f7c28c', [84, 70], [78, 70], [44, 106], [44, 114], [50, 114], [84, 78]);
+  ellipse(c, '#fff1c4', 64, 37, 9, 9);
+}
+
+function cowPen(c: CanvasRenderingContext2D): void {
+  ellipse(c, '#9baf62', 64, 66, 61, 55);
+  for (const y of [17, 27, 94, 106]) rect(c, '#a36746', 8, y, 112, 7);
+  for (const x of [7, 112]) rect(c, '#bd8957', x, 21, 9, 87);
+  for (const x of [7, 41, 77, 112]) {
+    for (const y of [13, 89]) rect(c, '#efd49b', x, y, 9, 26);
+  }
+  for (const [x, y] of [[47, 50], [82, 73]]) {
+    ellipse(c, '#fff3ce', x, y, 20, 13);
+    ellipse(c, '#523d42', x - 6, y - 4, 8, 7);
+    ellipse(c, '#f4a8a4', x + 17, y + 1, 9, 8);
+    ellipse(c, '#523d42', x + 14, y - 6, 4, 4);
+  }
+}
+
+function hay(c: CanvasRenderingContext2D): void {
+  shadow(c);
+  ellipse(c, '#a95c33', 64, 64, 53, 40);
+  ellipse(c, '#e4a745', 61, 56, 50, 33);
+  for (const y of [38, 49, 60, 71]) rect(c, '#ffe28c', 25, y, 70, 4);
+  for (const x of [36, 84]) rect(c, '#84503c', x, 29, 6, 66);
+}
+
+function bell(c: CanvasRenderingContext2D): void {
+  shadow(c);
+  rect(c, '#6e4c3a', 19, 17, 16, 96);
+  rect(c, '#af7952', 20, 17, 80, 14);
+  rect(c, '#7a5342', 74, 30, 7, 15);
+  ellipse(c, '#bb7732', 78, 86, 10, 10);
+  poly(c, '#bb7732', [50, 78], [59, 66], [61, 51], [69, 40], [86, 40], [94, 51], [97, 66], [106, 78]);
+  poly(c, '#ffd068', [52, 74], [62, 62], [64, 51], [72, 42], [84, 42], [92, 52], [93, 62], [102, 74]);
+  ellipse(c, '#ffe995', 78, 75, 27, 5);
+}
+
+function bearFace(c: CanvasRenderingContext2D, awake: boolean): void {
+  shadow(c);
+  ellipse(c, '#9a6042', 49, 71, 42, 32);
+  for (const x of [53, 101]) {
+    ellipse(c, '#995d44', x, 33, 13, 14);
+    ellipse(c, '#df9a72', x, 33, 7, 7);
+  }
+  ellipse(c, '#b9794d', 77, 60, 34, 31);
+  ellipse(c, '#f4c392', 82, 69, 19, 13);
+  for (const x of [67, 90]) {
+    if (awake) ellipse(c, '#362634', x, 53, 4, 5);
+    else rect(c, '#50303b', x - 5, 53, 10, 3);
+  }
+  ellipse(c, '#513440', 83, 65, 7, 4);
+  if (awake) ellipse(c, '#513440', 83, 75, 5, 6);
+  ellipse(c, '#a86a46', 106, awake ? 33 : 87, 15, 18);
+}
+
+function frog(c: CanvasRenderingContext2D): void {
+  ellipse(c, '#72b8ba', 64, 71, 61, 49);
+  poly(c, '#41856c', [8, 66], [20, 39], [52, 27], [97, 34], [121, 58], [105, 85], [69, 104],
+    [27, 96], [64, 70]);
+  ellipse(c, '#9ed672', 65, 62, 35, 22);
+  for (const x of [48, 83]) {
+    ellipse(c, '#87bf53', x, 43, 13, 15);
+    ellipse(c, '#fff1be', x, 41, 7, 7);
+    ellipse(c, '#273e40', x, 42, 3, 5);
+  }
+  ellipse(c, '#41734a', 65, 65, 12, 4);
+}
+
+function apple(c: CanvasRenderingContext2D): void {
+  ellipse(c, '#18363144', 65, 92, 45, 16);
+  ellipse(c, '#aa3540', 64, 65, 41, 37);
+  ellipse(c, '#ef5c50', 55, 61, 30, 31);
+  ellipse(c, '#ffd1a5', 41, 53, 10, 7);
+  rect(c, '#67432f', 62, 16, 7, 25);
+  poly(c, '#67974f', [65, 29], [79, 11], [102, 12], [87, 29]);
+}
+
+function appleTree(c: CanvasRenderingContext2D): void {
+  tree(c);
+  for (const [x, y] of [[39, 55], [67, 33], [88, 66], [62, 87], [94, 46]]) {
+    ellipse(c, '#d54947', x, y, 9, 8);
+    ellipse(c, '#ffb283', x - 3, y - 2, 3, 2);
+  }
+}
+
+function doggy(c: CanvasRenderingContext2D): void {
+  shadow(c);
+  ellipse(c, '#b77b55', 50, 77, 36, 25);
+  ellipse(c, '#f8c18e', 74, 58, 37, 33);
+  for (const x of [42, 103]) ellipse(c, '#8f5b47', x, 63, 12, 22);
+  ellipse(c, '#fff0d5', 78, 68, 20, 15);
+  for (const x of [60, 90]) ellipse(c, '#462e3b', x, 52, 4, 6);
+  ellipse(c, '#462e3b', 77, 65, 7, 5);
+}
+
+function ripple(c: CanvasRenderingContext2D): void {
+  c.strokeStyle = '#fff6c6';
+  c.lineWidth = 4;
+  for (const radius of [33, 55]) {
+    c.beginPath();
+    c.ellipse(64, 64, radius, radius * 0.72, 0, 0, 2 * Math.PI);
+    c.stroke();
+  }
+}
+
 const obstacleArt = new Map<string, Paint>(Object.entries({
-  boulder, rock: boulder, bush, tree, log, iceBlock, cactus, vent,
+  boulder, rock: boulder, bush, tree, log, iceBlock, cactus, vent, appleTree,
 }));
-const propArt = { item, giver, home, door, treasure, jump, bridge, tunnel: roof, cave: roof, narrow };
+const propArt = {
+  item, giver, home, door, treasure, jump, bridge, tunnel: roof, cave: roof, narrow,
+  barn, cowPen, hay, bell, bear: (c: CanvasRenderingContext2D) => bearFace(c, false),
+  bearAwake: (c: CanvasRenderingContext2D) => bearFace(c, true), frog, apple, doggy, ripple,
+};
 
 export function objectTexture(scene: Phaser.Scene, kind: string, obstacle = false): string {
   const key = `world:w5a:${obstacle ? 'obstacle' : 'prop'}:${kind}`;
